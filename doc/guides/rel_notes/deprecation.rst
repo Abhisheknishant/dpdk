@@ -31,6 +31,10 @@ Deprecation Notices
 
     + ``rte_eal_devargs_type_count``
 
+* eal: the ``rte_mem_config`` struct will change to include a new lock that
+  will allow the timer subsystem to safely release its allocations at cleanup
+  time. This will result in an ABI break.
+
 * vfio: removal of ``rte_vfio_dma_map`` and ``rte_vfio_dma_unmap`` APIs which
   have been replaced with ``rte_dev_dma_map`` and ``rte_dev_dma_unmap``
   functions.  The due date for the removal targets DPDK 20.02.
