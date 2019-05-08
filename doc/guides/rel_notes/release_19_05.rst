@@ -60,6 +60,10 @@ New Features
   * OcteonTX2 (Marvell)
   * ThunderX2 (Marvell)
 
+* **Added new platform specific guide:**
+
+  * BlueField (Mellanox)
+
 * **Introduced Windows Support.**
 
   Added Windows support to build Hello World sample application.
