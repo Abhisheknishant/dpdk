@@ -14044,10 +14044,6 @@ cmd_set_macsec_offload_on_parsed(
 
 	if (port_id_is_invalid(port_id, ENABLED_WARN))
 		return;
-	if (!port_is_stopped(port_id)) {
-		printf("Please stop port %d first\n", port_id);
-		return;
-	}
 
 	rte_eth_dev_info_get(port_id, &dev_info);
 	if (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_MACSEC_INSERT) {
@@ -14062,7 +14058,6 @@ cmd_set_macsec_offload_on_parsed(
 	case 0:
 		ports[port_id].dev_conf.txmode.offloads |=
 						DEV_TX_OFFLOAD_MACSEC_INSERT;
-		cmd_reconfig_device_queue(port_id, 1, 1);
 		break;
 	case -ENODEV:
 		printf("invalid port_id %d\n", port_id);
