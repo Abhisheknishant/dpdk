@@ -2,6 +2,7 @@
  * Copyright(c) 1982, 1986, 1990, 1993
  *      The Regents of the University of California.
  * Copyright(c) 2010-2014 Intel Corporation.
+ * Copyright(c) 2019 SmartShare Systems.
  * All rights reserved.
  */
 
@@ -34,6 +35,18 @@ struct tcp_hdr {
 	uint16_t cksum;     /**< TCP checksum. */
 	uint16_t tcp_urp;   /**< TCP urgent pointer, if any. */
 } __attribute__((__packed__));
+
+/**
+ * TCP Flags
+ */
+#define TCP_CWR_FLAG 0x80 /**< Congestion Window Reduced */
+#define TCP_ECE_FLAG 0x40 /**< ECN-Echo */
+#define TCP_URG_FLAG 0x20 /**< Urgent Pointer field significant */
+#define TCP_ACK_FLAG 0x10 /**< Acknowledgment field significant */
+#define TCP_PSH_FLAG 0x08 /**< Push Function */
+#define TCP_RST_FLAG 0x04 /**< Reset the connection */
+#define TCP_SYN_FLAG 0x02 /**< Synchronize sequence numbers */
+#define TCP_FIN_FLAG 0x01 /**< No more data from sender */
 
 #ifdef __cplusplus
 }
