@@ -1456,7 +1456,7 @@ cmdline_parse_inst_t cmd_operate_attach_port = {
 struct cmd_operate_detach_port_result {
 	cmdline_fixed_string_t port;
 	cmdline_fixed_string_t keyword;
-	portid_t port_id;
+	cmdline_fixed_string_t identifier;
 };
 
 static void cmd_operate_detach_port_parsed(void *parsed_result,
@@ -1466,7 +1466,7 @@ static void cmd_operate_detach_port_parsed(void *parsed_result,
 	struct cmd_operate_detach_port_result *res = parsed_result;
 
 	if (!strcmp(res->keyword, "detach"))
-		detach_port_device(res->port_id);
+		detach_port(res->identifier);
 	else
 		printf("Unknown parameter\n");
 }
@@ -1477,18 +1477,19 @@ cmdline_parse_token_string_t cmd_operate_detach_port_port =
 cmdline_parse_token_string_t cmd_operate_detach_port_keyword =
 	TOKEN_STRING_INITIALIZER(struct cmd_operate_detach_port_result,
 			keyword, "detach");
-cmdline_parse_token_num_t cmd_operate_detach_port_port_id =
-	TOKEN_NUM_INITIALIZER(struct cmd_operate_detach_port_result,
-			port_id, UINT16);
+cmdline_parse_token_string_t cmd_operate_detach_port_identifier =
+	TOKEN_STRING_INITIALIZER(struct cmd_operate_detach_port_result,
+			identifier, NULL);
 
 cmdline_parse_inst_t cmd_operate_detach_port = {
 	.f = cmd_operate_detach_port_parsed,
 	.data = NULL,
-	.help_str = "port detach <port_id>",
+	.help_str = "port detach <identifier>:"
+		"(identifier: pci address or virtual dev name)",
 	.tokens = {
 		(void *)&cmd_operate_detach_port_port,
 		(void *)&cmd_operate_detach_port_keyword,
-		(void *)&cmd_operate_detach_port_port_id,
+		(void *)&cmd_operate_detach_port_identifier,
 		NULL,
 	},
 };
