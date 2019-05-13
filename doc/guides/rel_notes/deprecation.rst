@@ -82,3 +82,8 @@ Deprecation Notices
 * cryptodev: the ``uint8_t *data`` member of ``key`` structure in the xforms
   structure (``rte_crypto_cipher_xform``, ``rte_crypto_auth_xform``, and
   ``rte_crypto_aead_xform``) will be changed to ``const uint8_t *data``.
+
+* power: ``rte_power_set_env`` function will no longer return 0 on attempt
+  to set new power environment if power environment was already initialized.
+  In this case the function will return -1 unless the environment is unset first
+  (using ``rte_power_unset_env``). Other function usage scenarios will not change.
