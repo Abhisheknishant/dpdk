@@ -3,6 +3,7 @@
  */
 
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <rte_branch_prediction.h>
 #include <rte_cycles.h>
@@ -135,5 +136,14 @@ rte_rand(void)
 
 RTE_INIT(rte_rand_init)
 {
-	rte_srand(rte_get_timer_cycles());
+	uint64_t seed;
+	int rc;
+
+	rc = getentropy(&seed, sizeof(seed));
+
+	/* fall back to rdtsc in case of failure */
+	if (rc < 0)
+		seed = rte_get_timer_cycles();
+
+	rte_srand(seed);
 }
