@@ -25,6 +25,11 @@ default_cflags = machine_args
 # specify -D_GNU_SOURCE unconditionally
 default_cflags += '-D_GNU_SOURCE'
 
+# specify -D__BSD_VISIBLE for FreeBSD
+if is_freebsd
+	default_cflags += '-D__BSD_VISIBLE'
+endif
+
 foreach app:apps
 	build = true
 	name = app

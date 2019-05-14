@@ -44,6 +44,11 @@ enabled_libs = [] # used to print summary at the end
 # -D_GNU_SOURCE unconditionally
 default_cflags += '-D_GNU_SOURCE'
 
+# specify -D__BSD_VISIBLE for FreeBSD
+if is_freebsd
+	default_cflags += '-D__BSD_VISIBLE'
+endif
+
 foreach l:libraries
 	build = true
 	name = l
