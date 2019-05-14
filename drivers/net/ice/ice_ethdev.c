@@ -1134,6 +1134,18 @@ ice_setup_vsi(struct ice_pf *pf, enum ice_vsi_type type)
 	uint16_t max_txqs[ICE_MAX_TRAFFIC_CLASS] = { 0 };
 	uint8_t tc_bitmap = 0x1;
 
+	/* Be compatible with ETH_RSS_RETA_SIZE_x definition */
+	pf->hash_lut_size = hw->func_caps.common_cap.rss_table_size >
+			ETH_RSS_RETA_SIZE_512 ? ETH_RSS_RETA_SIZE_512 :
+			hw->func_caps.common_cap.rss_table_size;
+	if (pf->hash_lut_size != ETH_RSS_RETA_SIZE_128 &&
+	    pf->hash_lut_size != ETH_RSS_RETA_SIZE_512) {
+		PMD_INIT_LOG(ERR,
+			     "unsupported RSS hash LUT size %u",
+			     pf->hash_lut_size);
+		return NULL;
+	}
+
 	/* hw->num_lports = 1 in NIC mode */
 	vsi = rte_zmalloc(NULL, sizeof(struct ice_vsi), 0);
 	if (!vsi)
@@ -1627,7 +1639,7 @@ static int ice_init_rss(struct ice_pf *pf)
 	rss_conf = &dev->data->dev_conf.rx_adv_conf.rss_conf;
 	nb_q = dev->data->nb_rx_queues;
 	vsi->rss_key_size = ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE;
-	vsi->rss_lut_size = hw->func_caps.common_cap.rss_table_size;
+	vsi->rss_lut_size = pf->hash_lut_size;
 
 	if (is_safe_mode) {
 		PMD_DRV_LOG(WARNING, "RSS is not supported in safe mode\n");
@@ -2033,7 +2045,7 @@ ice_dev_info_get(struct rte_eth_dev *dev, struct rte_eth_dev_info *dev_info)
 	dev_info->rx_queue_offload_capa = 0;
 	dev_info->tx_queue_offload_capa = 0;
 
-	dev_info->reta_size = hw->func_caps.common_cap.rss_table_size;
+	dev_info->reta_size = pf->hash_lut_size;
 	dev_info->hash_key_size = (VSIQF_HKEY_MAX_INDEX + 1) * sizeof(uint32_t);
 
 	dev_info->default_rxconf = (struct rte_eth_rxconf) {
@@ -2605,8 +2617,7 @@ ice_rss_reta_update(struct rte_eth_dev *dev,
 		    uint16_t reta_size)
 {
 	struct ice_pf *pf = ICE_DEV_PRIVATE_TO_PF(dev->data->dev_private);
-	struct ice_hw *hw = ICE_DEV_PRIVATE_TO_HW(dev->data->dev_private);
-	uint16_t i, lut_size = hw->func_caps.common_cap.rss_table_size;
+	uint16_t i, lut_size = pf->hash_lut_size;
 	uint16_t idx, shift;
 	uint8_t *lut;
 	int ret;
@@ -2650,8 +2661,7 @@ ice_rss_reta_query(struct rte_eth_dev *dev,
 		   uint16_t reta_size)
 {
 	struct ice_pf *pf = ICE_DEV_PRIVATE_TO_PF(dev->data->dev_private);
-	struct ice_hw *hw = ICE_DEV_PRIVATE_TO_HW(dev->data->dev_private);
-	uint16_t i, lut_size = hw->func_caps.common_cap.rss_table_size;
+	uint16_t i, lut_size = pf->hash_lut_size;
 	uint16_t idx, shift;
 	uint8_t *lut;
 	int ret;
