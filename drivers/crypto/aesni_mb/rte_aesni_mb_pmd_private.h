@@ -65,7 +65,13 @@ static const unsigned auth_truncated_digest_byte_lengths[] = {
 		[AES_XCBC]	= 12,
 		[AES_CMAC]	= 12,
 		[AES_CCM]	= 8,
-		[NULL_HASH]	= 0
+		[NULL_HASH]	= 0,
+		[AES_GMAC]	= 12,
+		[PLAIN_SHA1]	= 20,
+		[PLAIN_SHA_224]	= 28,
+		[PLAIN_SHA_256]	= 32,
+		[PLAIN_SHA_384]	= 48,
+		[PLAIN_SHA_512]	= 64
 };
 
 /**
