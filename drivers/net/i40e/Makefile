@@ -106,6 +106,7 @@ endif
 
 ifeq ($(CC_AVX2_SUPPORT), 1)
 	SRCS-$(CONFIG_RTE_LIBRTE_I40E_INC_VECTOR) += i40e_rxtx_vec_avx2.c
+	CFLAGS_i40e_rxtx.o += -DCC_AVX2_SUPPORT
 endif
 
 # install this header file
