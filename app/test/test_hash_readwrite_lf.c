@@ -738,10 +738,9 @@ test_hash_add_no_ks_lookup_hit(struct rwc_perf *rwc_perf_results, int rwc_lf,
 				rte_eal_remote_launch(test_rwc_reader,
 						(void *)(uintptr_t)read_type,
 							enabled_core_ids[i]);
-			rte_eal_mp_wait_lcore();
 
 			for (i = 1; i <= rwc_core_cnt[n]; i++)
-				if (lcore_config[i].ret < 0)
+				if (rte_eal_wait_lcore(i) < 0)
 					goto err;
 
 			unsigned long long cycles_per_lookup =
@@ -758,6 +757,7 @@ finish:
 	return 0;
 
 err:
+	rte_eal_mp_wait_lcore();
 	rte_hash_free(tbl_rwc_test_param.h);
 	return -1;
 }
@@ -808,12 +808,11 @@ test_hash_add_no_ks_lookup_miss(struct rwc_perf *rwc_perf_results, int rwc_lf,
 							enabled_core_ids[i]);
 			ret = write_keys(write_type);
 			writer_done = 1;
-			rte_eal_mp_wait_lcore();
 
 			if (ret < 0)
 				goto err;
 			for (i = 1; i <= rwc_core_cnt[n]; i++)
-				if (lcore_config[i].ret < 0)
+				if (rte_eal_wait_lcore(i) < 0)
 					goto err;
 
 			unsigned long long cycles_per_lookup =
@@ -830,6 +829,7 @@ finish:
 	return 0;
 
 err:
+	rte_eal_mp_wait_lcore();
 	rte_hash_free(tbl_rwc_test_param.h);
 	return -1;
 }
@@ -884,12 +884,11 @@ test_hash_add_ks_lookup_hit_non_sp(struct rwc_perf *rwc_perf_results,
 			write_type = WRITE_KEY_SHIFT;
 			ret = write_keys(write_type);
 			writer_done = 1;
-			rte_eal_mp_wait_lcore();
 
 			if (ret < 0)
 				goto err;
 			for (i = 1; i <= rwc_core_cnt[n]; i++)
-				if (lcore_config[i].ret < 0)
+				if (rte_eal_wait_lcore(i) < 0)
 					goto err;
 
 			unsigned long long cycles_per_lookup =
@@ -906,6 +905,7 @@ finish:
 	return 0;
 
 err:
+	rte_eal_mp_wait_lcore();
 	rte_hash_free(tbl_rwc_test_param.h);
 	return -1;
 }
@@ -960,12 +960,11 @@ test_hash_add_ks_lookup_hit_sp(struct rwc_perf *rwc_perf_results, int rwc_lf,
 			write_type = WRITE_KEY_SHIFT;
 			ret = write_keys(write_type);
 			writer_done = 1;
-			rte_eal_mp_wait_lcore();
 
 			if (ret < 0)
 				goto err;
 			for (i = 1; i <= rwc_core_cnt[n]; i++)
-				if (lcore_config[i].ret < 0)
+				if (rte_eal_wait_lcore(i) < 0)
 					goto err;
 
 			unsigned long long cycles_per_lookup =
@@ -982,6 +981,7 @@ finish:
 	return 0;
 
 err:
+	rte_eal_mp_wait_lcore();
 	rte_hash_free(tbl_rwc_test_param.h);
 	return -1;
 }
@@ -1035,12 +1035,11 @@ test_hash_add_ks_lookup_miss(struct rwc_perf *rwc_perf_results, int rwc_lf, int
 			write_type = WRITE_KEY_SHIFT;
 			ret = write_keys(write_type);
 			writer_done = 1;
-			rte_eal_mp_wait_lcore();
 
 			if (ret < 0)
 				goto err;
 			for (i = 1; i <= rwc_core_cnt[n]; i++)
-				if (lcore_config[i].ret < 0)
+				if (rte_eal_wait_lcore(i) < 0)
 					goto err;
 
 			unsigned long long cycles_per_lookup =
@@ -1056,6 +1055,7 @@ finish:
 	return 0;
 
 err:
+	rte_eal_mp_wait_lcore();
 	rte_hash_free(tbl_rwc_test_param.h);
 	return -1;
 }
@@ -1138,10 +1138,8 @@ test_hash_multi_add_lookup(struct rwc_perf *rwc_perf_results, int rwc_lf,
 						(multi_writer_done[i] == 0);
 				writer_done = 1;
 
-				rte_eal_mp_wait_lcore();
-
 				for (i = 1; i <= rwc_core_cnt[n]; i++)
-					if (lcore_config[i].ret < 0)
+					if (rte_eal_wait_lcore(i) < 0)
 						goto err;
 
 				unsigned long long cycles_per_lookup =
@@ -1160,6 +1158,7 @@ finish:
 	return 0;
 
 err:
+	rte_eal_mp_wait_lcore();
 	rte_hash_free(tbl_rwc_test_param.h);
 	return -1;
 }
@@ -1222,10 +1221,9 @@ test_hash_add_ks_lookup_hit_extbkt(struct rwc_perf *rwc_perf_results,
 				}
 			}
 			writer_done = 1;
-			rte_eal_mp_wait_lcore();
 
 			for (i = 1; i <= rwc_core_cnt[n]; i++)
-				if (lcore_config[i].ret < 0)
+				if (rte_eal_wait_lcore(i) < 0)
 					goto err;
 
 			unsigned long long cycles_per_lookup =
@@ -1242,6 +1240,7 @@ finish:
 	return 0;
 
 err:
+	rte_eal_mp_wait_lcore();
 	rte_hash_free(tbl_rwc_test_param.h);
 	return -1;
 }
