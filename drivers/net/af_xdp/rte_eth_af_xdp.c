@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <netinet/in.h>
+#include <poll.h>
 #include <net/if.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
@@ -72,6 +73,7 @@ struct xsk_umem_info {
 	struct rte_ring *buf_ring;
 	const struct rte_memzone *mz;
 	int pmd_zc;
+	int busy_poll;
 };
 
 struct rx_stats {
@@ -114,6 +116,7 @@ struct pmd_internals {
 	int queue_cnt;
 
 	int pmd_zc;
+	int busy_poll_size;
 	struct ether_addr eth_addr;
 	struct xsk_umem_info *umem;
 	struct rte_mempool *mb_pool_share;
@@ -126,12 +129,14 @@ struct pmd_internals {
 #define ETH_AF_XDP_START_QUEUE_ARG		"start_queue"
 #define ETH_AF_XDP_QUEUE_COUNT_ARG		"queue_count"
 #define ETH_AF_XDP_PMD_ZC_ARG			"pmd_zero_copy"
+#define ETH_AF_XDP_BUSY_POLL_SIZE_ARG		"busy_poll_size"
 
 static const char * const valid_arguments[] = {
 	ETH_AF_XDP_IFACE_ARG,
 	ETH_AF_XDP_START_QUEUE_ARG,
 	ETH_AF_XDP_QUEUE_COUNT_ARG,
 	ETH_AF_XDP_PMD_ZC_ARG,
+	ETH_AF_XDP_BUSY_POLL_SIZE_ARG,
 	NULL
 };
 
@@ -191,6 +196,7 @@ eth_af_xdp_rx(void *queue, struct rte_mbuf **bufs, uint16_t nb_pkts)
 	struct xsk_ring_cons *rx = &rxq->rx;
 	struct xsk_umem_info *umem = rxq->umem;
 	struct xsk_ring_prod *fq = &umem->fq;
+	struct pollfd pfds[1];
 	uint32_t idx_rx = 0;
 	uint32_t free_thresh = fq->size >> 1;
 	int pmd_zc = umem->pmd_zc;
@@ -198,6 +204,15 @@ eth_af_xdp_rx(void *queue, struct rte_mbuf **bufs, uint16_t nb_pkts)
 	unsigned long dropped = 0;
 	unsigned long rx_bytes = 0;
 	int rcvd, i;
+
+	if (umem->busy_poll) {
+		memset(pfds, 0, sizeof(pfds));
+		pfds[0].fd = xsk_socket__fd(rxq->xsk);
+		pfds[0].events = POLLIN;
+
+		if (poll(pfds, 1, 0) <= 0)
+			return 0;
+	}
 
 	nb_pkts = RTE_MIN(nb_pkts, ETH_AF_XDP_RX_BATCH_SIZE);
 
@@ -305,11 +320,22 @@ eth_af_xdp_tx(void *queue, struct rte_mbuf **bufs, uint16_t nb_pkts)
 	struct pkt_tx_queue *txq = queue;
 	struct xsk_umem_info *umem = txq->pair->umem;
 	struct rte_mbuf *mbuf;
+	struct pollfd pfds[1];
 	int pmd_zc = umem->pmd_zc;
 	void *addrs[ETH_AF_XDP_TX_BATCH_SIZE];
 	unsigned long tx_bytes = 0;
 	int i;
 	uint32_t idx_tx;
+
+	if (umem->busy_poll) {
+		memset(pfds, 0, sizeof(pfds));
+		pfds[0].fd = xsk_socket__fd(txq->pair->xsk);
+		pfds[0].events = POLLOUT;
+		if (poll(pfds, 1, 0) <= 0)
+			return 0;
+		if (!(pfds[0].revents & POLLOUT))
+			return 0;
+	}
 
 	nb_pkts = RTE_MIN(nb_pkts, ETH_AF_XDP_TX_BATCH_SIZE);
 
@@ -615,6 +641,7 @@ xsk_configure(struct pmd_internals *internals, struct pkt_rx_queue *rxq,
 	cfg.rx_size = ring_size;
 	cfg.tx_size = ring_size;
 	cfg.libbpf_flags = 0;
+	cfg.busy_poll = internals->busy_poll_size;
 	cfg.xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 	cfg.bind_flags = 0;
 	ret = xsk_socket__create(&rxq->xsk, internals->if_name,
@@ -680,9 +707,13 @@ eth_rx_queue_setup(struct rte_eth_dev *dev,
 
 	internals->umem = rxq->umem;
 	internals->umem->pmd_zc = internals->pmd_zc;
+	internals->umem->busy_poll = internals->busy_poll_size ? 1 : 0;
 
 	if (internals->umem->pmd_zc)
 		AF_XDP_LOG(INFO, "Zero copy between umem and mbuf enabled.\n");
+
+	if (internals->umem->busy_poll)
+		AF_XDP_LOG(INFO, "Busy poll enabled.\n");
 
 	dev->data->rx_queues[rx_queue_id] = rxq;
 	return 0;
@@ -818,7 +849,7 @@ parse_name_arg(const char *key __rte_unused,
 
 static int
 parse_parameters(struct rte_kvargs *kvlist, char *if_name, int *start_queue,
-			int *queue_cnt, int *pmd_zc)
+			int *queue_cnt, int *pmd_zc, int *busy_poll_size)
 {
 	int ret;
 
@@ -841,6 +872,11 @@ parse_parameters(struct rte_kvargs *kvlist, char *if_name, int *start_queue,
 
 	ret = rte_kvargs_process(kvlist, ETH_AF_XDP_PMD_ZC_ARG,
 				 &parse_integer_arg, pmd_zc);
+	if (ret < 0)
+		goto free_kvlist;
+
+	ret = rte_kvargs_process(kvlist, ETH_AF_XDP_BUSY_POLL_SIZE_ARG,
+				 &parse_integer_arg, busy_poll_size);
 	if (ret < 0)
 		goto free_kvlist;
 
@@ -881,7 +917,8 @@ error:
 
 static struct rte_eth_dev *
 init_internals(struct rte_vdev_device *dev, const char *if_name,
-			int start_queue_idx, int queue_cnt, int pmd_zc)
+			int start_queue_idx, int queue_cnt, int pmd_zc,
+				int busy_poll_size)
 {
 	const char *name = rte_vdev_device_name(dev);
 	const unsigned int numa_node = dev->device.numa_node;
@@ -897,6 +934,7 @@ init_internals(struct rte_vdev_device *dev, const char *if_name,
 	internals->start_queue_idx = start_queue_idx;
 	internals->queue_cnt = queue_cnt;
 	internals->pmd_zc = pmd_zc;
+	internals->busy_poll_size = busy_poll_size;
 	strlcpy(internals->if_name, if_name, IFNAMSIZ);
 
 	for (i = 0; i < queue_cnt; i++) {
@@ -941,6 +979,7 @@ rte_pmd_af_xdp_probe(struct rte_vdev_device *dev)
 	struct rte_eth_dev *eth_dev = NULL;
 	const char *name;
 	int pmd_zc = 0;
+	int busy_poll_size = 0;
 
 	AF_XDP_LOG(INFO, "Initializing pmd_af_xdp for %s\n",
 		rte_vdev_device_name(dev));
@@ -968,7 +1007,7 @@ rte_pmd_af_xdp_probe(struct rte_vdev_device *dev)
 		dev->device.numa_node = rte_socket_id();
 
 	if (parse_parameters(kvlist, if_name, &xsk_start_queue_idx,
-			     &xsk_queue_cnt, &pmd_zc) < 0) {
+			     &xsk_queue_cnt, &pmd_zc, &busy_poll_size) < 0) {
 		AF_XDP_LOG(ERR, "Invalid kvargs value\n");
 		return -EINVAL;
 	}
@@ -979,7 +1018,7 @@ rte_pmd_af_xdp_probe(struct rte_vdev_device *dev)
 	}
 
 	eth_dev = init_internals(dev, if_name, xsk_start_queue_idx,
-					xsk_queue_cnt, pmd_zc);
+				 xsk_queue_cnt, pmd_zc, busy_poll_size);
 	if (eth_dev == NULL) {
 		AF_XDP_LOG(ERR, "Failed to init internals\n");
 		return -1;
@@ -1023,6 +1062,7 @@ RTE_PMD_REGISTER_PARAM_STRING(net_af_xdp,
 			      "iface=<string> "
 			      "start_queue=<int> "
 			      "queue_count=<int> "
+			      "busy_poll_size=<int> "
 			      "pmd_zero_copy=<0|1>");
 
 RTE_INIT(af_xdp_init_log)
