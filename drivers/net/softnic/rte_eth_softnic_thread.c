@@ -337,6 +337,9 @@ softnic_thread_pipeline_enable(struct pmd_internals *softnic,
 		tdp->timer_period = (rte_get_tsc_hz() * p->timer_period_ms) / 1000;
 		tdp->time_next = rte_get_tsc_cycles() + tdp->timer_period;
 
+		if (tdp->time_next < td->time_next_min)
+			td->time_next_min = tdp->time_next;
+
 		td->n_pipelines++;
 
 		/* Pipeline */
@@ -521,6 +524,9 @@ thread_msg_handle_pipeline_enable(struct softnic_thread_data *t,
 	p->timer_period =
 		(rte_get_tsc_hz() * req->pipeline_enable.timer_period_ms) / 1000;
 	p->time_next = rte_get_tsc_cycles() + p->timer_period;
+
+	if (p->time_next < t->time_next_min)
+		t->time_next_min = p->time_next;
 
 	t->n_pipelines++;
 
