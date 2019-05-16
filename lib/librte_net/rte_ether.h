@@ -79,11 +79,10 @@ struct ether_addr {
 static inline int is_same_ether_addr(const struct ether_addr *ea1,
 				     const struct ether_addr *ea2)
 {
-	int i;
-	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		if (ea1->addr_bytes[i] != ea2->addr_bytes[i])
-			return 0;
-	return 1;
+	const uint16_t *w1 = (const uint16_t *)ea1;
+	const uint16_t *w2 = (const uint16_t *)ea2;
+
+	return ((w1[0] ^ w2[0]) | (w1[1] ^ w2[1]) | (w1[2] ^ w2[2])) == 0;
 }
 
 /**
@@ -98,11 +97,9 @@ static inline int is_same_ether_addr(const struct ether_addr *ea1,
  */
 static inline int is_zero_ether_addr(const struct ether_addr *ea)
 {
-	int i;
-	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		if (ea->addr_bytes[i] != 0x00)
-			return 0;
-	return 1;
+	const uint16_t *w = (const uint16_t *)ea;
+
+	return (w[0] | w[1] | w[2]) == 0;
 }
 
 /**
