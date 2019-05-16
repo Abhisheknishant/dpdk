@@ -205,15 +205,8 @@ static inline int is_valid_assigned_ether_addr(const struct ether_addr *ea)
  * @param addr
  *   A pointer to Ethernet address.
  */
-static inline void eth_random_addr(uint8_t *addr)
-{
-	uint64_t rand = rte_rand();
-	uint8_t *p = (uint8_t *)&rand;
-
-	rte_memcpy(addr, p, ETHER_ADDR_LEN);
-	addr[0] &= (uint8_t)~ETHER_GROUP_ADDR;       /* clear multicast bit */
-	addr[0] |= ETHER_LOCAL_ADMIN_ADDR;  /* set local assignment bit */
-}
+void
+eth_random_addr(uint8_t *addr);
 
 /**
  * Fast copy an Ethernet address.
@@ -252,18 +245,9 @@ static inline void ether_addr_copy(const struct ether_addr *ea_from,
  * @param eth_addr
  *   A pointer to a ether_addr structure.
  */
-static inline void
+void
 ether_format_addr(char *buf, uint16_t size,
-		  const struct ether_addr *eth_addr)
-{
-	snprintf(buf, size, "%02X:%02X:%02X:%02X:%02X:%02X",
-		 eth_addr->addr_bytes[0],
-		 eth_addr->addr_bytes[1],
-		 eth_addr->addr_bytes[2],
-		 eth_addr->addr_bytes[3],
-		 eth_addr->addr_bytes[4],
-		 eth_addr->addr_bytes[5]);
-}
+		  const struct ether_addr *eth_addr);
 
 /**
  * Ethernet header: Contains the destination address, source address
