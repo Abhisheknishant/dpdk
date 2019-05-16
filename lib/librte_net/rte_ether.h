@@ -55,7 +55,8 @@ extern "C" {
  * See http://standards.ieee.org/regauth/groupmac/tutorial.html
  */
 struct ether_addr {
-	uint8_t addr_bytes[ETHER_ADDR_LEN]; /**< Addr bytes in tx order */
+	/** Addr bytes in tx order */
+	uint8_t addr_bytes[ETHER_ADDR_LEN] __rte_aligned(2);
 } __attribute__((__packed__));
 
 #define ETHER_LOCAL_ADMIN_ADDR 0x02 /**< Locally assigned Eth. address. */
