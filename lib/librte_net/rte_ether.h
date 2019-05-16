@@ -57,7 +57,7 @@ extern "C" {
 struct ether_addr {
 	/** Addr bytes in tx order */
 	uint8_t addr_bytes[ETHER_ADDR_LEN] __rte_aligned(2);
-} __attribute__((__packed__));
+};
 
 #define ETHER_LOCAL_ADMIN_ADDR 0x02 /**< Locally assigned Eth. address. */
 #define ETHER_GROUP_ADDR       0x01 /**< Multicast or broadcast Eth. address. */
@@ -273,7 +273,7 @@ struct ether_hdr {
 	struct ether_addr d_addr; /**< Destination address. */
 	struct ether_addr s_addr; /**< Source address. */
 	uint16_t ether_type;      /**< Frame type. */
-} __attribute__((__packed__));
+};
 
 /**
  * Ethernet VLAN Header.
@@ -283,7 +283,7 @@ struct ether_hdr {
 struct vlan_hdr {
 	uint16_t vlan_tci; /**< Priority (3) + CFI (1) + Identifier Code (12) */
 	uint16_t eth_proto;/**< Ethernet type of encapsulated frame. */
-} __attribute__((__packed__));
+};
 
 /**
  * VXLAN protocol header.
@@ -293,7 +293,7 @@ struct vlan_hdr {
 struct vxlan_hdr {
 	uint32_t vx_flags; /**< flag (8) + Reserved (24). */
 	uint32_t vx_vni;   /**< VNI (24) + Reserved (8). */
-} __attribute__((__packed__));
+};
 
 /* Ethernet frame types */
 #define ETHER_TYPE_IPv4 0x0800 /**< IPv4 Protocol. */
@@ -325,7 +325,7 @@ struct vxlan_gpe_hdr {
 	uint8_t reserved[2]; /**< Reserved (16). */
 	uint8_t proto;       /**< next-protocol (8). */
 	uint32_t vx_vni;     /**< VNI (24) + Reserved (8). */
-} __attribute__((__packed__));
+};
 
 /* VXLAN-GPE next protocol types */
 #define VXLAN_GPE_TYPE_IPV4 1 /**< IPv4 Protocol. */
