@@ -212,6 +212,10 @@ i40e_rx_vec_dev_conf_condition_check_default(struct rte_eth_dev *dev)
 	if (rxmode->offloads & DEV_RX_OFFLOAD_VLAN_EXTEND)
 		return -1;
 
+	/* Should not override if vector was already disallowed */
+	if (!ad->rx_vec_allowed)
+	return -1;
+
 	/**
 	 * Vector mode is allowed only when number of Rx queue
 	 * descriptor is power of 2.
