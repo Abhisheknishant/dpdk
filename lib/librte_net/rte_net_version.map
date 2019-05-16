@@ -20,10 +20,10 @@ DPDK_19.08 {
 	eth_format_addr;
 } DPDK_17.05;
 
-
 EXPERIMENTAL {
 	global:
 
 	rte_net_make_rarp_packet;
 	rte_net_skip_ip6_ext;
+	eth_unformat_addr;
 };
