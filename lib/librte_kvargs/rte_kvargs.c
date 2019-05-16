@@ -10,6 +10,32 @@
 
 #include "rte_kvargs.h"
 
+
+/* trim leading and trailing spaces */
+static char *
+trim_space(char *str)
+{
+	char *start, *end;
+
+	for (start = str; *start; start++) {
+		if (!isspace((unsigned char) start[0]))
+			break;
+	}
+
+	for (end = start + strlen(start); end > start + 1; end--) {
+		if (!isspace((unsigned char) end[-1]))
+			break;
+	}
+
+	*end = 0;
+
+	/* Shift from "start" to the beginning of the string */
+	if (start > str)
+		memmove(str, start, (end - start) + 1);
+
+	return str;
+}
+
 /*
  * Receive a string with a list of arguments following the pattern
  * key=value,key=value,... and insert them into the list.
@@ -38,8 +64,10 @@ rte_kvargs_tokenize(struct rte_kvargs *kvlist, const char *params)
 		if (i >= RTE_KVARGS_MAX)
 			return -1;
 
-		kvlist->pairs[i].key = strtok_r(str, RTE_KVARGS_KV_DELIM, &ctx2);
-		kvlist->pairs[i].value = strtok_r(NULL, RTE_KVARGS_KV_DELIM, &ctx2);
+		kvlist->pairs[i].key = trim_space(strtok_r(str,
+			RTE_KVARGS_KV_DELIM, &ctx2));
+		kvlist->pairs[i].value = trim_space(strtok_r(NULL,
+			RTE_KVARGS_KV_DELIM, &ctx2));
 		if (kvlist->pairs[i].key == NULL ||
 		    kvlist->pairs[i].value == NULL)
 			return -1;
