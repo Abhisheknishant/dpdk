@@ -183,6 +183,20 @@ Runtime Config Options
 
   -w 84:00.0,use-latest-supported-vec=1
 
+- ``Disable RX Vector Functions `` (default ``vector RX enabled``)
+
+  When config file option for the vector PMD is enabled, vector RX functions may
+  be the default choice of the driver at device initialization time, if certain
+  conditions apply. However, vector RX functions may not always be at feature
+  parity with non-vector ones. In order to allow users to override vector RX
+  function selection behavior at runtime, the ``devargs`` parameter
+  ``disable-vec-rx`` is introduced, such that
+
+  -w DBDF,disable-vec-rx=1
+
+  would force driver to limit its choices to non-vector RX function variants for
+  the device specified by the DBDF.
+
 Vector RX Pre-conditions
 ~~~~~~~~~~~~~~~~~~~~~~~~
 For Vector RX it is assumed that the number of descriptor rings will be a power

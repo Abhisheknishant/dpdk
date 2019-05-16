@@ -1736,6 +1736,10 @@ i40e_dev_rx_queue_setup_runtime(struct rte_eth_dev *dev,
 		 */
 		ad->rx_bulk_alloc_allowed = true;
 		ad->rx_vec_allowed = true;
+
+		/* Check if users wanted to disable vector RX functions */
+		i40e_disable_vec_rx(dev);
+
 		dev->data->scattered_rx = use_scattered_rx;
 		if (use_def_burst_func)
 			ad->rx_bulk_alloc_allowed = false;

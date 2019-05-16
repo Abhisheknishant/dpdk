@@ -44,6 +44,7 @@
 #define ETH_I40E_SUPPORT_MULTI_DRIVER	"support-multi-driver"
 #define ETH_I40E_QUEUE_NUM_PER_VF_ARG	"queue-num-per-vf"
 #define ETH_I40E_USE_LATEST_VEC	"use-latest-supported-vec"
+#define ETH_I40E_DISABLE_VEC_RX	"disable-vec-rx"
 
 #define I40E_CLEAR_PXE_WAIT_MS     200
 
@@ -410,6 +411,7 @@ static const char *const valid_keys[] = {
 	ETH_I40E_SUPPORT_MULTI_DRIVER,
 	ETH_I40E_QUEUE_NUM_PER_VF_ARG,
 	ETH_I40E_USE_LATEST_VEC,
+	ETH_I40E_DISABLE_VEC_RX,
 	NULL};
 
 static const struct rte_pci_id pci_id_i40e_map[] = {
@@ -1263,6 +1265,68 @@ i40e_use_latest_vec(struct rte_eth_dev *dev)
 	return 0;
 }
 
+static int
+i40e_parse_disable_vec_rx_handler(__rte_unused const char *key,
+				const char *value,
+				void *opaque)
+{
+	struct i40e_adapter *ad;
+
+	ad = (struct i40e_adapter *)opaque;
+
+	switch (atoi(value)) {
+	case 0:
+		/* Selection of RX vector functions left untouched*/
+		break;
+	case 1:
+		/* Disable RX vector functions as requested*/
+		ad->rx_vec_allowed = false;
+	break;
+	default:
+		PMD_DRV_LOG(WARNING, "Value should be 0 or 1, set it as 1!");
+	break;
+	}
+
+	return 0;
+}
+
+int
+i40e_disable_vec_rx(struct rte_eth_dev *dev)
+{
+	struct i40e_adapter *ad =
+		I40E_DEV_PRIVATE_TO_ADAPTER(dev->data->dev_private);
+	struct rte_kvargs *kvlist;
+	int kvargs_count;
+
+
+	if (!dev->device->devargs)
+		return 0;
+
+	kvlist = rte_kvargs_parse(dev->device->devargs->args, valid_keys);
+	if (!kvlist)
+		return -EINVAL;
+
+	kvargs_count = rte_kvargs_count(kvlist, ETH_I40E_DISABLE_VEC_RX);
+	if (!kvargs_count) {
+		rte_kvargs_free(kvlist);
+		return 0;
+	}
+
+	if (kvargs_count > 1)
+		PMD_DRV_LOG(WARNING, "More than one argument \"%s\" and only "
+			    "the first invalid or last valid one is used !",
+			    ETH_I40E_DISABLE_VEC_RX);
+
+	if (rte_kvargs_process(kvlist, ETH_I40E_DISABLE_VEC_RX,
+				i40e_parse_disable_vec_rx_handler, ad) < 0) {
+		rte_kvargs_free(kvlist);
+		return -EINVAL;
+	}
+
+	rte_kvargs_free(kvlist);
+	return 0;
+}
+
 #define I40E_ALARM_INTERVAL 50000 /* us */
 
 static int
@@ -1794,6 +1858,9 @@ i40e_dev_configure(struct rte_eth_dev *dev)
 	ad->rx_vec_allowed = true;
 	ad->tx_simple_allowed = true;
 	ad->tx_vec_allowed = true;
+
+	/* Check if users wanted to disable vector RX functions */
+	i40e_disable_vec_rx(dev);
 
 	/* Only legacy filter API needs the following fdir config. So when the
 	 * legacy filter API is deprecated, the following codes should also be
@@ -12790,4 +12857,5 @@ RTE_PMD_REGISTER_PARAM_STRING(net_i40e,
 			      ETH_I40E_FLOATING_VEB_LIST_ARG "=<string>"
 			      ETH_I40E_QUEUE_NUM_PER_VF_ARG "=1|2|4|8|16"
 			      ETH_I40E_SUPPORT_MULTI_DRIVER "=1"
-			      ETH_I40E_USE_LATEST_VEC "=0|1");
+			      ETH_I40E_USE_LATEST_VEC "=0|1"
+			      ETH_I40E_DISABLE_VEC_RX "=0|1");
