@@ -2919,7 +2919,7 @@ i40e_txq_info_get(struct rte_eth_dev *dev, uint16_t queue_id,
 static eth_rx_burst_t
 i40e_get_latest_rx_vec(bool scatter)
 {
-#ifdef RTE_ARCH_X86
+#if defined(RTE_ARCH_X86) && defined(CC_AVX2_SUPPORT)
 	if (rte_cpu_get_flag_enabled(RTE_CPUFLAG_AVX2))
 		return scatter ? i40e_recv_scattered_pkts_vec_avx2 :
 				 i40e_recv_pkts_vec_avx2;
@@ -2931,7 +2931,7 @@ i40e_get_latest_rx_vec(bool scatter)
 static eth_rx_burst_t
 i40e_get_recommend_rx_vec(bool scatter)
 {
-#ifdef RTE_ARCH_X86
+#if defined(RTE_ARCH_X86) && defined(CC_AVX2_SUPPORT)
 	/*
 	 * since AVX frequency can be different to base frequency, limit
 	 * use of AVX2 version to later plaforms, not all those that could
@@ -3048,7 +3048,7 @@ i40e_set_tx_function_flag(struct rte_eth_dev *dev, struct i40e_tx_queue *txq)
 static eth_tx_burst_t
 i40e_get_latest_tx_vec(void)
 {
-#ifdef RTE_ARCH_X86
+#if defined(RTE_ARCH_X86) && defined(CC_AVX2_SUPPORT)
 	if (rte_cpu_get_flag_enabled(RTE_CPUFLAG_AVX2))
 		return i40e_xmit_pkts_vec_avx2;
 #endif
@@ -3058,7 +3058,7 @@ i40e_get_latest_tx_vec(void)
 static eth_tx_burst_t
 i40e_get_recommend_tx_vec(void)
 {
-#ifdef RTE_ARCH_X86
+#if defined(RTE_ARCH_X86) && defined(CC_AVX2_SUPPORT)
 	/*
 	 * since AVX frequency can be different to base frequency, limit
 	 * use of AVX2 version to later plaforms, not all those that could
@@ -3181,14 +3181,15 @@ i40e_set_default_pctype_table(struct rte_eth_dev *dev)
 	}
 }
 
+#ifndef RTE_LIBRTE_I40E_INC_VECTOR
 /* Stubs needed for linkage when CONFIG_RTE_LIBRTE_I40E_INC_VECTOR is set to 'n' */
-__rte_weak int
+int
 i40e_rx_vec_dev_conf_condition_check(struct rte_eth_dev __rte_unused *dev)
 {
 	return -1;
 }
 
-__rte_weak uint16_t
+uint16_t
 i40e_recv_pkts_vec(
 	void __rte_unused *rx_queue,
 	struct rte_mbuf __rte_unused **rx_pkts,
@@ -3197,7 +3198,7 @@ i40e_recv_pkts_vec(
 	return 0;
 }
 
-__rte_weak uint16_t
+uint16_t
 i40e_recv_scattered_pkts_vec(
 	void __rte_unused *rx_queue,
 	struct rte_mbuf __rte_unused **rx_pkts,
@@ -3206,7 +3207,35 @@ i40e_recv_scattered_pkts_vec(
 	return 0;
 }
 
-__rte_weak uint16_t
+int
+i40e_rxq_vec_setup(struct i40e_rx_queue __rte_unused *rxq)
+{
+	return -1;
+}
+
+int
+i40e_txq_vec_setup(struct i40e_tx_queue __rte_unused *txq)
+{
+	return -1;
+}
+
+void
+i40e_rx_queue_release_mbufs_vec(struct i40e_rx_queue __rte_unused*rxq)
+{
+	return;
+}
+
+uint16_t
+i40e_xmit_fixed_burst_vec(void __rte_unused * tx_queue,
+			  struct rte_mbuf __rte_unused **tx_pkts,
+			  uint16_t __rte_unused nb_pkts)
+{
+	return 0;
+}
+#endif /* ifndef RTE_LIBRTE_I40E_INC_VECTOR */
+
+#ifndef CC_AVX2_SUPPORT
+uint16_t
 i40e_recv_pkts_vec_avx2(void __rte_unused *rx_queue,
 			struct rte_mbuf __rte_unused **rx_pkts,
 			uint16_t __rte_unused nb_pkts)
@@ -3214,7 +3243,7 @@ i40e_recv_pkts_vec_avx2(void __rte_unused *rx_queue,
 	return 0;
 }
 
-__rte_weak uint16_t
+uint16_t
 i40e_recv_scattered_pkts_vec_avx2(void __rte_unused *rx_queue,
 			struct rte_mbuf __rte_unused **rx_pkts,
 			uint16_t __rte_unused nb_pkts)
@@ -3222,36 +3251,11 @@ i40e_recv_scattered_pkts_vec_avx2(void __rte_unused *rx_queue,
 	return 0;
 }
 
-__rte_weak int
-i40e_rxq_vec_setup(struct i40e_rx_queue __rte_unused *rxq)
-{
-	return -1;
-}
-
-__rte_weak int
-i40e_txq_vec_setup(struct i40e_tx_queue __rte_unused *txq)
-{
-	return -1;
-}
-
-__rte_weak void
-i40e_rx_queue_release_mbufs_vec(struct i40e_rx_queue __rte_unused*rxq)
-{
-	return;
-}
-
-__rte_weak uint16_t
-i40e_xmit_fixed_burst_vec(void __rte_unused * tx_queue,
-			  struct rte_mbuf __rte_unused **tx_pkts,
-			  uint16_t __rte_unused nb_pkts)
-{
-	return 0;
-}
-
-__rte_weak uint16_t
+uint16_t
 i40e_xmit_pkts_vec_avx2(void __rte_unused * tx_queue,
 			  struct rte_mbuf __rte_unused **tx_pkts,
 			  uint16_t __rte_unused nb_pkts)
 {
 	return 0;
 }
+#endif /* ifndef CC_AVX2_SUPPORT */
