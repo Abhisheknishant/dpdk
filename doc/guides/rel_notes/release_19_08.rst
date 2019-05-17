@@ -54,6 +54,11 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Updated telemetry library for global metrics support.**
+
+  Updated ``librte_telemetry`` to fetch the global metrics from the
+  ``librte_metrics`` library.
+
 
 Removed Items
 -------------
