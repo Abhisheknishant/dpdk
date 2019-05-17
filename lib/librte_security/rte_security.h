@@ -163,6 +163,15 @@ struct rte_security_ipsec_sa_options {
 	 * * 0: Inner packet is not modified.
 	 */
 	uint32_t dec_ttl : 1;
+
+	/**< Explicit Congestion Notification (ECN)
+	 *
+	 * * ECT(1) (ECN-Capable Transport(1))
+	 * * ECT(0) (ECN-Capable Transport(0))
+	 * * ECT(CE)(CE (Congestion Experienced))
+	 */
+
+	uint32_t ecn : 1;
 };
 
 /** IPSec security association direction */

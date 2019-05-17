@@ -377,9 +377,10 @@ tun_process(const struct rte_ipsec_sa *sa, struct rte_mbuf *mb[],
 {
 	uint32_t adj, i, k, tl;
 	uint32_t hl[num];
+	void *inner_h;
+	const void *outter_h;
 	struct esp_tail espt[num];
 	struct rte_mbuf *ml[num];
-
 	const uint32_t tlen = sa->icv_len + sizeof(espt[0]);
 	const uint32_t cofs = sa->ctp.cipher.offset;
 
@@ -400,9 +401,16 @@ tun_process(const struct rte_ipsec_sa *sa, struct rte_mbuf *mb[],
 		if (tun_process_check(mb[i], ml[i], espt[i], adj, tl,
 					sa->proto) == 0) {
 
+			outter_h = rte_pktmbuf_mtod_offset(mb[i], uint8_t *,
+					mb[i]->l2_len);
+
 			/* modify packet's layout */
-			tun_process_step2(mb[i], ml[i], hl[i], adj,
-				tl, sqn + k);
+			inner_h = tun_process_step2(mb[i], ml[i], hl[i], adj,
+					tl, sqn + k);
+
+			if ((sa->type & INB_TUN_HDR_MSK) != 0)
+				update_inb_tun_l3_hdr(sa, inner_h, outter_h);
+
 			/* update mbuf's metadata */
 			tun_process_step3(mb[i], sa->tx_offload.msk,
 				sa->tx_offload.val);

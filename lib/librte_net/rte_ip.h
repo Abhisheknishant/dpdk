@@ -47,6 +47,14 @@ struct ipv4_hdr {
 					   (((c) & 0xff) << 8)  | \
 					   ((d) & 0xff))
 
+
+/** RFC 3168 */
+#define ECN_MASK	(0x03)
+#define ECN_CE		ECN_MASK
+
+/** Packet Option Masks */
+#define DSCP_MASK		(0xFC)
+
 /** Maximal IPv4 packet length (including a header) */
 #define IPV4_MAX_PKT_LEN        65535
 
