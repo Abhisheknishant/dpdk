@@ -2591,7 +2591,13 @@ rte_flow_error_set(struct rte_flow_error *error,
 		   int code,
 		   enum rte_flow_error_type type,
 		   const void *cause,
-		   const char *message);
+		   const char *message)
+#ifdef __GNUC__
+#if (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ > 2))
+	__attribute__((cold))
+#endif
+#endif
+	;
 
 /**
  * @deprecated
