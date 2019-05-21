@@ -170,6 +170,19 @@ qat_comp_build_request(void *in_op, uint8_t *out_msg,
 		    rte_pktmbuf_mtophys_offset(op->m_dst, op->dst.offset);
 	}
 
+	if (unlikely(rte_pktmbuf_pkt_len(op->m_dst) < QAT_MIN_OUT_BUF_SIZE)) {
+		/* QAT doesn't support dest. buffer lower
+		 * than QAT_MIN_OUT_BUF_SIZE. Propagate error mark
+		 * by converting this request to the null one
+		 * and check the status in the response.
+		 */
+		QAT_DP_LOG(ERR, "QAT dest. buffer overflow");
+		comp_req->comn_hdr.service_type = ICP_QAT_FW_COMN_REQ_NULL;
+		comp_req->comn_hdr.service_cmd_id = ICP_QAT_FW_NULL_REQ_SERV_ID;
+		op->status = RTE_COMP_OP_STATUS_OUT_OF_SPACE_TERMINATED;
+	} else
+		op->status = RTE_COMP_OP_STATUS_SUCCESS;
+
 #if RTE_LOG_DP_LEVEL >= RTE_LOG_DEBUG
 	QAT_DP_LOG(DEBUG, "Direction: %s",
 	    qat_xform->qat_comp_request_type == QAT_COMP_REQUEST_DECOMPRESS ?
@@ -200,6 +213,14 @@ qat_comp_process_response(void **op, uint8_t *resp, uint64_t *dequeue_err_count)
 	QAT_DP_HEXDUMP_LOG(DEBUG,  "qat_response:", (uint8_t *)resp_msg,
 			sizeof(struct icp_qat_fw_comp_resp));
 #endif
+
+	if (unlikely(rx_op->status != RTE_COMP_OP_STATUS_SUCCESS)) {
+		++(*dequeue_err_count);
+		rx_op->debug_status =
+			*((uint16_t *)(&resp_msg->comn_resp.comn_error));
+		*op = (void *)rx_op;
+		return 0;
+	}
 
 	if (likely(qat_xform->qat_comp_request_type
 			!= QAT_COMP_REQUEST_DECOMPRESS)) {
