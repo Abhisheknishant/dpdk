@@ -1344,14 +1344,10 @@ __mempool_generic_get(struct rte_mempool *mp, void **obj_table,
 		      unsigned int n, struct rte_mempool_cache *cache)
 {
 	int ret;
-	uint32_t index, len;
-	void **cache_objs;
 
 	/* No cache provided or cannot be satisfied from cache */
 	if (unlikely(cache == NULL || n >= cache->size))
 		goto ring_dequeue;
-
-	cache_objs = cache->objs;
 
 	/* Can this be satisfied from the cache? */
 	if (cache->len < n) {
@@ -1375,8 +1371,7 @@ __mempool_generic_get(struct rte_mempool *mp, void **obj_table,
 	}
 
 	/* Now fill in the response ... */
-	for (index = 0, len = cache->len - 1; index < n; ++index, len--, obj_table++)
-		*obj_table = cache_objs[len];
+	rte_memcpy(obj_table, &cache->objs[cache->len - n], sizeof(void *) * n);
 
 	cache->len -= n;
 
