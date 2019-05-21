@@ -1468,7 +1468,7 @@ eth_i40e_dev_init(struct rte_eth_dev *dev, void *init_params __rte_unused)
 		goto err_get_mac_addr;
 	}
 	/* Copy the permanent MAC address */
-	ether_addr_copy((struct rte_ether_addr *)hw->mac.addr,
+	rte_ether_addr_copy((struct rte_ether_addr *)hw->mac.addr,
 			(struct rte_ether_addr *)hw->mac.perm_addr);
 
 	/* Disable flow control */
@@ -1520,7 +1520,7 @@ eth_i40e_dev_init(struct rte_eth_dev *dev, void *init_params __rte_unused)
 			"Failed to allocated memory for storing mac address");
 		goto err_mac_alloc;
 	}
-	ether_addr_copy((struct rte_ether_addr *)hw->mac.perm_addr,
+	rte_ether_addr_copy((struct rte_ether_addr *)hw->mac.perm_addr,
 					&dev->data->mac_addrs[0]);
 
 	/* Init dcb to sw mode by default */
@@ -4122,7 +4122,7 @@ i40e_vf_mac_filter_set(struct i40e_pf *pf,
 
 	new_mac = &filter->mac_addr;
 
-	if (is_zero_ether_addr(new_mac)) {
+	if (rte_is_zero_ether_addr(new_mac)) {
 		PMD_DRV_LOG(ERR, "Invalid ethernet address.");
 		return -EINVAL;
 	}
@@ -4135,7 +4135,7 @@ i40e_vf_mac_filter_set(struct i40e_pf *pf,
 	}
 	vf = &pf->vfs[vf_id];
 
-	if (add && is_same_ether_addr(new_mac, &(pf->dev_addr))) {
+	if (add && rte_is_same_ether_addr(new_mac, &pf->dev_addr)) {
 		PMD_DRV_LOG(INFO, "Ignore adding permanent MAC address.");
 		return -EINVAL;
 	}
@@ -4153,7 +4153,7 @@ i40e_vf_mac_filter_set(struct i40e_pf *pf,
 			PMD_DRV_LOG(ERR, "Failed to add MAC filter.");
 			return -1;
 		}
-		ether_addr_copy(new_mac, &pf->dev_addr);
+		rte_ether_addr_copy(new_mac, &pf->dev_addr);
 	} else {
 		rte_memcpy(hw->mac.addr, hw->mac.perm_addr,
 				ETHER_ADDR_LEN);
@@ -4164,7 +4164,7 @@ i40e_vf_mac_filter_set(struct i40e_pf *pf,
 		}
 
 		/* Clear device address as it has been removed */
-		if (is_same_ether_addr(&(pf->dev_addr), new_mac))
+		if (rte_is_same_ether_addr(&pf->dev_addr, new_mac))
 			memset(&pf->dev_addr, 0, sizeof(struct rte_ether_addr));
 	}
 
@@ -6912,7 +6912,7 @@ i40e_find_mac_filter(struct i40e_vsi *vsi,
 	struct i40e_mac_filter *f;
 
 	TAILQ_FOREACH(f, &vsi->mac_list, next) {
-		if (is_same_ether_addr(macaddr, &f->mac_info.mac_addr))
+		if (rte_is_same_ether_addr(macaddr, &f->mac_info.mac_addr))
 			return f;
 	}
 
@@ -7585,9 +7585,11 @@ i40e_tunnel_filter_convert(
 	struct i40e_aqc_cloud_filters_element_bb *cld_filter,
 	struct i40e_tunnel_filter *tunnel_filter)
 {
-	ether_addr_copy((struct rte_ether_addr *)&cld_filter->element.outer_mac,
+	rte_ether_addr_copy((struct rte_ether_addr *)
+			&cld_filter->element.outer_mac,
 		(struct rte_ether_addr *)&tunnel_filter->input.outer_mac);
-	ether_addr_copy((struct rte_ether_addr *)&cld_filter->element.inner_mac,
+	rte_ether_addr_copy((struct rte_ether_addr *)
+			&cld_filter->element.inner_mac,
 		(struct rte_ether_addr *)&tunnel_filter->input.inner_mac);
 	tunnel_filter->input.inner_vlan = cld_filter->element.inner_vlan;
 	if ((rte_le_to_cpu_16(cld_filter->element.flags) &
@@ -7696,9 +7698,9 @@ i40e_dev_tunnel_filter_set(struct i40e_pf *pf,
 	}
 	pfilter = cld_filter;
 
-	ether_addr_copy(&tunnel_filter->outer_mac,
+	rte_ether_addr_copy(&tunnel_filter->outer_mac,
 			(struct rte_ether_addr *)&pfilter->element.outer_mac);
-	ether_addr_copy(&tunnel_filter->inner_mac,
+	rte_ether_addr_copy(&tunnel_filter->inner_mac,
 			(struct rte_ether_addr *)&pfilter->element.inner_mac);
 
 	pfilter->element.inner_vlan =
@@ -8143,9 +8145,9 @@ i40e_dev_consistent_tunnel_filter_set(struct i40e_pf *pf,
 	}
 	pfilter = cld_filter;
 
-	ether_addr_copy(&tunnel_filter->outer_mac,
+	rte_ether_addr_copy(&tunnel_filter->outer_mac,
 			(struct rte_ether_addr *)&pfilter->element.outer_mac);
-	ether_addr_copy(&tunnel_filter->inner_mac,
+	rte_ether_addr_copy(&tunnel_filter->inner_mac,
 			(struct rte_ether_addr *)&pfilter->element.inner_mac);
 
 	pfilter->element.inner_vlan =
@@ -8626,13 +8628,13 @@ i40e_tunnel_filter_param_check(struct i40e_pf *pf,
 	}
 
 	if ((filter->filter_type & ETH_TUNNEL_FILTER_OMAC) &&
-		(is_zero_ether_addr(&filter->outer_mac))) {
+		(rte_is_zero_ether_addr(&filter->outer_mac))) {
 		PMD_DRV_LOG(ERR, "Cannot add NULL outer MAC address");
 		return -EINVAL;
 	}
 
 	if ((filter->filter_type & ETH_TUNNEL_FILTER_IMAC) &&
-		(is_zero_ether_addr(&filter->inner_mac))) {
+		(rte_is_zero_ether_addr(&filter->inner_mac))) {
 		PMD_DRV_LOG(ERR, "Cannot add NULL inner MAC address");
 		return -EINVAL;
 	}
@@ -11959,13 +11961,14 @@ static int i40e_set_default_mac_addr(struct rte_eth_dev *dev,
 	struct i40e_mac_filter *f;
 	int ret;
 
-	if (!is_valid_assigned_ether_addr(mac_addr)) {
+	if (!rte_is_valid_assigned_ether_addr(mac_addr)) {
 		PMD_DRV_LOG(ERR, "Tried to set invalid MAC address.");
 		return -EINVAL;
 	}
 
 	TAILQ_FOREACH(f, &vsi->mac_list, next) {
-		if (is_same_ether_addr(&pf->dev_addr, &f->mac_info.mac_addr))
+		if (rte_is_same_ether_addr(&pf->dev_addr,
+						&f->mac_info.mac_addr))
 			break;
 	}
 
@@ -12083,9 +12086,11 @@ i40e_tunnel_filter_restore(struct i40e_pf *pf)
 			vsi = vf->vsi;
 		}
 		memset(&cld_filter, 0, sizeof(cld_filter));
-		ether_addr_copy((struct rte_ether_addr *)&f->input.outer_mac,
+		rte_ether_addr_copy((struct rte_ether_addr *)
+				&f->input.outer_mac,
 			(struct rte_ether_addr *)&cld_filter.element.outer_mac);
-		ether_addr_copy((struct rte_ether_addr *)&f->input.inner_mac,
+		rte_ether_addr_copy((struct rte_ether_addr *)
+				&f->input.inner_mac,
 			(struct rte_ether_addr *)&cld_filter.element.inner_mac);
 		cld_filter.element.inner_vlan = f->input.inner_vlan;
 		cld_filter.element.flags = f->input.flags;
