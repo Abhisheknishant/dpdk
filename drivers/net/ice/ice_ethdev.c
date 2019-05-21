@@ -55,9 +55,9 @@ static int ice_vlan_filter_set(struct rte_eth_dev *dev,
 			       uint16_t vlan_id,
 			       int on);
 static int ice_macaddr_set(struct rte_eth_dev *dev,
-			   struct ether_addr *mac_addr);
+			   struct rte_ether_addr *mac_addr);
 static int ice_macaddr_add(struct rte_eth_dev *dev,
-			   struct ether_addr *mac_addr,
+			   struct rte_ether_addr *mac_addr,
 			   __rte_unused uint32_t index,
 			   uint32_t pool);
 static void ice_macaddr_remove(struct rte_eth_dev *dev, uint32_t index);
@@ -481,29 +481,30 @@ ice_init_mac_address(struct rte_eth_dev *dev)
 	struct ice_hw *hw = ICE_DEV_PRIVATE_TO_HW(dev->data->dev_private);
 
 	if (!is_unicast_ether_addr
-		((struct ether_addr *)hw->port_info[0].mac.lan_addr)) {
+		((struct rte_ether_addr *)hw->port_info[0].mac.lan_addr)) {
 		PMD_INIT_LOG(ERR, "Invalid MAC address");
 		return -EINVAL;
 	}
 
-	ether_addr_copy((struct ether_addr *)hw->port_info[0].mac.lan_addr,
-			(struct ether_addr *)hw->port_info[0].mac.perm_addr);
+	ether_addr_copy((struct rte_ether_addr *)hw->port_info[0].mac.lan_addr,
+		(struct rte_ether_addr *)hw->port_info[0].mac.perm_addr);
 
-	dev->data->mac_addrs = rte_zmalloc(NULL, sizeof(struct ether_addr), 0);
+	dev->data->mac_addrs =
+		rte_zmalloc(NULL, sizeof(struct rte_ether_addr), 0);
 	if (!dev->data->mac_addrs) {
 		PMD_INIT_LOG(ERR,
 			     "Failed to allocate memory to store mac address");
 		return -ENOMEM;
 	}
 	/* store it to dev data */
-	ether_addr_copy((struct ether_addr *)hw->port_info[0].mac.perm_addr,
+	ether_addr_copy((struct rte_ether_addr *)hw->port_info[0].mac.perm_addr,
 			&dev->data->mac_addrs[0]);
 	return 0;
 }
 
 /* Find out specific MAC filter */
 static struct ice_mac_filter *
-ice_find_mac_filter(struct ice_vsi *vsi, struct ether_addr *macaddr)
+ice_find_mac_filter(struct ice_vsi *vsi, struct rte_ether_addr *macaddr)
 {
 	struct ice_mac_filter *f;
 
@@ -516,7 +517,7 @@ ice_find_mac_filter(struct ice_vsi *vsi, struct ether_addr *macaddr)
 }
 
 static int
-ice_add_mac_filter(struct ice_vsi *vsi, struct ether_addr *mac_addr)
+ice_add_mac_filter(struct ice_vsi *vsi, struct rte_ether_addr *mac_addr)
 {
 	struct ice_fltr_list_entry *m_list_itr = NULL;
 	struct ice_mac_filter *f;
@@ -575,7 +576,7 @@ DONE:
 }
 
 static int
-ice_remove_mac_filter(struct ice_vsi *vsi, struct ether_addr *mac_addr)
+ice_remove_mac_filter(struct ice_vsi *vsi, struct rte_ether_addr *mac_addr)
 {
 	struct ice_fltr_list_entry *m_list_itr = NULL;
 	struct ice_mac_filter *f;
@@ -1128,9 +1129,9 @@ ice_setup_vsi(struct ice_pf *pf, enum ice_vsi_type type)
 	struct ice_vsi *vsi = NULL;
 	struct ice_vsi_ctx vsi_ctx;
 	int ret;
-	struct ether_addr broadcast = {
+	struct rte_ether_addr broadcast = {
 		.addr_bytes = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff} };
-	struct ether_addr mac_addr;
+	struct rte_ether_addr mac_addr;
 	uint16_t max_txqs[ICE_MAX_TRAFFIC_CLASS] = { 0 };
 	uint8_t tc_bitmap = 0x1;
 
@@ -2254,7 +2255,7 @@ ice_mtu_set(struct rte_eth_dev *dev, uint16_t mtu)
 }
 
 static int ice_macaddr_set(struct rte_eth_dev *dev,
-			   struct ether_addr *mac_addr)
+			   struct rte_ether_addr *mac_addr)
 {
 	struct ice_hw *hw = ICE_DEV_PRIVATE_TO_HW(dev->data->dev_private);
 	struct ice_pf *pf = ICE_DEV_PRIVATE_TO_PF(dev->data->dev_private);
@@ -2301,7 +2302,7 @@ static int ice_macaddr_set(struct rte_eth_dev *dev,
 /* Add a MAC address, and update filters */
 static int
 ice_macaddr_add(struct rte_eth_dev *dev,
-		struct ether_addr *mac_addr,
+		struct rte_ether_addr *mac_addr,
 		__rte_unused uint32_t index,
 		__rte_unused uint32_t pool)
 {
@@ -2325,7 +2326,7 @@ ice_macaddr_remove(struct rte_eth_dev *dev, uint32_t index)
 	struct ice_pf *pf = ICE_DEV_PRIVATE_TO_PF(dev->data->dev_private);
 	struct ice_vsi *vsi = pf->main_vsi;
 	struct rte_eth_dev_data *data = dev->data;
-	struct ether_addr *macaddr;
+	struct rte_ether_addr *macaddr;
 	int ret;
 
 	macaddr = &data->mac_addrs[index];
