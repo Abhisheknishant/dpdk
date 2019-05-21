@@ -103,8 +103,8 @@ New Features
   * Fixed ``imissed`` counter to be reported through ``rte_eth_stats`` instead
     of ``rte_eth_xstats``.
   * Added packet header modification through Direct Verbs flow driver.
-  * Added ConnectX-6 PCI device ID to be proved by ``mlx5`` driver.
-  * Added flow counter support to Direct Verbs flow driver though DevX.
+  * Added ConnectX-6 PCI device ID to be probed by ``mlx5`` driver.
+  * Added flow counter support to Direct Verbs flow driver through DevX.
   * Renamed build options for the glue layer to
     ``CONFIG_RTE_IBVERBS_LINK_DLOPEN`` for make and ``ibverbs_link`` for meson.
   * Added static linkage of ``mlx`` dependency.
@@ -135,7 +135,7 @@ New Features
 
   This SW-assisted VDPA live migration facility helps VDPA devices without
   logging capability to perform live migration, a mediated SW relay can help
-  devices to track dirty pages caused by DMA. the IFC driver has enabled this
+  devices to track dirty pages caused by DMA. The IFC driver has enabled this
   SW-assisted live migration mode.
 
 * **Added security checks to the cryptodev symmetric session operations.**
@@ -215,7 +215,7 @@ API Changes
   by the existing ``rte_bsf32`` function.
 
 * eal: Segment fd API on Linux now sets error code to ``ENOTSUP`` in more cases
-  where segment the fd API is not expected to be supported:
+  where the segment fd API is not expected to be supported:
 
   - On attempt to get a segment fd for an externally allocated memory segment
   - In cases where memfd support would have been required to provide segment
