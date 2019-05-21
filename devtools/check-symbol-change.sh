@@ -93,6 +93,14 @@ check_for_rule_violations()
 		if [ "$ar" = "add" ]
 		then
 
+			directory=`echo $mname | cut -d / -f 2`
+			if [ "$directory" = "drivers" ]
+			then
+				# Drivers do not have ABI. Skip further
+				# processing if the map file is under
+				# drivers directory
+				continue
+			fi
 			if [ "$secname" = "unknown" ]
 			then
 				# Just inform the user of this occurrence, but
