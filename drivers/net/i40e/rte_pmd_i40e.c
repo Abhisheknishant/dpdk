@@ -2425,9 +2425,6 @@ int rte_pmd_i40e_flow_type_mapping_get(
 
 	dev = &rte_eth_devices[port];
 
-	if (!is_i40e_supported(dev))
-		return -ENOTSUP;
-
 	ad = I40E_DEV_PRIVATE_TO_ADAPTER(dev->data->dev_private);
 
 	for (i = 0; i < I40E_FLOW_TYPE_MAX; i++) {
