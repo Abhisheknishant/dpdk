@@ -2457,9 +2457,9 @@ static struct unit_test_suite ipsec_testsuite  = {
 	.teardown = testsuite_teardown,
 	.unit_test_cases = {
 		TEST_CASE_ST(ut_setup, ut_teardown,
-			test_ipsec_crypto_inb_burst_null_null_wrapper),
-		TEST_CASE_ST(ut_setup, ut_teardown,
 			test_ipsec_crypto_outb_burst_null_null_wrapper),
+		TEST_CASE_ST(ut_setup, ut_teardown,
+			test_ipsec_crypto_inb_burst_null_null_wrapper),
 		TEST_CASE_ST(ut_setup, ut_teardown,
 			test_ipsec_inline_crypto_inb_burst_null_null_wrapper),
 		TEST_CASE_ST(ut_setup, ut_teardown,
