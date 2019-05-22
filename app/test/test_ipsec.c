@@ -1203,8 +1203,7 @@ test_ipsec_crypto_inb_burst_null_null(int i)
 	rc = create_sa(RTE_SECURITY_ACTION_TYPE_NONE,
 			test_cfg[i].replay_win_sz, test_cfg[i].flags, 0);
 	if (rc != 0) {
-		RTE_LOG(ERR, USER1, "rte_ipsec_sa_init failed, cfg %d\n",
-			i);
+		RTE_LOG(ERR, USER1, "create_sa failed, cfg %d\n", i);
 		return TEST_FAILED;
 	}
 
@@ -1306,8 +1305,7 @@ test_ipsec_crypto_outb_burst_null_null(int i)
 	rc = create_sa(RTE_SECURITY_ACTION_TYPE_NONE,
 			test_cfg[i].replay_win_sz, test_cfg[i].flags, 0);
 	if (rc != 0) {
-		RTE_LOG(ERR, USER1, "rte_ipsec_sa_init failed, cfg %d\n",
-			i);
+		RTE_LOG(ERR, USER1, "create_sa failed, cfg %d\n", i);
 		return TEST_FAILED;
 	}
 
@@ -1416,8 +1414,7 @@ test_ipsec_inline_crypto_inb_burst_null_null(int i)
 	rc = create_sa(RTE_SECURITY_ACTION_TYPE_INLINE_CRYPTO,
 			test_cfg[i].replay_win_sz, test_cfg[i].flags, 0);
 	if (rc != 0) {
-		RTE_LOG(ERR, USER1, "rte_ipsec_sa_init failed, cfg %d\n",
-			i);
+		RTE_LOG(ERR, USER1, "create_sa failed, cfg %d\n", i);
 		return TEST_FAILED;
 	}
 
@@ -1495,8 +1492,7 @@ test_ipsec_inline_proto_inb_burst_null_null(int i)
 	rc = create_sa(RTE_SECURITY_ACTION_TYPE_INLINE_PROTOCOL,
 			test_cfg[i].replay_win_sz, test_cfg[i].flags, 0);
 	if (rc != 0) {
-		RTE_LOG(ERR, USER1, "rte_ipsec_sa_init failed, cfg %d\n",
-			i);
+		RTE_LOG(ERR, USER1, "create_sa failed, cfg %d\n", i);
 		return TEST_FAILED;
 	}
 
@@ -1604,8 +1600,7 @@ test_ipsec_inline_crypto_outb_burst_null_null(int i)
 	rc = create_sa(RTE_SECURITY_ACTION_TYPE_INLINE_CRYPTO,
 			test_cfg[i].replay_win_sz, test_cfg[i].flags, 0);
 	if (rc != 0) {
-		RTE_LOG(ERR, USER1, "rte_ipsec_sa_init failed, cfg %d\n",
-			i);
+		RTE_LOG(ERR, USER1, "create_sa failed, cfg %d\n", i);
 		return TEST_FAILED;
 	}
 
@@ -1683,8 +1678,7 @@ test_ipsec_inline_proto_outb_burst_null_null(int i)
 	rc = create_sa(RTE_SECURITY_ACTION_TYPE_INLINE_PROTOCOL,
 			test_cfg[i].replay_win_sz, test_cfg[i].flags, 0);
 	if (rc != 0) {
-		RTE_LOG(ERR, USER1, "rte_ipsec_sa_init failed, cfg %d\n",
-			i);
+		RTE_LOG(ERR, USER1, "create_sa failed, cfg %d\n", i);
 		return TEST_FAILED;
 	}
 
@@ -1760,8 +1754,7 @@ test_ipsec_lksd_proto_inb_burst_null_null(int i)
 	rc = create_sa(RTE_SECURITY_ACTION_TYPE_LOOKASIDE_PROTOCOL,
 			test_cfg[i].replay_win_sz, test_cfg[i].flags, 0);
 	if (rc != 0) {
-		RTE_LOG(ERR, USER1, "rte_ipsec_sa_init failed, cfg %d\n",
-			i);
+		RTE_LOG(ERR, USER1, "create_sa failed, cfg %d\n", i);
 		return TEST_FAILED;
 	}
 
@@ -1874,8 +1867,7 @@ test_ipsec_replay_inb_inside_null_null(int i)
 	rc = create_sa(RTE_SECURITY_ACTION_TYPE_NONE,
 			test_cfg[i].replay_win_sz, test_cfg[i].flags, 0);
 	if (rc != 0) {
-		RTE_LOG(ERR, USER1, "rte_ipsec_sa_init failed, cfg %d\n",
-			i);
+		RTE_LOG(ERR, USER1, "create_sa failed, cfg %d\n", i);
 		return TEST_FAILED;
 	}
 
@@ -1968,8 +1960,7 @@ test_ipsec_replay_inb_outside_null_null(int i)
 	rc = create_sa(RTE_SECURITY_ACTION_TYPE_NONE,
 			test_cfg[i].replay_win_sz, test_cfg[i].flags, 0);
 	if (rc != 0) {
-		RTE_LOG(ERR, USER1, "rte_ipsec_sa_init failed, cfg %d\n",
-			i);
+		RTE_LOG(ERR, USER1, "create_sa failed, cfg %d\n", i);
 		return TEST_FAILED;
 	}
 
@@ -2069,7 +2060,7 @@ test_ipsec_replay_inb_repeat_null_null(int i)
 	rc = create_sa(RTE_SECURITY_ACTION_TYPE_NONE,
 			test_cfg[i].replay_win_sz, test_cfg[i].flags, 0);
 	if (rc != 0) {
-		RTE_LOG(ERR, USER1, "rte_ipsec_sa_init failed, cfg %d\n", i);
+		RTE_LOG(ERR, USER1, "create_sa failed, cfg %d\n", i);
 		return TEST_FAILED;
 	}
 
@@ -2170,8 +2161,7 @@ test_ipsec_replay_inb_inside_burst_null_null(int i)
 	rc = create_sa(RTE_SECURITY_ACTION_TYPE_NONE,
 			test_cfg[i].replay_win_sz, test_cfg[i].flags, 0);
 	if (rc != 0) {
-		RTE_LOG(ERR, USER1, "rte_ipsec_sa_init failed, cfg %d\n",
-			i);
+		RTE_LOG(ERR, USER1, "create_sa failed, cfg %d\n", i);
 		return TEST_FAILED;
 	}
 
@@ -2304,8 +2294,7 @@ test_ipsec_crypto_inb_burst_2sa_null_null(int i)
 	rc = create_sa(RTE_SECURITY_ACTION_TYPE_NONE,
 			test_cfg[i].replay_win_sz, test_cfg[i].flags, 0);
 	if (rc != 0) {
-		RTE_LOG(ERR, USER1, "rte_ipsec_sa_init failed, cfg %d\n",
-			i);
+		RTE_LOG(ERR, USER1, "create_sa 0 failed, cfg %d\n", i);
 		return TEST_FAILED;
 	}
 
@@ -2314,8 +2303,7 @@ test_ipsec_crypto_inb_burst_2sa_null_null(int i)
 	rc = create_sa(RTE_SECURITY_ACTION_TYPE_NONE,
 			test_cfg[i].replay_win_sz, test_cfg[i].flags, 1);
 	if (rc != 0) {
-		RTE_LOG(ERR, USER1, "rte_ipsec_sa_init failed, cfg %d\n",
-			i);
+		RTE_LOG(ERR, USER1, "create_sa 1 failed, cfg %d\n", i);
 		destroy_sa(0);
 		return TEST_FAILED;
 	}
@@ -2392,8 +2380,7 @@ test_ipsec_crypto_inb_burst_2sa_4grp_null_null(int i)
 	rc = create_sa(RTE_SECURITY_ACTION_TYPE_NONE,
 			test_cfg[i].replay_win_sz, test_cfg[i].flags, 0);
 	if (rc != 0) {
-		RTE_LOG(ERR, USER1, "rte_ipsec_sa_init failed, cfg %d\n",
-			i);
+		RTE_LOG(ERR, USER1, "create_sa 0 failed, cfg %d\n", i);
 		return TEST_FAILED;
 	}
 
@@ -2402,8 +2389,7 @@ test_ipsec_crypto_inb_burst_2sa_4grp_null_null(int i)
 	rc = create_sa(RTE_SECURITY_ACTION_TYPE_NONE,
 			test_cfg[i].replay_win_sz, test_cfg[i].flags, 1);
 	if (rc != 0) {
-		RTE_LOG(ERR, USER1, "rte_ipsec_sa_init failed, cfg %d\n",
-			i);
+		RTE_LOG(ERR, USER1, "create_sa 1 failed, cfg %d\n", i);
 		destroy_sa(0);
 		return TEST_FAILED;
 	}
