@@ -897,13 +897,14 @@ crypto_ipsec_2sa(void)
 				"rte_ipsec_pkt_crypto_prepare fail\n");
 			return TEST_FAILED;
 		}
-		k = rte_cryptodev_enqueue_burst(ts_params->valid_dev, 0,
-				ut_params->cop + i, 1);
-		if (k != 1) {
-			RTE_LOG(ERR, USER1,
-				"rte_cryptodev_enqueue_burst fail\n");
-			return TEST_FAILED;
-		}
+	}
+
+	k = rte_cryptodev_enqueue_burst(ts_params->valid_dev, 0,
+			ut_params->cop, BURST_SIZE);
+	if (k != BURST_SIZE) {
+		RTE_LOG(ERR, USER1,
+			"rte_cryptodev_enqueue_burst fail k=%u\n", k);
+		return TEST_FAILED;
 	}
 
 	if (crypto_dequeue_burst(BURST_SIZE) == TEST_FAILED)
@@ -1012,12 +1013,14 @@ crypto_ipsec_4grp_check_cnt(uint32_t grp_ind, struct rte_ipsec_group *grp)
 	return rc;
 }
 
+#define GRP_4	4
+
 static int
 crypto_ipsec_2sa_4grp(void)
 {
 	struct ipsec_testsuite_params *ts_params = &testsuite_params;
 	struct ipsec_unitest_params *ut_params = &unittest_params;
-	struct rte_ipsec_group grp[BURST_SIZE];
+	struct rte_ipsec_group grp[GRP_4];
 	uint32_t k, ng, i, j;
 	uint32_t rc = 0;
 
@@ -1032,13 +1035,14 @@ crypto_ipsec_2sa_4grp(void)
 				"rte_ipsec_pkt_crypto_prepare fail\n");
 			return TEST_FAILED;
 		}
-		k = rte_cryptodev_enqueue_burst(ts_params->valid_dev, 0,
-				ut_params->cop + i, 1);
-		if (k != 1) {
-			RTE_LOG(ERR, USER1,
-				"rte_cryptodev_enqueue_burst fail\n");
-			return TEST_FAILED;
-		}
+	}
+
+	k = rte_cryptodev_enqueue_burst(ts_params->valid_dev, 0,
+			ut_params->cop, BURST_SIZE);
+	if (k != BURST_SIZE) {
+		RTE_LOG(ERR, USER1,
+			"rte_cryptodev_enqueue_burst fail k=%u\n", k);
+		return TEST_FAILED;
 	}
 
 	if (crypto_dequeue_burst(BURST_SIZE) == TEST_FAILED)
