@@ -4651,6 +4651,10 @@ For example:
    cd examples/bpf
    clang -O2 -target bpf -c t1.c
 
+.. note::
+
+   To built other BPF examples, the compiler requires additional command-line options.
+
 Then to load (and JIT compile) t1.o at RX queue 0, port 1:
 
 .. code-block:: console
