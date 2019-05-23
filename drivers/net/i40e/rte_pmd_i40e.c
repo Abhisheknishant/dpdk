@@ -2405,8 +2405,6 @@ int rte_pmd_i40e_flow_type_mapping_reset(uint16_t port)
 
 	dev = &rte_eth_devices[port];
 
-	if (!is_i40e_supported(dev))
-		return -ENOTSUP;
 
 	i40e_set_default_pctype_table(dev);
 
@@ -2424,9 +2422,6 @@ int rte_pmd_i40e_flow_type_mapping_get(
 	RTE_ETH_VALID_PORTID_OR_ERR_RET(port, -ENODEV);
 
 	dev = &rte_eth_devices[port];
-
-	if (!is_i40e_supported(dev))
-		return -ENOTSUP;
 
 	ad = I40E_DEV_PRIVATE_TO_ADAPTER(dev->data->dev_private);
 
@@ -2452,9 +2447,6 @@ rte_pmd_i40e_flow_type_mapping_update(
 	RTE_ETH_VALID_PORTID_OR_ERR_RET(port, -ENODEV);
 
 	dev = &rte_eth_devices[port];
-
-	if (!is_i40e_supported(dev))
-		return -ENOTSUP;
 
 	if (count > I40E_FLOW_TYPE_MAX)
 		return -EINVAL;
