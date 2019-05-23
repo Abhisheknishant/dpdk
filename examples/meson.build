@@ -24,7 +24,7 @@ all_examples = [
 	'l2fwd-keepalive', 'l3fwd',
 	'l3fwd-acl', 'l3fwd-power',
 	'l3fwd-vf', 'link_status_interrupt',
-	'load_balancer', 'multi_process',
+	'load_balancer',
 	'netmap_compat', 'packet_ordering',
 	'performance-thread', 'ptpclient',
 	'qos_meter', 'qos_sched',
@@ -35,6 +35,12 @@ all_examples = [
 	'vhost', 'vhost_crypto',
 	'vhost_scsi', 'vm_power_manager',
 	'vmdq', 'vmdq_dcb',
+	'multi_process/simple_mp',
+	'multi_process/hotplug_mp',
+	'multi_process/symmetric_mp',
+	'multi_process/client_server_mp/mp_server',
+	'multi_process/client_server_mp/mp_client',
+
 ]
 # install all example code on install - irrespective of whether the example in
 # question is to be built as part of this build or not.
