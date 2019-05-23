@@ -812,6 +812,13 @@ vdev_netvsc_scan_callback(__rte_unused void *arg)
 	struct rte_devargs *devargs;
 	struct rte_bus *vbus = rte_bus_find_by_name("vdev");
 
+#ifndef RTE_LIBRTE_MLX4_PMD
+	DRV_LOG(WARNING, "Mellanox MLX4 not configured.");
+#endif
+#ifndef RTE_LIBRTE_MLX5_PMD
+	DRV_LOG(WARNING, "Mellanox MLX5 not configured.");
+#endif
+
 	RTE_EAL_DEVARGS_FOREACH("vdev", devargs)
 		if (!strncmp(devargs->name, VDEV_NETVSC_DRIVER_NAME,
 			     VDEV_NETVSC_DRIVER_NAME_LEN))
