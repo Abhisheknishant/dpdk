@@ -23,6 +23,9 @@ ifeq ($(CONFIG_RTE_LIBRTE_COMMON_DPAAX),y)
 DIRS-y += dpaax
 endif
 
+OCTEONTX2-y := $(CONFIG_RTE_LIBRTE_OCTEONTX2_MEMPOOL)
+ifeq ($(findstring y,$(OCTEONTX2-y)),y)
 DIRS-y += octeontx2
+endif
 
 include $(RTE_SDK)/mk/rte.subdir.mk
