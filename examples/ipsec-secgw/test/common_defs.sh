@@ -55,10 +55,24 @@ SGW_CMD_PRM="-p 0x3 -u 1 -P --config=\"${SGW_CMD_CFG}\""
 
 SGW_CFG_FILE=$(mktemp)
 
+# by default ipsec-secgw can't deal with multi-segment packets
+# make sure our local/remote host wouldn't generate fragmented packets
+# if reassmebly option is not enabled
+DEF_MTU_LEN=1400
+DEF_PING_LEN=1200
+
+#setup mtu on local iface
+set_local_mtu()
+{
+	mtu=$1
+	ifconfig ${LOCAL_IFACE} mtu ${mtu}
+	sysctl -w net.ipv6.conf.${LOCAL_IFACE}.mtu=${mtu}
+}
+
 # configure local host/ifaces
 config_local_iface()
 {
-	ifconfig ${LOCAL_IFACE} ${LOCAL_IPV4}/24 mtu 1400 up
+	ifconfig ${LOCAL_IFACE} ${LOCAL_IPV4}/24 up
 	ifconfig ${LOCAL_IFACE}
 
 	ip neigh flush dev ${LOCAL_IFACE}
@@ -72,8 +86,6 @@ config6_local_iface()
 
 	sysctl -w net.ipv6.conf.${LOCAL_IFACE}.disable_ipv6=0
 	ip addr add  ${LOCAL_IPV6}/64 dev ${LOCAL_IFACE}
-
-	sysctl -w net.ipv6.conf.${LOCAL_IFACE}.mtu=1300
 
 	ip -6 neigh add ${REMOTE_IPV6} dev ${LOCAL_IFACE} lladdr ${REMOTE_MAC}
 	ip neigh show dev ${LOCAL_IFACE}
