@@ -50,17 +50,33 @@
 
 /****************/
 
+static uint8_t test_abi_version = TEST_DPDK_ABI_VERSION_DEFAULT;
+
+static struct test_abi_version_list abi_version_list =
+	TAILQ_HEAD_INITIALIZER(abi_version_list);
+
 static struct test_commands_list commands_list =
 	TAILQ_HEAD_INITIALIZER(commands_list);
 
-void
-add_test_command(struct test_command *t)
+void add_abi_version(struct test_abi_version *av)
 {
+	TAILQ_INSERT_TAIL(&abi_version_list, av, next);
+}
+
+void add_test_command(struct test_command *t, uint8_t abi_version)
+{
+	t->abi_version = abi_version;
 	TAILQ_INSERT_TAIL(&commands_list, t, next);
 }
 
 struct cmd_autotest_result {
 	cmdline_fixed_string_t autotest;
+};
+
+cmdline_parse_token_string_t
+cmd_autotest_autotest[TEST_DPDK_ABI_VERSION_MAX] = {
+	[0 ... TEST_DPDK_ABI_VERSION_MAX-1] =
+	TOKEN_STRING_INITIALIZER(struct cmd_autotest_result, autotest, "")
 };
 
 static void cmd_autotest_parsed(void *parsed_result,
@@ -72,7 +88,8 @@ static void cmd_autotest_parsed(void *parsed_result,
 	int ret = 0;
 
 	TAILQ_FOREACH(t, &commands_list, next) {
-		if (!strcmp(res->autotest, t->command))
+		if (!strcmp(res->autotest, t->command)
+				&& t->abi_version == test_abi_version)
 			ret = t->callback();
 	}
 
@@ -85,10 +102,6 @@ static void cmd_autotest_parsed(void *parsed_result,
 		printf("Test Failed\n");
 	fflush(stdout);
 }
-
-cmdline_parse_token_string_t cmd_autotest_autotest =
-	TOKEN_STRING_INITIALIZER(struct cmd_autotest_result, autotest,
-				 "");
 
 cmdline_parse_inst_t cmd_autotest = {
 	.f = cmd_autotest_parsed,  /* function to call */
@@ -244,6 +257,53 @@ cmdline_parse_inst_t cmd_quit = {
 
 /****************/
 
+struct cmd_set_abi_version_result {
+	cmdline_fixed_string_t set;
+	cmdline_fixed_string_t abi_version_name;
+};
+
+static void cmd_set_abi_version_parsed(
+				void *parsed_result,
+				__attribute__((unused)) struct cmdline *cl,
+				__attribute__((unused)) void *data)
+{
+	struct test_abi_version *av;
+	struct cmd_set_abi_version_result *res = parsed_result;
+
+	TAILQ_FOREACH(av, &abi_version_list, next) {
+		if (!strcmp(res->abi_version_name, av->version_name)) {
+
+			printf("abi version set to %s\n", av->version_name);
+			test_abi_version = av->version_id;
+			cmd_autotest.tokens[0] =
+				(void *)&cmd_autotest_autotest[av->version_id];
+		}
+	}
+
+	fflush(stdout);
+}
+
+cmdline_parse_token_string_t cmd_set_abi_version_set =
+	TOKEN_STRING_INITIALIZER(struct cmd_set_abi_version_result, set,
+				"set_abi_version");
+
+cmdline_parse_token_string_t cmd_set_abi_version_abi_version =
+	TOKEN_STRING_INITIALIZER(struct cmd_set_abi_version_result,
+				abi_version_name, NULL);
+
+cmdline_parse_inst_t cmd_set_abi_version = {
+	.f = cmd_set_abi_version_parsed,  /* function to call */
+	.data = NULL,      /* 2nd arg of func */
+	.help_str = "set abi version: ",
+	.tokens = {        /* token list, NULL terminated */
+		(void *)&cmd_set_abi_version_set,
+		(void *)&cmd_set_abi_version_abi_version,
+		NULL,
+	},
+};
+
+/****************/
+
 struct cmd_set_rxtx_result {
 	cmdline_fixed_string_t set;
 	cmdline_fixed_string_t mode;
@@ -259,7 +319,7 @@ static void cmd_set_rxtx_parsed(void *parsed_result, struct cmdline *cl,
 
 cmdline_parse_token_string_t cmd_set_rxtx_set =
 	TOKEN_STRING_INITIALIZER(struct cmd_set_rxtx_result, set,
-				 "set_rxtx_mode");
+				"set_rxtx_mode");
 
 cmdline_parse_token_string_t cmd_set_rxtx_mode =
 	TOKEN_STRING_INITIALIZER(struct cmd_set_rxtx_result, mode, NULL);
@@ -360,29 +420,66 @@ cmdline_parse_ctx_t main_ctx[] = {
 	(cmdline_parse_inst_t *)&cmd_set_rxtx,
 	(cmdline_parse_inst_t *)&cmd_set_rxtx_anchor,
 	(cmdline_parse_inst_t *)&cmd_set_rxtx_sc,
+	(cmdline_parse_inst_t *)&cmd_set_abi_version,
 	NULL,
 };
 
 int commands_init(void)
 {
+	struct test_abi_version *av;
 	struct test_command *t;
-	char *commands;
-	int commands_len = 0;
+	char *commands[TEST_DPDK_ABI_VERSION_MAX];
+	char *help;
 
-	TAILQ_FOREACH(t, &commands_list, next) {
-		commands_len += strlen(t->command) + 1;
+	int commands_len[TEST_DPDK_ABI_VERSION_MAX] = {
+		[0 ... TEST_DPDK_ABI_VERSION_MAX-1] = 0
+	};
+	int help_len = strlen(cmd_set_abi_version.help_str);
+	int abi_version;
+
+	/* set the set_abi_version command help string */
+	TAILQ_FOREACH(av, &abi_version_list, next) {
+		help_len += strlen(av->version_name) + 1;
 	}
 
-	commands = (char *)calloc(commands_len, sizeof(char));
-	if (!commands)
+	help = (char *)calloc(help_len, sizeof(char));
+	if (!help)
 		return -1;
 
-	TAILQ_FOREACH(t, &commands_list, next) {
-		strlcat(commands, t->command, commands_len);
-		if (TAILQ_NEXT(t, next) != NULL)
-			strlcat(commands, "#", commands_len);
+	strlcat(help, cmd_set_abi_version.help_str, help_len);
+	TAILQ_FOREACH(av, &abi_version_list, next) {
+		strlcat(help, av->version_name, help_len);
+		if (TAILQ_NEXT(av, next) != NULL)
+			strlcat(help, "|", help_len);
 	}
 
-	cmd_autotest_autotest.string_data.str = commands;
+	cmd_set_abi_version.help_str = help;
+
+	/* set the parse strings for the command lists */
+	TAILQ_FOREACH(t, &commands_list, next) {
+		commands_len[t->abi_version] += strlen(t->command) + 1;
+	}
+
+	for (abi_version = 0; abi_version < TEST_DPDK_ABI_VERSION_MAX;
+		abi_version++) {
+		commands[abi_version] =
+			(char *)calloc(commands_len[abi_version], sizeof(char));
+		if (!commands[abi_version])
+			return -1;
+	}
+
+	TAILQ_FOREACH(t, &commands_list, next) {
+		strlcat(commands[t->abi_version],
+			t->command, commands_len[t->abi_version]);
+		if (TAILQ_NEXT(t, next) != NULL)
+			strlcat(commands[t->abi_version],
+				"#", commands_len[t->abi_version]);
+	}
+
+	for (abi_version = 0; abi_version < TEST_DPDK_ABI_VERSION_MAX;
+		abi_version++)
+		cmd_autotest_autotest[abi_version].string_data.str =
+			commands[abi_version];
+
 	return 0;
 }

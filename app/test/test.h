@@ -162,25 +162,59 @@ int test_set_rxtx_conf(cmdline_fixed_string_t mode);
 int test_set_rxtx_anchor(cmdline_fixed_string_t type);
 int test_set_rxtx_sc(cmdline_fixed_string_t type);
 
+#define MAP_ABI_SYMBOL_VERSION(name, abi_version)                             \
+	__asm(".symver "RTE_STR(name)","RTE_STR(name)"@"RTE_STR(abi_version))
+
+#define TEST_DPDK_ABI_VERSION_DEFAULT 0
+#define TEST_DPDK_ABI_VERSION_V1604   1
+#define TEST_DPDK_ABI_VERSION_V20     2
+#define TEST_DPDK_ABI_VERSION_MAX     3
+
+TAILQ_HEAD(test_abi_version_list, test_abi_version);
+struct test_abi_version {
+	TAILQ_ENTRY(test_abi_version) next;
+	const char *version_name;
+	uint8_t version_id;
+};
+
+void add_abi_version(struct test_abi_version *av);
+
+/* Register a test function with its command string */
+#define REGISTER_TEST_ABI_VERSION(name, id)                                   \
+	static struct test_abi_version test_struct_##name = {                 \
+		.version_name = RTE_STR(name),                                \
+		.version_id = id,                                             \
+	};                                                                    \
+	RTE_INIT(test_register_##name)                                        \
+	{                                                                     \
+		add_abi_version(&test_struct_##name);                         \
+	}
+
 typedef int (test_callback)(void);
 TAILQ_HEAD(test_commands_list, test_command);
 struct test_command {
 	TAILQ_ENTRY(test_command) next;
 	const char *command;
 	test_callback *callback;
+	uint8_t abi_version;
 };
 
-void add_test_command(struct test_command *t);
+void add_test_command(struct test_command *t, uint8_t abi_version);
+
+/* Register a test function with its command string and abi version */
+#define REGISTER_TEST_COMMAND_VERSION(cmd, func, abi_version)                 \
+	static struct test_command test_struct_##cmd = {                      \
+		.command = RTE_STR(cmd),                                      \
+		.callback = func,                                             \
+	};                                                                    \
+	RTE_INIT(test_register_##cmd)                                         \
+	{                                                                     \
+		add_test_command(&test_struct_##cmd, abi_version);            \
+	}
 
 /* Register a test function with its command string */
+
 #define REGISTER_TEST_COMMAND(cmd, func) \
-	static struct test_command test_struct_##cmd = { \
-		.command = RTE_STR(cmd), \
-		.callback = func, \
-	}; \
-	RTE_INIT(test_register_##cmd) \
-	{ \
-		add_test_command(&test_struct_##cmd); \
-	}
+	REGISTER_TEST_COMMAND_VERSION(cmd, func, TEST_DPDK_ABI_VERSION_DEFAULT)
 
 #endif

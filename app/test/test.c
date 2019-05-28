@@ -297,3 +297,5 @@ suite_summary:
 
 	return 0;
 }
+
+REGISTER_TEST_ABI_VERSION(default, TEST_DPDK_ABI_VERSION_DEFAULT)
