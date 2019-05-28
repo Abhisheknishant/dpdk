@@ -26,7 +26,7 @@ extern "C" {
 
 #define MAX_PKT_RX_BURST 64
 #define PKT_ENQUEUE 64
-#define PKT_DEQUEUE 32
+#define PKT_DEQUEUE 60
 #define MAX_PKT_TX_BURST 64
 
 #define RX_PTHRESH 8 /**< Default values of RX prefetch threshold reg. */
@@ -147,7 +147,11 @@ extern struct burst_conf burst_conf;
 extern struct ring_thresh rx_thresh;
 extern struct ring_thresh tx_thresh;
 
+uint32_t active_queues[RTE_SCHED_QUEUES_PER_PIPE];
+uint32_t n_active_queues;
+
 extern struct rte_sched_port_params port_params;
+extern struct rte_sched_subport_params subport_params[MAX_SCHED_SUBPORTS];
 
 int app_parse_args(int argc, char **argv);
 int app_init(void);
