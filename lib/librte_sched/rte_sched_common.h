@@ -20,6 +20,18 @@ rte_sched_min_val_2_u32(uint32_t x, uint32_t y)
 	return (x < y)? x : y;
 }
 
+/* Simplified version to remove branches with CMOV instruction */
+static inline uint32_t
+rte_min_pos_2_u16(uint16_t *x)
+{
+	uint32_t pos0 = 0;
+
+	if (x[1] <= x[0])
+		pos0 = 1;
+
+	return pos0;
+}
+
 #if 0
 static inline uint32_t
 rte_min_pos_4_u16(uint16_t *x)
@@ -49,6 +61,35 @@ rte_min_pos_4_u16(uint16_t *x)
 }
 
 #endif
+
+/* Simplified version to remove branches with CMOV instruction */
+static inline uint32_t
+rte_min_pos_8_u16(uint16_t *x)
+{
+	uint32_t pos0 = 0;
+	uint32_t pos1 = 2;
+	uint32_t pos2 = 4;
+	uint32_t pos3 = 6;
+
+	if (x[1] <= x[0])
+		pos0 = 1;
+	if (x[3] <= x[2])
+		pos1 = 3;
+	if (x[5] <= x[4])
+		pos2 = 5;
+	if (x[7] <= x[6])
+		pos3 = 7;
+
+	if (x[pos1] <= x[pos0])
+		pos0 = pos1;
+	if (x[pos3] <= x[pos2])
+		pos2 = pos3;
+
+	if (x[pos2] <= x[pos0])
+		pos0 = pos2;
+
+	return pos0;
+}
 
 /*
  * Compute the Greatest Common Divisor (GCD) of two numbers.
