@@ -20,27 +20,34 @@
 #define SUBPORT         0
 #define PIPE            1
 #define TC              2
-#define QUEUE           3
-
-static struct rte_sched_subport_params subport_param[] = {
-	{
-		.tb_rate = 1250000000,
-		.tb_size = 1000000,
-
-		.tc_rate = {1250000000, 1250000000, 1250000000, 1250000000},
-		.tc_period = 10,
-	},
-};
+#define QUEUE           2
 
 static struct rte_sched_pipe_params pipe_profile[] = {
 	{ /* Profile #0 */
 		.tb_rate = 305175,
 		.tb_size = 1000000,
 
-		.tc_rate = {305175, 305175, 305175, 305175},
+		.tc_rate = {305175, 305175, 305175, 305175,
+				305175, 305175, 305175, 305175, 305175},
 		.tc_period = 40,
 
 		.wrr_weights = {1, 1, 1, 1,  1, 1, 1, 1},
+	},
+};
+
+static struct rte_sched_subport_params subport_param[] = {
+	{
+		.tb_rate = 1250000000,
+		.tb_size = 1000000,
+
+		.tc_rate = {1250000000, 1250000000, 1250000000, 1250000000,
+			1250000000, 1250000000, 1250000000, 1250000000, 1250000000},
+		.tc_period = 10,
+		.n_subport_pipes = 1024,
+		.qsize = {32, 32, 32, 32, 32, 32, 32, 32,
+			32, 32, 32, 32, 32, 32, 32, 32},
+		.pipe_profiles = pipe_profile,
+		.n_pipe_profiles = 1,
 	},
 };
 
@@ -50,10 +57,6 @@ static struct rte_sched_port_params port_param = {
 	.mtu = 1522,
 	.frame_overhead = RTE_SCHED_FRAME_OVERHEAD_DEFAULT,
 	.n_subports_per_port = 1,
-	.n_pipes_per_subport = 1024,
-	.qsize = {32, 32, 32, 32},
-	.pipe_profiles = pipe_profile,
-	.n_pipe_profiles = 1,
 };
 
 #define NB_MBUF          32
@@ -131,7 +134,7 @@ test_sched(void)
 	err = rte_sched_subport_config(port, SUBPORT, subport_param);
 	TEST_ASSERT_SUCCESS(err, "Error config sched, err=%d\n", err);
 
-	for (pipe = 0; pipe < port_param.n_pipes_per_subport; pipe ++) {
+	for (pipe = 0; pipe < subport_param[0].n_subport_pipes; pipe++) {
 		err = rte_sched_pipe_config(port, SUBPORT, pipe, 0);
 		TEST_ASSERT_SUCCESS(err, "Error config sched pipe %u, err=%d\n", pipe, err);
 	}
