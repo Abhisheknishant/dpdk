@@ -118,6 +118,33 @@ extern "C" {
 #endif
 
 /*
+ * Pipe configuration parameters. The period and credits_per_period
+ * parameters are measured in bytes, with one byte meaning the time
+ * duration associated with the transmission of one byte on the
+ * physical medium of the output port, with pipe or pipe traffic class
+ * rate (measured as percentage of output port rate) determined as
+ * credits_per_period divided by period. One credit represents one
+ * byte.
+ */
+struct rte_sched_pipe_params {
+	/* Pipe token bucket */
+	uint32_t tb_rate; /**< Rate (measured in bytes per second) */
+	uint32_t tb_size; /**< Size (measured in credits) */
+
+	/* Pipe traffic classes */
+	uint32_t tc_rate[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
+	/**< Traffic class rates (measured in bytes per second) */
+	uint32_t tc_period;
+	/**< Enforcement period (measured in milliseconds) */
+#ifdef RTE_SCHED_SUBPORT_TC_OV
+	uint8_t tc_ov_weight; /**< Weight Traffic class 3 oversubscription */
+#endif
+
+	/* Pipe queues */
+	uint8_t  wrr_weights[RTE_SCHED_WRR_QUEUES_PER_PIPE]; /**< WRR weights */
+};
+
+/*
  * Subport configuration parameters. The period and credits_per_period
  * parameters are measured in bytes, with one byte meaning the time
  * duration associated with the transmission of one byte on the
@@ -128,14 +155,32 @@ extern "C" {
  */
 struct rte_sched_subport_params {
 	/* Subport token bucket */
-	uint32_t tb_rate;                /**< Rate (measured in bytes per second) */
-	uint32_t tb_size;                /**< Size (measured in credits) */
+	uint32_t tb_rate; /**< Rate (measured in bytes per second) */
+	uint32_t tb_size; /**< Size (measured in credits) */
 
 	/* Subport traffic classes */
 	uint32_t tc_rate[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
 	/**< Traffic class rates (measured in bytes per second) */
 	uint32_t tc_period;
 	/**< Enforcement period for rates (measured in milliseconds) */
+
+	uint32_t n_subport_pipes;    /**< Number of subport_pipes */
+	uint16_t qsize[RTE_SCHED_QUEUES_PER_PIPE];
+	/**< Packet queue size for each traffic class.
+	 * All queues which are not needed,  have zero size. All the pipes
+	 * within the same subport share the similar configuration for the
+	 * queues.
+	 */
+	struct rte_sched_pipe_params *pipe_profiles;
+	/**< Pipe profile table.
+	 * Every pipe is configured using one of the profiles from this table.
+	 */
+	uint32_t n_pipe_profiles; /**< Profiles in the pipe profile table */
+#ifdef RTE_SCHED_RED
+	struct rte_red_params
+		red_params[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE][RTE_COLORS];
+		/**< RED parameters */
+#endif
 };
 
 /** Subport statistics */
@@ -156,33 +201,6 @@ struct rte_sched_subport_stats {
 	uint32_t n_pkts_red_dropped[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
 	/**< Number of packets dropped by red */
 #endif
-};
-
-/*
- * Pipe configuration parameters. The period and credits_per_period
- * parameters are measured in bytes, with one byte meaning the time
- * duration associated with the transmission of one byte on the
- * physical medium of the output port, with pipe or pipe traffic class
- * rate (measured as percentage of output port rate) determined as
- * credits_per_period divided by period. One credit represents one
- * byte.
- */
-struct rte_sched_pipe_params {
-	/* Pipe token bucket */
-	uint32_t tb_rate;                /**< Rate (measured in bytes per second) */
-	uint32_t tb_size;                /**< Size (measured in credits) */
-
-	/* Pipe traffic classes */
-	uint32_t tc_rate[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-	/**< Traffic class rates (measured in bytes per second) */
-	uint32_t tc_period;
-	/**< Enforcement period (measured in milliseconds) */
-#ifdef RTE_SCHED_SUBPORT_TC_OV
-	uint8_t tc_ov_weight;		 /**< Weight Traffic class 3 oversubscription */
-#endif
-
-	/* Pipe queues */
-	uint8_t  wrr_weights[RTE_SCHED_QUEUES_PER_PIPE]; /**< WRR weights */
 };
 
 /** Queue statistics */
