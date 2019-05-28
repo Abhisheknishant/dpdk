@@ -52,7 +52,7 @@ extern "C" {
  *	    multiple connections of same traffic class belonging to
  *	    the same user;
  *           - Weighted Round Robin (WRR) is used to service the
- *	    queues within same pipe traffic class.
+ *	    queues within same pipe lowest priority (best-effort) traffic class.
  *
  */
 
@@ -66,24 +66,41 @@ extern "C" {
 #include "rte_red.h"
 #endif
 
-/** Number of traffic classes per pipe (as well as subport).
- * Cannot be changed.
+/** Maximum number of queues per pipe.
+ * Note that the multiple queues (power of 2) can only be assigned to
+ * lowest priority (best-effort) traffic class. Other higher priority traffic
+ * classes can only have one queue.
+ *
+ * Can not change.
  */
-#define RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE    4
+#define RTE_SCHED_QUEUES_PER_PIPE    16
 
-/** Number of queues per pipe traffic class. Cannot be changed. */
+/** Number of WRR queues for lowest priority (best-effort) traffic class per
+ * pipe.
+ */
+#define RTE_SCHED_WRR_QUEUES_PER_PIPE    8
+
+/** Number of traffic classes per pipe (as well as subport). */
 #define RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS    4
+#define RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE    \
+(RTE_SCHED_QUEUES_PER_PIPE - RTE_SCHED_WRR_QUEUES_PER_PIPE + 1)
 
-/** Number of queues per pipe. */
-#define RTE_SCHED_QUEUES_PER_PIPE             \
-	(RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE *     \
-	RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS)
+/** Maximum number of subports that can be defined per port.
+ * Compile-time configurable.
+ */
+#ifndef RTE_SCHED_SUBPORTS_PER_PORT
+#define RTE_SCHED_SUBPORTS_PER_PORT      256
+#endif
 
-/** Maximum number of pipe profiles that can be defined per port.
+/** Maximum number of pipe profiles that can be defined per subport.
  * Compile-time configurable.
  */
 #ifndef RTE_SCHED_PIPE_PROFILES_PER_PORT
 #define RTE_SCHED_PIPE_PROFILES_PER_PORT      256
+#endif
+
+#ifndef RTE_SCHED_PIPE_PROFILES_PER_SUBPORT
+#define RTE_SCHED_PIPE_PROFILES_PER_SUBPORT      256
 #endif
 
 /*
