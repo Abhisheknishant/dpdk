@@ -306,16 +306,6 @@ enum rte_sched_subport_array {
 	e_RTE_SCHED_SUBPORT_ARRAY_TOTAL,
 };
 
-#ifdef RTE_SCHED_COLLECT_STATS
-
-static inline uint32_t
-rte_sched_port_queues_per_subport(struct rte_sched_port *port)
-{
-	return RTE_SCHED_QUEUES_PER_PIPE * port->n_pipes_per_subport;
-}
-
-#endif
-
 static inline uint32_t
 rte_sched_subport_queues(struct rte_sched_subport *subport)
 {
@@ -340,9 +330,14 @@ rte_sched_subport_qsize(struct rte_sched_subport *subport, uint32_t qindex)
 }
 
 static inline uint32_t
-rte_sched_port_queues_per_port(struct rte_sched_port *port)
+rte_sched_port_queues(struct rte_sched_port *port)
 {
-	return RTE_SCHED_QUEUES_PER_PIPE * port->n_pipes_per_subport * port->n_subports_per_port;
+	uint32_t n_queues = 0, i;
+
+	for (i = 0; i < port->n_subports_per_port; i++)
+		n_queues += rte_sched_subport_queues(port->subports[i]);
+
+	return n_queues;
 }
 
 static int
@@ -1366,18 +1361,25 @@ rte_sched_queue_read_stats(struct rte_sched_port *port,
 	struct rte_sched_queue_stats *stats,
 	uint16_t *qlen)
 {
+	uint32_t subport_id, qindex;
+	struct rte_sched_subport *s;
 	struct rte_sched_queue *q;
 	struct rte_sched_queue_extra *qe;
 
 	/* Check user parameters */
 	if ((port == NULL) ||
-	    (queue_id >= rte_sched_port_queues_per_port(port)) ||
+	    (queue_id >= rte_sched_port_queues(port)) ||
 		(stats == NULL) ||
 		(qlen == NULL)) {
 		return -1;
 	}
-	q = port->queue + queue_id;
-	qe = port->queue_extra + queue_id;
+
+	subport_id = (queue_id >> (port->n_max_subport_pipes_log2 + 4)) &
+					(port->n_subports_per_port - 1);
+	s = port->subports[subport_id];
+	qindex = ((1 << (port->n_max_subport_pipes_log2 + 4)) - 1) & queue_id;
+	q = s->queue + qindex;
+	qe = s->queue_extra + qindex;
 
 	/* Copy queue stats and clear */
 	memcpy(stats, &qe->stats, sizeof(struct rte_sched_queue_stats));
@@ -1392,9 +1394,10 @@ rte_sched_queue_read_stats(struct rte_sched_port *port,
 #ifdef RTE_SCHED_DEBUG
 
 static inline int
-rte_sched_port_queue_is_empty(struct rte_sched_port *port, uint32_t qindex)
+rte_sched_port_queue_is_empty(struct rte_sched_subport *subport,
+	uint32_t qindex)
 {
-	struct rte_sched_queue *queue = port->queue + qindex;
+	struct rte_sched_queue *queue = subport->queue + qindex;
 
 	return queue->qr == queue->qw;
 }
@@ -1535,7 +1538,7 @@ rte_sched_port_set_queue_empty_timestamp(struct rte_sched_port *port __rte_unuse
 #ifdef RTE_SCHED_DEBUG
 
 static inline void
-debug_check_queue_slab(struct rte_sched_port *port, uint32_t bmp_pos,
+debug_check_queue_slab(struct rte_sched_subport *subport, uint32_t bmp_pos,
 		       uint64_t bmp_slab)
 {
 	uint64_t mask;
@@ -1547,7 +1550,7 @@ debug_check_queue_slab(struct rte_sched_port *port, uint32_t bmp_pos,
 	panic = 0;
 	for (i = 0, mask = 1; i < 64; i++, mask <<= 1) {
 		if (mask & bmp_slab) {
-			if (rte_sched_port_queue_is_empty(port, bmp_pos + i)) {
+			if (rte_sched_port_queue_is_empty(subport, bmp_pos + i)) {
 				printf("Queue %u (slab offset %u) is empty\n", bmp_pos + i, i);
 				panic = 1;
 			}
