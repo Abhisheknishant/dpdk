@@ -1351,17 +1351,15 @@ rte_sched_port_pipe_profile_add(struct rte_sched_port *port,
 
 static inline uint32_t
 rte_sched_port_qindex(struct rte_sched_port *port,
+	struct rte_sched_subport *s,
 	uint32_t subport,
 	uint32_t pipe,
-	uint32_t traffic_class,
 	uint32_t queue)
 {
 	return ((subport & (port->n_subports_per_port - 1)) <<
-			(port->n_pipes_per_subport_log2 + 4)) |
-			((pipe & (port->n_pipes_per_subport - 1)) << 4) |
-			((traffic_class &
-			    (RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE - 1)) << 2) |
-			(queue & (RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS - 1));
+			(port->n_max_subport_pipes_log2 + 4)) |
+			((pipe & (s->n_subport_pipes - 1)) << 4) |
+			(queue & (RTE_SCHED_QUEUES_PER_PIPE - 1));
 }
 
 void
@@ -1371,9 +1369,9 @@ rte_sched_port_pkt_write(struct rte_sched_port *port,
 			 uint32_t traffic_class,
 			 uint32_t queue, enum rte_color color)
 {
-	uint32_t queue_id = rte_sched_port_qindex(port, subport, pipe,
-			traffic_class, queue);
-	rte_mbuf_sched_set(pkt, queue_id, traffic_class, (uint8_t)color);
+	struct rte_sched_subport *s = port->subports[subport];
+	uint32_t qindex = rte_sched_port_qindex(port, s, subport, pipe, queue);
+	rte_mbuf_sched_set(pkt, qindex, traffic_class, (uint8_t)color);
 }
 
 void
@@ -1382,13 +1380,17 @@ rte_sched_port_pkt_read_tree_path(struct rte_sched_port *port,
 				  uint32_t *subport, uint32_t *pipe,
 				  uint32_t *traffic_class, uint32_t *queue)
 {
-	uint32_t queue_id = rte_mbuf_sched_queue_get(pkt);
+	struct rte_sched_subport *s;
+	uint32_t qindex = rte_mbuf_sched_queue_get(pkt);
+	uint32_t tc_id = rte_mbuf_sched_traffic_class_get(pkt);
 
-	*subport = queue_id >> (port->n_pipes_per_subport_log2 + 4);
-	*pipe = (queue_id >> 4) & (port->n_pipes_per_subport - 1);
-	*traffic_class = (queue_id >> 2) &
-				(RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE - 1);
-	*queue = queue_id & (RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS - 1);
+	*subport = (qindex >> (port->n_max_subport_pipes_log2 + 4)) &
+		(port->n_subports_per_port - 1);
+
+	s = port->subports[*subport];
+	*pipe = (qindex >> 4) & (s->n_subport_pipes - 1);
+	*traffic_class = tc_id;
+	*queue = qindex & (RTE_SCHED_QUEUES_PER_PIPE - 1);
 }
 
 enum rte_color
