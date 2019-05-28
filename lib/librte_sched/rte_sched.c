@@ -345,24 +345,6 @@ rte_sched_port_queues_per_port(struct rte_sched_port *port)
 	return RTE_SCHED_QUEUES_PER_PIPE * port->n_pipes_per_subport * port->n_subports_per_port;
 }
 
-static inline struct rte_mbuf **
-rte_sched_port_qbase(struct rte_sched_port *port, uint32_t qindex)
-{
-	uint32_t pindex = qindex >> 4;
-	uint32_t qpos = qindex & 0xF;
-
-	return (port->queue_array + pindex *
-		port->qsize_sum + port->qsize_add[qpos]);
-}
-
-static inline uint16_t
-rte_sched_port_qsize(struct rte_sched_port *port, uint32_t qindex)
-{
-	uint32_t tc = (qindex >> 2) & 0x3;
-
-	return port->qsize[tc];
-}
-
 static int
 pipe_profile_check(struct rte_sched_pipe_params *params,
 	uint32_t rate, uint16_t *qsize)
@@ -2120,13 +2102,14 @@ grinder_schedule(struct rte_sched_port *port, uint32_t pos)
 #ifdef SCHED_VECTOR_SSE4
 
 static inline int
-grinder_pipe_exists(struct rte_sched_port *port, uint32_t base_pipe)
+grinder_pipe_exists(struct rte_sched_subport *subport, uint32_t base_pipe)
 {
 	__m128i index = _mm_set1_epi32(base_pipe);
-	__m128i pipes = _mm_load_si128((__m128i *)port->grinder_base_bmp_pos);
+	__m128i pipes =
+		_mm_load_si128((__m128i *)subport->grinder_base_bmp_pos);
 	__m128i res = _mm_cmpeq_epi32(pipes, index);
 
-	pipes = _mm_load_si128((__m128i *)(port->grinder_base_bmp_pos + 4));
+	pipes = _mm_load_si128((__m128i *)(subport->grinder_base_bmp_pos + 4));
 	pipes = _mm_cmpeq_epi32(pipes, index);
 	res = _mm_or_si128(res, pipes);
 
@@ -2139,10 +2122,10 @@ grinder_pipe_exists(struct rte_sched_port *port, uint32_t base_pipe)
 #elif defined(SCHED_VECTOR_NEON)
 
 static inline int
-grinder_pipe_exists(struct rte_sched_port *port, uint32_t base_pipe)
+grinder_pipe_exists(struct rte_sched_subport *subport, uint32_t base_pipe)
 {
 	uint32x4_t index, pipes;
-	uint32_t *pos = (uint32_t *)port->grinder_base_bmp_pos;
+	uint32_t *pos = (uint32_t *)subport->grinder_base_bmp_pos;
 
 	index = vmovq_n_u32(base_pipe);
 	pipes = vld1q_u32(pos);
@@ -2159,12 +2142,12 @@ grinder_pipe_exists(struct rte_sched_port *port, uint32_t base_pipe)
 #else
 
 static inline int
-grinder_pipe_exists(struct rte_sched_port *port, uint32_t base_pipe)
+grinder_pipe_exists(struct rte_sched_subport *subport, uint32_t base_pipe)
 {
 	uint32_t i;
 
 	for (i = 0; i < RTE_SCHED_PORT_N_GRINDERS; i++) {
-		if (port->grinder_base_bmp_pos[i] == base_pipe)
+		if (subport->grinder_base_bmp_pos[i] == base_pipe)
 			return 1;
 	}
 
@@ -2231,47 +2214,54 @@ grinder_tccache_populate(struct rte_sched_subport *subport, uint32_t pos,
 }
 
 static inline int
-grinder_next_tc(struct rte_sched_port *port, uint32_t pos)
+grinder_next_tc(struct rte_sched_subport *subport, uint32_t pos)
 {
-	struct rte_sched_grinder *grinder = port->grinder + pos;
+	struct rte_sched_grinder *grinder = subport->grinder + pos;
+	struct rte_sched_pipe *pipe = grinder->pipe;
 	struct rte_mbuf **qbase;
 	uint32_t qindex;
 	uint16_t qsize;
+	uint32_t i;
 
 	if (grinder->tccache_r == grinder->tccache_w)
 		return 0;
 
 	qindex = grinder->tccache_qindex[grinder->tccache_r];
-	qbase = rte_sched_port_qbase(port, qindex);
-	qsize = rte_sched_port_qsize(port, qindex);
+	grinder->tc_index =
+		(qindex < RTE_SCHED_TRAFFIC_CLASS_BE) ?
+		qindex : RTE_SCHED_TRAFFIC_CLASS_BE;
 
-	grinder->tc_index = (qindex >> 2) & 0x3;
-	grinder->qmask = grinder->tccache_qmask[grinder->tccache_r];
-	grinder->qsize = qsize;
+	qbase = rte_sched_subport_qbase(subport, qindex);
+	if (grinder->tc_index < pipe->n_sp_queues) {
+		qsize = rte_sched_subport_qsize(subport, qindex);
 
-	grinder->qindex[0] = qindex;
-	grinder->qindex[1] = qindex + 1;
-	grinder->qindex[2] = qindex + 2;
-	grinder->qindex[3] = qindex + 3;
+		grinder->sp.qindex = qindex;
+		grinder->sp.queue = subport->queue + qindex;
+		grinder->sp.qbase = qbase;
+		grinder->sp.qsize = qsize;
 
-	grinder->queue[0] = port->queue + qindex;
-	grinder->queue[1] = port->queue + qindex + 1;
-	grinder->queue[2] = port->queue + qindex + 2;
-	grinder->queue[3] = port->queue + qindex + 3;
+		grinder->tccache_r++;
+		return 1;
+	}
 
-	grinder->qbase[0] = qbase;
-	grinder->qbase[1] = qbase + qsize;
-	grinder->qbase[2] = qbase + 2 * qsize;
-	grinder->qbase[3] = qbase + 3 * qsize;
+	for (i = 0; i < pipe->n_be_queues; i++) {
+		qsize = rte_sched_subport_qsize(subport, qindex + i);
+
+		grinder->be.qindex[i] = qindex + i;
+		grinder->be.queue[i] = subport->queue + qindex + i;
+		grinder->be.qbase[i] = qbase + i * qsize;
+		grinder->be.qsize[i] = qsize;
+	}
+	grinder->be.qmask = grinder->tccache_qmask[grinder->tccache_r];
 
 	grinder->tccache_r++;
 	return 1;
 }
 
 static inline int
-grinder_next_pipe(struct rte_sched_port *port, uint32_t pos)
+grinder_next_pipe(struct rte_sched_subport *subport, uint32_t pos)
 {
-	struct rte_sched_grinder *grinder = port->grinder + pos;
+	struct rte_sched_grinder *grinder = subport->grinder + pos;
 	uint32_t pipe_qindex;
 	uint16_t pipe_qmask;
 
@@ -2284,22 +2274,23 @@ grinder_next_pipe(struct rte_sched_port *port, uint32_t pos)
 		uint32_t bmp_pos = 0;
 
 		/* Get another non-empty pipe group */
-		if (unlikely(rte_bitmap_scan(port->bmp, &bmp_pos, &bmp_slab) <= 0))
+		if (unlikely(rte_bitmap_scan(subport->bmp, &bmp_pos, &bmp_slab)
+			<= 0))
 			return 0;
 
 #ifdef RTE_SCHED_DEBUG
-		debug_check_queue_slab(port, bmp_pos, bmp_slab);
+		debug_check_queue_slab(subport, bmp_pos, bmp_slab);
 #endif
 
 		/* Return if pipe group already in one of the other grinders */
-		port->grinder_base_bmp_pos[pos] = RTE_SCHED_BMP_POS_INVALID;
-		if (unlikely(grinder_pipe_exists(port, bmp_pos)))
+		subport->grinder_base_bmp_pos[pos] = RTE_SCHED_BMP_POS_INVALID;
+		if (unlikely(grinder_pipe_exists(subport, bmp_pos)))
 			return 0;
 
-		port->grinder_base_bmp_pos[pos] = bmp_pos;
+		subport->grinder_base_bmp_pos[pos] = bmp_pos;
 
 		/* Install new pipe group into grinder's pipe cache */
-		grinder_pcache_populate(port->subport, pos, bmp_pos, bmp_slab);
+		grinder_pcache_populate(subport, pos, bmp_pos, bmp_slab);
 
 		pipe_qmask = grinder->pcache_qmask[0];
 		pipe_qindex = grinder->pcache_qindex[0];
@@ -2308,18 +2299,18 @@ grinder_next_pipe(struct rte_sched_port *port, uint32_t pos)
 
 	/* Install new pipe in the grinder */
 	grinder->pindex = pipe_qindex >> 4;
-	grinder->subport = port->subport + (grinder->pindex / port->n_pipes_per_subport);
-	grinder->pipe = port->pipe + grinder->pindex;
+	grinder->subport = subport;
+	grinder->pipe = subport->pipe + grinder->pindex;
 	grinder->pipe_params = NULL; /* to be set after the pipe structure is prefetched */
 	grinder->productive = 0;
 
-	grinder_tccache_populate(port->subport, pos, pipe_qindex, pipe_qmask);
-	grinder_next_tc(port, pos);
+	grinder_tccache_populate(subport, pos, pipe_qindex, pipe_qmask);
+	grinder_next_tc(subport, pos);
 
 	/* Check for pipe exhaustion */
-	if (grinder->pindex == port->pipe_loop) {
-		port->pipe_exhaustion = 1;
-		port->pipe_loop = RTE_SCHED_PIPE_INVALID;
+	if (grinder->pindex == subport->pipe_loop) {
+		subport->pipe_exhaustion = 1;
+		subport->pipe_loop = RTE_SCHED_PIPE_INVALID;
 	}
 
 	return 1;
@@ -2455,7 +2446,7 @@ grinder_handle(struct rte_sched_port *port, uint32_t pos)
 	switch (grinder->state) {
 	case e_GRINDER_PREFETCH_PIPE:
 	{
-		if (grinder_next_pipe(port, pos)) {
+		if (grinder_next_pipe(port->subport, pos)) {
 			grinder_prefetch_pipe(port, pos);
 			port->busy_grinders++;
 
@@ -2502,7 +2493,7 @@ grinder_handle(struct rte_sched_port *port, uint32_t pos)
 		grinder_wrr_store(port, pos);
 
 		/* Look for another active TC within same pipe */
-		if (grinder_next_tc(port, pos)) {
+		if (grinder_next_tc(port->subport, pos)) {
 			grinder_prefetch_tc_queue_arrays(port, pos);
 
 			grinder->state = e_GRINDER_PREFETCH_MBUF;
@@ -2516,7 +2507,7 @@ grinder_handle(struct rte_sched_port *port, uint32_t pos)
 		grinder_evict(port, pos);
 
 		/* Look for another active pipe */
-		if (grinder_next_pipe(port, pos)) {
+		if (grinder_next_pipe(port->subport, pos)) {
 			grinder_prefetch_pipe(port, pos);
 
 			grinder->state = e_GRINDER_PREFETCH_TC_QUEUE_ARRAYS;
