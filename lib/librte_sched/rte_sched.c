@@ -2495,7 +2495,7 @@ grinder_wrr(struct rte_sched_subport *subport, uint32_t pos)
 }
 
 
-#define grinder_evict(port, pos)
+#define grinder_evict(subport, pos)
 
 static inline void
 grinder_prefetch_pipe(struct rte_sched_subport *subport, uint32_t pos)
@@ -2507,9 +2507,9 @@ grinder_prefetch_pipe(struct rte_sched_subport *subport, uint32_t pos)
 }
 
 static inline void
-grinder_prefetch_tc_queue_arrays(struct rte_sched_port *port, uint32_t pos)
+grinder_prefetch_tc_queue_arrays(struct rte_sched_subport *subport, uint32_t pos)
 {
-	struct rte_sched_grinder *grinder = port->subport->grinder + pos;
+	struct rte_sched_grinder *grinder = subport->grinder + pos;
 	struct rte_sched_pipe *pipe = grinder->pipe;
 	struct rte_sched_queue *queue;
 	uint32_t tc_index = grinder->tc_index, i;
@@ -2532,8 +2532,8 @@ grinder_prefetch_tc_queue_arrays(struct rte_sched_port *port, uint32_t pos)
 		rte_prefetch0(grinder->be.qbase[i] + qr[i]);
 	}
 
-	grinder_wrr_load(port->subport, pos);
-	grinder_wrr(port->subport, pos);
+	grinder_wrr_load(subport, pos);
+	grinder_wrr(subport, pos);
 }
 
 static inline void
@@ -2580,9 +2580,9 @@ grinder_prefetch_mbuf(struct rte_sched_subport *subport, uint32_t pos)
 }
 
 static inline uint32_t
-grinder_handle(struct rte_sched_port *port, uint32_t pos)
+grinder_handle(struct rte_sched_port *port,
+	struct rte_sched_subport *subport, uint32_t pos)
 {
-	struct rte_sched_subport *subport = port->subport;
 	struct rte_sched_grinder *grinder = subport->grinder + pos;
 
 	switch (grinder->state) {
@@ -2603,9 +2603,9 @@ grinder_handle(struct rte_sched_port *port, uint32_t pos)
 	{
 		struct rte_sched_pipe *pipe = grinder->pipe;
 
-		grinder->pipe_params = port->pipe_profiles + pipe->profile;
-		grinder_prefetch_tc_queue_arrays(port, pos);
-		grinder_credits_update(port, port->subport, pos);
+		grinder->pipe_params = subport->pipe_profiles + pipe->profile;
+		grinder_prefetch_tc_queue_arrays(subport, pos);
+		grinder_credits_update(port, subport, pos);
 
 		grinder->state = e_GRINDER_PREFETCH_MBUF;
 		return 0;
@@ -2626,38 +2626,40 @@ grinder_handle(struct rte_sched_port *port, uint32_t pos)
 		result = grinder_schedule(port, subport, pos);
 
 		/* Look for next packet within the same TC */
-		if (result && grinder->qmask) {
-			grinder_wrr(port->subport, pos);
-			grinder_prefetch_mbuf(port->subport, pos);
+		if (result &&
+			(grinder->tc_index == RTE_SCHED_TRAFFIC_CLASS_BE) &&
+			(grinder->be.qmask)) {
+			grinder_wrr(subport, pos);
+			grinder_prefetch_mbuf(subport, pos);
 
 			return 1;
 		}
-		grinder_wrr_store(port->subport, pos);
+		grinder_wrr_store(subport, pos);
 
 		/* Look for another active TC within same pipe */
-		if (grinder_next_tc(port->subport, pos)) {
-			grinder_prefetch_tc_queue_arrays(port, pos);
+		if (grinder_next_tc(subport, pos)) {
+			grinder_prefetch_tc_queue_arrays(subport, pos);
 
 			grinder->state = e_GRINDER_PREFETCH_MBUF;
 			return result;
 		}
 
 		if (grinder->productive == 0 &&
-		    port->pipe_loop == RTE_SCHED_PIPE_INVALID)
-			port->pipe_loop = grinder->pindex;
+		    subport->pipe_loop == RTE_SCHED_PIPE_INVALID)
+			subport->pipe_loop = grinder->pindex;
 
-		grinder_evict(port, pos);
+		grinder_evict(subport, pos);
 
 		/* Look for another active pipe */
-		if (grinder_next_pipe(port->subport, pos)) {
-			grinder_prefetch_pipe(port->subport, pos);
+		if (grinder_next_pipe(subport, pos)) {
+			grinder_prefetch_pipe(subport, pos);
 
 			grinder->state = e_GRINDER_PREFETCH_TC_QUEUE_ARRAYS;
 			return result;
 		}
 
 		/* No active pipe found */
-		port->busy_grinders--;
+		subport->busy_grinders--;
 
 		grinder->state = e_GRINDER_PREFETCH_PIPE;
 		return result;
@@ -2717,7 +2719,8 @@ rte_sched_port_dequeue(struct rte_sched_port *port, struct rte_mbuf **pkts, uint
 
 	/* Take each queue in the grinder one step further */
 	for (i = 0, count = 0; ; i++)  {
-		count += grinder_handle(port, i & (RTE_SCHED_PORT_N_GRINDERS - 1));
+		count += grinder_handle(port, port->subport,
+			i & (RTE_SCHED_PORT_N_GRINDERS - 1));
 		if ((count == n_pkts) ||
 		    rte_sched_port_exceptions(port, i >= RTE_SCHED_PORT_N_GRINDERS)) {
 			break;
