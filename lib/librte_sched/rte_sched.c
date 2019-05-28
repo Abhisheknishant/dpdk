@@ -2174,9 +2174,10 @@ grinder_pipe_exists(struct rte_sched_port *port, uint32_t base_pipe)
 #endif /* RTE_SCHED_OPTIMIZATIONS */
 
 static inline void
-grinder_pcache_populate(struct rte_sched_port *port, uint32_t pos, uint32_t bmp_pos, uint64_t bmp_slab)
+grinder_pcache_populate(struct rte_sched_subport *subport, uint32_t pos,
+	uint32_t bmp_pos, uint64_t bmp_slab)
 {
-	struct rte_sched_grinder *grinder = port->grinder + pos;
+	struct rte_sched_grinder *grinder = subport->grinder + pos;
 	uint16_t w[4];
 
 	grinder->pcache_w = 0;
@@ -2205,34 +2206,28 @@ grinder_pcache_populate(struct rte_sched_port *port, uint32_t pos, uint32_t bmp_
 }
 
 static inline void
-grinder_tccache_populate(struct rte_sched_port *port, uint32_t pos, uint32_t qindex, uint16_t qmask)
+grinder_tccache_populate(struct rte_sched_subport *subport, uint32_t pos,
+	uint32_t qindex, uint16_t qmask)
 {
-	struct rte_sched_grinder *grinder = port->grinder + pos;
-	uint8_t b[4];
+	struct rte_sched_grinder *grinder = subport->grinder + pos;
+	uint32_t i;
+	uint8_t b;
 
 	grinder->tccache_w = 0;
 	grinder->tccache_r = 0;
 
-	b[0] = (uint8_t) (qmask & 0xF);
-	b[1] = (uint8_t) ((qmask >> 4) & 0xF);
-	b[2] = (uint8_t) ((qmask >> 8) & 0xF);
-	b[3] = (uint8_t) ((qmask >> 12) & 0xF);
+	for (i = 0; i < RTE_SCHED_TRAFFIC_CLASS_BE; i++) {
+		b = (uint8_t) ((qmask >> i) & 0x1);
+		grinder->tccache_qmask[grinder->tccache_w] = b;
+		grinder->tccache_qindex[grinder->tccache_w] = qindex + i;
+		grinder->tccache_w += (b != 0);
+	}
 
-	grinder->tccache_qmask[grinder->tccache_w] = b[0];
-	grinder->tccache_qindex[grinder->tccache_w] = qindex;
-	grinder->tccache_w += (b[0] != 0);
-
-	grinder->tccache_qmask[grinder->tccache_w] = b[1];
-	grinder->tccache_qindex[grinder->tccache_w] = qindex + 4;
-	grinder->tccache_w += (b[1] != 0);
-
-	grinder->tccache_qmask[grinder->tccache_w] = b[2];
-	grinder->tccache_qindex[grinder->tccache_w] = qindex + 8;
-	grinder->tccache_w += (b[2] != 0);
-
-	grinder->tccache_qmask[grinder->tccache_w] = b[3];
-	grinder->tccache_qindex[grinder->tccache_w] = qindex + 12;
-	grinder->tccache_w += (b[3] != 0);
+	b = (uint8_t) (qmask >> (RTE_SCHED_TRAFFIC_CLASS_BE));
+	grinder->tccache_qmask[grinder->tccache_w] = b;
+	grinder->tccache_qindex[grinder->tccache_w] = qindex +
+		RTE_SCHED_TRAFFIC_CLASS_BE;
+	grinder->tccache_w += (b != 0);
 }
 
 static inline int
@@ -2304,7 +2299,7 @@ grinder_next_pipe(struct rte_sched_port *port, uint32_t pos)
 		port->grinder_base_bmp_pos[pos] = bmp_pos;
 
 		/* Install new pipe group into grinder's pipe cache */
-		grinder_pcache_populate(port, pos, bmp_pos, bmp_slab);
+		grinder_pcache_populate(port->subport, pos, bmp_pos, bmp_slab);
 
 		pipe_qmask = grinder->pcache_qmask[0];
 		pipe_qindex = grinder->pcache_qindex[0];
@@ -2318,7 +2313,7 @@ grinder_next_pipe(struct rte_sched_port *port, uint32_t pos)
 	grinder->pipe_params = NULL; /* to be set after the pipe structure is prefetched */
 	grinder->productive = 0;
 
-	grinder_tccache_populate(port, pos, pipe_qindex, pipe_qmask);
+	grinder_tccache_populate(port->subport, pos, pipe_qindex, pipe_qmask);
 	grinder_next_tc(port, pos);
 
 	/* Check for pipe exhaustion */
