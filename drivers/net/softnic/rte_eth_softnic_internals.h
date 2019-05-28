@@ -43,7 +43,7 @@ struct pmd_params {
 	/** Traffic Management (TM) */
 	struct {
 		uint32_t n_queues; /**< Number of queues */
-		uint16_t qsize[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
+		uint16_t qsize[RTE_SCHED_QUEUES_PER_PIPE];
 	} tm;
 };
 
@@ -167,7 +167,7 @@ struct tm_params {
 	struct rte_sched_subport_params subport_params[TM_MAX_SUBPORTS];
 
 	struct rte_sched_pipe_params
-		pipe_profiles[RTE_SCHED_PIPE_PROFILES_PER_PORT];
+		pipe_profiles[RTE_SCHED_PIPE_PROFILES_PER_SUBPORT];
 	uint32_t n_pipe_profiles;
 	uint32_t pipe_to_profile[TM_MAX_SUBPORTS * TM_MAX_PIPES_PER_SUBPORT];
 };
