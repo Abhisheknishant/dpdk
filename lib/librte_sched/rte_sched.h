@@ -81,7 +81,6 @@ extern "C" {
 #define RTE_SCHED_WRR_QUEUES_PER_PIPE    8
 
 /** Number of traffic classes per pipe (as well as subport). */
-#define RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS    4
 #define RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE    \
 (RTE_SCHED_QUEUES_PER_PIPE - RTE_SCHED_WRR_QUEUES_PER_PIPE + 1)
 
@@ -95,10 +94,6 @@ extern "C" {
 /** Maximum number of pipe profiles that can be defined per subport.
  * Compile-time configurable.
  */
-#ifndef RTE_SCHED_PIPE_PROFILES_PER_PORT
-#define RTE_SCHED_PIPE_PROFILES_PER_PORT      256
-#endif
-
 #ifndef RTE_SCHED_PIPE_PROFILES_PER_SUBPORT
 #define RTE_SCHED_PIPE_PROFILES_PER_SUBPORT      256
 #endif
@@ -229,19 +224,6 @@ struct rte_sched_port_params {
 	uint32_t frame_overhead;         /**< Framing overhead per packet
 					  * (measured in bytes) */
 	uint32_t n_subports_per_port;    /**< Number of subports */
-	uint32_t n_pipes_per_subport;    /**< Number of pipes per subport */
-	uint16_t qsize[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-	/**< Packet queue size for each traffic class.
-	 * All queues within the same pipe traffic class have the same
-	 * size. Queues from different pipes serving the same traffic
-	 * class have the same size. */
-	struct rte_sched_pipe_params *pipe_profiles;
-	/**< Pipe profile table.
-	 * Every pipe is configured using one of the profiles from this table. */
-	uint32_t n_pipe_profiles;        /**< Profiles in the pipe profile table */
-#ifdef RTE_SCHED_RED
-	struct rte_red_params red_params[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE][RTE_COLORS]; /**< RED parameters */
-#endif
 };
 
 /*

@@ -100,18 +100,7 @@ struct rte_sched_grinder {
 	uint32_t tc_index;
 	struct rte_sched_strict_priority_class sp;
 	struct rte_sched_best_effort_class be;
-	struct rte_sched_queue *queue[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-	struct rte_mbuf **qbase[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-	uint32_t qindex[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-	uint16_t qsize;
-	uint32_t qmask;
-	uint32_t qpos;
 	struct rte_mbuf *pkt;
-
-	/* WRR */
-	uint16_t wrr_tokens[RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS];
-	uint16_t wrr_mask[RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS];
-	uint8_t wrr_cost[RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS];
 };
 
 struct rte_sched_subport {
@@ -215,7 +204,6 @@ struct rte_sched_pipe {
 	/* TC oversubscription */
 	uint32_t tc_ov_credits;
 	uint8_t tc_ov_period_id;
-	uint8_t reserved[3];
 } __rte_cache_aligned;
 
 struct rte_sched_queue {
@@ -233,18 +221,10 @@ struct rte_sched_queue_extra {
 struct rte_sched_port {
 	/* User parameters */
 	uint32_t n_subports_per_port;
-	uint32_t n_pipes_per_subport;
-	uint32_t n_pipes_per_subport_log2;
 	int socket;
 	uint32_t rate;
 	uint32_t mtu;
 	uint32_t frame_overhead;
-	uint16_t qsize[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-	uint32_t n_pipe_profiles;
-	uint32_t pipe_tc3_rate_max;
-#ifdef RTE_SCHED_RED
-	struct rte_red_config red_config[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE][RTE_COLORS];
-#endif
 
 	/* Timing */
 	uint64_t time_cpu_cycles;     /* Current CPU time measured in CPU cyles */
@@ -252,49 +232,16 @@ struct rte_sched_port {
 	uint64_t time;                /* Current NIC TX time measured in bytes */
 	struct rte_reciprocal inv_cycles_per_byte; /* CPU cycles per byte */
 
-	/* Scheduling loop detection */
-	uint32_t pipe_loop;
-	uint32_t pipe_exhaustion;
-
-	/* Bitmap */
-	struct rte_bitmap *bmp;
-	uint32_t grinder_base_bmp_pos[RTE_SCHED_PORT_N_GRINDERS] __rte_aligned_16;
-
 	/* Grinders */
-	struct rte_sched_grinder grinder[RTE_SCHED_PORT_N_GRINDERS];
-	uint32_t busy_grinders;
 	struct rte_mbuf **pkts_out;
 	uint32_t n_pkts_out;
 	uint32_t subport_id;
 
 	uint32_t n_max_subport_pipes_log2;   /* Max number of subport pipes */
 
-	/* Queue base calculation */
-	uint32_t qsize_add[RTE_SCHED_QUEUES_PER_PIPE];
-	uint32_t qsize_sum;
-
 	/* Large data structures */
-	struct rte_sched_subport *subport;
-	struct rte_sched_pipe *pipe;
-	struct rte_sched_queue *queue;
-	struct rte_sched_queue_extra *queue_extra;
-	struct rte_sched_pipe_profile *pipe_profiles;
-	uint8_t *bmp_array;
-	struct rte_mbuf **queue_array;
 	struct rte_sched_subport *subports[RTE_SCHED_SUBPORTS_PER_PORT];
-	uint8_t memory[0] __rte_cache_aligned;
 } __rte_cache_aligned;
-
-enum rte_sched_port_array {
-	e_RTE_SCHED_PORT_ARRAY_SUBPORT = 0,
-	e_RTE_SCHED_PORT_ARRAY_PIPE,
-	e_RTE_SCHED_PORT_ARRAY_QUEUE,
-	e_RTE_SCHED_PORT_ARRAY_QUEUE_EXTRA,
-	e_RTE_SCHED_PORT_ARRAY_PIPE_PROFILES,
-	e_RTE_SCHED_PORT_ARRAY_BMP_ARRAY,
-	e_RTE_SCHED_PORT_ARRAY_QUEUE_ARRAY,
-	e_RTE_SCHED_PORT_ARRAY_TOTAL,
-};
 
 enum rte_sched_subport_array {
 	e_RTE_SCHED_SUBPORT_ARRAY_PIPE = 0,
