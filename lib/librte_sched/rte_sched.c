@@ -2478,19 +2478,43 @@ grinder_prefetch_tc_queue_arrays(struct rte_sched_port *port, uint32_t pos)
 }
 
 static inline void
-grinder_prefetch_mbuf(struct rte_sched_port *port, uint32_t pos)
+grinder_prefetch_mbuf(struct rte_sched_subport *subport, uint32_t pos)
 {
-	struct rte_sched_grinder *grinder = port->grinder + pos;
-	uint32_t qpos = grinder->qpos;
-	struct rte_mbuf **qbase = grinder->qbase[qpos];
-	uint16_t qsize = grinder->qsize;
-	uint16_t qr = grinder->queue[qpos]->qr & (qsize - 1);
+	struct rte_sched_grinder *grinder = subport->grinder + pos;
+	struct rte_mbuf **qbase;
+	uint32_t tc_index = grinder->tc_index;
+	uint32_t qpos;
+	uint16_t qsize, qr;
+
+	if (tc_index < RTE_SCHED_TRAFFIC_CLASS_BE) {
+		qbase = grinder->sp.qbase;
+		qsize = grinder->sp.qsize;
+		qr = grinder->sp.queue->qr & (qsize - 1);
+
+		grinder->pkt = qbase[qr];
+		rte_prefetch0(grinder->pkt);
+
+		if (unlikely((qr & 0x7) == 7)) {
+			uint16_t qr_next =
+				(grinder->sp.queue->qr + 1) & (qsize - 1);
+
+			rte_prefetch0(qbase + qr_next);
+		}
+
+		return;
+	}
+
+	qpos = grinder->be.qpos;
+	qbase = grinder->be.qbase[qpos];
+	qsize = grinder->be.qsize[qpos];
+	qr = grinder->be.queue[qpos]->qr & (qsize - 1);
 
 	grinder->pkt = qbase[qr];
 	rte_prefetch0(grinder->pkt);
 
 	if (unlikely((qr & 0x7) == 7)) {
-		uint16_t qr_next = (grinder->queue[qpos]->qr + 1) & (qsize - 1);
+		uint16_t qr_next =
+			(grinder->be.queue[qpos]->qr + 1) & (qsize - 1);
 
 		rte_prefetch0(qbase + qr_next);
 	}
@@ -2529,7 +2553,7 @@ grinder_handle(struct rte_sched_port *port, uint32_t pos)
 
 	case e_GRINDER_PREFETCH_MBUF:
 	{
-		grinder_prefetch_mbuf(port, pos);
+		grinder_prefetch_mbuf(port->subport, pos);
 
 		grinder->state = e_GRINDER_READ_MBUF;
 		return 0;
@@ -2544,7 +2568,7 @@ grinder_handle(struct rte_sched_port *port, uint32_t pos)
 		/* Look for next packet within the same TC */
 		if (result && grinder->qmask) {
 			grinder_wrr(port->subport, pos);
-			grinder_prefetch_mbuf(port, pos);
+			grinder_prefetch_mbuf(port->subport, pos);
 
 			return 1;
 		}
