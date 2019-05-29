@@ -378,4 +378,7 @@ EXPERIMENTAL {
 	rte_service_lcore_attr_get;
 	rte_service_lcore_attr_reset_all;
 	rte_service_may_be_active;
+
+	# added in 19.08
+	rte_cpu_get_flagname_enabled;
 };

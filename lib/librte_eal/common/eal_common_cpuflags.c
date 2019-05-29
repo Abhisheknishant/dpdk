@@ -3,6 +3,7 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 
 #include <rte_common.h>
 #include <rte_cpuflags.h>
@@ -47,4 +48,44 @@ rte_cpu_is_supported(void)
 	}
 
 	return 1;
+}
+
+static enum rte_cpu_flag_t
+rte_cpu_get_flag(const char *flagname)
+{
+	int i;
+
+	if (flagname == NULL)
+		return RTE_CPUFLAG_NUMFLAGS;
+
+	for (i = 0; i < RTE_CPUFLAG_NUMFLAGS; i++)
+		if (strcmp(flagname, rte_cpu_get_flag_name(i)) == 0)
+			break;
+	return i;
+}
+
+static int
+rte_cpu_is_architecture(enum rte_cpu_arch arch)
+{
+	switch (arch) {
+	case rte_cpu_arch_arm:
+		return strcmp(RTE_ARCH, "arm") == 0 ||
+				strcmp(RTE_ARCH, "arm64") == 0;
+	case rte_cpu_arch_ppc:
+		return strcmp(RTE_ARCH, "ppc_64") == 0;
+	case rte_cpu_arch_x86:
+		return strcmp(RTE_ARCH, "x86_64") == 0 ||
+				strcmp(RTE_ARCH, "i686") == 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+int
+rte_cpu_get_flagname_enabled(enum rte_cpu_arch arch, const char *flagname)
+{
+	if (!rte_cpu_is_architecture(arch))
+		return 0;
+
+	return rte_cpu_get_flag_enabled(rte_cpu_get_flag(flagname)) == 1;
 }
