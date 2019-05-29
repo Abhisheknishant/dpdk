@@ -151,7 +151,19 @@ rte_net_intel_cksum_flags_prepare(struct rte_mbuf *m, uint64_t ol_flags)
 			ipv4_hdr->hdr_checksum = 0;
 	}
 
-	if ((ol_flags & PKT_TX_UDP_CKSUM) == PKT_TX_UDP_CKSUM) {
+#ifdef GCC_VERSION
+#if GCC_VERSION < 70400
+	/*
+	 * Earlier versions of GCC suspect access to possibly
+	 * uninitialised ipv4_hdr in the code below, although
+	 * the said variable is properly initialised above.
+	 * Use compiler barrier to cope with the problem.
+	 */
+	rte_compiler_barrier();
+#endif
+#endif
+
+	if ((ol_flags & PKT_TX_L4_MASK) == PKT_TX_UDP_CKSUM) {
 		if (ol_flags & PKT_TX_IPV4) {
 			udp_hdr = (struct rte_udp_hdr *)((char *)ipv4_hdr +
 					m->l3_len);
@@ -167,7 +179,7 @@ rte_net_intel_cksum_flags_prepare(struct rte_mbuf *m, uint64_t ol_flags)
 			udp_hdr->dgram_cksum = rte_ipv6_phdr_cksum(ipv6_hdr,
 					ol_flags);
 		}
-	} else if ((ol_flags & PKT_TX_TCP_CKSUM) ||
+	} else if ((ol_flags & PKT_TX_L4_MASK) == PKT_TX_TCP_CKSUM ||
 			(ol_flags & PKT_TX_TCP_SEG)) {
 		if (ol_flags & PKT_TX_IPV4) {
 			/* non-TSO tcp or TSO */
