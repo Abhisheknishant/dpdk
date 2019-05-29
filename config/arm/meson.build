@@ -113,6 +113,7 @@ dpdk_conf.set('RTE_FORCE_INTRINSICS', 1)
 
 if not dpdk_conf.get('RTE_ARCH_64')
 	dpdk_conf.set('RTE_CACHE_LINE_SIZE', 64)
+	dpdk_conf.set_quoted('RTE_ARCH', 'arm')
 	dpdk_conf.set('RTE_ARCH_ARM', 1)
 	dpdk_conf.set('RTE_ARCH_ARMv7', 1)
 	# the minimum architecture supported, armv7-a, needs the following,
@@ -120,6 +121,7 @@ if not dpdk_conf.get('RTE_ARCH_64')
 	machine_args += '-mfpu=neon'
 else
 	dpdk_conf.set('RTE_CACHE_LINE_SIZE', 128)
+	dpdk_conf.set_quoted('RTE_ARCH', 'arm64')
 	dpdk_conf.set('RTE_ARCH_ARM64', 1)
 
 	machine = []
