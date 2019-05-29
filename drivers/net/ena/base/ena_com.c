@@ -547,10 +547,13 @@ static int ena_com_wait_and_process_admin_cq_polling(struct ena_comp_ctx *comp_c
 						     struct ena_com_admin_queue *admin_queue)
 {
 	unsigned long flags = 0;
-	unsigned long timeout;
+	u32 timeout_ms;
 	int ret;
 
-	timeout = ENA_GET_SYSTEM_TIMEOUT(admin_queue->completion_timeout);
+	/* Calculate ms granularity timeout from us completion_timeout
+	 * making sure we retry once if we have at least 1ms
+	 */
+	timeout_ms = (admin_queue->completion_timeout / 1000) + (ENA_POLL_MS - 1);
 
 	while (1) {
                 ENA_SPINLOCK_LOCK(admin_queue->q_lock, flags);
@@ -560,7 +563,7 @@ static int ena_com_wait_and_process_admin_cq_polling(struct ena_comp_ctx *comp_c
                 if (comp_ctx->status != ENA_CMD_SUBMITTED)
 			break;
 
-		if (ENA_TIME_EXPIRE(timeout)) {
+		if (timeout_ms < ENA_POLL_MS) {
 			ena_trc_err("Wait for completion (polling) timeout\n");
 			/* ENA didn't have any completion */
 			ENA_SPINLOCK_LOCK(admin_queue->q_lock, flags);
@@ -573,6 +576,7 @@ static int ena_com_wait_and_process_admin_cq_polling(struct ena_comp_ctx *comp_c
 		}
 
 		ENA_MSLEEP(ENA_POLL_MS);
+		timeout_ms -= ENA_POLL_MS;
 	}
 
 	if (unlikely(comp_ctx->status == ENA_CMD_ABORTED)) {

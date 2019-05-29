@@ -178,7 +178,7 @@ do {                                                                   \
 	do {								\
 		struct timespec wait;					\
 		struct timeval now;					\
-		unsigned long timeout_us;				\
+		uint64_t timeout_us;					\
 		gettimeofday(&now, NULL);				\
 		wait.tv_sec = now.tv_sec + timeout / 1000000UL;		\
 		timeout_us = timeout % 1000000UL;			\
@@ -195,10 +195,6 @@ do {                                                                   \
 
 #define ena_wait_event_t ena_wait_queue_t
 #define ENA_MIGHT_SLEEP()
-
-#define ENA_TIME_EXPIRE(timeout)  (timeout < rte_get_timer_cycles())
-#define ENA_GET_SYSTEM_TIMEOUT(timeout_us)                             \
-       (timeout_us * rte_get_timer_hz() / 1000000 + rte_get_timer_cycles())
 
 /*
  * Each rte_memzone should have unique name.
