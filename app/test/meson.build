@@ -313,29 +313,29 @@ endif
 # specify -D_GNU_SOURCE unconditionally
 cflags += '-D_GNU_SOURCE'
 
-test_dep_objs = []
-if dpdk_conf.has('RTE_LIBRTE_COMPRESSDEV')
-	compress_test_dep = dependency('zlib', required: false)
-	if compress_test_dep.found()
-		test_dep_objs += compress_test_dep
-		test_sources += 'test_compressdev.c'
-		test_deps += 'compressdev'
-		fast_non_parallel_test_names += 'compressdev_autotest'
-	endif
-endif
-
-foreach d:test_deps
-	def_lib = get_option('default_library')
-	test_dep_objs += get_variable(def_lib + '_rte_' + d)
-endforeach
-test_dep_objs += cc.find_library('execinfo', required: false)
-
-link_libs = []
-if get_option('default_library') == 'static'
-	link_libs = dpdk_drivers
-endif
-
 if get_option('tests')
+	test_dep_objs = []
+	if dpdk_conf.has('RTE_LIBRTE_COMPRESSDEV')
+		compress_test_dep = dependency('zlib', required: false)
+		if compress_test_dep.found()
+			test_dep_objs += compress_test_dep
+			test_sources += 'test_compressdev.c'
+			test_deps += 'compressdev'
+			fast_non_parallel_test_names += 'compressdev_autotest'
+		endif
+	endif
+
+	foreach d:test_deps
+		def_lib = get_option('default_library')
+		test_dep_objs += get_variable(def_lib + '_rte_' + d)
+	endforeach
+	test_dep_objs += cc.find_library('execinfo', required: false)
+
+	link_libs = []
+	if get_option('default_library') == 'static'
+		link_libs = dpdk_drivers
+	endif
+
 	dpdk_test = executable('dpdk-test',
 		test_sources,
 		link_whole: link_libs,
