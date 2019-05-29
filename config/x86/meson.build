@@ -31,10 +31,10 @@ endforeach
 dpdk_conf.set('RTE_ARCH_X86', 1)
 if dpdk_conf.get('RTE_ARCH_64')
 	dpdk_conf.set('RTE_ARCH_X86_64', 1)
-	dpdk_conf.set('RTE_ARCH', 'x86_64')
+	dpdk_conf.set_quoted('RTE_ARCH', 'x86_64')
 else
 	dpdk_conf.set('RTE_ARCH_I686', 1)
-	dpdk_conf.set('RTE_ARCH', 'i686')
+	dpdk_conf.set_quoted('RTE_ARCH', 'i686')
 endif
 
 if cc.get_define('__AES__', args: machine_args) != ''

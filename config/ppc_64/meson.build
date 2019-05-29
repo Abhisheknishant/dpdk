@@ -4,7 +4,7 @@
 if not dpdk_conf.get('RTE_ARCH_64')
 	error('Only 64-bit compiles are supported for this platform type')
 endif
-dpdk_conf.set('RTE_ARCH', 'ppc_64')
+dpdk_conf.set_quoted('RTE_ARCH', 'ppc_64')
 dpdk_conf.set('RTE_ARCH_PPC_64', 1)
 
 # overrides specific to ppc64
