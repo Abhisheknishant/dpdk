@@ -18,8 +18,17 @@
 
 #ifdef X86_64_SSE42_PCLMULQDQ
 #include <net_crc_sse.h>
-#elif defined ARM64_NEON_PMULL
+#else
+/* define stubs for the SSE functions to avoid compiler errors */
+#define handlers_sse42 handlers_scalar
+#define rte_net_crc_sse42_init() do { } while(0)
+#endif
+
+#ifdef ARM64_NEON_PMULL
 #include <net_crc_neon.h>
+#else
+#define handlers_neon handlers_scalar
+#define rte_net_crc_neon_init() do { } while(0)
 #endif
 
 /* crc tables */
@@ -140,18 +149,19 @@ void
 rte_net_crc_set_alg(enum rte_net_crc_alg alg)
 {
 	switch (alg) {
-#ifdef X86_64_SSE42_PCLMULQDQ
 	case RTE_NET_CRC_SSE42:
-		handlers = handlers_sse42;
-		break;
-#elif defined ARM64_NEON_PMULL
+		if (rte_cpu_get_flagname_enabled(rte_cpu_arch_x86,
+				"RTE_CPUFLAG_SSE4_2")) {
+			handlers = handlers_sse42;
+			break;
+		}
 		/* fall-through */
 	case RTE_NET_CRC_NEON:
-		if (rte_cpu_get_flag_enabled(RTE_CPUFLAG_PMULL)) {
+		if (rte_cpu_get_flagname_enabled(rte_cpu_arch_arm,
+				"RTE_CPUFLAG_PMULL")) {
 			handlers = handlers_neon;
 			break;
 		}
-#endif
 		/* fall-through */
 	case RTE_NET_CRC_SCALAR:
 		/* fall-through */
@@ -182,15 +192,17 @@ RTE_INIT(rte_net_crc_init)
 
 	rte_net_crc_scalar_init();
 
-#ifdef X86_64_SSE42_PCLMULQDQ
-	alg = RTE_NET_CRC_SSE42;
-	rte_net_crc_sse42_init();
-#elif defined ARM64_NEON_PMULL
-	if (rte_cpu_get_flag_enabled(RTE_CPUFLAG_PMULL)) {
+	if (rte_cpu_get_flagname_enabled(rte_cpu_arch_x86,
+			"RTE_CPUFLAG_SSE4_2")) {
+		alg = RTE_NET_CRC_SSE42;
+		rte_net_crc_sse42_init();
+	}
+
+	if (rte_cpu_get_flagname_enabled(rte_cpu_arch_arm,
+			"RTE_CPUFLAG_PMULL")) {
 		alg = RTE_NET_CRC_NEON;
 		rte_net_crc_neon_init();
 	}
-#endif
 
 	rte_net_crc_set_alg(alg);
 }
