@@ -287,6 +287,16 @@ DPDK_19.05 {
 
 } DPDK_18.11;
 
+DPDK_19.08 {
+	global:
+
+	rte_eal_mcfg_mem_read_lock;
+	rte_eal_mcfg_mem_read_unlock;
+	rte_eal_mcfg_mem_write_lock;
+	rte_eal_mcfg_mem_write_unlock;
+
+} DPDK_19.05;
+
 EXPERIMENTAL {
 	global:
 

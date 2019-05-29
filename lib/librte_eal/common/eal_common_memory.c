@@ -682,6 +682,34 @@ rte_memseg_list_walk(rte_memseg_list_walk_t func, void *arg)
 	return ret;
 }
 
+void
+rte_eal_mcfg_mem_read_lock(void)
+{
+	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
+	rte_rwlock_read_lock(&mcfg->memory_hotplug_lock);
+}
+
+void
+rte_eal_mcfg_mem_read_unlock(void)
+{
+	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
+	rte_rwlock_read_unlock(&mcfg->memory_hotplug_lock);
+}
+
+void
+rte_eal_mcfg_mem_write_lock(void)
+{
+	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
+	rte_rwlock_write_lock(&mcfg->memory_hotplug_lock);
+}
+
+void
+rte_eal_mcfg_mem_write_unlock(void)
+{
+	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
+	rte_rwlock_write_unlock(&mcfg->memory_hotplug_lock);
+}
+
 int __rte_experimental
 rte_memseg_get_fd_thread_unsafe(const struct rte_memseg *ms)
 {
