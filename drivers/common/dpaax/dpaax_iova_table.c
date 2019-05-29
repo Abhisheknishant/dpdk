@@ -118,8 +118,7 @@ read_memory_node(unsigned int *count)
 	 */
 	*count = (statbuf.st_size / 16);
 	if ((*count) <= 0 || (statbuf.st_size % 16 != 0)) {
-		DPAAX_DEBUG("Invalid memory node values or count. (size=%lu)",
-			    statbuf.st_size);
+		DPAAX_DEBUG("Invalid memory node values or count. ");
 		goto cleanup;
 	}
 
