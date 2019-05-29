@@ -76,7 +76,7 @@ SRCS-$(CONFIG_RTE_LIBRTE_HINIC_PMD) += hinic_pmd_qp.c
 SRCS-$(CONFIG_RTE_LIBRTE_HINIC_PMD) += hinic_pmd_wq.c
 
 SRCS-$(CONFIG_RTE_LIBRTE_HINIC_PMD) += hinic_pmd_dpdev.c
-#SRCS-$(CONFIG_RTE_LIBRTE_HINIC_PMD) += hinic_pmd_ethdev.c
+SRCS-$(CONFIG_RTE_LIBRTE_HINIC_PMD) += hinic_pmd_ethdev.c
 SRCS-$(CONFIG_RTE_LIBRTE_HINIC_PMD) += hinic_pmd_rx.c
 SRCS-$(CONFIG_RTE_LIBRTE_HINIC_PMD) += hinic_pmd_tx.c
 # this lib depends upon:
