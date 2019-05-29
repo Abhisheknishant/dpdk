@@ -707,6 +707,34 @@ rte_eal_mcfg_mem_write_unlock(void)
 	rte_rwlock_write_unlock(&mcfg->memory_hotplug_lock);
 }
 
+void
+rte_eal_mcfg_tailq_read_lock(void)
+{
+	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
+	rte_rwlock_read_lock(&mcfg->qlock);
+}
+
+void
+rte_eal_mcfg_tailq_read_unlock(void)
+{
+	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
+	rte_rwlock_read_unlock(&mcfg->qlock);
+}
+
+void
+rte_eal_mcfg_tailq_write_lock(void)
+{
+	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
+	rte_rwlock_write_lock(&mcfg->qlock);
+}
+
+void
+rte_eal_mcfg_tailq_write_unlock(void)
+{
+	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
+	rte_rwlock_write_unlock(&mcfg->qlock);
+}
+
 int __rte_experimental
 rte_memseg_get_fd_thread_unsafe(const struct rte_memseg *ms)
 {
