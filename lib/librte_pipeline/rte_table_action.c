@@ -611,7 +611,7 @@ encap_ether_apply(void *data,
 {
 	struct encap_ether_data *d = data;
 	uint16_t ethertype = (common_cfg->ip_version) ?
-		RTE_ETHER_TYPE_IPv4 :
+		RTE_ETHER_TYPE_IPV4 :
 		RTE_ETHER_TYPE_IPv6;
 
 	/* Ethernet */
@@ -629,7 +629,7 @@ encap_vlan_apply(void *data,
 {
 	struct encap_vlan_data *d = data;
 	uint16_t ethertype = (common_cfg->ip_version) ?
-		RTE_ETHER_TYPE_IPv4 :
+		RTE_ETHER_TYPE_IPV4 :
 		RTE_ETHER_TYPE_IPv6;
 
 	/* Ethernet */
@@ -653,7 +653,7 @@ encap_qinq_apply(void *data,
 {
 	struct encap_qinq_data *d = data;
 	uint16_t ethertype = (common_cfg->ip_version) ?
-		RTE_ETHER_TYPE_IPv4 :
+		RTE_ETHER_TYPE_IPV4 :
 		RTE_ETHER_TYPE_IPv6;
 
 	/* Ethernet */
@@ -786,7 +786,7 @@ encap_vxlan_apply(void *data,
 			d->vlan.vlan_tci = rte_htons(VLAN(p->vxlan.vlan.pcp,
 				p->vxlan.vlan.dei,
 				p->vxlan.vlan.vid));
-			d->vlan.eth_proto = rte_htons(RTE_ETHER_TYPE_IPv4);
+			d->vlan.eth_proto = rte_htons(RTE_ETHER_TYPE_IPV4);
 
 			/* IPv4*/
 			d->ipv4.version_ihl = 0x45;
@@ -821,7 +821,7 @@ encap_vxlan_apply(void *data,
 					&d->ether.d_addr);
 			rte_ether_addr_copy(&p->vxlan.ether.sa,
 					&d->ether.s_addr);
-			d->ether.ether_type = rte_htons(RTE_ETHER_TYPE_IPv4);
+			d->ether.ether_type = rte_htons(RTE_ETHER_TYPE_IPV4);
 
 			/* IPv4*/
 			d->ipv4.version_ihl = 0x45;

@@ -362,7 +362,7 @@ reassemble(struct rte_mbuf *m, uint16_t portid, uint32_t queue,
 			dst_port = next_hop;
 		}
 
-		eth_hdr->ether_type = rte_be_to_cpu_16(RTE_ETHER_TYPE_IPv4);
+		eth_hdr->ether_type = rte_be_to_cpu_16(RTE_ETHER_TYPE_IPV4);
 	} else if (RTE_ETH_IS_IPV6_HDR(m->packet_type)) {
 		/* if packet is IPv6 */
 		struct ipv6_extension_fragment *frag_hdr;

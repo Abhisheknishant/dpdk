@@ -233,7 +233,7 @@ ch_rte_parsetype_ipv4(const void *dmask, const struct rte_flow_item *item,
 					  item, "ttl/tos are not supported");
 
 	fs->type = FILTER_TYPE_IPV4;
-	CXGBE_FILL_FS(RTE_ETHER_TYPE_IPv4, 0xffff, ethtype);
+	CXGBE_FILL_FS(RTE_ETHER_TYPE_IPV4, 0xffff, ethtype);
 	if (!val)
 		return 0; /* ipv4 wild card */
 

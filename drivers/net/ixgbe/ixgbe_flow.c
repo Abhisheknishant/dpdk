@@ -887,7 +887,7 @@ ixgbe_parse_ethertype_filter(struct rte_eth_dev *dev,
 		return -rte_errno;
 	}
 
-	if (filter->ether_type == RTE_ETHER_TYPE_IPv4 ||
+	if (filter->ether_type == RTE_ETHER_TYPE_IPV4 ||
 		filter->ether_type == RTE_ETHER_TYPE_IPv6) {
 		memset(filter, 0, sizeof(struct rte_eth_ethertype_filter));
 		rte_flow_error_set(error, EINVAL,

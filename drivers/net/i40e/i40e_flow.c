@@ -2035,7 +2035,7 @@ i40e_flow_parse_ethertype_pattern(struct rte_eth_dev *dev,
 			}
 			filter->ether_type = rte_be_to_cpu_16(eth_spec->type);
 
-			if (filter->ether_type == RTE_ETHER_TYPE_IPv4 ||
+			if (filter->ether_type == RTE_ETHER_TYPE_IPV4 ||
 			    filter->ether_type == RTE_ETHER_TYPE_IPv6 ||
 			    filter->ether_type == RTE_ETHER_TYPE_LLDP ||
 			    filter->ether_type == outer_tpid) {
@@ -2507,7 +2507,7 @@ i40e_flow_parse_fdir_pattern(struct rte_eth_dev *dev,
 				ether_type = rte_be_to_cpu_16(eth_spec->type);
 
 				if (next == RTE_FLOW_ITEM_TYPE_VLAN ||
-				    ether_type == RTE_ETHER_TYPE_IPv4 ||
+				    ether_type == RTE_ETHER_TYPE_IPV4 ||
 				    ether_type == RTE_ETHER_TYPE_IPv6 ||
 				    ether_type == RTE_ETHER_TYPE_ARP ||
 				    ether_type == outer_tpid) {
@@ -2552,7 +2552,7 @@ i40e_flow_parse_fdir_pattern(struct rte_eth_dev *dev,
 				ether_type =
 					rte_be_to_cpu_16(vlan_spec->inner_type);
 
-				if (ether_type == RTE_ETHER_TYPE_IPv4 ||
+				if (ether_type == RTE_ETHER_TYPE_IPV4 ||
 				    ether_type == RTE_ETHER_TYPE_IPv6 ||
 				    ether_type == RTE_ETHER_TYPE_ARP ||
 				    ether_type == outer_tpid) {

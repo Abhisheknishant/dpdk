@@ -16,7 +16,7 @@
 static uint16_t
 get_psd_sum(void *l3_hdr, uint16_t ethertype, uint64_t ol_flags)
 {
-	if (ethertype == RTE_ETHER_TYPE_IPv4)
+	if (ethertype == RTE_ETHER_TYPE_IPV4)
 		return rte_ipv4_phdr_cksum(l3_hdr, ol_flags);
 	else /* assume ethertype == RTE_ETHER_TYPE_IPv6 */
 		return rte_ipv6_phdr_cksum(l3_hdr, ol_flags);
@@ -46,7 +46,7 @@ parse_ethernet(struct rte_ether_hdr *eth_hdr, union tunnel_offload_info *info,
 	}
 
 	switch (ethertype) {
-	case RTE_ETHER_TYPE_IPv4:
+	case RTE_ETHER_TYPE_IPV4:
 		ipv4_hdr = (struct rte_ipv4_hdr *)
 			((char *)eth_hdr + info->outer_l2_len);
 		info->outer_l3_len = sizeof(struct rte_ipv4_hdr);
@@ -94,7 +94,7 @@ process_inner_cksums(struct rte_ether_hdr *eth_hdr,
 
 	l3_hdr = (char *)eth_hdr + info->l2_len;
 
-	if (ethertype == RTE_ETHER_TYPE_IPv4) {
+	if (ethertype == RTE_ETHER_TYPE_IPV4) {
 		ipv4_hdr = (struct rte_ipv4_hdr *)l3_hdr;
 		ipv4_hdr->hdr_checksum = 0;
 		ol_flags |= PKT_TX_IPV4;

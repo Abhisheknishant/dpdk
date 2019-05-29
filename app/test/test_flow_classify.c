@@ -506,7 +506,7 @@ init_ipv4_udp_traffic(struct rte_mempool *mp,
 	printf("Set up IPv4 UDP traffic\n");
 	initialize_eth_header(&pkt_eth_hdr,
 		(struct rte_ether_addr *)src_mac,
-		(struct rte_ether_addr *)dst_mac, RTE_ETHER_TYPE_IPv4, 0, 0);
+		(struct rte_ether_addr *)dst_mac, RTE_ETHER_TYPE_IPV4, 0, 0);
 	pktlen = (uint16_t)(sizeof(struct rte_ether_hdr));
 	printf("ETH  pktlen %u\n", pktlen);
 
@@ -543,7 +543,7 @@ init_ipv4_tcp_traffic(struct rte_mempool *mp,
 	printf("Set up IPv4 TCP traffic\n");
 	initialize_eth_header(&pkt_eth_hdr,
 		(struct rte_ether_addr *)src_mac,
-		(struct rte_ether_addr *)dst_mac, RTE_ETHER_TYPE_IPv4, 0, 0);
+		(struct rte_ether_addr *)dst_mac, RTE_ETHER_TYPE_IPV4, 0, 0);
 	pktlen = (uint16_t)(sizeof(struct rte_ether_hdr));
 	printf("ETH  pktlen %u\n", pktlen);
 
@@ -580,7 +580,7 @@ init_ipv4_sctp_traffic(struct rte_mempool *mp,
 	printf("Set up IPv4 SCTP traffic\n");
 	initialize_eth_header(&pkt_eth_hdr,
 		(struct rte_ether_addr *)src_mac,
-		(struct rte_ether_addr *)dst_mac, RTE_ETHER_TYPE_IPv4, 0, 0);
+		(struct rte_ether_addr *)dst_mac, RTE_ETHER_TYPE_IPV4, 0, 0);
 	pktlen = (uint16_t)(sizeof(struct rte_ether_hdr));
 	printf("ETH  pktlen %u\n", pktlen);
 

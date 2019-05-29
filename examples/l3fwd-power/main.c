@@ -624,7 +624,7 @@ parse_ptype_one(struct rte_mbuf *m)
 
 	eth_hdr = rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
 	ether_type = eth_hdr->ether_type;
-	if (ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPv4))
+	if (ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
 		packet_type |= RTE_PTYPE_L3_IPV4_EXT_UNKNOWN;
 	else if (ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPv6))
 		packet_type |= RTE_PTYPE_L3_IPV6_EXT_UNKNOWN;

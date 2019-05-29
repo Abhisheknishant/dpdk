@@ -988,7 +988,7 @@ parse_ethernet(struct rte_mbuf *m, uint16_t *l4_proto, void **l4_hdr)
 	l3_hdr = (char *)eth_hdr + m->l2_len;
 
 	switch (ethertype) {
-	case RTE_ETHER_TYPE_IPv4:
+	case RTE_ETHER_TYPE_IPV4:
 		ipv4_hdr = l3_hdr;
 		*l4_proto = ipv4_hdr->next_proto_id;
 		m->l3_len = (ipv4_hdr->version_ihl & 0x0f) * 4;

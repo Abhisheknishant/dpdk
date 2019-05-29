@@ -280,7 +280,7 @@ mcast_send_pkt(struct rte_mbuf *pkt, struct rte_ether_addr *dest_addr,
 
 	rte_ether_addr_copy(dest_addr, &ethdr->d_addr);
 	rte_ether_addr_copy(&ports_eth_addr[port], &ethdr->s_addr);
-	ethdr->ether_type = rte_be_to_cpu_16(RTE_ETHER_TYPE_IPv4);
+	ethdr->ether_type = rte_be_to_cpu_16(RTE_ETHER_TYPE_IPV4);
 
 	/* Put new packet into the output queue */
 	len = qconf->tx_mbufs[port].len;

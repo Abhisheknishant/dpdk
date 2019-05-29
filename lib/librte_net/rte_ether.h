@@ -298,7 +298,7 @@ struct rte_vxlan_hdr {
 } __attribute__((__packed__));
 
 /* Ethernet frame types */
-#define RTE_ETHER_TYPE_IPv4 0x0800 /**< IPv4 Protocol. */
+#define RTE_ETHER_TYPE_IPV4 0x0800 /**< IPv4 Protocol. */
 #define RTE_ETHER_TYPE_IPv6 0x86DD /**< IPv6 Protocol. */
 #define RTE_ETHER_TYPE_ARP  0x0806 /**< Arp Protocol. */
 #define RTE_ETHER_TYPE_RARP 0x8035 /**< Reverse Arp Protocol. */

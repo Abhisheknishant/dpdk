@@ -574,7 +574,7 @@ em_parse_ptype(struct rte_mbuf *m)
 	eth_hdr = rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
 	ether_type = eth_hdr->ether_type;
 	l3 = (uint8_t *)eth_hdr + sizeof(struct rte_ether_hdr);
-	if (ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPv4)) {
+	if (ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4)) {
 		ipv4_hdr = (struct rte_ipv4_hdr *)l3;
 		hdr_len = (ipv4_hdr->version_ihl & RTE_IPV4_HDR_IHL_MASK) *
 			  RTE_IPV4_IHL_MULTIPLIER;
