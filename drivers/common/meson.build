@@ -3,5 +3,11 @@
 
 std_deps = ['eal']
 drivers = ['cpt', 'dpaax', 'mvep', 'octeontx', 'qat']
+
+enabled_drivers = get_option('drivers_common')
+if enabled_drivers != 'all'
+	drivers = (enabled_drivers == 'none') ? [] : enabled_drivers.split(',')
+endif
+
 config_flag_fmt = 'RTE_LIBRTE_@0@_COMMON'
 driver_name_fmt = 'rte_common_@0@'

@@ -2,6 +2,26 @@
 
 option('allow_invalid_socket_id', type: 'boolean', value: false,
 	description: 'allow out-of-range NUMA socket id\'s for platforms that don\'t report the value correctly')
+option('apps', type: 'string', value: 'all',
+	description: 'List of applications to build. Defaults to all')
+option('drivers_baseband', type: 'string', value: 'all',
+	description: 'List of baseband drivers to build. Defaults to all')
+option('drivers_bus', type: 'string', value: 'all',
+	description: 'List of bus drivers to build. Defaults to all')
+option('drivers_common', type: 'string', value: 'all',
+	description: 'List of common drivers to build. Defaults to all')
+option('drivers_compress', type: 'string', value: 'all',
+	description: 'List of compress drivers to build. Defaults to all')
+option('drivers_crypto', type: 'string', value: 'all',
+	description: 'List of crypto drivers to build. Defaults to all')
+option('drivers_event', type: 'string', value: 'all',
+	description: 'List of event drivers to build. Defaults to all')
+option('drivers_mempool', type: 'string', value: 'all',
+	description: 'List of mempool drivers to build. Defaults to all')
+option('drivers_net', type: 'string', value: 'all',
+	description: 'List of net drivers to build. Defaults to all')
+option('drivers_raw', type: 'string', value: 'all',
+	description: 'List of rawdev drivers to build. Defaults to all')
 option('drivers_install_subdir', type: 'string', value: 'dpdk/pmds-<VERSION>',
 	description: 'Subdirectory of libdir where to install PMDs. Defaults to using a versioned subdirectory.')
 option('enable_docs', type: 'boolean', value: false,
@@ -16,6 +36,8 @@ option('include_subdir_arch', type: 'string', value: '',
 	description: 'subdirectory where to install arch-dependent headers')
 option('kernel_dir', type: 'string', value: '',
 	description: 'path to the kernel for building kernel modules, they will be installed in $DEST_DIR/$kernel_dir/../extra/dpdk')
+option('libs', type: 'string', value: 'all',
+	description: 'List of libraries to build. Defaults to all')
 option('lib_musdk_dir', type: 'string', value: '',
 	description: 'path to the MUSDK library installation directory')
 option('machine', type: 'string', value: 'native',

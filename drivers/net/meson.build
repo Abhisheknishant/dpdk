@@ -42,6 +42,12 @@ drivers = ['af_packet',
 	'virtio',
 	'vmxnet3',
 ]
+
+enabled_drivers = get_option('drivers_net')
+if enabled_drivers != 'all'
+	drivers = (enabled_drivers == 'none') ? [] : enabled_drivers.split(',')
+endif
+
 std_deps = ['ethdev', 'kvargs'] # 'ethdev' also pulls in mbuf, net, eal etc
 std_deps += ['bus_pci']         # very many PMDs depend on PCI, so make std
 std_deps += ['bus_vdev']        # same with vdev bus

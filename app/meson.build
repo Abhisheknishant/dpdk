@@ -17,6 +17,11 @@ apps = [
 	'test-pipeline',
 	'test-pmd']
 
+enabled_apps = get_option('apps')
+if enabled_apps != 'all'
+	apps = (enabled_apps == 'none') ? [] : enabled_apps.split(',')
+endif
+
 # for BSD only
 lib_execinfo = cc.find_library('execinfo', required: false)
 

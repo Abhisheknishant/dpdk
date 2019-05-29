@@ -34,6 +34,11 @@ if is_windows
 	libraries = ['kvargs','eal'] # only supported libraries for windows
 endif
 
+enabled_libs = get_option('libs')
+if enabled_libs != 'all'
+	libraries = (enabled_libs == 'none') ? [] : enabled_libs.split(',')
+endif
+
 default_cflags = machine_args
 if cc.has_argument('-Wno-format-truncation')
 	default_cflags += '-Wno-format-truncation'
