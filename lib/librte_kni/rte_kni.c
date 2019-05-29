@@ -214,7 +214,7 @@ rte_kni_alloc(struct rte_mempool *pktmbuf_pool,
 		return NULL;
 	}
 
-	rte_rwlock_write_lock(RTE_EAL_TAILQ_RWLOCK);
+	rte_eal_mcfg_tailq_write_lock();
 
 	kni = __rte_kni_get(conf->name);
 	if (kni != NULL) {
@@ -313,7 +313,7 @@ rte_kni_alloc(struct rte_mempool *pktmbuf_pool,
 	kni_list = RTE_TAILQ_CAST(rte_kni_tailq.head, rte_kni_list);
 	TAILQ_INSERT_TAIL(kni_list, te, next);
 
-	rte_rwlock_write_unlock(RTE_EAL_TAILQ_RWLOCK);
+	rte_eal_mcfg_tailq_write_unlock();
 
 	/* Allocate mbufs and then put them into alloc_q */
 	kni_allocate_mbufs(kni);
@@ -327,7 +327,7 @@ mz_fail:
 kni_fail:
 	rte_free(te);
 unlock:
-	rte_rwlock_write_unlock(RTE_EAL_TAILQ_RWLOCK);
+	rte_eal_mcfg_tailq_write_unlock();
 
 	return NULL;
 }
@@ -390,7 +390,7 @@ rte_kni_release(struct rte_kni *kni)
 
 	kni_list = RTE_TAILQ_CAST(rte_kni_tailq.head, rte_kni_list);
 
-	rte_rwlock_write_lock(RTE_EAL_TAILQ_RWLOCK);
+	rte_eal_mcfg_tailq_write_lock();
 
 	TAILQ_FOREACH(te, kni_list, next) {
 		if (te->data == kni)
@@ -408,7 +408,7 @@ rte_kni_release(struct rte_kni *kni)
 
 	TAILQ_REMOVE(kni_list, te, next);
 
-	rte_rwlock_write_unlock(RTE_EAL_TAILQ_RWLOCK);
+	rte_eal_mcfg_tailq_write_unlock();
 
 	/* mbufs in all fifo should be released, except request/response */
 
@@ -432,7 +432,7 @@ rte_kni_release(struct rte_kni *kni)
 	return 0;
 
 unlock:
-	rte_rwlock_write_unlock(RTE_EAL_TAILQ_RWLOCK);
+	rte_eal_mcfg_tailq_write_unlock();
 
 	return -1;
 }
@@ -649,11 +649,11 @@ rte_kni_get(const char *name)
 	if (name == NULL || name[0] == '\0')
 		return NULL;
 
-	rte_rwlock_read_lock(RTE_EAL_TAILQ_RWLOCK);
+	rte_eal_mcfg_tailq_read_lock();
 
 	kni = __rte_kni_get(name);
 
-	rte_rwlock_read_unlock(RTE_EAL_TAILQ_RWLOCK);
+	rte_eal_mcfg_tailq_read_unlock();
 
 	return kni;
 }
