@@ -164,7 +164,7 @@ ptype_tunnel(uint16_t *proto, const struct rte_mbuf *m,
 		*proto = rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4);
 		return RTE_PTYPE_TUNNEL_IP;
 	case IPPROTO_IPV6:
-		*proto = rte_cpu_to_be_16(RTE_ETHER_TYPE_IPv6);
+		*proto = rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV6);
 		return RTE_PTYPE_TUNNEL_IP; /* IP is also valid for IPv6 */
 	default:
 		return 0;
@@ -322,7 +322,7 @@ l3:
 		}
 		proto = ip4h->next_proto_id;
 		pkt_type |= ptype_l4(proto);
-	} else if (proto == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPv6)) {
+	} else if (proto == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV6)) {
 		const struct rte_ipv6_hdr *ip6h;
 		struct rte_ipv6_hdr ip6h_copy;
 		int frag = 0;
@@ -454,7 +454,7 @@ l3:
 		}
 		proto = ip4h->next_proto_id;
 		pkt_type |= ptype_inner_l4(proto);
-	} else if (proto == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPv6)) {
+	} else if (proto == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV6)) {
 		const struct rte_ipv6_hdr *ip6h;
 		struct rte_ipv6_hdr ip6h_copy;
 		int frag = 0;

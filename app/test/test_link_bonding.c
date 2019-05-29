@@ -1274,7 +1274,7 @@ generate_test_burst(struct rte_mbuf **pkts_burst, uint16_t burst_size,
 	if (ipv4)
 		ether_type = RTE_ETHER_TYPE_IPV4;
 	else
-		ether_type = RTE_ETHER_TYPE_IPv6;
+		ether_type = RTE_ETHER_TYPE_IPV6;
 
 	if (toggle_dst_mac)
 		initialize_eth_header(test_params->pkt_eth_hdr,

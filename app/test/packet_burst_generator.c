@@ -327,7 +327,7 @@ nomore_mbuf:
 			pkt->vlan_tci  = RTE_ETHER_TYPE_IPV4;
 			pkt->l3_len = sizeof(struct rte_ipv4_hdr);
 		} else {
-			pkt->vlan_tci  = RTE_ETHER_TYPE_IPv6;
+			pkt->vlan_tci  = RTE_ETHER_TYPE_IPV6;
 			pkt->l3_len = sizeof(struct rte_ipv6_hdr);
 		}
 
@@ -448,7 +448,7 @@ nomore_mbuf:
 			pkt->vlan_tci  = RTE_ETHER_TYPE_IPV4;
 			pkt->l3_len = sizeof(struct rte_ipv4_hdr);
 		} else {
-			pkt->vlan_tci  = RTE_ETHER_TYPE_IPv6;
+			pkt->vlan_tci  = RTE_ETHER_TYPE_IPV6;
 			pkt->l3_len = sizeof(struct rte_ipv6_hdr);
 		}
 

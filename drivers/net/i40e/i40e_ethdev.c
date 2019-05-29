@@ -9998,7 +9998,7 @@ i40e_ethertype_filter_set(struct i40e_pf *pf,
 		return -EINVAL;
 	}
 	if (filter->ether_type == RTE_ETHER_TYPE_IPV4 ||
-		filter->ether_type == RTE_ETHER_TYPE_IPv6) {
+		filter->ether_type == RTE_ETHER_TYPE_IPV6) {
 		PMD_DRV_LOG(ERR,
 			"unsupported ether_type(0x%04x) in control packet filter.",
 			filter->ether_type);

@@ -401,7 +401,7 @@ reassemble(struct rte_mbuf *m, uint16_t portid, uint32_t queue,
 			dst_port = next_hop;
 		}
 
-		eth_hdr->ether_type = rte_be_to_cpu_16(RTE_ETHER_TYPE_IPv6);
+		eth_hdr->ether_type = rte_be_to_cpu_16(RTE_ETHER_TYPE_IPV6);
 	}
 	/* if packet wasn't IPv4 or IPv6, it's forwarded to the port it came from */
 

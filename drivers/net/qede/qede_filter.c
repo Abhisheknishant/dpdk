@@ -237,7 +237,7 @@ qede_fdir_to_arfs_filter(struct rte_eth_dev *eth_dev,
 		break;
 	case RTE_ETH_FLOW_NONFRAG_IPV6_TCP:
 	case RTE_ETH_FLOW_NONFRAG_IPV6_UDP:
-		arfs->tuple.eth_proto = RTE_ETHER_TYPE_IPv6;
+		arfs->tuple.eth_proto = RTE_ETHER_TYPE_IPV6;
 		arfs->tuple.ip_proto = next_proto[input->flow_type];
 		rte_memcpy(arfs->tuple.dst_ipv6,
 			   &input->flow.ipv6_flow.dst_ip,
@@ -506,7 +506,7 @@ qede_arfs_construct_pkt(struct rte_eth_dev *eth_dev,
 			params->tcp = true;
 		}
 		break;
-	case RTE_ETHER_TYPE_IPv6:
+	case RTE_ETHER_TYPE_IPV6:
 		ip6 = (struct rte_ipv6_hdr *)raw_pkt;
 		ip6->proto = arfs->tuple.ip_proto;
 		ip6->vtc_flow =
@@ -1285,7 +1285,7 @@ qede_flow_parse_pattern(__attribute__((unused))struct rte_eth_dev *dev,
 					   spec->hdr.dst_addr,
 					   IPV6_ADDR_LEN);
 				flow->entry.tuple.eth_proto =
-					RTE_ETHER_TYPE_IPv6;
+					RTE_ETHER_TYPE_IPV6;
 			}
 			break;
 

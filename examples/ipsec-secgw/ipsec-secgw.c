@@ -247,7 +247,7 @@ prepare_one_packet(struct rte_mbuf *pkt, struct ipsec_traffic *t)
 		}
 		pkt->l2_len = 0;
 		pkt->l3_len = sizeof(struct ip);
-	} else if (eth->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPv6)) {
+	} else if (eth->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV6)) {
 		nlp = (uint8_t *)rte_pktmbuf_adj(pkt, RTE_ETHER_HDR_LEN);
 		nlp = RTE_PTR_ADD(nlp, offsetof(struct ip6_hdr, ip6_nxt));
 		if (*nlp == IPPROTO_ESP)
@@ -349,7 +349,7 @@ prepare_tx_pkt(struct rte_mbuf *pkt, uint16_t port,
 		pkt->l3_len = sizeof(struct ip6_hdr);
 		pkt->l2_len = RTE_ETHER_HDR_LEN;
 
-		ethhdr->ether_type = rte_cpu_to_be_16(RTE_ETHER_TYPE_IPv6);
+		ethhdr->ether_type = rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV6);
 	}
 
 	memcpy(&ethhdr->s_addr, &ethaddr_tbl[port].src,

@@ -816,7 +816,7 @@ burst_xmit_l23_hash(struct rte_mbuf **buf, uint16_t nb_pkts,
 					((char *)(eth_hdr + 1) + vlan_offset);
 			l3hash = ipv4_hash(ipv4_hdr);
 
-		} else if (rte_cpu_to_be_16(RTE_ETHER_TYPE_IPv6) == proto) {
+		} else if (rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV6) == proto) {
 			struct rte_ipv6_hdr *ipv6_hdr = (struct rte_ipv6_hdr *)
 					((char *)(eth_hdr + 1) + vlan_offset);
 			l3hash = ipv6_hash(ipv6_hdr);
@@ -882,7 +882,7 @@ burst_xmit_l34_hash(struct rte_mbuf **buf, uint16_t nb_pkts,
 						l4hash = HASH_L4_PORTS(udp_hdr);
 				}
 			}
-		} else if  (rte_cpu_to_be_16(RTE_ETHER_TYPE_IPv6) == proto) {
+		} else if  (rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV6) == proto) {
 			struct rte_ipv6_hdr *ipv6_hdr = (struct rte_ipv6_hdr *)
 					((char *)(eth_hdr + 1) + vlan_offset);
 			l3hash = ipv6_hash(ipv6_hdr);

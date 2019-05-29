@@ -262,7 +262,7 @@ ch_rte_parsetype_ipv6(const void *dmask, const struct rte_flow_item *item,
 					  "tc/flow/hop are not supported");
 
 	fs->type = FILTER_TYPE_IPV6;
-	CXGBE_FILL_FS(RTE_ETHER_TYPE_IPv6, 0xffff, ethtype);
+	CXGBE_FILL_FS(RTE_ETHER_TYPE_IPV6, 0xffff, ethtype);
 	if (!val)
 		return 0; /* ipv6 wild card */
 

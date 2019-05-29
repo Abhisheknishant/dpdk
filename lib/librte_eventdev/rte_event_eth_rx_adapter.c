@@ -626,7 +626,7 @@ rxa_mtoip(struct rte_mbuf *m, struct rte_ipv4_hdr **ipv4_hdr,
 		*ipv4_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
 		break;
 
-	case RTE_BE16(RTE_ETHER_TYPE_IPv6):
+	case RTE_BE16(RTE_ETHER_TYPE_IPV6):
 		*ipv6_hdr = (struct rte_ipv6_hdr *)(eth_hdr + 1);
 		break;
 
@@ -636,7 +636,7 @@ rxa_mtoip(struct rte_mbuf *m, struct rte_ipv4_hdr **ipv4_hdr,
 		case RTE_BE16(RTE_ETHER_TYPE_IPV4):
 			*ipv4_hdr = (struct rte_ipv4_hdr *)(vlan_hdr + 1);
 			break;
-		case RTE_BE16(RTE_ETHER_TYPE_IPv6):
+		case RTE_BE16(RTE_ETHER_TYPE_IPV6):
 			*ipv6_hdr = (struct rte_ipv6_hdr *)(vlan_hdr + 1);
 			break;
 		default:

@@ -995,7 +995,7 @@ parse_ethernet(struct rte_mbuf *m, uint16_t *l4_proto, void **l4_hdr)
 		*l4_hdr = (char *)l3_hdr + m->l3_len;
 		m->ol_flags |= PKT_TX_IPV4;
 		break;
-	case RTE_ETHER_TYPE_IPv6:
+	case RTE_ETHER_TYPE_IPV6:
 		ipv6_hdr = l3_hdr;
 		*l4_proto = ipv6_hdr->proto;
 		m->l3_len = sizeof(struct rte_ipv6_hdr);

@@ -225,7 +225,7 @@ static inline void dpaa_checksum(struct rte_mbuf *mbuf)
 		if (eth_hdr->ether_type == htons(RTE_ETHER_TYPE_IPV4))
 			tcp_hdr->cksum = rte_ipv4_udptcp_cksum(ipv4_hdr,
 							       tcp_hdr);
-		else /* assume ethertype == RTE_ETHER_TYPE_IPv6 */
+		else /* assume ethertype == RTE_ETHER_TYPE_IPV6 */
 			tcp_hdr->cksum = rte_ipv6_udptcp_cksum(ipv6_hdr,
 							       tcp_hdr);
 	} else if ((mbuf->packet_type & RTE_PTYPE_L4_MASK) ==
@@ -236,7 +236,7 @@ static inline void dpaa_checksum(struct rte_mbuf *mbuf)
 		if (eth_hdr->ether_type == htons(RTE_ETHER_TYPE_IPV4))
 			udp_hdr->dgram_cksum = rte_ipv4_udptcp_cksum(ipv4_hdr,
 								     udp_hdr);
-		else /* assume ethertype == RTE_ETHER_TYPE_IPv6 */
+		else /* assume ethertype == RTE_ETHER_TYPE_IPV6 */
 			udp_hdr->dgram_cksum = rte_ipv6_udptcp_cksum(ipv6_hdr,
 								     udp_hdr);
 	}
