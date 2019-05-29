@@ -274,20 +274,6 @@ static const struct eth_dev_ops ena_dev_ops = {
 
 #define NUMA_NO_NODE	SOCKET_ID_ANY
 
-static inline int ena_cpu_to_node(int cpu)
-{
-	struct rte_config *config = rte_eal_get_configuration();
-	struct rte_fbarray *arr = &config->mem_config->memzones;
-	const struct rte_memzone *mz;
-
-	if (unlikely(cpu >= RTE_MAX_MEMZONE))
-		return NUMA_NO_NODE;
-
-	mz = rte_fbarray_get(arr, cpu);
-
-	return mz->socket_id;
-}
-
 static inline void ena_rx_mbuf_prepare(struct rte_mbuf *mbuf,
 				       struct ena_com_rx_ctx *ena_rx_ctx)
 {
@@ -1099,6 +1085,7 @@ static int ena_create_io_queue(struct ena_ring *ring)
 {
 	struct ena_adapter *adapter;
 	struct ena_com_dev *ena_dev;
+	struct rte_memseg_list *msl;
 	struct ena_com_create_io_ctx ctx =
 		/* policy set to _HOST just to satisfy icc compiler */
 		{ ENA_ADMIN_PLACEMENT_POLICY_HOST,
@@ -1126,7 +1113,8 @@ static int ena_create_io_queue(struct ena_ring *ring)
 	}
 	ctx.qid = ena_qid;
 	ctx.msix_vector = -1; /* interrupts not used */
-	ctx.numa_node = ena_cpu_to_node(ring->id);
+	msl = rte_mem_virt2memseg_list(ring);
+	ctx.numa_node = msl->socket_id;
 
 	rc = ena_com_create_io_queue(ena_dev, &ctx);
 	if (rc) {
