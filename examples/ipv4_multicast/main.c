@@ -138,21 +138,21 @@ struct mcast_group_params {
 };
 
 static struct mcast_group_params mcast_group_table[] = {
-		{RTE_IPv4(224,0,0,101), 0x1},
-		{RTE_IPv4(224,0,0,102), 0x2},
-		{RTE_IPv4(224,0,0,103), 0x3},
-		{RTE_IPv4(224,0,0,104), 0x4},
-		{RTE_IPv4(224,0,0,105), 0x5},
-		{RTE_IPv4(224,0,0,106), 0x6},
-		{RTE_IPv4(224,0,0,107), 0x7},
-		{RTE_IPv4(224,0,0,108), 0x8},
-		{RTE_IPv4(224,0,0,109), 0x9},
-		{RTE_IPv4(224,0,0,110), 0xA},
-		{RTE_IPv4(224,0,0,111), 0xB},
-		{RTE_IPv4(224,0,0,112), 0xC},
-		{RTE_IPv4(224,0,0,113), 0xD},
-		{RTE_IPv4(224,0,0,114), 0xE},
-		{RTE_IPv4(224,0,0,115), 0xF},
+		{RTE_IPV4(224,0,0,101), 0x1},
+		{RTE_IPV4(224,0,0,102), 0x2},
+		{RTE_IPV4(224,0,0,103), 0x3},
+		{RTE_IPV4(224,0,0,104), 0x4},
+		{RTE_IPV4(224,0,0,105), 0x5},
+		{RTE_IPV4(224,0,0,106), 0x6},
+		{RTE_IPV4(224,0,0,107), 0x7},
+		{RTE_IPV4(224,0,0,108), 0x8},
+		{RTE_IPV4(224,0,0,109), 0x9},
+		{RTE_IPV4(224,0,0,110), 0xA},
+		{RTE_IPV4(224,0,0,111), 0xB},
+		{RTE_IPV4(224,0,0,112), 0xC},
+		{RTE_IPV4(224,0,0,113), 0xD},
+		{RTE_IPV4(224,0,0,114), 0xE},
+		{RTE_IPV4(224,0,0,115), 0xF},
 };
 
 #define N_MCAST_GROUPS \

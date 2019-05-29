@@ -99,10 +99,10 @@ struct ipv6_l3fwd_em_route {
 };
 
 static struct ipv4_l3fwd_em_route ipv4_l3fwd_em_route_array[] = {
-	{{RTE_IPv4(101, 0, 0, 0), RTE_IPv4(100, 10, 0, 1),  101, 11, IPPROTO_TCP}, 0},
-	{{RTE_IPv4(201, 0, 0, 0), RTE_IPv4(200, 20, 0, 1),  102, 12, IPPROTO_TCP}, 1},
-	{{RTE_IPv4(111, 0, 0, 0), RTE_IPv4(100, 30, 0, 1),  101, 11, IPPROTO_TCP}, 2},
-	{{RTE_IPv4(211, 0, 0, 0), RTE_IPv4(200, 40, 0, 1),  102, 12, IPPROTO_TCP}, 3},
+	{{RTE_IPV4(101, 0, 0, 0), RTE_IPV4(100, 10, 0, 1),  101, 11, IPPROTO_TCP}, 0},
+	{{RTE_IPV4(201, 0, 0, 0), RTE_IPV4(200, 20, 0, 1),  102, 12, IPPROTO_TCP}, 1},
+	{{RTE_IPV4(111, 0, 0, 0), RTE_IPV4(100, 30, 0, 1),  101, 11, IPPROTO_TCP}, 2},
+	{{RTE_IPV4(211, 0, 0, 0), RTE_IPV4(200, 40, 0, 1),  102, 12, IPPROTO_TCP}, 3},
 };
 
 static struct ipv6_l3fwd_em_route ipv6_l3fwd_em_route_array[] = {
@@ -426,19 +426,19 @@ populate_ipv4_many_flow_into_table(const struct rte_hash *h,
 		switch (i & (NUMBER_PORT_USED - 1)) {
 		case 0:
 			entry = ipv4_l3fwd_em_route_array[0];
-			entry.key.ip_dst = RTE_IPv4(101, c, b, a);
+			entry.key.ip_dst = RTE_IPV4(101, c, b, a);
 			break;
 		case 1:
 			entry = ipv4_l3fwd_em_route_array[1];
-			entry.key.ip_dst = RTE_IPv4(201, c, b, a);
+			entry.key.ip_dst = RTE_IPV4(201, c, b, a);
 			break;
 		case 2:
 			entry = ipv4_l3fwd_em_route_array[2];
-			entry.key.ip_dst = RTE_IPv4(111, c, b, a);
+			entry.key.ip_dst = RTE_IPV4(111, c, b, a);
 			break;
 		case 3:
 			entry = ipv4_l3fwd_em_route_array[3];
-			entry.key.ip_dst = RTE_IPv4(211, c, b, a);
+			entry.key.ip_dst = RTE_IPV4(211, c, b, a);
 			break;
 		};
 		convert_ipv4_5tuple(&entry.key, &newkey);

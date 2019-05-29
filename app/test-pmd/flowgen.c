@@ -72,8 +72,8 @@
 
 /* hardcoded configuration (for now) */
 static unsigned cfg_n_flows	= 1024;
-static uint32_t cfg_ip_src	= RTE_IPv4(10, 254, 0, 0);
-static uint32_t cfg_ip_dst	= RTE_IPv4(10, 253, 0, 0);
+static uint32_t cfg_ip_src	= RTE_IPV4(10, 254, 0, 0);
+static uint32_t cfg_ip_dst	= RTE_IPV4(10, 253, 0, 0);
 static uint16_t cfg_udp_src	= 1000;
 static uint16_t cfg_udp_dst	= 1001;
 static struct rte_ether_addr cfg_ether_src =
