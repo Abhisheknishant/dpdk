@@ -223,15 +223,25 @@ ipn3ke_hw_init(struct rte_afu_device *afu_dev,
 				"LineSideMACType", &mac_type);
 	hw->retimer.mac_type = (int)mac_type;
 
+	/* After power on, wait until init done */
+	while (IPN3KE_READ_REG(hw, IPN3KE_INIT_DONE) != 0x3)
+		;
+
+	IPN3KE_AFU_PMD_DEBUG("UPL_version is 0x%x\n", IPN3KE_READ_REG(hw, 0));
+
 	if (afu_dev->id.uuid.uuid_low == IPN3KE_UUID_VBNG_LOW &&
 		afu_dev->id.uuid.uuid_high == IPN3KE_UUID_VBNG_HIGH) {
 		ipn3ke_hw_cap_init(hw);
-		IPN3KE_AFU_PMD_DEBUG("UPL_version is 0x%x\n",
-			IPN3KE_READ_REG(hw, 0));
 
 		/* Reset FPGA IP */
 		IPN3KE_WRITE_REG(hw, IPN3KE_CTRL_RESET, 1);
+		rte_delay_us(10);
 		IPN3KE_WRITE_REG(hw, IPN3KE_CTRL_RESET, 0);
+
+		/* After reset, wait until init done */
+		while (IPN3KE_READ_REG(hw, IPN3KE_INIT_DONE) != 0x3)
+			;
+		rte_delay_us(10);
 	}
 
 	if (hw->retimer.mac_type == IFPGA_RAWDEV_RETIMER_MAC_TYPE_10GE_XFI) {

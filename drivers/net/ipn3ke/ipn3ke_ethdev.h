@@ -344,7 +344,6 @@ static inline uint32_t ipn3ke_read_addr(volatile void *addr)
 
 #define WCMD 0x8000000000000000
 #define RCMD 0x4000000000000000
-#define UPL_BASE 0x10000
 static inline uint32_t _ipn3ke_indrct_read(struct ipn3ke_hw *hw,
 		uint32_t addr)
 {
@@ -355,13 +354,13 @@ static inline uint32_t _ipn3ke_indrct_read(struct ipn3ke_hw *hw,
 
 	word_offset = (addr & 0x1FFFFFF) >> 2;
 	indirect_value = RCMD | word_offset << 32;
-	indirect_addrs = hw->hw_addr + (uint32_t)(UPL_BASE | 0x10);
+	indirect_addrs = hw->hw_addr + (uint32_t)(0x30);
 
 	rte_delay_us(10);
 
 	rte_write64((rte_cpu_to_le_64(indirect_value)), indirect_addrs);
 
-	indirect_addrs = hw->hw_addr + (uint32_t)(UPL_BASE | 0x18);
+	indirect_addrs = hw->hw_addr + (uint32_t)(0x38);
 	while ((read_data >> 32) != 1)
 		read_data = rte_read64(indirect_addrs);
 
@@ -377,7 +376,7 @@ static inline void _ipn3ke_indrct_write(struct ipn3ke_hw *hw,
 
 	word_offset = (addr & 0x1FFFFFF) >> 2;
 	indirect_value = WCMD | word_offset << 32 | value;
-	indirect_addrs = hw->hw_addr + (uint32_t)(UPL_BASE | 0x10);
+	indirect_addrs = hw->hw_addr + (uint32_t)(0x30);
 
 	rte_write64((rte_cpu_to_le_64(indirect_value)), indirect_addrs);
 	rte_delay_us(10);
@@ -411,6 +410,7 @@ static inline void _ipn3ke_indrct_write(struct ipn3ke_hw *hw,
 	(&(((struct ipn3ke_rpst *)(dev)->data->dev_private)->tm))
 
 /* Byte address of IPN3KE internal module */
+#define IPN3KE_INIT_DONE                      (0x204)
 #define IPN3KE_TM_VERSION                     (IPN3KE_QM_OFFSET + 0x0000)
 #define IPN3KE_TM_SCRATCH                     (IPN3KE_QM_OFFSET + 0x0004)
 #define IPN3KE_TM_STATUS                      (IPN3KE_QM_OFFSET + 0x0008)
@@ -500,6 +500,7 @@ static inline void _ipn3ke_indrct_write(struct ipn3ke_hw *hw,
 #define IPN3KE_CLF_RX_TEST                    (IPN3KE_CLASSIFY_OFFSET + 0x0400)
 
 #define IPN3KE_CLF_EM_VERSION       (IPN3KE_CLASSIFY_OFFSET + 0x40000 + 0x0000)
+#define IPN3KE_CLF_EM_SCRATCH       (IPN3KE_CLASSIFY_OFFSET + 0x40000 + 0x0004)
 #define IPN3KE_CLF_EM_NUM           (IPN3KE_CLASSIFY_OFFSET + 0x40000 + 0x0008)
 #define IPN3KE_CLF_EM_KEY_WDTH      (IPN3KE_CLASSIFY_OFFSET + 0x40000 + 0x000C)
 #define IPN3KE_CLF_EM_RES_WDTH      (IPN3KE_CLASSIFY_OFFSET + 0x40000 + 0x0010)
