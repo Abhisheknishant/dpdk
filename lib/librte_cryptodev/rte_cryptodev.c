@@ -653,6 +653,31 @@ rte_cryptodev_data_alloc(uint8_t dev_id, struct rte_cryptodev_data **data,
 	return 0;
 }
 
+static inline int
+rte_cryptodev_data_free(uint8_t dev_id, struct rte_cryptodev_data **data)
+{
+	char mz_name[RTE_CRYPTODEV_NAME_MAX_LEN];
+	const struct rte_memzone *mz;
+	int n;
+
+	/* generate memzone name */
+	n = snprintf(mz_name, sizeof(mz_name), "rte_cryptodev_data_%u", dev_id);
+	if (n >= (int)sizeof(mz_name))
+		return -EINVAL;
+
+	mz = rte_memzone_lookup(mz_name);
+	if (mz == NULL)
+		return -ENOMEM;
+
+	RTE_ASSERT(*data == mz->addr);
+	*data = NULL;
+
+	if (rte_eal_process_type() == RTE_PROC_PRIMARY)
+		return rte_memzone_free(mz);
+
+	return 0;
+}
+
 static uint8_t
 rte_cryptodev_find_free_device_index(void)
 {
@@ -687,16 +712,16 @@ rte_cryptodev_pmd_allocate(const char *name, int socket_id)
 	cryptodev = rte_cryptodev_pmd_get_dev(dev_id);
 
 	if (cryptodev->data == NULL) {
-		struct rte_cryptodev_data *cryptodev_data =
-				cryptodev_globals.data[dev_id];
+		struct rte_cryptodev_data **cryptodev_data =
+				&cryptodev_globals.data[dev_id];
 
-		int retval = rte_cryptodev_data_alloc(dev_id, &cryptodev_data,
+		int retval = rte_cryptodev_data_alloc(dev_id, cryptodev_data,
 				socket_id);
 
-		if (retval < 0 || cryptodev_data == NULL)
+		if (retval < 0 || *cryptodev_data == NULL)
 			return NULL;
 
-		cryptodev->data = cryptodev_data;
+		cryptodev->data = *cryptodev_data;
 
 		strlcpy(cryptodev->data->name, name,
 			RTE_CRYPTODEV_NAME_MAX_LEN);
@@ -724,12 +749,19 @@ rte_cryptodev_pmd_release_device(struct rte_cryptodev *cryptodev)
 	if (cryptodev == NULL)
 		return -EINVAL;
 
+	uint8_t dev_id = cryptodev->data->dev_id;
+
 	/* Close device only if device operations have been set */
 	if (cryptodev->dev_ops) {
-		ret = rte_cryptodev_close(cryptodev->data->dev_id);
+		ret = rte_cryptodev_close(dev_id);
 		if (ret < 0)
 			return ret;
 	}
+
+	struct rte_cryptodev_data **cryptodev_data = &cryptodev_globals.data[dev_id];
+	ret = rte_cryptodev_data_free(dev_id, cryptodev_data);
+	if (ret < 0)
+		return ret;
 
 	cryptodev->attached = RTE_CRYPTODEV_DETACHED;
 	cryptodev_globals.nb_devs--;
