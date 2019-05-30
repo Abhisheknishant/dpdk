@@ -54,6 +54,9 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Updated test-compress-perf tool application.**
+
+  Added multiple cores feature to compression perf tool application.
 
 Removed Items
 -------------
