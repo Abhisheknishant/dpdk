@@ -305,6 +305,9 @@ endif
 if dpdk_conf.has('RTE_LIBRTE_KNI')
 	test_deps += 'kni'
 endif
+if dpdk_conf.has('RTE_LIBRTE_PMD_IOAT_RAWDEV')
+	test_deps += 'pmd_ioat'
+endif
 
 cflags = machine_args
 if cc.has_argument('-Wno-format-truncation')
