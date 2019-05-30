@@ -233,7 +233,7 @@ rte_dev_probe(const char *devargs)
 		 * process.
 		 */
 		if (ret != -EEXIST)
-			return ret;
+			return (ret < 0) ? ret : -ENOTSUP;
 	}
 
 	/* primary send attach sync request to secondary. */
@@ -319,7 +319,7 @@ local_dev_remove(struct rte_device *dev)
 	if (ret) {
 		RTE_LOG(ERR, EAL, "Driver cannot detach the device (%s)\n",
 			dev->name);
-		return ret;
+		return (ret < 0) ? ret : -ENOENT;
 	}
 
 	return 0;
