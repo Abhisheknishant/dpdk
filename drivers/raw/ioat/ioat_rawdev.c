@@ -24,6 +24,78 @@ static struct rte_pci_driver ioat_pmd_drv;
 #define IOAT_PMD_ERR(fmt, args...)    IOAT_PMD_LOG(ERR, fmt, ## args)
 #define IOAT_PMD_WARN(fmt, args...)   IOAT_PMD_LOG(WARNING, fmt, ## args)
 
+#define DESC_SZ sizeof(struct rte_ioat_desc)
+#define COMPLETION_SZ sizeof(__m128i)
+
+static int
+ioat_dev_configure(const struct rte_rawdev *dev, rte_rawdev_obj_t config)
+{
+	struct rte_ioat_rawdev_config *params = config;
+	struct rte_ioat_rawdev *ioat = dev->dev_private;
+	unsigned short i;
+
+	if (dev->started)
+		return -EBUSY;
+
+	if (params == NULL)
+		return -EINVAL;
+
+	if (params->ring_size > 4096 || params->ring_size < 64 ||
+			!rte_is_power_of_2(params->ring_size))
+		return -EINVAL;
+
+	ioat->ring_size = params->ring_size;
+	if (ioat->desc_ring != NULL) {
+		rte_free(ioat->desc_ring);
+		ioat->desc_ring = NULL;
+	}
+
+	/* allocate one block of memory for both descriptors
+	 * and completion handles.
+	 */
+	ioat->desc_ring = rte_zmalloc_socket(NULL,
+			(DESC_SZ + COMPLETION_SZ) * ioat->ring_size,
+			0, /* alignment, default to 64Byte */
+			dev->device->numa_node);
+	if (ioat->desc_ring == NULL)
+		return -ENOMEM;
+	ioat->hdls = (void *)&ioat->desc_ring[ioat->ring_size];
+
+	ioat->ring_addr = rte_malloc_virt2iova(ioat->desc_ring);
+
+	/* configure descriptor ring - each one points to next */
+	for (i = 0; i < ioat->ring_size; i++) {
+		ioat->desc_ring[i].next_desc_addr = ioat->ring_addr +
+				(((i + 1) % ioat->ring_size) * DESC_SZ);
+	}
+
+	return 0;
+}
+
+static int
+ioat_dev_start(struct rte_rawdev *dev)
+{
+	struct rte_ioat_rawdev *ioat = dev->dev_private;
+
+	if (ioat->ring_size == 0 || ioat->desc_ring == NULL)
+		return -EBUSY;
+
+	/* inform hardware of where the descriptor ring is */
+	ioat->regs->chainaddr = ioat->ring_addr;
+	/* inform hardware of where to write the status/completions */
+	ioat->regs->chancmp = ioat->status_addr;
+
+	/* prime the status register to be set to the last element */
+	ioat->status =  ioat->ring_addr + ((ioat->ring_size - 1) * DESC_SZ);
+	return 0;
+}
+
+static void
+ioat_dev_stop(struct rte_rawdev *dev)
+{
+	RTE_SET_USED(dev);
+}
+
 static void
 ioat_dev_info_get(struct rte_rawdev *dev, rte_rawdev_obj_t dev_info)
 {
@@ -38,6 +110,9 @@ static int
 ioat_rawdev_create(const char *name, struct rte_pci_device *dev)
 {
 	static const struct rte_rawdev_ops ioat_rawdev_ops = {
+			.dev_configure = ioat_dev_configure,
+			.dev_start = ioat_dev_start,
+			.dev_stop = ioat_dev_stop,
 			.dev_info_get = ioat_dev_info_get,
 	};
 

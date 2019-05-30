@@ -47,9 +47,23 @@ struct rte_ioat_rawdev {
 
 	unsigned short ring_size;
 	struct rte_ioat_desc *desc_ring;
+	__m128i *hdls; /* completion handles for returning to user */
 
 	/* to report completions, the device will write status back here */
 	volatile uint64_t status __rte_cache_aligned;
+};
+
+/**
+ * @internal
+ * Structure representing a descriptor for a copy operation
+ */
+struct rte_ioat_desc {
+	uint32_t xfer_size __rte_cache_aligned;
+	uint32_t desc_control;
+	phys_addr_t src_addr; /* 64 bits */
+	phys_addr_t dest_addr; /* 64 bits */
+	phys_addr_t next_desc_addr; /* 64 bits */
+	uint64_t op_type_specific[4];
 };
 
 #endif
