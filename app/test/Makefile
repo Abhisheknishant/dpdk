@@ -212,6 +212,7 @@ endif
 
 ifeq ($(CONFIG_RTE_LIBRTE_RAWDEV),y)
 SRCS-y += test_rawdev.c
+SRCS-$(CONFIG_RTE_LIBRTE_PMD_IOAT_RAWDEV) += test_ioat_rawdev.c
 endif
 
 SRCS-$(CONFIG_RTE_LIBRTE_KVARGS) += test_kvargs.c
