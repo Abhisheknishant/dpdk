@@ -54,6 +54,11 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Added memif PMD.**
+
+  Added the new Shared Memory Packet Interface (``memif``) PMD.
+  See the :doc:`../nics/memif` guide for more details on this new driver.
+
 
 Removed Items
 -------------
