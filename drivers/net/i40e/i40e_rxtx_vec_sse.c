@@ -206,6 +206,31 @@ desc_to_ptype_v(__m128i descs[4], struct rte_mbuf **rx_pkts,
 	rx_pkts[3]->packet_type = ptype_tbl[_mm_extract_epi8(ptype1, 8)];
 }
 
+/* Reads the FDIR ID flags from the 32B descriptors' extended status,
+ * and if FDIR_ID mark is set, pushes the data to the mbuf->hash.fdir.hi.
+ */
+static inline void
+desc_to_fdir_mark(__m128i v_desc_qw23, struct rte_mbuf *rx_pkt)
+{
+	/* Extract the extended status */
+	uint32_t ext_sts = _mm_extract_epi16(v_desc_qw23, 0);
+	uint32_t fdir_data = rte_le_to_cpu_32(
+			_mm_extract_epi32(v_desc_qw23, 3));
+
+	/* Check for FD ID mark valid */
+	uint32_t flexbh = (rte_le_to_cpu_32(ext_sts) >>
+		I40E_RX_DESC_EXT_STATUS_FLEXBH_SHIFT) &
+		I40E_RX_DESC_EXT_STATUS_FLEXBH_MASK;
+
+	/* Branch-free generation of mask for data */
+	uint32_t fd_id_valid = (flexbh == I40E_RX_DESC_EXT_STATUS_FLEXBH_FD_ID);
+	uint64_t use_data_mask = (!fd_id_valid) - 1;
+
+	/* Always store, mask will zero out if not valid */
+	rx_pkt->hash.fdir.hi = (use_data_mask & fdir_data);
+	rx_pkt->ol_flags |= (PKT_RX_FDIR_ID & use_data_mask);
+}
+
  /*
  * Notice:
  * - nb_pkts < RTE_I40E_DESCS_PER_LOOP, just return no packet
@@ -441,6 +466,18 @@ _recv_raw_pkts_vec(struct i40e_rx_queue *rxq, struct rte_mbuf **rx_pkts,
 		_mm_storeu_si128((void *)&rx_pkts[pos]->rx_descriptor_fields1,
 				 pkt_mb1);
 		desc_to_ptype_v(descs, &rx_pkts[pos], ptype_tbl);
+
+		/* Extract FDIR ID from 2nd half of descriptor, update mbuf */
+		__m128i descs_qw23;
+		descs_qw23 = _mm_loadu_si128((__m128i*)&(rxdp + 0)->wb.qword2);
+		desc_to_fdir_mark(descs_qw23, rx_pkts[pos + 0]);
+		descs_qw23 = _mm_loadu_si128((__m128i*)&(rxdp + 1)->wb.qword2);
+		desc_to_fdir_mark(descs_qw23, rx_pkts[pos + 1]);
+		descs_qw23 = _mm_loadu_si128((__m128i*)&(rxdp + 2)->wb.qword2);
+		desc_to_fdir_mark(descs_qw23, rx_pkts[pos + 2]);
+		descs_qw23 = _mm_loadu_si128((__m128i*)&(rxdp + 3)->wb.qword2);
+		desc_to_fdir_mark(descs_qw23, rx_pkts[pos + 3]);
+
 		/* C.4 calc avaialbe number of desc */
 		var = __builtin_popcountll(_mm_cvtsi128_si64(staterr));
 		nb_pkts_recd += var;
