@@ -1842,15 +1842,13 @@ process_openssl_rsa_op(struct rte_crypto_op *cop,
 	int ret = 0;
 	struct rte_crypto_asym_op *op = cop->asym;
 	RSA *rsa = sess->u.r.rsa;
-	uint32_t pad = (op->rsa.pad);
+	uint32_t pad = (op->rsa.padding.type);
 	uint8_t *tmp;
 
 	cop->status = RTE_CRYPTO_OP_STATUS_SUCCESS;
 
 	switch (pad) {
-	case RTE_CRYPTO_RSA_PKCS1_V1_5_BT0:
-	case RTE_CRYPTO_RSA_PKCS1_V1_5_BT1:
-	case RTE_CRYPTO_RSA_PKCS1_V1_5_BT2:
+	case RTE_CRYPTO_RSA_PADDING_PKCS1:
 		pad = RSA_PKCS1_PADDING;
 		break;
 	case RTE_CRYPTO_RSA_PADDING_NONE:
@@ -1867,19 +1865,19 @@ process_openssl_rsa_op(struct rte_crypto_op *cop,
 	case RTE_CRYPTO_ASYM_OP_ENCRYPT:
 		ret = RSA_public_encrypt(op->rsa.message.length,
 				op->rsa.message.data,
-				op->rsa.message.data,
+				op->rsa.cipher.data,
 				rsa,
 				pad);
 
 		if (ret > 0)
-			op->rsa.message.length = ret;
+			op->rsa.cipher.length = ret;
 		OPENSSL_LOG(DEBUG,
 				"length of encrypted text %d\n", ret);
 		break;
 
 	case RTE_CRYPTO_ASYM_OP_DECRYPT:
-		ret = RSA_private_decrypt(op->rsa.message.length,
-				op->rsa.message.data,
+		ret = RSA_private_decrypt(op->rsa.cipher.length,
+				op->rsa.cipher.data,
 				op->rsa.message.data,
 				rsa,
 				pad);
