@@ -573,7 +573,7 @@ CONFIG_RTE_LIBRTE_PMD_OCTEONTX_CRYPTO=y
 #
 CONFIG_RTE_LIBRTE_PMD_QAT=y
 CONFIG_RTE_LIBRTE_PMD_QAT_SYM=n
-CONFIG_RTE_LIBRTE_PMD_QAT_ASYM=n
+CONFIG_RTE_LIBRTE_PMD_QAT_ASYM=y
 #
 # Max. number of QuickAssist devices, which can be detected and attached
 #
@@ -597,7 +597,7 @@ CONFIG_RTE_LIBRTE_PMD_AESNI_MB=n
 #
 # Compile PMD for Software backed device
 #
-CONFIG_RTE_LIBRTE_PMD_OPENSSL=n
+CONFIG_RTE_LIBRTE_PMD_OPENSSL=y
 
 #
 # Compile PMD for AESNI GCM device
