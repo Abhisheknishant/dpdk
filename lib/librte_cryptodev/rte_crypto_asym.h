@@ -111,23 +111,33 @@ enum rte_crypto_asym_op_type {
  */
 enum rte_crypto_rsa_padding_type {
 	RTE_CRYPTO_RSA_PADDING_NONE = 0,
-	/**< RSA no padding scheme */
-	RTE_CRYPTO_RSA_PKCS1_V1_5_BT0,
-	/**< RSA PKCS#1 V1.5 Block Type 0 padding scheme
-	 * as described in rfc2313
+	/**< RSA no padding scheme.
+	 * In this case user is responsible for providing and verification
+	 * of padding.
+	 * In case RTE_CRYPTO_ASYM_OP_VERIFY op type is used if no
+	 * problems in public key 'encryption' detected driver SHALL return
+	 * RTE_CRYPTO_OP_STATUS_SUCCESS. But it is USER RESPONSABILITY to
+	 * remove padding and verify signature.
 	 */
-	RTE_CRYPTO_RSA_PKCS1_V1_5_BT1,
-	/**< RSA PKCS#1 V1.5 Block Type 01 padding scheme
-	 * as described in rfc2313
-	 */
-	RTE_CRYPTO_RSA_PKCS1_V1_5_BT2,
-	/**< RSA PKCS#1 V1.5 Block Type 02 padding scheme
-	 * as described in rfc2313
+	RTE_CRYPTO_RSA_PADDING_PKCS1,
+	/**< RSA PKCS#1 PKCS1-v1_5 padding scheme. For signatures block type 01,
+	 * for encryption block type 02 are used.
+	 *
+	 * In case RTE_CRYPTO_ASYM_OP_VERIFY op type is used crypto op status
+	 * is set to RTE_CRYPTO_OP_STATUS_SUCCESS when signature is properly
+	 * verified, RTE_CRYPTO_OP_STATUS_ERROR when it failed.
 	 */
 	RTE_CRYPTO_RSA_PADDING_OAEP,
-	/**< RSA PKCS#1 OAEP padding scheme */
+	/**< RSA PKCS#1 OAEP padding scheme, can be used only for encryption/
+	 * decryption.
+	 */
 	RTE_CRYPTO_RSA_PADDING_PSS,
-	/**< RSA PKCS#1 PSS padding scheme */
+	/**< RSA PKCS#1 PSS padding scheme, can be used only for signatures.
+	 *
+	 * Crypto op status is set to RTE_CRYPTO_OP_STATUS_SUCCESS
+	 * when signature is properly verified, RTE_CRYPTO_OP_STATUS_ERROR
+	 * when it failed.
+	 */
 	RTE_CRYPTO_RSA_PADDING_TYPE_LIST_END
 };
 
@@ -199,8 +209,8 @@ struct rte_crypto_rsa_priv_key_qt {
  */
 struct rte_crypto_rsa_xform {
 	rte_crypto_param n;
-	/**< n - Prime modulus
-	 * Prime modulus data of RSA operation in Octet-string network
+	/**< n - Modulus
+	 * Modulus data of RSA operation in Octet-string network
 	 * byte order format.
 	 */
 
@@ -397,9 +407,21 @@ struct rte_crypto_rsa_op_param {
 	/**<
 	 * Pointer to data
 	 * - to be encrypted for RSA public encrypt.
-	 * - to be decrypted for RSA private decrypt.
 	 * - to be signed for RSA sign generation.
 	 * - to be authenticated for RSA sign verification.
+	 */
+
+	rte_crypto_param cipher;
+	/**<
+	 * Pointer to data
+	 * - to be decrypted for RSA private decrypt.
+	 *
+	 * When RTE_CRYPTO_ASYM_OP_ENCRYPT op_type used size in bytes
+	 * of this field need to be equal to the size of corresponding
+	 * RSA key. Returned data is in Big-Endian format which means
+	 * that Least-Significant byte will be placed at top byte of an array
+	 * (at message.data[message.length - 1]), cipher.length SHALL
+	 * therefore remain unchanged.
 	 */
 
 	rte_crypto_param sign;
@@ -410,25 +432,82 @@ struct rte_crypto_rsa_op_param {
 	 *
 	 * Length of the signature data will be equal to the
 	 * RSA prime modulus length.
+	 *
+	 * Returned data is in Big-Endian format which means
+	 * that Least-Significant byte will be placed at top byte of an array
+	 * (at message.data[message.length - 1]), sign.length SHALL
+	 * therefore remain unchanged.
 	 */
 
-	enum rte_crypto_rsa_padding_type pad;
-	/**< RSA padding scheme to be used for transform */
-
-	enum rte_crypto_auth_algorithm md;
-	/**< Hash algorithm to be used for data hash if padding
-	 * scheme is either OAEP or PSS. Valid hash algorithms
-	 * are:
-	 * MD5, SHA1, SHA224, SHA256, SHA384, SHA512
-	 */
-
-	enum rte_crypto_auth_algorithm mgf1md;
+	struct {
+		enum rte_crypto_rsa_padding_type type;
+		/**<
+		 * In case RTE_CRYPTO_RSA_PADDING_PKCS1 is selected,
+		 * driver will distinguish between block type basing
+		 * on rte_crypto_asym_op_type of the operation.
+		 *
+		 * Which padding type is supported by the driver SHALL be
+		 * available in in specific driver guide or capabilities.
+		 */
+		enum rte_crypto_auth_algorithm hash;
+		/**<
+		 * -	For PKCS1-v1_5 signature (Block type 01) this field
+		 * represents hash function that will be used to create
+		 * message hash. This hash will be then concatenated with
+		 * hash algorithm identifier into DER encoded sequence.
+		 * If RTE_CRYPTO_HASH_INVALID is set, driver default will be set.
+		 * If RTE_CRYPTO_HASH_NONE is set, message will be signed as it is.
+		 *
+		 * -	For OAEP this field represents hash function that will
+		 * be used to produce hash of the optional label.
+		 * If RTE_CRYPTO_HASH_INVALID or RTE_CRYPTO_HASH_NONE is set
+		 * driver will use default value. For OAEP usually it is SHA-1.
+		 *
+		 * -	For PSS this field represents hash function that will be used
+		 * to produce hash (mHash) of message M and of M' (padding1 | mHash | salt)
+		 * If RTE_CRYPTO_HASH_INVALID or RTE_CRYPTO_HASH_NONE is set
+		 * driver will use default value.
+		 *
+		 * -	If driver supports only one function RTE_CRYPTO_HASH_NONE
+		 * according to aformentioned restrictions should be used or
+		 * specific function should be set, otherwise on dequeue the driver
+		 * SHALL set crypto_op_status to RTE_CRYPTO_OP_STATUS_INVALID_ARGS.
+		 */
+		union {
+			struct {
+				enum rte_crypto_auth_algorithm mgf;
+				/**<
+				 * Mask genereation function hash algorithm.
+				 * If this field is not supported by the driver,
+				 * it should be set to RTE_CRYPTO_HASH_NONE.
+				 */
+				rte_crypto_param label;
+				/**<
+				 * Optional label, if driver does not support
+				 * this option, optional label is just an empty string.
+				 */
+			} OAEP;
+			struct {
+				enum rte_crypto_auth_algorithm mgf;
+				/**<
+				 * Mask genereation function hash algorithm.
+				 * If this field is not supported by the driver,
+				 * it should be set to RTE_CRYPTO_HASH_NONE.
+				 */
+				int seed_len;
+				/**<
+				 * Intended seed length. Nagative number has special
+				 * value as follows:
+				 * -1 : seed len = length of output ot used hash function
+				 * -2 : seed len is maximized
+				 */
+			} PSS;
+		};
+	} padding;
 	/**<
-	 * Hash algorithm to be used for mask generation if
-	 * padding scheme is either OAEP or PSS. If padding
-	 * scheme is unspecified data hash algorithm is used
-	 * for mask generation. Valid hash algorithms are:
-	 * MD5, SHA1, SHA224, SHA256, SHA384, SHA512
+	 * Padding type of RSA crypto operation.
+	 * What are random number generator requirements and prequisites
+	 * SHALL be put in specific driver guide
 	 */
 };
 
