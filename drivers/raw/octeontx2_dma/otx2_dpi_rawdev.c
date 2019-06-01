@@ -29,6 +29,59 @@ static const struct rte_pci_id pci_dma_map[] = {
 	},
 };
 
+/* Enable/Disable DMA queue */
+static inline int
+dma_engine_enb_dis(struct dpi_vf_s *dpivf, const bool enb)
+{
+	if (enb)
+		otx2_write64(0x1, dpivf->vf_bar0 + DPI_VDMA_EN);
+	else
+		otx2_write64(0x0, dpivf->vf_bar0 + DPI_VDMA_EN);
+
+	return DPI_DMA_QUEUE_SUCCESS;
+}
+
+static int
+otx2_dpi_rawdev_configure(const struct rte_rawdev *dev, rte_rawdev_obj_t config)
+{
+	struct dpi_rawdev_conf_s *conf = config;
+	struct dpi_vf_s *dpivf = NULL;
+	void *buf = NULL;
+	uintptr_t pool;
+	uint32_t gaura;
+
+	if (conf == NULL) {
+		otx2_dpi_dbg("NULL configuration");
+		return -EINVAL;
+	}
+	dpivf = (struct dpi_vf_s *)dev->dev_private;
+	dpivf->chunk_pool = conf->chunk_pool;
+	if (rte_mempool_get(conf->chunk_pool, &buf) || (buf == NULL)) {
+		otx2_err("Unable allocate buffer");
+		return -ENODEV;
+	}
+	dpivf->base_ptr = buf;
+	otx2_write64(0x0, dpivf->vf_bar0 + DPI_VDMA_EN);
+	dpivf->pool_size_m1 = (DPI_CHUNK_SIZE >> 3) - 2;
+	pool = (uintptr_t)((struct rte_mempool *)conf->chunk_pool)->pool_id;
+	gaura = npa_lf_aura_handle_to_aura(pool);
+	otx2_write64(0, dpivf->vf_bar0 + DPI_VDMA_REQQ_CTL);
+	otx2_write64(((uint64_t)buf >> 7) << 7,
+		     dpivf->vf_bar0 + DPI_VDMA_SADDR);
+	if (otx2_dpi_queue_open(dpivf->vf_id, DPI_CHUNK_SIZE, gaura) < 0) {
+		otx2_err("Unable to open DPI VF %d", dpivf->vf_id);
+		rte_mempool_put(conf->chunk_pool, buf);
+		return -EACCES;
+	}
+	dma_engine_enb_dis(dpivf, true);
+
+	return DPI_DMA_QUEUE_SUCCESS;
+}
+
+static const struct rte_rawdev_ops dpi_rawdev_ops = {
+	.dev_configure = otx2_dpi_rawdev_configure,
+};
+
 static int
 otx2_dpi_rawdev_probe(struct rte_pci_driver *pci_drv __rte_unused,
 		      struct rte_pci_device *pci_dev)
@@ -61,6 +114,7 @@ otx2_dpi_rawdev_probe(struct rte_pci_driver *pci_drv __rte_unused,
 		return -EINVAL;
 	}
 
+	rawdev->dev_ops = &dpi_rawdev_ops;
 	rawdev->device = &pci_dev->device;
 	rawdev->driver_name = pci_dev->driver->driver.name;
 

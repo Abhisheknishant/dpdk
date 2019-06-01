@@ -7,10 +7,9 @@ include $(RTE_SDK)/mk/rte.vars.mk
 # library name
 LIB = librte_pmd_octeontx2_dma.a
 
-CFLAGS += -DALLOW_EXPERIMENTAL_API -O3 $(WERROR_FLAGS)
+CFLAGS += -O3 $(WERROR_FLAGS)
 CFLAGS += -I$(RTE_SDK)/drivers/common/octeontx2/
 CFLAGS += -I$(RTE_SDK)/drivers/mempool/octeontx2/
-CFLAGS += -I$(RTE_SDK)/drivers/raw/octeontx2_dma/
 LDLIBS += -lrte_eal -lrte_mbuf -lrte_mempool -lrte_ring -lrte_rawdev
 LDLIBS += -lrte_common_octeontx2 -lrte_kvargs -lrte_bus_pci
 
@@ -26,6 +25,6 @@ LIBABIVER := 1
 #
 # all source are stored in SRCS-y
 #
-SRCS-$(CONFIG_RTE_LIBRTE_PMD_OCTEONTX2_DMA_RAWDEV) += otx2_dpi_rawdev.c
+SRCS-$(CONFIG_RTE_LIBRTE_PMD_OCTEONTX2_DMA_RAWDEV) += otx2_dpi_rawdev.c otx2_dpi_msg.c
 
 include $(RTE_SDK)/mk/rte.lib.mk

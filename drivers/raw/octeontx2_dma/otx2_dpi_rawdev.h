@@ -56,4 +56,7 @@ enum dpi_dma_queue_result_e {
 	DPI_DMA_QUEUE_INVALID_PARAM = -2,
 };
 
+int otx2_dpi_queue_open(uint16_t vf_id, uint32_t size, uint32_t gaura);
+int otx2_dpi_queue_close(uint16_t vf_id);
+
 #endif /* _DPI_RAWDEV_H_ */
