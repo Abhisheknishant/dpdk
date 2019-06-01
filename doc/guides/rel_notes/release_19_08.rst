@@ -135,6 +135,7 @@ The libraries prepended with a plus sign were incremented in this version.
      librte_cfgfile.so.2
      librte_cmdline.so.2
      librte_compressdev.so.1
+   + librte_common_octeontx2.so.1
      librte_cryptodev.so.7
      librte_distributor.so.1
      librte_eal.so.10
@@ -155,6 +156,7 @@ The libraries prepended with a plus sign were incremented in this version.
      librte_mbuf.so.5
      librte_member.so.1
      librte_mempool.so.5
+   + librte_mempool_octeontx2.so.1
      librte_meter.so.3
      librte_metrics.so.1
      librte_net.so.1
