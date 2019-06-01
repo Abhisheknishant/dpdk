@@ -35,12 +35,15 @@ octeontx2_sso = {'Class': '08', 'Vendor': '177d', 'Device': 'a0f9,a0fa',
               'SVendor': None, 'SDevice': None}
 octeontx2_npa = {'Class': '08', 'Vendor': '177d', 'Device': 'a0fb,a0fc',
               'SVendor': None, 'SDevice': None}
+octeontx2_dma = {'Class': '08', 'Vendor': '177d', 'Device': 'a081',
+              'SVendor': None, 'SDevice': None}
 
 network_devices = [network_class, cavium_pkx, avp_vnic, ifpga_class]
 crypto_devices = [encryption_class, intel_processor_class]
 eventdev_devices = [cavium_sso, cavium_tim, octeontx2_sso]
 mempool_devices = [cavium_fpa, octeontx2_npa]
 compress_devices = [cavium_zip]
+dma_devices = [octeontx2_dma]
 
 # global dict ethernet devices present. Dictionary indexed by PCI address.
 # Each device within this is itself a dictionary of device properties
@@ -595,6 +598,9 @@ def show_status():
     if status_dev == "compress" or status_dev == "all":
         show_device_status(compress_devices , "Compress")
 
+    if status_dev == "dma" or status_dev == "all":
+        show_device_status(dma_devices , "DMA")
+
 
 def parse_args():
     '''Parses the command-line arguments given by the user and takes the
@@ -670,6 +676,7 @@ def do_arg_actions():
             get_device_details(eventdev_devices)
             get_device_details(mempool_devices)
             get_device_details(compress_devices)
+            get_device_details(dma_devices)
         show_status()
 
 
@@ -690,6 +697,7 @@ def main():
     get_device_details(eventdev_devices)
     get_device_details(mempool_devices)
     get_device_details(compress_devices)
+    get_device_details(dma_devices)
     do_arg_actions()
 
 if __name__ == "__main__":
