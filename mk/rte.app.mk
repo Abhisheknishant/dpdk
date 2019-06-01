@@ -125,6 +125,8 @@ ifeq ($(CONFIG_RTE_LIBRTE_FSLMC_BUS),y)
 _LDLIBS-$(CONFIG_RTE_LIBRTE_COMMON_DPAAX)   += -lrte_common_dpaax
 endif
 
+_LDLIBS-y += -lrte_common_octeontx2
+
 _LDLIBS-$(CONFIG_RTE_LIBRTE_PCI_BUS)        += -lrte_bus_pci
 _LDLIBS-$(CONFIG_RTE_LIBRTE_VDEV_BUS)       += -lrte_bus_vdev
 _LDLIBS-$(CONFIG_RTE_LIBRTE_DPAA_BUS)       += -lrte_bus_dpaa
