@@ -3,7 +3,7 @@
 #
 
 deps += ['rawdev', 'ring', 'kvargs', 'bus_pci', 'common_octeontx2', 'mempool_octeontx2']
-sources = files('otx2_dpi_rawdev.c', 'otx2_dpi_msg.c')
+sources = files('otx2_dpi_rawdev.c', 'otx2_dpi_msg.c', 'otx2_dpi_test.c')
 
 extra_flags = []
 # This integrated controller runs only on a arm64 machine, remove 32bit warnings

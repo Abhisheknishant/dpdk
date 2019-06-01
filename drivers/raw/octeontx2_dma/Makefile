@@ -25,6 +25,6 @@ LIBABIVER := 1
 #
 # all source are stored in SRCS-y
 #
-SRCS-$(CONFIG_RTE_LIBRTE_PMD_OCTEONTX2_DMA_RAWDEV) += otx2_dpi_rawdev.c otx2_dpi_msg.c
+SRCS-$(CONFIG_RTE_LIBRTE_PMD_OCTEONTX2_DMA_RAWDEV) += otx2_dpi_rawdev.c otx2_dpi_msg.c otx2_dpi_test.c
 
 include $(RTE_SDK)/mk/rte.lib.mk
