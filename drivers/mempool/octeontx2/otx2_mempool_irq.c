@@ -203,6 +203,7 @@ npa_lf_q_irq(void *param)
 
 	/* Clear interrupt */
 	otx2_write64(intr, lf->base + NPA_LF_QINTX_INT(qintx));
+	otx2_mempool_ctx_dump(lf);
 	rte_panic("npa_lf_q_interrupt\n");
 }
 
