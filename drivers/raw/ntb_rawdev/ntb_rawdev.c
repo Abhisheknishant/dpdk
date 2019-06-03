@@ -18,11 +18,13 @@
 #include <rte_rawdev.h>
 #include <rte_rawdev_pmd.h>
 
+#include "ntb_hw_intel.h"
 #include "ntb_rawdev.h"
 
 int ntb_logtype;
 
 static const struct rte_pci_id pci_id_ntb_map[] = {
+	{ RTE_PCI_DEVICE(NTB_INTEL_VENDOR_ID, NTB_INTEL_DEV_ID_B2B_SKX) },
 	{ .vendor_id = 0, /* sentinel */ },
 };
 
@@ -146,6 +148,7 @@ static int
 ntb_dev_start(struct rte_rawdev *dev)
 {
 	/* TODO: init queues and start queues. */
+
 	dev->started = 1;
 
 	return 0;
@@ -155,6 +158,7 @@ static void
 ntb_dev_stop(struct rte_rawdev *dev)
 {
 	/* TODO: stop rx/tx queues. */
+
 	dev->started = 0;
 }
 
@@ -355,6 +359,9 @@ ntb_init_hw(struct rte_rawdev *dev, struct rte_pci_device *pci_dev)
 	hw->link_width = NTB_WIDTH_NONE;
 
 	switch (pci_dev->id.device_id) {
+	case NTB_INTEL_DEV_ID_B2B_SKX:
+		hw->ntb_ops = &intel_ntb_ops;
+		break;
 	default:
 		NTB_LOG(ERR, "Not supported device.");
 		return -EINVAL;
