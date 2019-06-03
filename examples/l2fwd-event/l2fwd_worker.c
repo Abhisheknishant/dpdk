@@ -76,6 +76,24 @@ print_stats(void)
 	printf("\n====================================================\n");
 }
 
+static inline void
+l2fwd_drain_buffers(struct lcore_queue_conf *qconf)
+{
+	unsigned int i, sent;
+	unsigned int portid;
+	struct rte_eth_dev_tx_buffer *buffer;
+
+	for (i = 0; i < qconf->n_rx_port; i++) {
+
+		portid = l2fwd_dst_ports[qconf->rx_port_list[i]];
+		buffer = tx_buffer[portid];
+
+		sent = rte_eth_tx_buffer_flush(portid, 0, buffer);
+		if (sent)
+			port_statistics[portid].tx += sent;
+	}
+}
+
 static void
 l2fwd_mac_updating(struct rte_mbuf *m, unsigned int dest_portid)
 {
@@ -116,14 +134,12 @@ l2fwd_main_loop(void)
 {
 	struct rte_mbuf *pkts_burst[MAX_PKT_BURST];
 	struct rte_mbuf *m;
-	int sent;
 	unsigned int lcore_id;
 	uint64_t prev_tsc, diff_tsc, cur_tsc, timer_tsc;
 	unsigned int i, j, portid, nb_rx;
 	struct lcore_queue_conf *qconf;
 	const uint64_t drain_tsc = (rte_get_tsc_hz() + US_PER_S - 1)
 			/ US_PER_S * BURST_TX_DRAIN_US;
-	struct rte_eth_dev_tx_buffer *buffer;
 
 	prev_tsc = 0;
 	timer_tsc = 0;
@@ -156,18 +172,8 @@ l2fwd_main_loop(void)
 		diff_tsc = cur_tsc - prev_tsc;
 		if (unlikely(diff_tsc > drain_tsc)) {
 
-			for (i = 0; i < qconf->n_rx_port; i++) {
-
-				portid =
-					l2fwd_dst_ports[qconf->rx_port_list[i]];
-				buffer = tx_buffer[portid];
-
-				sent = rte_eth_tx_buffer_flush(portid, 0,
-							       buffer);
-				if (sent)
-					port_statistics[portid].tx += sent;
-
-			}
+			/* Drain buffers */
+			l2fwd_drain_buffers(qconf);
 
 			/* if timer is enabled */
 			if (timer_period > 0) {
