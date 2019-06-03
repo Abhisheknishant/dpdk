@@ -42,28 +42,10 @@
 
 #include "l2fwd_common.h"
 
-static volatile bool force_quit;
-
-/* MAC updating enabled by default */
-static int mac_updating = 1;
-
 static uint16_t nb_rxd = RTE_TEST_RX_DESC_DEFAULT;
 static uint16_t nb_txd = RTE_TEST_TX_DESC_DEFAULT;
 
-/* ethernet addresses of ports */
-static struct rte_ether_addr l2fwd_ports_eth_addr[RTE_MAX_ETHPORTS];
-
-/* mask of enabled ports */
-static uint32_t l2fwd_enabled_port_mask;
-
-/* list of enabled ports */
-static uint32_t l2fwd_dst_ports[RTE_MAX_ETHPORTS];
-
 static unsigned int l2fwd_rx_queue_per_lcore = 1;
-
-struct lcore_queue_conf lcore_queue_conf[RTE_MAX_LCORE];
-
-static struct rte_eth_dev_tx_buffer *tx_buffer[RTE_MAX_ETHPORTS];
 
 static struct rte_eth_conf port_conf = {
 	.rxmode = {
@@ -75,11 +57,6 @@ static struct rte_eth_conf port_conf = {
 };
 
 struct rte_mempool *l2fwd_pktmbuf_pool;
-
-struct l2fwd_port_statistics port_statistics[RTE_MAX_ETHPORTS];
-
-/* A tsc-based timer responsible for triggering statistics printout */
-static uint64_t timer_period = 10; /* default period is 10 seconds */
 
 /* Print out statistics on packets dropped */
 static void
@@ -492,6 +469,20 @@ signal_handler(int signum)
 	}
 }
 
+static void
+l2fwd_init_global_vars(void)
+{
+	force_quit = false;
+
+	/* MAC updating enabled by default */
+	mac_updating = 1;
+
+	/* Default period is 10 seconds */
+	timer_period = 10;
+
+	l2fwd_enabled_port_mask = 0;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -505,6 +496,9 @@ main(int argc, char **argv)
 	unsigned int nb_lcores = 0;
 	unsigned int nb_mbufs;
 
+	/* Set default values for global vars */
+	l2fwd_init_global_vars();
+
 	/* init EAL */
 	ret = rte_eal_init(argc, argv);
 	if (ret < 0)
@@ -512,7 +506,6 @@ main(int argc, char **argv)
 	argc -= ret;
 	argv += ret;
 
-	force_quit = false;
 	signal(SIGINT, signal_handler);
 	signal(SIGTERM, signal_handler);
 

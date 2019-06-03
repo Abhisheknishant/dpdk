@@ -5,6 +5,10 @@
 #ifndef _L2FWD_COMMON_H_
 #define _L2FWD_COMMON_H_
 
+#include <stdbool.h>
+
+#include <rte_common.h>
+
 #define RTE_LOGTYPE_L2FWD RTE_LOGTYPE_USER1
 
 #define MAX_PKT_BURST 32
@@ -33,5 +37,27 @@ struct l2fwd_port_statistics {
 	uint64_t rx;
 	uint64_t dropped;
 } __rte_cache_aligned;
+
+volatile bool force_quit;
+
+int mac_updating;
+
+/* ethernet addresses of ports */
+static struct rte_ether_addr l2fwd_ports_eth_addr[RTE_MAX_ETHPORTS];
+
+/* mask of enabled ports */
+static uint32_t l2fwd_enabled_port_mask;
+
+/* list of enabled ports */
+static uint32_t l2fwd_dst_ports[RTE_MAX_ETHPORTS];
+
+struct lcore_queue_conf lcore_queue_conf[RTE_MAX_LCORE];
+
+struct rte_eth_dev_tx_buffer *tx_buffer[RTE_MAX_ETHPORTS];
+
+struct l2fwd_port_statistics port_statistics[RTE_MAX_ETHPORTS];
+
+/* A tsc-based timer responsible for triggering statistics printout */
+uint64_t timer_period;
 
 #endif /* _L2FWD_COMMON_H_ */
