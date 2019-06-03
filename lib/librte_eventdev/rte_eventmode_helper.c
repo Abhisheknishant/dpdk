@@ -6,6 +6,7 @@
 #include <rte_ethdev.h>
 #include <rte_eventdev.h>
 #include <rte_eventmode_helper.h>
+#include <rte_event_eth_rx_adapter.h>
 #include <rte_malloc.h>
 
 #include "rte_eventmode_helper_internal.h"
@@ -326,6 +327,123 @@ rte_eventmode_helper_initialize_ethdev(struct eventmode_conf *em_conf)
 	return 0;
 }
 
+static int
+rx_adapter_configure(struct eventmode_conf *em_conf,
+	struct rx_adapter_conf *adapter)
+{
+	int j;
+	int ret;
+	uint8_t eventdev_id;
+	uint32_t service_id;
+	struct adapter_connection_info *conn;
+	struct rte_event_port_conf port_conf = {0};
+	struct rte_event_eth_rx_adapter_queue_conf queue_conf = {0};
+	struct rte_event_dev_info evdev_default_conf = {0};
+
+	/* Get event dev ID */
+	eventdev_id = adapter->eventdev_id;
+
+	/* Create rx_adapter */
+
+	/* Get default configuration of event dev */
+	ret = rte_event_dev_info_get(eventdev_id, &evdev_default_conf);
+	if (ret < 0) {
+		RTE_EM_HLPR_LOG_ERR(
+			"Error in getting event device info[devID:%d]",
+			eventdev_id);
+		return ret;
+	}
+
+	/* Setup port conf */
+	port_conf.new_event_threshold = 1200;
+	port_conf.dequeue_depth =
+			evdev_default_conf.max_event_port_dequeue_depth;
+	port_conf.enqueue_depth =
+			evdev_default_conf.max_event_port_enqueue_depth;
+
+	/* Create Rx adapter */
+	ret = rte_event_eth_rx_adapter_create(adapter->adapter_id,
+			adapter->eventdev_id,
+			&port_conf);
+	if (ret < 0) {
+		RTE_EM_HLPR_LOG_ERR("Error in rx adapter creation");
+		return ret;
+	}
+
+	/* Setup various connections in the adapter */
+
+	queue_conf.rx_queue_flags =
+			RTE_EVENT_ETH_RX_ADAPTER_QUEUE_FLOW_ID_VALID;
+
+	for (j = 0; j < adapter->nb_connections; j++) {
+		/* Get connection */
+		conn = &(adapter->conn[j]);
+
+		/* Setup queue conf */
+		queue_conf.ev.queue_id = conn->eventq_id;
+		queue_conf.ev.sched_type = em_conf->ext_params.sched_type;
+
+		/* Set flow ID as ethdev ID */
+		queue_conf.ev.flow_id = conn->ethdev_id;
+
+		/* Add queue to the adapter */
+		ret = rte_event_eth_rx_adapter_queue_add(
+				adapter->adapter_id,
+				conn->ethdev_id,
+				conn->ethdev_rx_qid,
+				&queue_conf);
+		if (ret < 0) {
+			RTE_EM_HLPR_LOG_ERR(
+				"Error in adding eth queue in Rx adapter");
+			return ret;
+		}
+	}
+
+	/* Get the service ID used by rx adapter */
+	ret = rte_event_eth_rx_adapter_service_id_get(adapter->adapter_id,
+						      &service_id);
+	if (ret != -ESRCH && ret != 0) {
+		RTE_EM_HLPR_LOG_ERR(
+			"Error getting service ID used by Rx adapter");
+		return ret;
+	}
+
+	/*
+	 * TODO
+	 * Rx core will invoke the service when required. The runstate check
+	 * is not required.
+	 *
+	 */
+	rte_service_set_runstate_mapped_check(service_id, 0);
+
+	/* Start adapter */
+	ret = rte_event_eth_rx_adapter_start(adapter->adapter_id);
+	if (ret) {
+		RTE_EM_HLPR_LOG_ERR("Error in starting rx adapter");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int
+rte_eventmode_helper_initialize_rx_adapter(struct eventmode_conf *em_conf)
+{
+	int i, ret;
+	struct rx_adapter_conf *adapter;
+
+	/* Configure rx adapters */
+	for (i = 0; i < em_conf->nb_rx_adapter; i++) {
+		adapter = &(em_conf->rx_adapter[i]);
+		ret = rx_adapter_configure(em_conf, adapter);
+		if (ret < 0) {
+			RTE_EM_HLPR_LOG_ERR("Rx adapter configuration failed");
+			return ret;
+		}
+	}
+	return 0;
+}
+
 int32_t __rte_experimental
 rte_eventmode_helper_initialize_devs(
 		struct rte_eventmode_helper_conf *mode_conf)
@@ -367,6 +485,11 @@ rte_eventmode_helper_initialize_devs(
 
 	/* Setup ethdev */
 	ret = rte_eventmode_helper_initialize_ethdev(em_conf);
+	if (ret != 0)
+		return ret;
+
+	/* Setup Rx adapter */
+	ret = rte_eventmode_helper_initialize_rx_adapter(em_conf);
 	if (ret != 0)
 		return ret;
 
