@@ -132,4 +132,5 @@ EXPERIMENTAL {
 	rte_eventmode_helper_print_options_description;
 	rte_eventmode_helper_parse_args;
 	rte_eventmode_helper_initialize_devs;
+	rte_eventmode_helper_display_conf;
 };

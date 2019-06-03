@@ -802,6 +802,9 @@ rte_eventmode_helper_initialize_devs(
 		return -1;
 	}
 
+	/* Display the current conf */
+	rte_eventmode_helper_display_conf(mode_conf);
+
 	/* Stop eth devices before setting up adapter */
 	RTE_ETH_FOREACH_DEV(portid) {
 

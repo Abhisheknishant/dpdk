@@ -12,6 +12,7 @@ endif
 
 sources = files('rte_eventdev.c',
 		'rte_eventmode_helper.c',
+		'rte_eventmode_helper_prints.c',
 		'rte_event_ring.c',
 		'rte_event_eth_rx_adapter.c',
 		'rte_event_timer_adapter.c',

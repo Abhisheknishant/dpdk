@@ -24,6 +24,7 @@ LDLIBS += -lrte_mbuf -lrte_cryptodev -lpthread
 # library source files
 SRCS-y += rte_eventdev.c
 SRCS-y += rte_eventmode_helper.c
+SRCS-y += rte_eventmode_helper_prints.c
 SRCS-y += rte_event_ring.c
 SRCS-y += rte_event_eth_rx_adapter.c
 SRCS-y += rte_event_timer_adapter.c

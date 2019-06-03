@@ -101,6 +101,17 @@ int32_t __rte_experimental
 rte_eventmode_helper_initialize_devs(
 		struct rte_eventmode_helper_conf *mode_conf);
 
+/**
+ * Display event mode conf
+ *
+ * Parse the conf and display the current configuration.
+ *
+ * @param mode_conf
+ *   Configuration of the mode in which app is doing packet handling
+ */
+void __rte_experimental
+rte_eventmode_helper_display_conf(struct rte_eventmode_helper_conf *mode_conf);
+
 #ifdef __cplusplus
 }
 #endif
