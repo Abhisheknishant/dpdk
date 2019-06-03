@@ -27,6 +27,18 @@ static enum cleanup_st {
 	ST_DURING_TEST
 } cleanup = ST_CLEAR;
 
+struct performance_tests_results {
+	uint16_t total_segments;
+	uint16_t segment_sz;
+	uint16_t last_segment_sz;
+	uint32_t total_buffs;	      /*number of buffers = number of ops*/
+	uint16_t segments_per_buff;
+	uint16_t segments_per_last_buff;
+	size_t input_data_sz;
+};
+
+static struct performance_tests_results tests_res;
+
 static int
 param_range_check(uint16_t size, const struct rte_param_log2_range *range)
 {
@@ -218,6 +230,13 @@ comp_perf_allocate_memory(struct comp_test_data *test_data)
 				" could not be allocated\n");
 		return -1;
 	}
+
+	tests_res.total_segments = total_segs;
+	tests_res.segment_sz = test_data->seg_sz;
+	tests_res.total_buffs = test_data->total_bufs;
+	tests_res.segments_per_buff = test_data->max_sgl_segs;
+	tests_res.input_data_sz = test_data->input_data_sz;
+
 	return 0;
 }
 
@@ -279,9 +298,11 @@ comp_perf_dump_input_data(struct comp_test_data *test_data)
 
 	if (test_data->input_data_sz > actual_file_sz)
 		RTE_LOG(INFO, USER1,
-		  "%zu bytes read from file %s, extending the file %.2f times\n",
-			test_data->input_data_sz, test_data->input_file,
-			(double)test_data->input_data_sz/actual_file_sz);
+		  "%zu bytes read from file %s, extending the file %.2f times"
+				" to %zu\n",
+			actual_file_sz, test_data->input_file,
+			(double)test_data->input_data_sz/actual_file_sz,
+			test_data->input_data_sz);
 	else
 		RTE_LOG(INFO, USER1,
 			"%zu bytes read from file %s\n",
@@ -349,9 +370,10 @@ prepare_bufs(struct comp_test_data *test_data)
 {
 	uint32_t remaining_data = test_data->input_data_sz;
 	uint8_t *input_data_ptr = test_data->input_data;
-	size_t data_sz;
+	size_t data_sz = 0;
 	uint8_t *data_addr;
 	uint32_t i, j;
+	uint16_t segs_per_mbuf = 0;
 
 	for (i = 0; i < test_data->total_bufs; i++) {
 		/* Allocate data in input mbuf and copy data from input file */
@@ -376,7 +398,7 @@ prepare_bufs(struct comp_test_data *test_data)
 		remaining_data -= data_sz;
 
 		/* Already one segment in the mbuf */
-		uint16_t segs_per_mbuf = 1;
+		segs_per_mbuf = 1;
 
 		/* Chain mbufs if needed for input mbufs */
 		while (segs_per_mbuf < test_data->max_sgl_segs
@@ -453,6 +475,9 @@ prepare_bufs(struct comp_test_data *test_data)
 		}
 	}
 
+	tests_res.segments_per_last_buff = segs_per_mbuf;
+	tests_res.last_segment_sz = data_sz;
+
 	return 0;
 }
 
@@ -467,7 +492,71 @@ free_bufs(struct comp_test_data *test_data)
 	}
 }
 
+static void
+print_report_header(void)
+{
+	uint32_t opt_total_segs = DIV_CEIL(tests_res.input_data_sz,
+			MAX_SEG_SIZE);
 
+	if (tests_res.total_buffs > 1) {
+		printf("\nWarning: for the current input parameters number"
+				" of ops is higher than one, which may result"
+				" in sub-optimal performance.\n");
+		printf("To improve the performance (for the current"
+				" input data) following parameters are"
+				" suggested:\n");
+		printf("	• Segment size: %d\n", MAX_SEG_SIZE);
+		printf("	• Number of segments: %u\n", opt_total_segs);
+	} else if (tests_res.total_buffs == 1) {
+		printf("\nWarning: There is only one op with %u segments –"
+				" the compression ratio is the best.\n",
+			tests_res.segments_per_last_buff);
+		if (tests_res.segment_sz < MAX_SEG_SIZE)
+			printf("To reduce compression time, please use"
+					" bigger segment size: %d.\n",
+				MAX_SEG_SIZE);
+		else if (tests_res.segment_sz == MAX_SEG_SIZE)
+			printf("Segment size is optimal for the best"
+					" performance.\n");
+	} else
+		printf("Warning: something wrong happened!!\n");
+
+	printf("\nFor the current input parameters (segment size = %u,"
+			" segments number = %u):\n",
+		tests_res.segment_sz,
+		tests_res.segments_per_buff);
+	printf("	• Total number of segments: %d\n",
+		tests_res.total_segments);
+	printf("	• %u segments %u bytes long, last segment %u"
+			" byte(s) long\n",
+		tests_res.total_segments - 1,
+		tests_res.segment_sz,
+		tests_res.last_segment_sz);
+	printf("	• Number of ops: %u\n", tests_res.total_buffs);
+	printf("	• Total memory allocation: %u\n",
+		(tests_res.total_segments - 1) * tests_res.segment_sz
+		+ tests_res.last_segment_sz);
+	if (tests_res.total_buffs > 1)
+		printf("	• %u ops: %u segments in each,"
+				" segment size %u\n",
+			tests_res.total_buffs - 1,
+			tests_res.segments_per_buff,
+			tests_res.segment_sz);
+	if (tests_res.segments_per_last_buff > 1) {
+		printf("	• 1 op %u segments:\n",
+				tests_res.segments_per_last_buff);
+		printf("		o %u segment size %u\n",
+			tests_res.segments_per_last_buff - 1,
+			tests_res.segment_sz);
+		printf("		o last segment size %u\n",
+			tests_res.last_segment_sz);
+	} else if (tests_res.segments_per_last_buff == 1) {
+		printf("	• 1 op (the last one): %u segment %u"
+				" byte(s) long\n\n",
+			tests_res.segments_per_last_buff,
+			tests_res.last_segment_sz);
+	}
+}
 
 int
 main(int argc, char **argv)
@@ -533,8 +622,9 @@ main(int argc, char **argv)
 	else
 		level = test_data->level.list[0];
 
+	print_report_header();
+
 	printf("Burst size = %u\n", test_data->burst_sz);
-	printf("File size = %zu\n", test_data->input_data_sz);
 
 	printf("%6s%12s%17s%19s%21s%15s%21s%23s%16s\n",
 		"Level", "Comp size", "Comp ratio [%]",
@@ -612,3 +702,4 @@ end:
 	}
 	return ret;
 }
+
