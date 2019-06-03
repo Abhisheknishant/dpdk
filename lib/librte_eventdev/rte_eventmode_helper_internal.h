@@ -48,6 +48,9 @@
 #define EVENT_MODE_MAX_LCORE_LINKS \
 	(EVENT_MODE_MAX_EVENT_DEVS * EVENT_MODE_MAX_EVENT_QUEUES_PER_DEV)
 
+/* Max adapters that one Rx core can handle */
+#define EVENT_MODE_MAX_ADAPTERS_PER_RX_CORE EVENT_MODE_MAX_RX_ADAPTERS
+
 /* Event dev params */
 struct eventdev_params {
 	uint8_t eventdev_id;

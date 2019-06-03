@@ -17,6 +17,20 @@ enum rte_eventmode_helper_pkt_transfer_mode {
 	RTE_EVENTMODE_HELPER_PKT_TRANSFER_MODE_EVENT,
 };
 
+/* Event mode packet rx types */
+enum rte_eventmode_helper_rx_types {
+	RTE_EVENTMODE_HELPER_RX_TYPE_INVALID = 0,
+	RTE_EVENTMODE_HELPER_RX_TYPE_NON_BURST,
+	RTE_EVENTMODE_HELPER_RX_TYPE_BURST,
+	RTE_EVENTMODE_HELPER_RX_TYPE_MAX = 16
+};
+
+/* Event mode packet tx types */
+enum rte_eventmode_helper_tx_types {
+	RTE_EVETNMODE_HELPER_TX_TYPE_INVALID = 0,
+	RTE_EVENTMODE_HELPER_TX_TYPE_MAX = 16
+};
+
 struct rte_eventmode_helper_conf {
 	enum rte_eventmode_helper_pkt_transfer_mode mode;
 		/**< Packet transfer mode of the application */
@@ -39,6 +53,20 @@ struct rte_eventmode_helper_event_link_info {
 		/**< Event queue to be linked to the port */
 	uint8_t lcore_id;
 		/**< Lcore to be polling on this port */
+};
+
+/* Workers registered by the application */
+struct rte_eventmode_helper_app_worker_params {
+	union {
+		struct {
+			uint64_t burst : 4;
+			/**< Specify status of rx type burst */
+		};
+		uint64_t u64;
+	} cap;
+			/**< Capabilities of this worker */
+	void (*worker_thread)(void *mode_conf);
+			/**< Worker thread */
 };
 
 /* Common helper functions for command line parsing */
@@ -156,6 +184,27 @@ rte_eventmode_helper_get_event_lcore_links(uint32_t lcore_id,
 uint8_t __rte_experimental
 rte_eventmode_helper_get_tx_queue(struct rte_eventmode_helper_conf *mode_conf,
 		uint8_t eventdev_id);
+
+/**
+ * Launch eventmode worker
+ *
+ * The application can request the eventmode helper subsystem to launch the
+ * worker based on the capabilities of event device and the options selected
+ * while initializing the eventmode.
+ *
+ * @param mode_conf
+ *   Configuration of the mode in which app is doing packet handling
+ * @param app_wrkr
+ *   List of all the workers registered by application, along with it's
+ *   capabilities
+ * @param nb_wrkr_param
+ *   Number of workers passed by the application
+ *
+ */
+void __rte_experimental
+rte_eventmode_helper_launch_worker(struct rte_eventmode_helper_conf *mode_conf,
+		struct rte_eventmode_helper_app_worker_params *app_wrkr,
+		uint8_t nb_wrkr_param);
 
 #ifdef __cplusplus
 }

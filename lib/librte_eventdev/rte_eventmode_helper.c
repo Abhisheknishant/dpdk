@@ -2,6 +2,7 @@
  * Copyright (C) 2019 Marvell International Ltd.
  */
 #include <getopt.h>
+#include <stdbool.h>
 
 #include <rte_ethdev.h>
 #include <rte_eventdev.h>
@@ -12,6 +13,8 @@
 #include "rte_eventmode_helper_internal.h"
 
 #define CMD_LINE_OPT_TRANSFER_MODE	"transfer-mode"
+
+static volatile bool eth_core_running;
 
 static const char short_options[] =
 	""
@@ -109,6 +112,16 @@ internal_get_eventdev_params(struct eventmode_conf *em_conf,
 		return NULL;
 
 	return &(em_conf->eventdev_config[i]);
+}
+
+static inline bool
+internal_dev_has_burst_mode(uint8_t dev_id)
+{
+	struct rte_event_dev_info dev_info;
+
+	rte_event_dev_info_get(dev_id, &dev_info);
+	return (dev_info.event_dev_cap & RTE_EVENT_DEV_CAP_BURST_MODE) ?
+			true : false;
 }
 
 /* Global functions */
@@ -980,3 +993,230 @@ rte_eventmode_helper_get_tx_queue(struct rte_eventmode_helper_conf *mode_conf,
 	return eventdev_config->nb_eventqueue - 1;
 }
 
+/* Helper functions for launching workers */
+
+static int32_t
+rte_eventmode_helper_start_worker_eth_core(struct eventmode_conf *em_conf,
+		uint32_t lcore_id)
+{
+	uint32_t service_id[EVENT_MODE_MAX_ADAPTERS_PER_RX_CORE];
+	struct rx_adapter_conf *rx_adapter;
+	int service_count = 0;
+	int adapter_id;
+	int32_t ret;
+	int i;
+
+	RTE_EM_HLPR_LOG_INFO(
+		"Entering eth_core processing on lcore %u", lcore_id);
+
+	/*
+	 * Need to parse adapter conf to see which of all Rx adapters need
+	 * to be handled by this core.
+	 */
+	for (i = 0; i < em_conf->nb_rx_adapter; i++) {
+		/* Check if we have exceeded the max allowed */
+		if (service_count > EVENT_MODE_MAX_ADAPTERS_PER_RX_CORE) {
+			RTE_EM_HLPR_LOG_ERR(
+				"Exceeded the max allowed adapters per rx core");
+			break;
+		}
+
+		rx_adapter = &(em_conf->rx_adapter[i]);
+		if (rx_adapter->rx_core_id != lcore_id)
+			continue;
+
+		/* Adapter need to be handled by this core */
+		adapter_id = rx_adapter->adapter_id;
+
+		/* Get the service ID for the adapters */
+		ret = rte_event_eth_rx_adapter_service_id_get(adapter_id,
+				&(service_id[service_count]));
+
+		if (ret != -ESRCH && ret != 0) {
+			RTE_EM_HLPR_LOG_ERR(
+				"Error getting service ID used by Rx adapter");
+			return ret;
+		}
+
+		/* Update service count */
+		service_count++;
+	}
+
+	eth_core_running = true;
+
+	while (eth_core_running) {
+		for (i = 0; i < service_count; i++) {
+			/* Initiate adapter service */
+			rte_service_run_iter_on_app_lcore(service_id[i], 0);
+		}
+	}
+
+	return 0;
+}
+
+static int32_t
+rte_eventmode_helper_stop_worker_eth_core(void)
+{
+	if (eth_core_running) {
+		RTE_EM_HLPR_LOG_INFO("Stopping rx cores\n");
+		eth_core_running = false;
+	}
+	return 0;
+}
+
+static struct rte_eventmode_helper_app_worker_params *
+rte_eventmode_helper_find_worker(uint32_t lcore_id,
+		struct eventmode_conf *em_conf,
+		struct rte_eventmode_helper_app_worker_params *app_wrkrs,
+		uint8_t nb_wrkr_param)
+{
+	struct rte_eventmode_helper_event_link_info *link = NULL;
+	uint8_t eventdev_id;
+	struct eventdev_params *eventdev_config;
+	int i;
+	struct rte_eventmode_helper_app_worker_params curr_conf = {
+			{{0} }, NULL};
+	struct rte_eventmode_helper_app_worker_params *tmp_wrkr;
+
+	/*
+	 * Event device to be used will be derived from the first lcore-event
+	 * link.
+	 *
+	 * Assumption: All lcore-event links tied to a core would be using the
+	 * same event device. in other words, one core would be polling on
+	 * queues of a single event device only.
+	 */
+
+	/* Get a link for this lcore */
+	for (i = 0; i < em_conf->nb_link; i++) {
+		link = &(em_conf->link[i]);
+		if (link->lcore_id == lcore_id)
+			break;
+	}
+
+	if (link == NULL) {
+		RTE_EM_HLPR_LOG_ERR(
+			"No valid link found for lcore(%d)", lcore_id);
+		return NULL;
+	}
+
+	/* Get event dev ID */
+	eventdev_id = link->eventdev_id;
+
+	/* Get the corresponding eventdev config */
+	eventdev_config = internal_get_eventdev_params(em_conf, eventdev_id);
+
+	/* Populate the curr_conf with the capabilities */
+
+	/* Check for burst mode */
+	if (internal_dev_has_burst_mode(eventdev_id))
+		curr_conf.cap.burst = RTE_EVENTMODE_HELPER_RX_TYPE_BURST;
+	else
+		curr_conf.cap.burst = RTE_EVENTMODE_HELPER_RX_TYPE_NON_BURST;
+
+	/* Now parse the passed list and see if we have matching capabilities */
+
+	/* Initialize the pointer used to traverse the list */
+	tmp_wrkr = app_wrkrs;
+
+	for (i = 0; i < nb_wrkr_param; i++, tmp_wrkr++) {
+
+		/* Skip this if capabilities are not matching */
+		if (tmp_wrkr->cap.u64 != curr_conf.cap.u64)
+			continue;
+
+		/* If the checks pass, we have a match */
+		return tmp_wrkr;
+	}
+
+	/* TODO required for ATQ */
+	RTE_SET_USED(eventdev_config);
+
+	return NULL;
+}
+
+static int
+rte_eventmode_helper_verify_match_worker(
+	struct rte_eventmode_helper_app_worker_params *match_wrkr)
+{
+	/* Verify registered worker */
+	if (match_wrkr->worker_thread == NULL) {
+		RTE_EM_HLPR_LOG_ERR("No worker registered for second stage");
+		return 0;
+	}
+
+	/* Success */
+	return 1;
+}
+
+void __rte_experimental
+rte_eventmode_helper_launch_worker(struct rte_eventmode_helper_conf *mode_conf,
+		struct rte_eventmode_helper_app_worker_params *app_wrkr,
+		uint8_t nb_wrkr_param)
+{
+	struct rte_eventmode_helper_app_worker_params *match_wrkr;
+	uint32_t lcore_id;
+	struct eventmode_conf *em_conf;
+
+	if (mode_conf == NULL) {
+		RTE_EM_HLPR_LOG_ERR("Invalid conf");
+		return;
+	}
+
+	if (mode_conf->mode_params == NULL) {
+		RTE_EM_HLPR_LOG_ERR("Invalid mode params");
+		return;
+	}
+
+	/* Get eventmode conf */
+	em_conf = (struct eventmode_conf *)(mode_conf->mode_params);
+
+	/* Get core ID */
+	lcore_id = rte_lcore_id();
+
+	/* TODO check capability for rx core */
+
+	/* Check if this is rx core */
+	if (em_conf->eth_core_mask & (1 << lcore_id)) {
+		rte_eventmode_helper_start_worker_eth_core(em_conf, lcore_id);
+		return;
+	}
+
+	if (app_wrkr == NULL || nb_wrkr_param == 0) {
+		RTE_EM_HLPR_LOG_ERR("Invalid args");
+		return;
+	}
+
+	/*
+	 * This is a regular worker thread. The application would be
+	 * registering multiple workers with various capabilities. The
+	 * worker to be run will be selected by the capabilities of the
+	 * event device configured.
+	 */
+
+	/* Get the first matching worker for the event device */
+	match_wrkr = rte_eventmode_helper_find_worker(lcore_id,
+			em_conf,
+			app_wrkr,
+			nb_wrkr_param);
+
+	if (match_wrkr == NULL) {
+		RTE_EM_HLPR_LOG_ERR(
+			"No matching worker registered for lcore %d", lcore_id);
+		goto clean_and_exit;
+	}
+
+	/* Verify sanity of the matched worker */
+	if (rte_eventmode_helper_verify_match_worker(match_wrkr) != 1) {
+		RTE_EM_HLPR_LOG_ERR("Error in validating the matched worker");
+		goto clean_and_exit;
+	}
+
+	/* Launch the worker thread */
+	match_wrkr->worker_thread(mode_conf);
+
+clean_and_exit:
+
+	/* Flag eth_cores to stop, if started */
+	rte_eventmode_helper_stop_worker_eth_core();
+}
