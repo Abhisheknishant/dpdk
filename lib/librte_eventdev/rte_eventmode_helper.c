@@ -165,6 +165,32 @@ err:
 	return NULL;
 }
 
+/* Pre-process conf before using for init*/
+
+static int
+rte_eventmode_validate_user_params(struct eventmode_conf *em_conf)
+{
+	/* TODO */
+	/* Check sanity of the conf requested by user */
+
+	RTE_SET_USED(em_conf);
+
+	return 0;
+}
+
+static int
+rte_eventmode_helper_validate_conf(struct eventmode_conf *em_conf)
+{
+	int ret;
+
+	/* After parsing all args, verify that the conf can be allowed */
+	ret = rte_eventmode_validate_user_params(em_conf);
+	if (ret != 0)
+		return ret;
+
+	return 0;
+}
+
 /* Setup eventmode devs */
 
 static int
@@ -467,6 +493,13 @@ rte_eventmode_helper_initialize_devs(
 
 	/* Get eventmode conf */
 	em_conf = (struct eventmode_conf *)(mode_conf->mode_params);
+
+	/* Validate the conf requested */
+	if (rte_eventmode_helper_validate_conf(em_conf) != 0) {
+		RTE_EM_HLPR_LOG_ERR(
+			"Failed while validating the conf requested");
+		return -1;
+	}
 
 	/* Stop eth devices before setting up adapter */
 	RTE_ETH_FOREACH_DEV(portid) {
