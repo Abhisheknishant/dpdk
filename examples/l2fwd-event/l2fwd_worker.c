@@ -111,6 +111,14 @@ l2fwd_periodic_drain_stats_monitor(struct lcore_queue_conf *qconf,
 		/* Drain buffers */
 		l2fwd_drain_buffers(qconf);
 
+		t->prev_tsc = cur_tsc;
+
+		/* Skip the timer based stats prints if not master core */
+		if (!is_master_core)
+			return;
+
+		/* On master core */
+
 		/* if timer is enabled */
 		if (timer_period > 0) {
 
@@ -120,16 +128,13 @@ l2fwd_periodic_drain_stats_monitor(struct lcore_queue_conf *qconf,
 			/* if timer has reached its timeout */
 			if (unlikely(t->timer_tsc >= timer_period)) {
 
-				/* do this only on master core */
-				if (is_master_core) {
-					print_stats();
-					/* reset the timer */
-					t->timer_tsc = 0;
-				}
+				/* Print stats */
+				print_stats();
+
+				/* reset the timer */
+				t->timer_tsc = 0;
 			}
 		}
-
-		t->prev_tsc = cur_tsc;
 	}
 }
 
