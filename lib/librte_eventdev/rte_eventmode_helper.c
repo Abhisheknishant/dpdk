@@ -318,6 +318,14 @@ rte_eventmode_helper_initialize_eventdev(struct eventmode_conf *em_conf)
 	return 0;
 }
 
+static int
+rte_eventmode_helper_initialize_ethdev(struct eventmode_conf *em_conf)
+{
+	RTE_SET_USED(em_conf);
+
+	return 0;
+}
+
 int32_t __rte_experimental
 rte_eventmode_helper_initialize_devs(
 		struct rte_eventmode_helper_conf *mode_conf)
@@ -354,6 +362,11 @@ rte_eventmode_helper_initialize_devs(
 
 	/* Setup eventdev */
 	ret = rte_eventmode_helper_initialize_eventdev(em_conf);
+	if (ret != 0)
+		return ret;
+
+	/* Setup ethdev */
+	ret = rte_eventmode_helper_initialize_ethdev(em_conf);
 	if (ret != 0)
 		return ret;
 
