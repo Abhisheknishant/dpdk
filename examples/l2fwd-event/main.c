@@ -40,22 +40,13 @@
 #include <rte_mempool.h>
 #include <rte_mbuf.h>
 
+#include "l2fwd_common.h"
+
 static volatile bool force_quit;
 
 /* MAC updating enabled by default */
 static int mac_updating = 1;
 
-#define RTE_LOGTYPE_L2FWD RTE_LOGTYPE_USER1
-
-#define MAX_PKT_BURST 32
-#define BURST_TX_DRAIN_US 100 /* TX drain every ~100us */
-#define MEMPOOL_CACHE_SIZE 256
-
-/*
- * Configurable number of RX/TX ring descriptors
- */
-#define RTE_TEST_RX_DESC_DEFAULT 1024
-#define RTE_TEST_TX_DESC_DEFAULT 1024
 static uint16_t nb_rxd = RTE_TEST_RX_DESC_DEFAULT;
 static uint16_t nb_txd = RTE_TEST_TX_DESC_DEFAULT;
 
@@ -70,8 +61,6 @@ static uint32_t l2fwd_dst_ports[RTE_MAX_ETHPORTS];
 
 static unsigned int l2fwd_rx_queue_per_lcore = 1;
 
-#define MAX_RX_QUEUE_PER_LCORE 16
-#define MAX_TX_QUEUE_PER_PORT 16
 struct lcore_queue_conf {
 	unsigned int n_rx_port;
 	unsigned int rx_port_list[MAX_RX_QUEUE_PER_LCORE];
@@ -99,7 +88,6 @@ struct l2fwd_port_statistics {
 } __rte_cache_aligned;
 struct l2fwd_port_statistics port_statistics[RTE_MAX_ETHPORTS];
 
-#define MAX_TIMER_PERIOD 86400 /* 1 day max */
 /* A tsc-based timer responsible for triggering statistics printout */
 static uint64_t timer_period = 10; /* default period is 10 seconds */
 
