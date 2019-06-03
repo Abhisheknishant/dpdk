@@ -3,6 +3,7 @@
  */
 #include <getopt.h>
 
+#include <rte_ethdev.h>
 #include <rte_eventmode_helper.h>
 #include <rte_malloc.h>
 
@@ -92,7 +93,7 @@ em_initialize_helper_conf(struct rte_eventmode_helper_conf *conf)
 	conf->eth_portmask = -1;
 }
 
-struct rte_eventmode_helper_conf *
+struct rte_eventmode_helper_conf * __rte_experimental
 rte_eventmode_helper_parse_args(int argc, char **argv)
 {
 	int32_t opt, ret;
@@ -151,4 +152,52 @@ err:
 		rte_free(conf);
 
 	return NULL;
+}
+
+int32_t __rte_experimental
+rte_eventmode_helper_initialize_devs(
+		struct rte_eventmode_helper_conf *mode_conf)
+{
+	int ret;
+	uint16_t portid;
+
+	if (mode_conf == NULL) {
+		RTE_EM_HLPR_LOG_ERR("Invalid conf");
+		return -1;
+	}
+
+	if (mode_conf->mode != RTE_EVENTMODE_HELPER_PKT_TRANSFER_MODE_EVENT)
+		return 0;
+
+	if (mode_conf->mode_params == NULL) {
+		RTE_EM_HLPR_LOG_ERR("Invalid mode params");
+		return -1;
+	}
+
+	/* Stop eth devices before setting up adapter */
+	RTE_ETH_FOREACH_DEV(portid) {
+
+		/* Use only the ports enabled */
+		if ((mode_conf->eth_portmask & (1 << portid)) == 0)
+			continue;
+
+		rte_eth_dev_stop(portid);
+	}
+
+	/* Start eth devices after setting up adapter */
+	RTE_ETH_FOREACH_DEV(portid) {
+
+		/* Use only the ports enabled */
+		if ((mode_conf->eth_portmask & (1 << portid)) == 0)
+			continue;
+
+		ret = rte_eth_dev_start(portid);
+		if (ret < 0) {
+			RTE_EM_HLPR_LOG_ERR(
+				"Error starting eth dev %d", portid);
+			return -1;
+		}
+	}
+
+	return 0;
 }
