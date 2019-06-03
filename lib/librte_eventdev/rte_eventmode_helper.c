@@ -93,6 +93,24 @@ get_next_core:
 	return next_core;
 }
 
+static struct eventdev_params *
+internal_get_eventdev_params(struct eventmode_conf *em_conf,
+		uint8_t eventdev_id)
+{
+	int i;
+
+	for (i = 0; i < em_conf->nb_eventdev; i++) {
+		if (em_conf->eventdev_config[i].eventdev_id == eventdev_id)
+			break;
+	}
+
+	/* No match */
+	if (i == em_conf->nb_eventdev)
+		return NULL;
+
+	return &(em_conf->eventdev_config[i]);
+}
+
 /* Global functions */
 
 void __rte_experimental
@@ -925,5 +943,40 @@ rte_eventmode_helper_get_event_lcore_links(uint32_t lcore_id,
 
 	/* Return the number of cached links */
 	return lcore_nb_link;
+}
+
+uint8_t __rte_experimental
+rte_eventmode_helper_get_tx_queue(struct rte_eventmode_helper_conf *mode_conf,
+		uint8_t eventdev_id)
+{
+	struct eventdev_params *eventdev_config;
+	struct eventmode_conf *em_conf;
+
+	if (mode_conf == NULL) {
+		RTE_EM_HLPR_LOG_ERR("Invalid conf");
+		return (uint8_t)(-1);
+	}
+
+	if (mode_conf->mode_params == NULL) {
+		RTE_EM_HLPR_LOG_ERR("Invalid mode params");
+		return (uint8_t)(-1);
+	}
+
+	/* Get eventmode conf */
+	em_conf = (struct eventmode_conf *)(mode_conf->mode_params);
+
+	/* Get event device conf */
+	eventdev_config = internal_get_eventdev_params(em_conf, eventdev_id);
+
+	if (eventdev_config == NULL) {
+		RTE_EM_HLPR_LOG_ERR("Error reading eventdev conf");
+		return (uint8_t)(-1);
+	}
+
+	/*
+	 * The last queue would be reserved to be used as atomic queue for the
+	 * last stage (eth packet tx stage)
+	 */
+	return eventdev_config->nb_eventqueue - 1;
 }
 

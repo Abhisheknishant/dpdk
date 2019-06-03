@@ -136,6 +136,27 @@ rte_eventmode_helper_get_event_lcore_links(uint32_t lcore_id,
 		struct rte_eventmode_helper_conf *mode_conf,
 		struct rte_eventmode_helper_event_link_info **links);
 
+/**
+ * Get eventdev tx queue
+ *
+ * If the application uses event device which does not support internal port
+ * then it needs to submit the events to an atomic Tx queue before final
+ * transmission. The Tx queue will be atomic to make sure that ingress order of
+ * the packets is maintained. This Tx queue will be created internally by the
+ * eventmode helper subsystem, and application will need it's queue ID when it
+ * is running the execution loop.
+ *
+ * @param mode_conf
+ *   Configuration of the mode in which app is doing packet handling
+ * @param eventdev_id
+ *   Event device ID
+ * @return
+ *   Tx queue ID
+ */
+uint8_t __rte_experimental
+rte_eventmode_helper_get_tx_queue(struct rte_eventmode_helper_conf *mode_conf,
+		uint8_t eventdev_id);
+
 #ifdef __cplusplus
 }
 #endif
