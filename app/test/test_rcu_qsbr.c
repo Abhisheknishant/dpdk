@@ -953,8 +953,8 @@ test_rcu_qsbr_main(void)
 		return -1;
 
 	if (num_cores < 4) {
-		printf("Test failed! Need 4 or more cores\n");
-		goto test_fail;
+		printf("Test skipped! Need 4 or more cores\n");
+		return TEST_SKIPPED;
 	}
 
 	/* Error-checking test cases */

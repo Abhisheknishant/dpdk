@@ -621,7 +621,7 @@ test_hash_readwrite_main(void)
 	if (rte_lcore_count() <= 2) {
 		printf("More than two lcores are required "
 			"to do read write test\n");
-		return -1;
+		return TEST_SKIPPED;
 	}
 
 	RTE_LCORE_FOREACH_SLAVE(core_id) {
