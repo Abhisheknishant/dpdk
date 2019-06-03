@@ -10,6 +10,14 @@ extern "C" {
 
 #include <rte_common.h>
 #include <rte_compat.h>
+#include <rte_config.h>
+#include <rte_event_eth_tx_adapter.h>
+
+/* Flag to indicate that the event device used by all adapters is same */
+#define RTE_EM_HELPER_TX_EV_LINK_COMMON_EVENT_DEV	(1 << 0)
+
+/* Flag to indicate that the event queue to be used for all adapters is same */
+#define RTE_EM_HELPER_TX_EV_LINK_COMMON_EVENT_QUEUE	(1 << 1)
 
 /* Packet transfer mode of the application */
 enum rte_eventmode_helper_pkt_transfer_mode {
@@ -53,6 +61,22 @@ struct rte_eventmode_helper_event_link_info {
 		/**< Event queue to be linked to the port */
 	uint8_t lcore_id;
 		/**< Lcore to be polling on this port */
+};
+
+/*
+ * Tx event queue - port link conf
+ *
+ * Application would need to know which event queue would correspond to which
+ * eth port, so that it can send out accordingly.
+ */
+struct rte_eventmode_helper_tx_ev_link_conf {
+	uint8_t flags;
+	struct {
+		uint8_t eventdev_id;
+			/**< Event device ID */
+		uint8_t tx_ev_queue;
+			/**< Tx event queue */
+	} ports[RTE_MAX_ETHPORTS];
 };
 
 /* Workers registered by the application */

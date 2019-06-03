@@ -38,8 +38,14 @@
 /* Max Rx adapters supported */
 #define EVENT_MODE_MAX_RX_ADAPTERS RTE_EVENT_MAX_DEVS
 
+/* Max Tx adapters supported */
+#define EVENT_MODE_MAX_TX_ADAPTERS RTE_EVENT_MAX_DEVS
+
 /* Max Rx adapter connections */
 #define EVENT_MODE_MAX_CONNECTIONS_PER_ADAPTER 16
+
+/* Max Tx adapter connections */
+#define EVENT_MODE_MAX_CONNECTIONS_PER_TX_ADAPTER 16
 
 /* Max event queues supported per event device */
 #define EVENT_MODE_MAX_EVENT_QUEUES_PER_DEV RTE_EVENT_MAX_QUEUES_PER_DEV
@@ -50,6 +56,9 @@
 
 /* Max adapters that one Rx core can handle */
 #define EVENT_MODE_MAX_ADAPTERS_PER_RX_CORE EVENT_MODE_MAX_RX_ADAPTERS
+
+/* Max adapters that one Tx core can handle */
+#define EVENT_MODE_MAX_ADAPTERS_PER_TX_CORE EVENT_MODE_MAX_TX_ADAPTERS
 
 /* Event dev params */
 struct eventdev_params {
@@ -76,6 +85,23 @@ struct rx_adapter_conf {
 			conn[EVENT_MODE_MAX_CONNECTIONS_PER_ADAPTER];
 };
 
+/* Tx adapter connection info */
+struct tx_adapter_connection_info {
+	uint8_t ethdev_id;
+	int32_t ethdev_tx_qid;
+};
+
+/* Tx adapter conf */
+struct tx_adapter_conf {
+	int32_t eventdev_id;
+	int32_t adapter_id;
+	uint32_t tx_core_id;
+	uint8_t nb_connections;
+	struct tx_adapter_connection_info
+			conn[EVENT_MODE_MAX_CONNECTIONS_PER_TX_ADAPTER];
+	uint8_t tx_ev_queue;
+};
+
 /* Eventmode conf data */
 struct eventmode_conf {
 	int nb_eventdev;
@@ -86,6 +112,10 @@ struct eventmode_conf {
 		/**< No of Rx adapters */
 	struct rx_adapter_conf rx_adapter[EVENT_MODE_MAX_RX_ADAPTERS];
 		/**< Rx adapter conf */
+	uint8_t nb_tx_adapter;
+		/**< No of Tx adapters */
+	struct tx_adapter_conf tx_adapter[EVENT_MODE_MAX_TX_ADAPTERS];
+		/** Tx adapter conf */
 	uint8_t nb_link;
 		/**< No of links */
 	struct rte_eventmode_helper_event_link_info

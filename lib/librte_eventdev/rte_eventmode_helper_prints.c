@@ -95,6 +95,12 @@ rte_eventmode_display_rx_adapter_conf(struct eventmode_conf *em_conf)
 }
 
 static void
+rte_eventmode_display_tx_adapter_conf(struct eventmode_conf *em_conf)
+{
+	RTE_SET_USED(em_conf);
+}
+
+static void
 rte_eventmode_display_link_conf(struct eventmode_conf *em_conf)
 {
 	int i;
@@ -154,6 +160,9 @@ rte_eventmode_helper_display_conf(struct rte_eventmode_helper_conf *mode_conf)
 
 	/* Display Rx adapter conf */
 	rte_eventmode_display_rx_adapter_conf(em_conf);
+
+	/* Display Tx adapter conf */
+	rte_eventmode_display_tx_adapter_conf(em_conf);
 
 	/* Display event-lcore link */
 	rte_eventmode_display_link_conf(em_conf);
