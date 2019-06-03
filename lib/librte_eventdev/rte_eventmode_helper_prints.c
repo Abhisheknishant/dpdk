@@ -106,7 +106,51 @@ rte_eventmode_display_rx_adapter_conf(struct eventmode_conf *em_conf)
 static void
 rte_eventmode_display_tx_adapter_conf(struct eventmode_conf *em_conf)
 {
-	RTE_SET_USED(em_conf);
+	int i, j;
+	int nb_tx_adapter = em_conf->nb_tx_adapter;
+	struct tx_adapter_conf *adapter;
+	struct tx_adapter_connection_info *conn;
+	char print_buf[256] = { 0 };
+
+	RTE_EM_HLPR_LOG_INFO("Tx adapters configured: %d", nb_tx_adapter);
+
+	for (i = 0; i < nb_tx_adapter; i++) {
+		adapter = &(em_conf->tx_adapter[i]);
+		sprintf(print_buf,
+			"\tTx adapter ID: %-2d\tConnections: %-2d\tEvent dev ID: %-2d",
+			adapter->adapter_id,
+			adapter->nb_connections,
+			adapter->eventdev_id);
+		if (adapter->tx_core_id == (uint32_t)-1)
+			sprintf(print_buf + strlen(print_buf),
+				"\tTx core: %-2s", "[INTERNAL PORT]");
+		else if (adapter->tx_core_id == RTE_MAX_LCORE)
+			sprintf(print_buf + strlen(print_buf),
+				"\tTx core: %-2s", "[NONE]");
+		else
+			sprintf(print_buf + strlen(print_buf),
+				"\tTx core: %-2d,\tInput event queue: %-2d",
+				adapter->tx_core_id, adapter->tx_ev_queue);
+
+		RTE_EM_HLPR_LOG_INFO("%s", print_buf);
+
+		for (j = 0; j < adapter->nb_connections; j++) {
+			conn = &(adapter->conn[j]);
+
+			sprintf(print_buf,
+				"\t\tEthdev ID: %-2d", conn->ethdev_id);
+
+			if (conn->ethdev_tx_qid == -1)
+				sprintf(print_buf + strlen(print_buf),
+					"\tEth tx queue: %-2s", "ALL");
+			else
+				sprintf(print_buf + strlen(print_buf),
+					"\tEth tx queue: %-2d",
+					conn->ethdev_tx_qid);
+			RTE_EM_HLPR_LOG_INFO("%s", print_buf);
+		}
+	}
+	RTE_EM_HLPR_LOG_INFO("");
 }
 
 static void
