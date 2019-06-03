@@ -154,22 +154,30 @@ l2fwd_mac_updating(struct rte_mbuf *m, unsigned int dest_portid)
 	rte_ether_addr_copy(&l2fwd_ports_eth_addr[dest_portid], &eth->s_addr);
 }
 
+static inline void
+l2fwd_send_pkt(struct rte_mbuf *tx_pkt, unsigned int port_id)
+{
+	int sent;
+	struct rte_eth_dev_tx_buffer *buffer;
+
+	buffer = tx_buffer[port_id];
+	sent = rte_eth_tx_buffer(port_id, 0, buffer, tx_pkt);
+	if (sent)
+		port_statistics[port_id].tx += sent;
+}
+
 static void
 l2fwd_simple_forward(struct rte_mbuf *m, unsigned int portid)
 {
 	unsigned int dst_port;
-	int sent;
-	struct rte_eth_dev_tx_buffer *buffer;
 
 	dst_port = l2fwd_dst_ports[portid];
 
 	if (mac_updating)
 		l2fwd_mac_updating(m, dst_port);
 
-	buffer = tx_buffer[dst_port];
-	sent = rte_eth_tx_buffer(dst_port, 0, buffer, m);
-	if (sent)
-		port_statistics[dst_port].tx += sent;
+	/* Send packet */
+	l2fwd_send_pkt(m, dst_port);
 }
 
 /* main processing loop */
