@@ -128,4 +128,6 @@ EXPERIMENTAL {
 
 	rte_event_eth_rx_adapter_cb_register;
 	rte_event_eth_rx_adapter_stats_get;
+	rte_eventmode_helper_print_options_list;
+	rte_eventmode_helper_print_options_description;
 };
