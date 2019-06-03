@@ -94,6 +94,45 @@ l2fwd_drain_buffers(struct lcore_queue_conf *qconf)
 	}
 }
 
+static inline void
+l2fwd_periodic_drain_stats_monitor(struct lcore_queue_conf *qconf,
+		struct tsc_tracker *t, int is_master_core)
+{
+	uint64_t diff_tsc, cur_tsc;
+
+	cur_tsc = rte_rdtsc();
+
+	/*
+	 * TX burst queue drain
+	 */
+	diff_tsc = cur_tsc - t->prev_tsc;
+	if (unlikely(diff_tsc > t->drain_tsc)) {
+
+		/* Drain buffers */
+		l2fwd_drain_buffers(qconf);
+
+		/* if timer is enabled */
+		if (timer_period > 0) {
+
+			/* advance the timer */
+			t->timer_tsc += diff_tsc;
+
+			/* if timer has reached its timeout */
+			if (unlikely(t->timer_tsc >= timer_period)) {
+
+				/* do this only on master core */
+				if (is_master_core) {
+					print_stats();
+					/* reset the timer */
+					t->timer_tsc = 0;
+				}
+			}
+		}
+
+		t->prev_tsc = cur_tsc;
+	}
+}
+
 static void
 l2fwd_mac_updating(struct rte_mbuf *m, unsigned int dest_portid)
 {
@@ -135,18 +174,17 @@ l2fwd_main_loop(void)
 	struct rte_mbuf *pkts_burst[MAX_PKT_BURST];
 	struct rte_mbuf *m;
 	unsigned int lcore_id;
-	uint64_t prev_tsc, diff_tsc, cur_tsc, timer_tsc;
 	unsigned int i, j, portid, nb_rx;
 	struct lcore_queue_conf *qconf;
-	const uint64_t drain_tsc = (rte_get_tsc_hz() + US_PER_S - 1)
-			/ US_PER_S * BURST_TX_DRAIN_US;
 	int is_master_core;
-
-	prev_tsc = 0;
-	timer_tsc = 0;
+	struct tsc_tracker tsc = {0};
 
 	lcore_id = rte_lcore_id();
 	qconf = &lcore_queue_conf[lcore_id];
+
+	/* Set drain tsc */
+	tsc.drain_tsc = (rte_get_tsc_hz() + US_PER_S - 1) /
+			US_PER_S * BURST_TX_DRAIN_US;
 
 	if (qconf->n_rx_port == 0) {
 		RTE_LOG(INFO, L2FWD, "lcore %u has nothing to do\n", lcore_id);
@@ -168,37 +206,8 @@ l2fwd_main_loop(void)
 
 	while (!force_quit) {
 
-		cur_tsc = rte_rdtsc();
-
-		/*
-		 * TX burst queue drain
-		 */
-		diff_tsc = cur_tsc - prev_tsc;
-		if (unlikely(diff_tsc > drain_tsc)) {
-
-			/* Drain buffers */
-			l2fwd_drain_buffers(qconf);
-
-			/* if timer is enabled */
-			if (timer_period > 0) {
-
-				/* advance the timer */
-				timer_tsc += diff_tsc;
-
-				/* if timer has reached its timeout */
-				if (unlikely(timer_tsc >= timer_period)) {
-
-					/* do this only on master core */
-					if (is_master_core) {
-						print_stats();
-						/* reset the timer */
-						timer_tsc = 0;
-					}
-				}
-			}
-
-			prev_tsc = cur_tsc;
-		}
+		/* Do periodic operations (buffer drain & stats monitor) */
+		l2fwd_periodic_drain_stats_monitor(qconf, &tsc, is_master_core);
 
 		/*
 		 * Read packet from RX queues
