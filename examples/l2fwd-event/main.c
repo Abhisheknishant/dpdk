@@ -39,6 +39,7 @@
 #include <rte_ethdev.h>
 #include <rte_mempool.h>
 #include <rte_mbuf.h>
+#include <rte_eventmode_helper.h>
 
 #include "l2fwd_common.h"
 #include "l2fwd_worker.h"
@@ -68,6 +69,8 @@ l2fwd_usage(const char *prgname)
 		" [-q NQ]",
 		prgname);
 
+	rte_eventmode_helper_print_options_list();
+
 	fprintf(stderr, "\n\n");
 
 	fprintf(stderr,
@@ -78,7 +81,9 @@ l2fwd_usage(const char *prgname)
 		"      When enabled:\n"
 		"       - The source MAC address is replaced by the TX port MAC address\n"
 		"       - The destination MAC address is replaced by 02:00:00:00:00:TX_PORT_ID\n"
-		"\n");
+		"");
+
+	rte_eventmode_helper_print_options_description();
 }
 
 static int
@@ -158,12 +163,14 @@ static const struct option lgopts[] = {
 
 /* Parse the argument given in the command line of the application */
 static int
-l2fwd_parse_args(int argc, char **argv)
+l2fwd_parse_args(int argc, char **argv,
+		struct rte_eventmode_helper_conf **mode_conf)
 {
-	int opt, ret, timer_secs;
+	int opt, timer_secs;
 	char **argvopt;
 	int option_index;
 	char *prgname = argv[0];
+	int options_parsed = 0;
 
 	argvopt = argv;
 
@@ -212,12 +219,31 @@ l2fwd_parse_args(int argc, char **argv)
 		}
 	}
 
-	if (optind >= 0)
-		argv[optind-1] = prgname;
+	/* Update argc & argv to move to event mode options */
+	options_parsed = optind-1;
+	argc -= options_parsed;
+	argv += options_parsed;
 
-	ret = optind-1;
-	optind = 1; /* reset getopt lib */
-	return ret;
+	/* Reset getopt lib */
+	optind = 1;
+
+	/* Check for event mode parameters and get the conf prepared*/
+	*mode_conf = rte_eventmode_helper_parse_args(argc, argv);
+	if (*mode_conf == NULL) {
+		l2fwd_usage(prgname);
+		return -1;
+	}
+
+	/* Add the number of options parsed */
+	options_parsed += optind-1;
+
+	if (options_parsed >= 0)
+		argv[options_parsed] = prgname;
+
+	/* Reset getopt lib */
+	optind = 1;
+
+	return options_parsed;
 }
 
 /* Check the link status of all ports in up to 9s, and print them finally */
@@ -315,6 +341,7 @@ main(int argc, char **argv)
 	unsigned int nb_ports_in_mask = 0;
 	unsigned int nb_lcores = 0;
 	unsigned int nb_mbufs;
+	struct rte_eventmode_helper_conf *mode_conf = NULL;
 
 	/* Set default values for global vars */
 	l2fwd_init_global_vars();
@@ -329,8 +356,12 @@ main(int argc, char **argv)
 	signal(SIGINT, signal_handler);
 	signal(SIGTERM, signal_handler);
 
-	/* parse application arguments (after the EAL ones) */
-	ret = l2fwd_parse_args(argc, argv);
+	/*
+	 * Parse application arguments (after the EAL ones). This would parse
+	 * the event mode options too, and would set the conf pointer
+	 * accordingly.
+	 */
+	ret = l2fwd_parse_args(argc, argv, &mode_conf);
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "Invalid L2FWD arguments\n");
 
@@ -519,9 +550,20 @@ main(int argc, char **argv)
 
 	check_all_ports_link_status(l2fwd_enabled_port_mask);
 
+	/*
+	 * Set the enabled port mask in helper conf to be used by helper
+	 * sub-system. This would be used while intializing devices using
+	 * helper sub-system.
+	 */
+	mode_conf->eth_portmask = l2fwd_enabled_port_mask;
+
+	/* Initialize eventmode components */
+	rte_eventmode_helper_initialize_devs(mode_conf);
+
 	ret = 0;
 	/* launch per-lcore init on every lcore */
-	rte_eal_mp_remote_launch(l2fwd_launch_one_lcore, NULL, CALL_MASTER);
+	rte_eal_mp_remote_launch(l2fwd_launch_one_lcore, (void *)mode_conf,
+			CALL_MASTER);
 	RTE_LCORE_FOREACH_SLAVE(lcore_id) {
 		if (rte_eal_wait_lcore(lcore_id) < 0) {
 			ret = -1;
