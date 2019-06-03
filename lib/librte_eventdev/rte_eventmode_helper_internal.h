@@ -66,6 +66,7 @@ struct eventdev_params {
 	uint8_t nb_eventqueue;
 	uint8_t nb_eventport;
 	uint8_t ev_queue_mode;
+	uint8_t all_internal_ports;
 };
 
 /* Rx adapter connection info */

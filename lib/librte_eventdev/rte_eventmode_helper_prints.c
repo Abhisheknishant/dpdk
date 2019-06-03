@@ -64,13 +64,22 @@ rte_eventmode_display_rx_adapter_conf(struct eventmode_conf *em_conf)
 
 	for (i = 0; i < nb_rx_adapter; i++) {
 		adapter = &(em_conf->rx_adapter[i]);
-		RTE_EM_HLPR_LOG_INFO(
-			"\tRx adaper ID: %-2d\tConnections: %-2d\tEvent dev ID: %-2d"
-			"\tRx core: %-2d",
+		sprintf(print_buf,
+			"\tRx adaper ID: %-2d\tConnections: %-2d\tEvent dev ID: %-2d",
 			adapter->adapter_id,
 			adapter->nb_connections,
-			adapter->eventdev_id,
-			adapter->rx_core_id);
+			adapter->eventdev_id);
+		if (adapter->rx_core_id == (uint32_t)-1)
+			sprintf(print_buf + strlen(print_buf),
+				"\tRx core: %-2s", "[INTERNAL PORT]");
+		else if (adapter->rx_core_id == RTE_MAX_LCORE)
+			sprintf(print_buf + strlen(print_buf),
+				"\tRx core: %-2s", "[NONE]");
+		else
+			sprintf(print_buf + strlen(print_buf),
+				"\tRx core: %-2d", adapter->rx_core_id);
+
+		RTE_EM_HLPR_LOG_INFO("%s", print_buf);
 
 		for (j = 0; j < adapter->nb_connections; j++) {
 			conn = &(adapter->conn[j]);

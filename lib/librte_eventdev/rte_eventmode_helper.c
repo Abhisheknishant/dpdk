@@ -142,6 +142,38 @@ internal_get_eventdev_params(struct eventmode_conf *em_conf,
 }
 
 static inline bool
+internal_dev_has_rx_internal_port(uint8_t eventdev_id)
+{
+	int j;
+	bool flag = true;
+
+	RTE_ETH_FOREACH_DEV(j) {
+		uint32_t caps = 0;
+
+		rte_event_eth_rx_adapter_caps_get(eventdev_id, j, &caps);
+		if (!(caps & RTE_EVENT_ETH_RX_ADAPTER_CAP_INTERNAL_PORT))
+			flag = false;
+	}
+	return flag;
+}
+
+static inline bool
+internal_dev_has_tx_internal_port(uint8_t eventdev_id)
+{
+	int j;
+	bool flag = true;
+
+	RTE_ETH_FOREACH_DEV(j) {
+		uint32_t caps = 0;
+
+		rte_event_eth_tx_adapter_caps_get(eventdev_id, j, &caps);
+		if (!(caps & RTE_EVENT_ETH_TX_ADAPTER_CAP_INTERNAL_PORT))
+			flag = false;
+	}
+	return flag;
+}
+
+static inline bool
 internal_dev_has_burst_mode(uint8_t dev_id)
 {
 	struct rte_event_dev_info dev_info;
@@ -303,6 +335,8 @@ rte_eventmode_helper_set_default_conf_eventdev(struct eventmode_conf *em_conf)
 {
 	int i, ret;
 	int nb_eventdev;
+	int nb_eth_dev;
+	int lcore_count;
 	struct eventdev_params *eventdev_config;
 	struct rte_event_dev_info dev_info;
 
@@ -313,6 +347,17 @@ rte_eventmode_helper_set_default_conf_eventdev(struct eventmode_conf *em_conf)
 		RTE_EM_HLPR_LOG_ERR("No event devices detected");
 		return -1;
 	}
+
+	/* Get the number of eth devs */
+	nb_eth_dev = rte_eth_dev_count_avail();
+
+	if (nb_eth_dev == 0) {
+		RTE_EM_HLPR_LOG_ERR("No eth devices detected");
+		return -1;
+	}
+
+	/* Get the number of lcores */
+	lcore_count = rte_lcore_count();
 
 	for (i = 0; i < nb_eventdev; i++) {
 
@@ -340,19 +385,56 @@ rte_eventmode_helper_set_default_conf_eventdev(struct eventmode_conf *em_conf)
 		eventdev_config->nb_eventqueue = dev_info.max_event_queues;
 		eventdev_config->nb_eventport = dev_info.max_event_ports;
 		eventdev_config->ev_queue_mode =
-				RTE_EVENT_QUEUE_CFG_SINGLE_LINK;
+				RTE_EVENT_QUEUE_CFG_ALL_TYPES;
 
-		/* One port is required for eth Rx adapter */
-		eventdev_config->nb_eventport -= 1;
+		/* Check if there are more queues than required */
+		if (eventdev_config->nb_eventqueue > nb_eth_dev + 1) {
+			/* One queue is reserved for Tx */
+			eventdev_config->nb_eventqueue = nb_eth_dev + 1;
+		}
 
-		/* One port is reserved for eth Tx adapter */
-		eventdev_config->nb_eventport -= 1;
+		/* Check if there are more ports than required */
+		if (eventdev_config->nb_eventport > lcore_count) {
+			/* One port per lcore is enough */
+			eventdev_config->nb_eventport = lcore_count;
+		}
 
 		/* Update the number of eventdevs */
 		em_conf->nb_eventdev++;
 	}
 
 	return 0;
+}
+
+static void
+rte_eventmode_helper_do_capability_check(struct eventmode_conf *em_conf)
+{
+	struct eventdev_params *eventdev_config;
+	uint32_t eventdev_id;
+	int all_internal_ports = 1;
+	int i;
+
+	for (i = 0; i < em_conf->nb_eventdev; i++) {
+
+		/* Get the event dev conf */
+		eventdev_config = &(em_conf->eventdev_config[i]);
+		eventdev_id = eventdev_config->eventdev_id;
+
+		/* Check if event device has internal port for Rx & Tx */
+		if (internal_dev_has_rx_internal_port(eventdev_id) &&
+		    internal_dev_has_tx_internal_port(eventdev_id)) {
+			eventdev_config->all_internal_ports = 1;
+		} else {
+			all_internal_ports = 0;
+		}
+	}
+
+	/*
+	 * If Rx & Tx internal ports are supported by all event devices then
+	 * eth cores won't be required. Override the eth core mask requested.
+	 */
+	if (all_internal_ports)
+		em_conf->eth_core_mask = 0;
 }
 
 static int
@@ -363,9 +445,12 @@ rte_eventmode_helper_set_default_conf_rx_adapter(struct eventmode_conf *em_conf)
 	int adapter_id;
 	int eventdev_id;
 	int conn_id;
+	int nb_eventqueue;
 	struct rx_adapter_conf *adapter;
 	struct adapter_connection_info *conn;
 	struct eventdev_params *eventdev_config;
+	bool rx_internal_port = true;
+	uint32_t caps = 0;
 
 	/* Create one adapter with all eth queues mapped to event queues 1:1 */
 
@@ -390,7 +475,14 @@ rte_eventmode_helper_set_default_conf_rx_adapter(struct eventmode_conf *em_conf)
 	/* Set adapter conf */
 	adapter->eventdev_id = eventdev_id;
 	adapter->adapter_id = adapter_id;
-	adapter->rx_core_id = internal_get_next_eth_core(em_conf);
+
+	/*
+	 * If event device does not have internal ports for passing
+	 * packets then one queue is reserved for Tx path
+	 */
+	nb_eventqueue = eventdev_config->all_internal_ports ?
+			eventdev_config->nb_eventqueue :
+			eventdev_config->nb_eventqueue - 1;
 
 	/*
 	 * All queues of one eth device (port) will be mapped to one event
@@ -399,12 +491,11 @@ rte_eventmode_helper_set_default_conf_rx_adapter(struct eventmode_conf *em_conf)
 	 */
 
 	/* Make sure there is enough event queues for 1:1 mapping */
-	if (nb_eth_dev > eventdev_config->nb_eventqueue) {
+	if (nb_eth_dev > nb_eventqueue) {
 		RTE_EM_HLPR_LOG_ERR(
 			"Not enough event queues for 1:1 mapping "
 			"[eth devs: %d, event queues: %d]\n",
-			nb_eth_dev,
-			eventdev_config->nb_eventqueue);
+			nb_eth_dev, nb_eventqueue);
 		return -1;
 	}
 
@@ -427,9 +518,22 @@ rte_eventmode_helper_set_default_conf_rx_adapter(struct eventmode_conf *em_conf)
 		/* Add all eth queues of one eth port to one event queue */
 		conn->ethdev_rx_qid = -1;
 
+		/* Get Rx adapter capabilities */
+		rte_event_eth_rx_adapter_caps_get(eventdev_id, i, &caps);
+		if (!(caps & RTE_EVENT_ETH_RX_ADAPTER_CAP_INTERNAL_PORT))
+			rx_internal_port = false;
+
 		/* Update no of connections */
 		adapter->nb_connections++;
 
+	}
+
+	if (rx_internal_port) {
+		/* Rx core is not required */
+		adapter->rx_core_id = -1;
+	} else {
+		/* Rx core is required */
+		adapter->rx_core_id = internal_get_next_eth_core(em_conf);
 	}
 
 	/* We have setup one adapter */
@@ -449,6 +553,8 @@ rte_eventmode_helper_set_default_conf_tx_adapter(struct eventmode_conf *em_conf)
 	struct eventdev_params *eventdev_config;
 	struct tx_adapter_conf *tx_adapter;
 	struct tx_adapter_connection_info *conn;
+	bool tx_internal_port = true;
+	uint32_t caps = 0;
 
 	/*
 	 * Create one Tx adapter with all eth queues mapped to event queues
@@ -476,22 +582,6 @@ rte_eventmode_helper_set_default_conf_tx_adapter(struct eventmode_conf *em_conf)
 	/* Set adapter conf */
 	tx_adapter->eventdev_id = eventdev_id;
 	tx_adapter->adapter_id = adapter_id;
-
-	/* TODO: Tx core is required only when internal port is not present */
-
-	tx_adapter->tx_core_id = internal_get_next_eth_core(em_conf);
-
-	/*
-	 * Application would need to use one event queue per adapter for
-	 * submitting packets for Tx. Reserving the last queue available
-	 * and decrementing the total available event queues for this
-	 */
-
-	/* Queue numbers start at 0 */
-	tx_adapter->tx_ev_queue = eventdev_config->nb_eventqueue - 1;
-
-	/* Update the number of event queues available in eventdev */
-	eventdev_config->nb_eventqueue--;
 
 	/*
 	 * All Tx queues of the eth device (port) will be mapped to the event
@@ -523,8 +613,28 @@ rte_eventmode_helper_set_default_conf_tx_adapter(struct eventmode_conf *em_conf)
 		/* Add all eth tx queues to adapter */
 		conn->ethdev_tx_qid = -1;
 
+		/* Get Rx adapter capabilities */
+		rte_event_eth_tx_adapter_caps_get(eventdev_id, i, &caps);
+		if (!(caps & RTE_EVENT_ETH_TX_ADAPTER_CAP_INTERNAL_PORT))
+			tx_internal_port = false;
+
 		/* Update no of connections */
 		tx_adapter->nb_connections++;
+	}
+
+	if (tx_internal_port) {
+		/* Tx core is not required */
+		tx_adapter->tx_core_id = -1;
+	} else {
+		/* Tx core is required */
+		tx_adapter->tx_core_id = internal_get_next_eth_core(em_conf);
+
+		/*
+		 * Application would need to use one event queue per adapter for
+		 * submitting packets for Tx. Reserving the last queue available
+		 */
+		/* Queue numbers start at 0 */
+		tx_adapter->tx_ev_queue = eventdev_config->nb_eventqueue - 1;
 	}
 
 	/* We have setup one adapter */
@@ -620,6 +730,9 @@ rte_eventmode_helper_validate_conf(struct eventmode_conf *em_conf)
 			return ret;
 	}
 
+	/* Perform capability check for the selected event devices*/
+	rte_eventmode_helper_do_capability_check(em_conf);
+
 	/*
 	 * See if rx adapters are specified. Else generate a default conf
 	 * with one rx adapter and all eth queue - event queue mapped.
@@ -681,10 +794,6 @@ rte_eventmode_helper_initialize_eventdev(struct eventmode_conf *em_conf)
 		/* Get the number of queues */
 		nb_eventqueue = eventdev_config->nb_eventqueue;
 
-		/* One queue is reserved for the final stage (doing eth tx) */
-		/* TODO handles only one Tx adapter. Fix this */
-		nb_eventqueue += 1;
-
 		/* Reset the default conf */
 		memset(&evdev_default_conf, 0,
 			sizeof(struct rte_event_dev_info));
@@ -730,14 +839,15 @@ rte_eventmode_helper_initialize_eventdev(struct eventmode_conf *em_conf)
 			/* Per event dev queues can be ATQ or SINGLE LINK */
 			eventq_conf.event_queue_cfg =
 					eventdev_config->ev_queue_mode;
-
 			/*
 			 * All queues need to be set with sched_type as
-			 * schedule type for the application stage. One queue
-			 * would be reserved for the final eth tx stage. This
-			 * will be an atomic queue.
+			 * schedule type for the application stage. One
+			 * queue would be reserved for the final eth tx
+			 * stage if event device does not have internal
+			 * ports. This will be an atomic queue.
 			 */
-			if (j == nb_eventqueue-1) {
+			if (!eventdev_config->all_internal_ports &&
+			    j == nb_eventqueue-1) {
 				eventq_conf.schedule_type =
 					RTE_SCHED_TYPE_ATOMIC;
 			} else {
@@ -867,8 +977,10 @@ rx_adapter_configure(struct eventmode_conf *em_conf,
 
 	/* Setup various connections in the adapter */
 
+#ifdef UNSELECT
 	queue_conf.rx_queue_flags =
 			RTE_EVENT_ETH_RX_ADAPTER_QUEUE_FLOW_ID_VALID;
+#endif /* UNSELECT */
 
 	for (j = 0; j < adapter->nb_connections; j++) {
 		/* Get connection */
@@ -877,9 +989,12 @@ rx_adapter_configure(struct eventmode_conf *em_conf,
 		/* Setup queue conf */
 		queue_conf.ev.queue_id = conn->eventq_id;
 		queue_conf.ev.sched_type = em_conf->ext_params.sched_type;
+		queue_conf.ev.event_type = RTE_EVENT_TYPE_ETHDEV;
 
+#ifdef UNSELECT
 		/* Set flow ID as ethdev ID */
 		queue_conf.ev.flow_id = conn->ethdev_id;
+#endif /* UNSELECT */
 
 		/* Add queue to the adapter */
 		ret = rte_event_eth_rx_adapter_queue_add(
@@ -945,8 +1060,8 @@ tx_adapter_configure(struct eventmode_conf *em_conf,
 {
 	int ret, j;
 	uint8_t tx_port_id = 0;
-	uint8_t eventdev_id;
 	uint32_t service_id;
+	uint8_t eventdev_id;
 	struct rte_event_port_conf port_conf = {0};
 	struct rte_event_dev_info evdev_default_conf = {0};
 	struct tx_adapter_connection_info *conn;
@@ -1004,6 +1119,18 @@ tx_adapter_configure(struct eventmode_conf *em_conf,
 		}
 	}
 
+	/*
+	 * Check if Tx core is assigned. If Tx core is not assigned, then
+	 * the adapter would be having internal port for submitting packets
+	 * for Tx and so Tx event queue & port setup is not required
+	 */
+	if (adapter->tx_core_id == (uint32_t) (-1)) {
+		/* Internal port is present */
+		goto skip_tx_queue_port_setup;
+	}
+
+	/* Setup Tx queue & port */
+
 	/* Get event port used by the adapter */
 	ret = rte_event_eth_tx_adapter_event_port_get(
 			adapter->adapter_id,
@@ -1012,11 +1139,6 @@ tx_adapter_configure(struct eventmode_conf *em_conf,
 		RTE_EM_HLPR_LOG_ERR("Failed to get Tx adapter port ID");
 		return ret;
 	}
-
-	/*
-	 * TODO: event queue for Tx adapter is required only if the
-	 * INTERNAL PORT is not present.
-	 */
 
 	/*
 	 * Tx event queue would be reserved for Tx adapter. Need to unlink
@@ -1028,6 +1150,7 @@ tx_adapter_configure(struct eventmode_conf *em_conf,
 				      &(adapter->tx_ev_queue), 1);
 	}
 
+	/* Link Tx event queue to Tx port */
 	ret = rte_event_port_link(
 			eventdev_id,
 			tx_port_id,
@@ -1054,6 +1177,8 @@ tx_adapter_configure(struct eventmode_conf *em_conf,
 	 *
 	 */
 	rte_service_set_runstate_mapped_check(service_id, 0);
+
+skip_tx_queue_port_setup:
 
 	/* Start adapter */
 	ret = rte_event_eth_tx_adapter_start(adapter->adapter_id);
@@ -1436,6 +1561,14 @@ rte_eventmode_helper_find_worker(uint32_t lcore_id,
 		curr_conf.cap.burst = RTE_EVENTMODE_HELPER_RX_TYPE_BURST;
 	else
 		curr_conf.cap.burst = RTE_EVENTMODE_HELPER_RX_TYPE_NON_BURST;
+
+	/* Check for Tx internal port */
+	if (internal_dev_has_tx_internal_port(eventdev_id))
+		curr_conf.cap.tx_internal_port =
+				RTE_EVENTMODE_HELPER_TX_TYPE_INTERNAL_PORT;
+	else
+		curr_conf.cap.tx_internal_port =
+				RTE_EVENTMODE_HELPER_TX_TYPE_NO_INTERNAL_PORT;
 
 	/* Now parse the passed list and see if we have matching capabilities */
 

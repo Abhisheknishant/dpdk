@@ -36,6 +36,8 @@ enum rte_eventmode_helper_rx_types {
 /* Event mode packet tx types */
 enum rte_eventmode_helper_tx_types {
 	RTE_EVETNMODE_HELPER_TX_TYPE_INVALID = 0,
+	RTE_EVENTMODE_HELPER_TX_TYPE_INTERNAL_PORT,
+	RTE_EVENTMODE_HELPER_TX_TYPE_NO_INTERNAL_PORT,
 	RTE_EVENTMODE_HELPER_TX_TYPE_MAX = 16
 };
 
@@ -85,6 +87,8 @@ struct rte_eventmode_helper_app_worker_params {
 		struct {
 			uint64_t burst : 4;
 			/**< Specify status of rx type burst */
+			uint64_t tx_internal_port : 4;
+			/**< Specify whether tx internal port is available */
 		};
 		uint64_t u64;
 	} cap;
