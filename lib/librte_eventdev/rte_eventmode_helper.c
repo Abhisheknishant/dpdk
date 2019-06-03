@@ -70,6 +70,28 @@ get_next_core:
 	return next_core;
 }
 
+static inline unsigned int
+internal_get_next_active_core(struct eventmode_conf *em_conf,
+		unsigned int prev_core)
+{
+	unsigned int next_core;
+
+get_next_core:
+	/* Get the next core */
+	next_core = rte_get_next_lcore(prev_core, 0, 0);
+
+	/* Check if we have reached max lcores */
+	if (next_core == RTE_MAX_LCORE)
+		return next_core;
+
+	/* Some cores would be reserved as rx cores. Skip them */
+	if (em_conf->eth_core_mask & (1 << next_core)) {
+		prev_core = next_core;
+		goto get_next_core;
+	}
+
+	return next_core;
+}
 
 /* Global functions */
 
@@ -350,6 +372,74 @@ rte_eventmode_helper_set_default_conf_rx_adapter(struct eventmode_conf *em_conf)
 }
 
 static int
+rte_eventmode_helper_set_default_conf_link(struct eventmode_conf *em_conf)
+{
+	int i, j;
+	struct eventdev_params *eventdev_config;
+	unsigned int lcore_id = -1;
+	int link_index;
+	struct rte_eventmode_helper_event_link_info *link;
+
+	/*
+	 * Create a 1:1 mapping from event ports to cores. If the number
+	 * of event ports is lesser than the cores, some cores won't
+	 * execute worker. If event ports are more, then some ports won't
+	 * be used.
+	 *
+	 */
+
+	/*
+	 * The event queue-port mapping is done according to the link. Since
+	 * we are falling back to the default link conf, enabling
+	 * "all_ev_queue_to_ev_port" mode flag. This will map all queues to the
+	 * port.
+	 */
+	em_conf->ext_params.all_ev_queue_to_ev_port = 1;
+
+	for (i = 0; i < em_conf->nb_eventdev; i++) {
+
+		/* Get event dev conf */
+		eventdev_config = &(em_conf->eventdev_config[i]);
+
+		/* Loop through the ports */
+		for (j = 0; j < eventdev_config->nb_eventport; j++) {
+
+			/* Get next active core id */
+			lcore_id = internal_get_next_active_core(em_conf,
+					lcore_id);
+
+			if (lcore_id == RTE_MAX_LCORE) {
+				/* Reached max cores */
+				return 0;
+			}
+
+			/* Save the current combination as one link */
+
+			/* Get the index */
+			link_index = em_conf->nb_link;
+
+			/* Get the corresponding link */
+			link = &(em_conf->link[link_index]);
+
+			/* Save link */
+			link->eventdev_id = eventdev_config->eventdev_id;
+			link->event_portid = j;
+			link->lcore_id = lcore_id;
+
+			/*
+			 * Not setting eventq_id as by default all queues
+			 * need to be mapped to the port, and is controlled
+			 * by the operating mode.
+			 */
+
+			/* Update number of links */
+			em_conf->nb_link++;
+		}
+	}
+	return 0;
+}
+
+static int
 rte_eventmode_helper_validate_conf(struct eventmode_conf *em_conf)
 {
 	int ret;
@@ -375,6 +465,16 @@ rte_eventmode_helper_validate_conf(struct eventmode_conf *em_conf)
 	 */
 	if (em_conf->nb_rx_adapter == 0) {
 		ret = rte_eventmode_helper_set_default_conf_rx_adapter(em_conf);
+		if (ret != 0)
+			return ret;
+	}
+
+	/*
+	 * See if links are specified. Else generate a default conf for
+	 * the event ports used.
+	 */
+	if (em_conf->nb_link == 0) {
+		ret = rte_eventmode_helper_set_default_conf_link(em_conf);
 		if (ret != 0)
 			return ret;
 	}
@@ -508,7 +608,14 @@ rte_eventmode_helper_initialize_eventdev(struct eventmode_conf *em_conf)
 		/* Get event dev ID */
 		eventdev_id = link->eventdev_id;
 
-		queue = &(link->eventq_id);
+		/*
+		 * If "all_ev_queue_to_ev_port" params flag is selected, all
+		 * queues need to be mapped to the port.
+		 */
+		if (em_conf->ext_params.all_ev_queue_to_ev_port)
+			queue = NULL;
+		else
+			queue = &(link->eventq_id);
 
 		/* Link queue to port */
 		ret = rte_event_port_link(eventdev_id, link->event_portid,

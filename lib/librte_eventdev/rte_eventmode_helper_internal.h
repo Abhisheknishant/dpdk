@@ -96,6 +96,11 @@ struct eventmode_conf {
 		struct {
 			uint64_t sched_type			: 2;
 		/**< Schedule type */
+			uint64_t all_ev_queue_to_ev_port	: 1;
+		/**<
+		 * When enabled, all event queues need to be mapped to
+		 * each event port
+		 */
 		};
 		uint64_t u64;
 	} ext_params;
