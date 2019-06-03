@@ -503,6 +503,8 @@ struct rte_crypto_dsa_op_param {
 struct rte_crypto_asym_op {
 	struct rte_cryptodev_asym_session *session;
 	/**< Handle for the initialised session context */
+	struct rte_crypto_asym_xform *xform;
+	/**< Session-less API crypto operation parameters */
 
 	__extension__
 	union {
