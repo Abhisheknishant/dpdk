@@ -179,6 +179,63 @@ rte_eventmode_validate_user_params(struct eventmode_conf *em_conf)
 }
 
 static int
+rte_eventmode_helper_set_default_conf_eventdev(struct eventmode_conf *em_conf)
+{
+	int i, ret;
+	int nb_eventdev;
+	struct eventdev_params *eventdev_config;
+	struct rte_event_dev_info dev_info;
+
+	/* Get the number of event devices */
+	nb_eventdev = rte_event_dev_count();
+
+	if (nb_eventdev == 0) {
+		RTE_EM_HLPR_LOG_ERR("No event devices detected");
+		return -1;
+	}
+
+	for (i = 0; i < nb_eventdev; i++) {
+
+		/* Get the event dev conf */
+		eventdev_config = &(em_conf->eventdev_config[i]);
+
+		/* Read event device info */
+		ret = rte_event_dev_info_get(i, &dev_info);
+
+		if (ret < 0) {
+			RTE_EM_HLPR_LOG_ERR(
+				"Failed reading event device info (err:%d)",
+				ret);
+			return ret;
+		}
+
+		/* Check if enough ports are available */
+		if (dev_info.max_event_ports < 2) {
+			RTE_EM_HLPR_LOG_ERR("Not enough ports available");
+			return -1;
+		}
+
+		/* Save number of queues & ports available */
+		eventdev_config->eventdev_id = i;
+		eventdev_config->nb_eventqueue = dev_info.max_event_queues;
+		eventdev_config->nb_eventport = dev_info.max_event_ports;
+		eventdev_config->ev_queue_mode =
+				RTE_EVENT_QUEUE_CFG_SINGLE_LINK;
+
+		/* One port is required for eth Rx adapter */
+		eventdev_config->nb_eventport -= 1;
+
+		/* One port is reserved for eth Tx adapter */
+		eventdev_config->nb_eventport -= 1;
+
+		/* Update the number of eventdevs */
+		em_conf->nb_eventdev++;
+	}
+
+	return 0;
+}
+
+static int
 rte_eventmode_helper_validate_conf(struct eventmode_conf *em_conf)
 {
 	int ret;
@@ -187,6 +244,16 @@ rte_eventmode_helper_validate_conf(struct eventmode_conf *em_conf)
 	ret = rte_eventmode_validate_user_params(em_conf);
 	if (ret != 0)
 		return ret;
+
+	/*
+	 * See if event devs are specified. Else probe the event devices
+	 * and initialize the conf with all ports & queues available
+	 */
+	if (em_conf->nb_eventdev == 0) {
+		ret = rte_eventmode_helper_set_default_conf_eventdev(em_conf);
+		if (ret != 0)
+			return ret;
+	}
 
 	return 0;
 }
