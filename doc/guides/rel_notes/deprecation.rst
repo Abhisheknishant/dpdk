@@ -37,6 +37,11 @@ Deprecation Notices
 
     + ``rte_eal_devargs_type_count``
 
+* ethdev: The function ``rte_eth_dev_count`` will be removed in DPDK 20.02.
+  It is replaced by the function ``rte_eth_dev_count_avail``.
+  If the intent is to iterate over ports, ``RTE_ETH_FOREACH_*`` macros
+  are better port iterators.
+
 * vfio: removal of ``rte_vfio_dma_map`` and ``rte_vfio_dma_unmap`` APIs which
   have been replaced with ``rte_dev_dma_map`` and ``rte_dev_dma_unmap``
   functions.  The due date for the removal targets DPDK 20.02.
