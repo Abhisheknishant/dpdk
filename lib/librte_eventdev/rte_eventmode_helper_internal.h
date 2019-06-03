@@ -88,6 +88,10 @@ struct eventmode_conf {
 	struct rte_eventmode_helper_event_link_info
 			link[EVENT_MODE_MAX_LCORE_LINKS];
 		/**< Per link conf */
+	uint32_t eth_core_mask;
+		/**< Core mask of cores to be used for software Rx and Tx */
+	uint32_t eth_portmask;
+		/**< Mask of the eth ports to be used */
 	union {
 		struct {
 			uint64_t sched_type			: 2;

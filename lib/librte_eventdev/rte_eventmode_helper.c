@@ -47,6 +47,30 @@ internal_parse_decimal(const char *str)
 	return num;
 }
 
+static inline unsigned int
+internal_get_next_rx_core(struct eventmode_conf *em_conf,
+		unsigned int prev_core)
+{
+	unsigned int next_core;
+
+get_next_core:
+	/* Get the next core */
+	next_core = rte_get_next_lcore(prev_core, 0, 0);
+
+	/* Check if we have reached max lcores */
+	if (next_core == RTE_MAX_LCORE)
+		return next_core;
+
+	/* Only some cores would be marked as rx cores. Skip others */
+	if (!(em_conf->eth_core_mask & (1 << next_core))) {
+		prev_core = next_core;
+		goto get_next_core;
+	}
+
+	return next_core;
+}
+
+
 /* Global functions */
 
 void __rte_experimental
@@ -87,6 +111,7 @@ static void
 em_initialize_helper_conf(struct rte_eventmode_helper_conf *conf)
 {
 	struct eventmode_conf *em_conf = NULL;
+	unsigned int rx_core_id;
 
 	/* Set default conf */
 
@@ -102,6 +127,12 @@ em_initialize_helper_conf(struct rte_eventmode_helper_conf *conf)
 	/* Schedule type: ordered */
 	/* FIXME */
 	em_conf->ext_params.sched_type = RTE_SCHED_TYPE_ORDERED;
+	/* Set rx core. Use first core other than master core as Rx core */
+	rx_core_id = rte_get_next_lcore(0, /* curr core */
+					1, /* skip master core */
+					0  /* wrap */);
+
+	em_conf->eth_core_mask = (1 << rx_core_id);
 }
 
 struct rte_eventmode_helper_conf * __rte_experimental
@@ -236,6 +267,89 @@ rte_eventmode_helper_set_default_conf_eventdev(struct eventmode_conf *em_conf)
 }
 
 static int
+rte_eventmode_helper_set_default_conf_rx_adapter(struct eventmode_conf *em_conf)
+{
+	int nb_eth_dev;
+	int i;
+	int adapter_id;
+	int eventdev_id;
+	int conn_id;
+	struct rx_adapter_conf *adapter;
+	struct adapter_connection_info *conn;
+	struct eventdev_params *eventdev_config;
+
+	/* Create one adapter with all eth queues mapped to event queues 1:1 */
+
+	if (em_conf->nb_eventdev == 0) {
+		RTE_EM_HLPR_LOG_ERR("No event devs registered");
+		return -1;
+	}
+
+	/* Get the number of eth devs */
+	nb_eth_dev = rte_eth_dev_count_avail();
+
+	/* Use the first event dev */
+	eventdev_config = &(em_conf->eventdev_config[0]);
+
+	/* Get eventdev ID */
+	eventdev_id = eventdev_config->eventdev_id;
+	adapter_id = 0;
+
+	/* Get adapter conf */
+	adapter = &(em_conf->rx_adapter[adapter_id]);
+
+	/* Set adapter conf */
+	adapter->eventdev_id = eventdev_id;
+	adapter->adapter_id = adapter_id;
+	adapter->rx_core_id = internal_get_next_rx_core(em_conf, -1);
+
+	/*
+	 * All queues of one eth device (port) will be mapped to one event
+	 * queue. Each port will have an individual connection.
+	 *
+	 */
+
+	/* Make sure there is enough event queues for 1:1 mapping */
+	if (nb_eth_dev > eventdev_config->nb_eventqueue) {
+		RTE_EM_HLPR_LOG_ERR(
+			"Not enough event queues for 1:1 mapping "
+			"[eth devs: %d, event queues: %d]\n",
+			nb_eth_dev,
+			eventdev_config->nb_eventqueue);
+		return -1;
+	}
+
+	for (i = 0; i < nb_eth_dev; i++) {
+
+		/* Use only the ports enabled */
+		if ((em_conf->eth_portmask & (1 << i)) == 0)
+			continue;
+
+		/* Get the connection id */
+		conn_id = adapter->nb_connections;
+
+		/* Get the connection */
+		conn = &(adapter->conn[conn_id]);
+
+		/* Set 1:1 mapping between eth ports & event queues*/
+		conn->ethdev_id = i;
+		conn->eventq_id = i;
+
+		/* Add all eth queues of one eth port to one event queue */
+		conn->ethdev_rx_qid = -1;
+
+		/* Update no of connections */
+		adapter->nb_connections++;
+
+	}
+
+	/* We have setup one adapter */
+	em_conf->nb_rx_adapter = 1;
+
+	return 0;
+}
+
+static int
 rte_eventmode_helper_validate_conf(struct eventmode_conf *em_conf)
 {
 	int ret;
@@ -251,6 +365,16 @@ rte_eventmode_helper_validate_conf(struct eventmode_conf *em_conf)
 	 */
 	if (em_conf->nb_eventdev == 0) {
 		ret = rte_eventmode_helper_set_default_conf_eventdev(em_conf);
+		if (ret != 0)
+			return ret;
+	}
+
+	/*
+	 * See if rx adapters are specified. Else generate a default conf
+	 * with one rx adapter and all eth queue - event queue mapped.
+	 */
+	if (em_conf->nb_rx_adapter == 0) {
+		ret = rte_eventmode_helper_set_default_conf_rx_adapter(em_conf);
 		if (ret != 0)
 			return ret;
 	}
@@ -560,6 +684,9 @@ rte_eventmode_helper_initialize_devs(
 
 	/* Get eventmode conf */
 	em_conf = (struct eventmode_conf *)(mode_conf->mode_params);
+
+	/* Eventmode conf would need eth portmask */
+	em_conf->eth_portmask = mode_conf->eth_portmask;
 
 	/* Validate the conf requested */
 	if (rte_eventmode_helper_validate_conf(em_conf) != 0) {
