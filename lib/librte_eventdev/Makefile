@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright(c) 2016 Cavium, Inc
-#
+# Copyright (C) 2019 Marvell International Ltd.
 
 include $(RTE_SDK)/mk/rte.vars.mk
 
@@ -24,6 +23,7 @@ LDLIBS += -lrte_mbuf -lrte_cryptodev -lpthread
 
 # library source files
 SRCS-y += rte_eventdev.c
+SRCS-y += rte_eventmode_helper.c
 SRCS-y += rte_event_ring.c
 SRCS-y += rte_event_eth_rx_adapter.c
 SRCS-y += rte_event_timer_adapter.c
@@ -35,6 +35,7 @@ SYMLINK-y-include += rte_eventdev.h
 SYMLINK-y-include += rte_eventdev_pmd.h
 SYMLINK-y-include += rte_eventdev_pmd_pci.h
 SYMLINK-y-include += rte_eventdev_pmd_vdev.h
+SYMLINK-y-include += rte_eventmode_helper.h
 SYMLINK-y-include += rte_event_ring.h
 SYMLINK-y-include += rte_event_eth_rx_adapter.h
 SYMLINK-y-include += rte_event_timer_adapter.h
