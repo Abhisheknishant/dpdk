@@ -85,6 +85,8 @@ em_parse_transfer_mode(struct rte_eventmode_helper_conf *conf,
 static void
 em_initialize_helper_conf(struct rte_eventmode_helper_conf *conf)
 {
+	struct eventmode_conf *em_conf = NULL;
+
 	/* Set default conf */
 
 	/* Packet transfer mode: poll */
@@ -92,6 +94,13 @@ em_initialize_helper_conf(struct rte_eventmode_helper_conf *conf)
 
 	/* Keep all ethernet ports enabled by default */
 	conf->eth_portmask = -1;
+
+	/* Get eventmode conf */
+	em_conf = (struct eventmode_conf *)(conf->mode_params);
+
+	/* Schedule type: ordered */
+	/* FIXME */
+	em_conf->ext_params.sched_type = RTE_SCHED_TYPE_ORDERED;
 }
 
 struct rte_eventmode_helper_conf * __rte_experimental
@@ -233,8 +242,19 @@ rte_eventmode_helper_initialize_eventdev(struct eventmode_conf *em_conf)
 			eventq_conf.event_queue_cfg =
 					eventdev_config->ev_queue_mode;
 
-			/* Set schedule type as ATOMIC */
-			eventq_conf.schedule_type = RTE_SCHED_TYPE_ATOMIC;
+			/*
+			 * All queues need to be set with sched_type as
+			 * schedule type for the application stage. One queue
+			 * would be reserved for the final eth tx stage. This
+			 * will be an atomic queue.
+			 */
+			if (j == nb_eventqueue-1) {
+				eventq_conf.schedule_type =
+					RTE_SCHED_TYPE_ATOMIC;
+			} else {
+				eventq_conf.schedule_type =
+					em_conf->ext_params.sched_type;
+			}
 
 			/* Set max atomic flows to 1024 */
 			eventq_conf.nb_atomic_flows = 1024;

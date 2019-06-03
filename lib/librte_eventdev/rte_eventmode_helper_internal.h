@@ -61,6 +61,14 @@ struct eventmode_conf {
 	struct rte_eventmode_helper_event_link_info
 			link[EVENT_MODE_MAX_LCORE_LINKS];
 		/**< Per link conf */
+	union {
+		struct {
+			uint64_t sched_type			: 2;
+		/**< Schedule type */
+		};
+		uint64_t u64;
+	} ext_params;
+		/**< 64 bit field to specify extended params */
 };
 
 #endif /* _RTE_EVENTMODE_HELPER_INTERNAL_H_ */
