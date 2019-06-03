@@ -8,6 +8,7 @@
 extern "C" {
 #endif
 
+#include <rte_common.h>
 #include <rte_compat.h>
 
 /* Packet transfer mode of the application */
@@ -19,6 +20,11 @@ enum rte_eventmode_helper_pkt_transfer_mode {
 struct rte_eventmode_helper_conf {
 	enum rte_eventmode_helper_pkt_transfer_mode mode;
 		/**< Packet transfer mode of the application */
+	uint32_t eth_portmask;
+		/**<
+		 * Mask of the eth ports to be used. This portmask would be
+		 * checked while initializing devices using helper routines.
+		 */
 	void *mode_params;
 		/**< Mode specific parameters */
 };

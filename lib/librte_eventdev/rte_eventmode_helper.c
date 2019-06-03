@@ -87,6 +87,9 @@ em_initialize_helper_conf(struct rte_eventmode_helper_conf *conf)
 
 	/* Packet transfer mode: poll */
 	conf->mode = RTE_EVENTMODE_HELPER_PKT_TRANSFER_MODE_POLL;
+
+	/* Keep all ethernet ports enabled by default */
+	conf->eth_portmask = -1;
 }
 
 struct rte_eventmode_helper_conf *
