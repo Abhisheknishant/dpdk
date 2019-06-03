@@ -847,3 +847,83 @@ rte_eventmode_helper_initialize_devs(
 
 	return 0;
 }
+
+/* Helper functions for eventmode workers */
+
+uint8_t __rte_experimental
+rte_eventmode_helper_get_event_lcore_links(uint32_t lcore_id,
+		struct rte_eventmode_helper_conf *mode_conf,
+		struct rte_eventmode_helper_event_link_info **links)
+{
+	int i;
+	int index = 0;
+	uint8_t lcore_nb_link = 0;
+	struct rte_eventmode_helper_event_link_info *link;
+	struct rte_eventmode_helper_event_link_info *link_cache;
+	struct eventmode_conf *em_conf = NULL;
+	size_t cache_size;
+	size_t single_link_size;
+
+	if (mode_conf == NULL || links == NULL) {
+		RTE_EM_HLPR_LOG_ERR("Invalid args");
+		return 0;
+	}
+
+	/* Get eventmode conf */
+	em_conf = (struct eventmode_conf *)(mode_conf->mode_params);
+
+	if (em_conf == NULL) {
+		RTE_EM_HLPR_LOG_ERR("Invalid event mode conf");
+		return 0;
+	}
+
+	/* Get the number of links registered */
+	for (i = 0; i < em_conf->nb_link; i++) {
+
+		/* Get link */
+		link = &(em_conf->link[i]);
+
+		/* Check if we have link intended for this lcore */
+		if (link->lcore_id == lcore_id) {
+
+			/* Update the number of links for this core */
+			lcore_nb_link++;
+
+		}
+	}
+
+	/* Compute size of one entry to be copied */
+	single_link_size = sizeof(struct rte_eventmode_helper_event_link_info);
+
+	/* Compute size of the buffer required */
+	cache_size = lcore_nb_link *
+			sizeof(struct rte_eventmode_helper_event_link_info);
+
+	/* Allocate memory for caching the links */
+	link_cache = rte_zmalloc("eventmode-event-lcore-links", cache_size,
+			RTE_CACHE_LINE_SIZE);
+
+	/* Get the number of links registered */
+	for (i = 0; i < em_conf->nb_link; i++) {
+
+		/* Get link */
+		link = &(em_conf->link[i]);
+
+		/* Check if we have link intended for this lcore */
+		if (link->lcore_id == lcore_id) {
+
+			/* Cache the link */
+			memcpy(&link_cache[index], link, single_link_size);
+
+			/* Update index */
+			index++;
+		}
+	}
+
+	/* Update the links for application to use the cached links */
+	*links = link_cache;
+
+	/* Return the number of cached links */
+	return lcore_nb_link;
+}
+

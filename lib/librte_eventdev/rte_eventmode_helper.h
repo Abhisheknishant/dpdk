@@ -112,6 +112,30 @@ rte_eventmode_helper_initialize_devs(
 void __rte_experimental
 rte_eventmode_helper_display_conf(struct rte_eventmode_helper_conf *mode_conf);
 
+/**
+ * Get event dev - lcore links
+ *
+ * Since the execution loop is in the application, the application would need
+ * the info on which event port to be polled by an lcore etc. This helper
+ * function would help the application in doing so. The 'links' would point
+ * to the memory allocated for the links list, and the application should
+ * release this, once the use is over.
+ *
+ * @param lcore_id
+ *   ID of the lcore for which the links list need to be populated
+ * @param mode_conf
+ *   Configuration of the mode in which app is doing packet handling
+ * @param links
+ *   Used to pass the pointer of the memory allocated by the helper to the
+ *   application
+ * @return
+ *   Number of links found for the lcore
+ */
+uint8_t __rte_experimental
+rte_eventmode_helper_get_event_lcore_links(uint32_t lcore_id,
+		struct rte_eventmode_helper_conf *mode_conf,
+		struct rte_eventmode_helper_event_link_info **links);
+
 #ifdef __cplusplus
 }
 #endif

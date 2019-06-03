@@ -133,4 +133,5 @@ EXPERIMENTAL {
 	rte_eventmode_helper_parse_args;
 	rte_eventmode_helper_initialize_devs;
 	rte_eventmode_helper_display_conf;
+	rte_eventmode_helper_get_event_lcore_links;
 };
