@@ -32,9 +32,23 @@
 #define RTE_EM_HLPR_LOG_DEBUG(...) (void)0
 #endif
 
+/* Max event devices supported */
+#define EVENT_MODE_MAX_EVENT_DEVS RTE_EVENT_MAX_DEVS
+
+/* Event dev params */
+struct eventdev_params {
+	uint8_t eventdev_id;
+	uint8_t nb_eventqueue;
+	uint8_t nb_eventport;
+	uint8_t ev_queue_mode;
+};
+
 /* Eventmode conf data */
 struct eventmode_conf {
-	uint64_t dummy;
+	int nb_eventdev;
+		/**< No of event devs */
+	struct eventdev_params eventdev_config[EVENT_MODE_MAX_EVENT_DEVS];
+		/**< Per event dev conf */
 };
 
 #endif /* _RTE_EVENTMODE_HELPER_INTERNAL_H_ */

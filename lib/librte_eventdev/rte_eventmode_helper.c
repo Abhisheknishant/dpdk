@@ -4,6 +4,7 @@
 #include <getopt.h>
 
 #include <rte_ethdev.h>
+#include <rte_eventdev.h>
 #include <rte_eventmode_helper.h>
 #include <rte_malloc.h>
 
@@ -154,12 +155,134 @@ err:
 	return NULL;
 }
 
+/* Setup eventmode devs */
+
+static int
+rte_eventmode_helper_initialize_eventdev(struct eventmode_conf *em_conf)
+{
+	int ret = -1;
+	uint8_t i, j;
+	struct rte_event_dev_config eventdev_conf;
+	struct rte_event_dev_info evdev_default_conf;
+	struct rte_event_queue_conf eventq_conf = {0};
+	struct eventdev_params *eventdev_config;
+	int nb_eventdev = em_conf->nb_eventdev;
+	int nb_eventqueue;
+	uint8_t eventdev_id;
+
+	for (i = 0; i < nb_eventdev; i++) {
+
+		/* Get eventdev config */
+		eventdev_config = &(em_conf->eventdev_config[i]);
+
+		/* Get event dev ID */
+		eventdev_id = eventdev_config->eventdev_id;
+
+		/* Get the number of queues */
+		nb_eventqueue = eventdev_config->nb_eventqueue;
+
+		/* One queue is reserved for the final stage (doing eth tx) */
+		/* TODO handles only one Tx adapter. Fix this */
+		nb_eventqueue += 1;
+
+		/* Reset the default conf */
+		memset(&evdev_default_conf, 0,
+			sizeof(struct rte_event_dev_info));
+
+		/* Get default conf of eventdev */
+		ret = rte_event_dev_info_get(eventdev_id, &evdev_default_conf);
+		if (ret < 0) {
+			RTE_EM_HLPR_LOG_ERR(
+				"Error in getting event device info[devID:%d]",
+				eventdev_id);
+			return ret;
+		}
+
+		memset(&eventdev_conf, 0, sizeof(struct rte_event_dev_config));
+		eventdev_conf.nb_events_limit =
+				evdev_default_conf.max_num_events;
+		eventdev_conf.nb_event_queues = nb_eventqueue;
+		eventdev_conf.nb_event_ports =
+				eventdev_config->nb_eventport;
+		eventdev_conf.nb_event_queue_flows =
+				evdev_default_conf.max_event_queue_flows;
+		eventdev_conf.nb_event_port_dequeue_depth =
+				evdev_default_conf.max_event_port_dequeue_depth;
+		eventdev_conf.nb_event_port_enqueue_depth =
+				evdev_default_conf.max_event_port_enqueue_depth;
+
+		/* Configure event device */
+		ret = rte_event_dev_configure(eventdev_id, &eventdev_conf);
+		if (ret < 0) {
+			RTE_EM_HLPR_LOG_ERR(
+				"Error in configuring event device");
+			return ret;
+		}
+
+		/* Configure event queues */
+		for (j = 0; j < nb_eventqueue; j++) {
+
+			memset(&eventq_conf, 0,
+					sizeof(struct rte_event_queue_conf));
+
+			/* Read the requested conf */
+
+			/* Per event dev queues can be ATQ or SINGLE LINK */
+			eventq_conf.event_queue_cfg =
+					eventdev_config->ev_queue_mode;
+
+			/* Set schedule type as ATOMIC */
+			eventq_conf.schedule_type = RTE_SCHED_TYPE_ATOMIC;
+
+			/* Set max atomic flows to 1024 */
+			eventq_conf.nb_atomic_flows = 1024;
+			eventq_conf.nb_atomic_order_sequences = 1024;
+
+			/* Setup the queue */
+			ret = rte_event_queue_setup(eventdev_id, j,
+					&eventq_conf);
+			if (ret < 0) {
+				RTE_EM_HLPR_LOG_ERR(
+					"Error in event queue setup");
+				return ret;
+			}
+		}
+
+		/* Configure event ports */
+		for (j = 0; j <  eventdev_config->nb_eventport; j++) {
+			ret = rte_event_port_setup(eventdev_id, j, NULL);
+			if (ret < 0) {
+				RTE_EM_HLPR_LOG_ERR(
+					"Error setting up event port");
+				return ret;
+			}
+		}
+	}
+
+	/* Start event devices */
+	for (i = 0; i < nb_eventdev; i++) {
+
+		/* Get eventdev config */
+		eventdev_config = &(em_conf->eventdev_config[i]);
+
+		ret = rte_event_dev_start(eventdev_config->eventdev_id);
+		if (ret < 0) {
+			RTE_EM_HLPR_LOG_ERR(
+				"Error in starting event device[devID: %d]",
+				eventdev_config->eventdev_id);
+			return ret;
+		}
+	}
+	return 0;
+}
+
 int32_t __rte_experimental
 rte_eventmode_helper_initialize_devs(
 		struct rte_eventmode_helper_conf *mode_conf)
 {
 	int ret;
 	uint16_t portid;
+	struct eventmode_conf *em_conf;
 
 	if (mode_conf == NULL) {
 		RTE_EM_HLPR_LOG_ERR("Invalid conf");
@@ -174,6 +297,9 @@ rte_eventmode_helper_initialize_devs(
 		return -1;
 	}
 
+	/* Get eventmode conf */
+	em_conf = (struct eventmode_conf *)(mode_conf->mode_params);
+
 	/* Stop eth devices before setting up adapter */
 	RTE_ETH_FOREACH_DEV(portid) {
 
@@ -183,6 +309,11 @@ rte_eventmode_helper_initialize_devs(
 
 		rte_eth_dev_stop(portid);
 	}
+
+	/* Setup eventdev */
+	ret = rte_eventmode_helper_initialize_eventdev(em_conf);
+	if (ret != 0)
+		return ret;
 
 	/* Start eth devices after setting up adapter */
 	RTE_ETH_FOREACH_DEV(portid) {
