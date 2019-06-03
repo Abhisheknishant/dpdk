@@ -140,6 +140,7 @@ l2fwd_main_loop(void)
 	struct lcore_queue_conf *qconf;
 	const uint64_t drain_tsc = (rte_get_tsc_hz() + US_PER_S - 1)
 			/ US_PER_S * BURST_TX_DRAIN_US;
+	int is_master_core;
 
 	prev_tsc = 0;
 	timer_tsc = 0;
@@ -161,6 +162,9 @@ l2fwd_main_loop(void)
 			portid);
 
 	}
+
+	/* Set the flag if master core */
+	is_master_core = (lcore_id == rte_get_master_lcore()) ? 1 : 0;
 
 	while (!force_quit) {
 
@@ -185,8 +189,7 @@ l2fwd_main_loop(void)
 				if (unlikely(timer_tsc >= timer_period)) {
 
 					/* do this only on master core */
-					if (lcore_id ==
-					    rte_get_master_lcore()) {
+					if (is_master_core) {
 						print_stats();
 						/* reset the timer */
 						timer_tsc = 0;
