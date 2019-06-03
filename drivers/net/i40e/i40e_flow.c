@@ -22,6 +22,7 @@
 #include "base/i40e_type.h"
 #include "base/i40e_prototype.h"
 #include "i40e_ethdev.h"
+#include "i40e_rxtx.h"
 
 #define I40E_IPV6_TC_MASK	(0xFF << I40E_FDIR_IPv6_TC_OFFSET)
 #define I40E_IPV6_FRAG_HEADER	44
@@ -3040,6 +3041,21 @@ i40e_flow_parse_fdir_pattern(struct rte_eth_dev *dev,
 	return 0;
 }
 
+/* Check if device supports installing a new MARK action */
+static bool i40e_device_supports_mark(struct rte_eth_dev *dev)
+{
+	if (dev->data->dev_started) {
+		/* Vector RX currently doesn't support MARK action. */
+		if (dev->rx_pkt_burst == i40e_recv_scattered_pkts_vec ||
+		    dev->rx_pkt_burst == i40e_recv_pkts_vec ||
+		    dev->rx_pkt_burst == i40e_recv_scattered_pkts_vec_avx2 ||
+		    dev->rx_pkt_burst == i40e_recv_pkts_vec_avx2)
+			return false;
+	}
+
+	return true;
+}
+
 /* Parse to get the action info of a FDIR filter.
  * FDIR action supports QUEUE or (QUEUE + MARK).
  */
@@ -3079,6 +3095,13 @@ i40e_flow_parse_fdir_action(struct rte_eth_dev *dev,
 		filter->action.behavior = I40E_FDIR_PASSTHRU;
 		break;
 	case RTE_FLOW_ACTION_TYPE_MARK:
+		if (!i40e_device_supports_mark(dev)) {
+			/* MARK not supported */
+			rte_flow_error_set(error, EINVAL,
+					   RTE_FLOW_ERROR_TYPE_ACTION, act,
+					   "FDIR Action Error: MARK not supported.");
+			return -rte_errno;
+		}
 		filter->action.behavior = I40E_FDIR_PASSTHRU;
 		mark_spec = act->conf;
 		filter->action.report_status = I40E_FDIR_REPORT_ID;
@@ -3101,6 +3124,13 @@ i40e_flow_parse_fdir_action(struct rte_eth_dev *dev,
 			rte_flow_error_set(error, EINVAL,
 			   RTE_FLOW_ERROR_TYPE_ACTION, act,
 			   "Invalid action.");
+			return -rte_errno;
+		}
+		if (!i40e_device_supports_mark(dev)) {
+			/* MARK not supported */
+			rte_flow_error_set(error, EINVAL,
+					   RTE_FLOW_ERROR_TYPE_ACTION, act,
+					   "FDIR Action Error: MARK not supported.");
 			return -rte_errno;
 		}
 		mark_spec = act->conf;
