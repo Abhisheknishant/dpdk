@@ -7,5 +7,6 @@
 # DPDK instance, use 'make'
 
 sources = files(
+	'l2fwd_worker.c',
 	'main.c'
 )
