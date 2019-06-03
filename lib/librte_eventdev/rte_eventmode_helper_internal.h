@@ -32,4 +32,9 @@
 #define RTE_EM_HLPR_LOG_DEBUG(...) (void)0
 #endif
 
+/* Eventmode conf data */
+struct eventmode_conf {
+	uint64_t dummy;
+};
+
 #endif /* _RTE_EVENTMODE_HELPER_INTERNAL_H_ */

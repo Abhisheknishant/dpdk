@@ -97,6 +97,7 @@ rte_eventmode_helper_parse_args(int argc, char **argv)
 {
 	int32_t opt, ret;
 	struct rte_eventmode_helper_conf *conf = NULL;
+	struct eventmode_conf *em_conf = NULL;
 
 	/* Allocate memory for conf */
 	conf = rte_zmalloc("eventmode-helper-conf",
@@ -108,8 +109,20 @@ rte_eventmode_helper_parse_args(int argc, char **argv)
 			goto err;
 	}
 
+	/* Allocate memory for event mode params */
+	conf->mode_params = rte_zmalloc("eventmode-helper-mode-params",
+			sizeof(struct eventmode_conf),
+			RTE_CACHE_LINE_SIZE);
+	if (conf->mode_params == NULL) {
+		RTE_EM_HLPR_LOG_ERR(
+			"Failed allocating memory for event mode params");
+		goto err;
+	}
+
 	/* Initialize conf with default values */
 	em_initialize_helper_conf(conf);
+
+	em_conf = (struct eventmode_conf *)(conf->mode_params);
 
 	while ((opt = getopt_long(argc, argv, short_options,
 				lgopts, NULL)) != EOF) {
@@ -131,6 +144,9 @@ rte_eventmode_helper_parse_args(int argc, char **argv)
 	return conf;
 
 err:
+	if (em_conf != NULL)
+		rte_free(em_conf);
+
 	if (conf != NULL)
 		rte_free(conf);
 
