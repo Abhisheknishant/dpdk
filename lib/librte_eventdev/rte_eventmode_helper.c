@@ -165,10 +165,12 @@ rte_eventmode_helper_initialize_eventdev(struct eventmode_conf *em_conf)
 	struct rte_event_dev_config eventdev_conf;
 	struct rte_event_dev_info evdev_default_conf;
 	struct rte_event_queue_conf eventq_conf = {0};
+	struct rte_eventmode_helper_event_link_info *link;
 	struct eventdev_params *eventdev_config;
 	int nb_eventdev = em_conf->nb_eventdev;
 	int nb_eventqueue;
 	uint8_t eventdev_id;
+	uint8_t *queue = NULL;
 
 	for (i = 0; i < nb_eventdev; i++) {
 
@@ -256,6 +258,26 @@ rte_eventmode_helper_initialize_eventdev(struct eventmode_conf *em_conf)
 					"Error setting up event port");
 				return ret;
 			}
+		}
+	}
+
+	/* Make event queue - event port link */
+	for (j = 0; j <  em_conf->nb_link; j++) {
+
+		/* Get link info */
+		link = &(em_conf->link[j]);
+
+		/* Get event dev ID */
+		eventdev_id = link->eventdev_id;
+
+		queue = &(link->eventq_id);
+
+		/* Link queue to port */
+		ret = rte_event_port_link(eventdev_id, link->event_portid,
+				queue, NULL, 1);
+		if (ret < 0) {
+			RTE_EM_HLPR_LOG_ERR("Error in event port linking");
+			return ret;
 		}
 	}
 

@@ -35,6 +35,13 @@
 /* Max event devices supported */
 #define EVENT_MODE_MAX_EVENT_DEVS RTE_EVENT_MAX_DEVS
 
+/* Max event queues supported per event device */
+#define EVENT_MODE_MAX_EVENT_QUEUES_PER_DEV RTE_EVENT_MAX_QUEUES_PER_DEV
+
+/* Max event-lcore links */
+#define EVENT_MODE_MAX_LCORE_LINKS \
+	(EVENT_MODE_MAX_EVENT_DEVS * EVENT_MODE_MAX_EVENT_QUEUES_PER_DEV)
+
 /* Event dev params */
 struct eventdev_params {
 	uint8_t eventdev_id;
@@ -49,6 +56,11 @@ struct eventmode_conf {
 		/**< No of event devs */
 	struct eventdev_params eventdev_config[EVENT_MODE_MAX_EVENT_DEVS];
 		/**< Per event dev conf */
+	uint8_t nb_link;
+		/**< No of links */
+	struct rte_eventmode_helper_event_link_info
+			link[EVENT_MODE_MAX_LCORE_LINKS];
+		/**< Per link conf */
 };
 
 #endif /* _RTE_EVENTMODE_HELPER_INTERNAL_H_ */

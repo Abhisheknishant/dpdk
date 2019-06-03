@@ -29,6 +29,18 @@ struct rte_eventmode_helper_conf {
 		/**< Mode specific parameters */
 };
 
+/* Event-lcore link conf */
+struct rte_eventmode_helper_event_link_info {
+	uint8_t eventdev_id;
+		/**< Event device ID */
+	uint8_t event_portid;
+		/**< Event port ID */
+	uint8_t eventq_id;
+		/**< Event queue to be linked to the port */
+	uint8_t lcore_id;
+		/**< Lcore to be polling on this port */
+};
+
 /* Common helper functions for command line parsing */
 
 /**
