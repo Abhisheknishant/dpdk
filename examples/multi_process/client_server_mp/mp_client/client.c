@@ -246,15 +246,16 @@ main(int argc, char *argv[])
 
 	for (;;) {
 		uint16_t i, rx_pkts;
-		uint16_t port;
 
 		rx_pkts = rte_ring_dequeue_burst(rx_ring, pkts,
 				PKT_READ_SIZE, NULL);
 
 		if (unlikely(rx_pkts == 0)){
 			if (need_flush)
-				for (port = 0; port < ports->num_ports; port++) {
-					sent = rte_eth_tx_buffer_flush(ports->id[port], client_id,
+				for (i = 0; i < ports->num_ports; i++) {
+					uint16_t port = ports->id[i]'
+
+					sent = rte_eth_tx_buffer_flush(ports, client_id,
 							tx_buffer[port]);
 					if (unlikely(sent))
 						tx_stats->tx[port] += sent;
