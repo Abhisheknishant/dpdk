@@ -949,13 +949,13 @@ error:
 static int
 test_rcu_qsbr_main(void)
 {
+	if (rte_lcore_count() < 5) {
+		printf("Not enough cores for rcu_qsbr_autotest, expecting at least 5\n");
+		return TEST_SKIPPED;
+	}
+
 	if (get_enabled_cores_mask() != 0)
 		return -1;
-
-	if (num_cores < 4) {
-		printf("Test failed! Need 4 or more cores\n");
-		goto test_fail;
-	}
 
 	/* Error-checking test cases */
 	if (test_rcu_qsbr_get_memsize() < 0)

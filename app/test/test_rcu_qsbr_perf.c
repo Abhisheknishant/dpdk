@@ -623,6 +623,11 @@ error:
 static int
 test_rcu_qsbr_main(void)
 {
+	if (rte_lcore_count() < 3) {
+		printf("Not enough cores for rcu_qsbr_perf_autotest, expecting at least 3\n");
+		return TEST_SKIPPED;
+	}
+
 	rte_atomic64_init(&updates);
 	rte_atomic64_init(&update_cycles);
 	rte_atomic64_init(&checks);
@@ -632,10 +637,6 @@ test_rcu_qsbr_main(void)
 		return -1;
 
 	printf("Number of cores provided = %d\n", num_cores);
-	if (num_cores < 2) {
-		printf("Test failed! Need 2 or more cores\n");
-		goto test_fail;
-	}
 	if (num_cores > TEST_RCU_MAX_LCORE) {
 		printf("Test failed! %d cores supported\n", TEST_RCU_MAX_LCORE);
 		goto test_fail;
