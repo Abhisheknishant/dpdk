@@ -1424,7 +1424,7 @@ virtio_recv_pkts_inorder(void *rx_queue,
 	struct virtqueue *vq = rxvq->vq;
 	struct virtio_hw *hw = vq->hw;
 	struct rte_mbuf *rxm;
-	struct rte_mbuf *prev;
+	struct rte_mbuf *prev = NULL;
 	uint16_t nb_used, num, nb_rx;
 	uint32_t len[VIRTIO_MBUF_BURST_SZ];
 	struct rte_mbuf *rcv_pkts[VIRTIO_MBUF_BURST_SZ];
@@ -1536,7 +1536,6 @@ virtio_recv_pkts_inorder(void *rx_queue,
 		uint16_t rcv_cnt = RTE_MIN((uint16_t)seg_res,
 					VIRTIO_MBUF_BURST_SZ);
 
-		prev = rcv_pkts[nb_rx];
 		if (likely(VIRTQUEUE_NUSED(vq) >= rcv_cnt)) {
 			virtio_rmb(hw->weak_barriers);
 			num = virtqueue_dequeue_rx_inorder(vq, rcv_pkts, len,
