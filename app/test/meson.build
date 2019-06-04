@@ -203,7 +203,6 @@ fast_non_parallel_test_names = [
         'fbarray_autotest',
         'hash_readwrite_autotest',
         'hash_readwrite_lf_autotest',
-        'hash_scaling_autotest',
         'ipsec_autotest',
         'kni_autotest',
         'kvargs_autotest',
