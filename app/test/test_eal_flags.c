@@ -1397,12 +1397,6 @@ test_eal_flags(void)
 		return ret;
 	}
 
-	ret = test_file_prefix();
-	if (ret < 0) {
-		printf("Error in test_file_prefix()\n");
-		return ret;
-	}
-
 	ret = test_misc_flags();
 	if (ret < 0) {
 		printf("Error in test_misc_flags()");
@@ -1413,3 +1407,4 @@ test_eal_flags(void)
 }
 
 REGISTER_TEST_COMMAND(eal_flags_autotest, test_eal_flags);
+REGISTER_TEST_COMMAND(eal_flags_prefix_autotest, test_file_prefix);

@@ -156,6 +156,7 @@ fast_parallel_test_names = [
         'cycles_autotest',
         'debug_autotest',
         'eal_flags_autotest',
+        'eal_flags_prefix_autotest',
         'eal_fs_autotest',
         'errno_autotest',
         'event_ring_autotest',

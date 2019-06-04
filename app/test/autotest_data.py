@@ -93,6 +93,12 @@ parallel_test_list = [
         "Report":  None,
     },
     {
+        "Name":    "EAL flags file prefix autotest",
+        "Command": "eal_flags_prefix_autotest",
+        "Func":    default_autotest,
+        "Report":  None,
+    },
+    {
         "Name":    "Hash autotest",
         "Command": "hash_autotest",
         "Func":    default_autotest,
