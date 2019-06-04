@@ -27,7 +27,7 @@ CLEANDIRS = $(addsuffix _clean,$(ROOTDIRS-y) $(ROOTDIRS-n) $(ROOTDIRS-))
 
 .PHONY: build
 build: $(ROOTDIRS-y)
-	@echo "Build complete [$(RTE_TARGET)]"
+	@echo "Build complete [$(patsubst defconfig_%,%,$(notdir $(RTE_CONFIG_TEMPLATE)))]"
 
 .PHONY: clean
 clean: $(CLEANDIRS)
