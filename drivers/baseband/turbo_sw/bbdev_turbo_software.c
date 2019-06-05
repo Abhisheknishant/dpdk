@@ -14,10 +14,11 @@
 #include <rte_bbdev.h>
 #include <rte_bbdev_pmd.h>
 
+#ifdef RTE_BBDEV_SDK_AVX2
 #include <phy_turbo.h>
 #include <phy_crc.h>
 #include <phy_rate_match.h>
-#include <divide.h>
+#endif
 
 #define DRIVER_NAME baseband_turbo_sw
 
@@ -143,6 +144,7 @@ info_get(struct rte_bbdev *dev, struct rte_bbdev_driver_info *dev_info)
 	struct bbdev_private *internals = dev->data->dev_private;
 
 	static const struct rte_bbdev_op_cap bbdev_capabilities[] = {
+#ifdef RTE_BBDEV_SDK_AVX2
 		{
 			.type = RTE_BBDEV_OP_TURBO_DEC,
 			.cap.turbo_dec = {
@@ -172,6 +174,7 @@ info_get(struct rte_bbdev *dev, struct rte_bbdev_driver_info *dev_info)
 				.num_buffers_dst = RTE_BBDEV_MAX_CODE_BLOCKS,
 			}
 		},
+#endif
 		RTE_BBDEV_END_OF_CAPABILITIES_LIST()
 	};
 
@@ -472,6 +475,7 @@ process_enc_cb(struct turbo_sw_queue *q, struct rte_bbdev_enc_op *op,
 		struct rte_mbuf *m_out, uint16_t in_offset, uint16_t out_offset,
 		uint16_t in_length, struct rte_bbdev_stats *q_stats)
 {
+#ifdef RTE_BBDEV_SDK_AVX2
 	int ret;
 	int16_t k_idx;
 	uint16_t m;
@@ -724,6 +728,22 @@ process_enc_cb(struct turbo_sw_queue *q, struct rte_bbdev_enc_op *op,
 		}
 		*tmp_out = 0;
 	}
+#else
+	RTE_SET_USED(q);
+	RTE_SET_USED(op);
+	RTE_SET_USED(r);
+	RTE_SET_USED(c);
+	RTE_SET_USED(k);
+	RTE_SET_USED(ncb);
+	RTE_SET_USED(e);
+	RTE_SET_USED(m_in);
+	RTE_SET_USED(m_out_head);
+	RTE_SET_USED(m_out);
+	RTE_SET_USED(in_offset);
+	RTE_SET_USED(out_offset);
+	RTE_SET_USED(in_length);
+	RTE_SET_USED(q_stats);
+#endif
 }
 
 static inline void
@@ -856,6 +876,7 @@ process_dec_cb(struct turbo_sw_queue *q, struct rte_bbdev_dec_op *op,
 		uint16_t crc24_overlap, uint16_t in_length,
 		struct rte_bbdev_stats *q_stats)
 {
+#ifdef RTE_BBDEV_SDK_AVX2
 	int ret;
 	int32_t k_idx;
 	int32_t iter_cnt;
@@ -972,6 +993,22 @@ process_dec_cb(struct turbo_sw_queue *q, struct rte_bbdev_dec_op *op,
 		rte_bbdev_log(ERR, "Turbo Decoder failed");
 		return;
 	}
+#else
+	RTE_SET_USED(q);
+	RTE_SET_USED(op);
+	RTE_SET_USED(c);
+	RTE_SET_USED(k);
+	RTE_SET_USED(kw);
+	RTE_SET_USED(m_in);
+	RTE_SET_USED(m_out_head);
+	RTE_SET_USED(m_out);
+	RTE_SET_USED(in_offset);
+	RTE_SET_USED(out_offset);
+	RTE_SET_USED(check_crc_24b);
+	RTE_SET_USED(crc24_overlap);
+	RTE_SET_USED(in_length);
+	RTE_SET_USED(q_stats);
+#endif
 }
 
 static inline void
