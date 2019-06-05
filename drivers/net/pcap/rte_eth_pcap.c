@@ -39,6 +39,8 @@
 #define ETH_PCAP_TX_IFACE_ARG "tx_iface"
 #define ETH_PCAP_IFACE_ARG    "iface"
 #define ETH_PCAP_PHY_MAC_ARG  "phy_mac"
+#define ETH_PCAP_INFINITE_RX_ARG  "infinite_rx"
+#define ETH_PCAP_TX_DROP_ARG  "tx_drop"
 
 #define ETH_PCAP_ARG_MAXLEN	64
 
@@ -64,6 +66,9 @@ struct pcap_rx_queue {
 	struct queue_stat rx_stat;
 	char name[PATH_MAX];
 	char type[ETH_PCAP_ARG_MAXLEN];
+
+	/* Contains pre-generated packets to be looped through */
+	struct rte_ring *pkts;
 };
 
 struct pcap_tx_queue {
@@ -82,6 +87,7 @@ struct pmd_internals {
 	int if_index;
 	int single_iface;
 	int phy_mac;
+	int infinite_rx;
 };
 
 struct pmd_process_private {
@@ -109,6 +115,8 @@ static const char *valid_arguments[] = {
 	ETH_PCAP_TX_IFACE_ARG,
 	ETH_PCAP_IFACE_ARG,
 	ETH_PCAP_PHY_MAC_ARG,
+	ETH_PCAP_INFINITE_RX_ARG,
+	ETH_PCAP_TX_DROP_ARG,
 	NULL
 };
 
@@ -176,6 +184,43 @@ eth_pcap_gather_data(unsigned char *data, struct rte_mbuf *mbuf)
 		data_len += mbuf->data_len;
 		mbuf = mbuf->next;
 	}
+}
+
+static uint16_t
+eth_pcap_rx_infinite(void *queue, struct rte_mbuf **bufs, uint16_t nb_pkts)
+{
+	int i;
+	struct pcap_rx_queue *pcap_q = queue;
+	uint32_t rx_bytes = 0;
+
+	if (unlikely(nb_pkts == 0))
+		return 0;
+
+	if (rte_pktmbuf_alloc_bulk(pcap_q->mb_pool, bufs, nb_pkts) != 0)
+		return 0;
+
+	for (i = 0; i < nb_pkts; i++) {
+		struct rte_mbuf *pcap_buf;
+		int err = rte_ring_dequeue(pcap_q->pkts, (void **)&pcap_buf);
+		if (err)
+			return i;
+
+		rte_memcpy(rte_pktmbuf_mtod(bufs[i], void *),
+				rte_pktmbuf_mtod(pcap_buf, void *),
+				pcap_buf->data_len);
+		bufs[i]->data_len = pcap_buf->data_len;
+		bufs[i]->pkt_len = pcap_buf->pkt_len;
+		bufs[i]->port = pcap_q->port_id;
+		rx_bytes += pcap_buf->data_len;
+
+		/* Enqueue packet back on ring to allow infinite rx. */
+		rte_ring_enqueue(pcap_q->pkts, pcap_buf);
+	}
+
+	pcap_q->rx_stat.pkts += i;
+	pcap_q->rx_stat.bytes += rx_bytes;
+
+	return i;
 }
 
 static uint16_t
@@ -321,6 +366,30 @@ eth_pcap_tx_dumper(void *queue, struct rte_mbuf **bufs, uint16_t nb_pkts)
 }
 
 /*
+ * Callback to handle dropping packets in the infinite rx case.
+ */
+static uint16_t
+eth_tx_drop(void *queue, struct rte_mbuf **bufs, uint16_t nb_pkts)
+{
+	unsigned int i;
+	uint32_t tx_bytes = 0;
+	struct pcap_tx_queue *tx_queue = queue;
+
+	if (unlikely(nb_pkts == 0))
+		return 0;
+
+	for (i = 0; i < nb_pkts; i++) {
+		tx_bytes += bufs[i]->data_len;
+		rte_pktmbuf_free(bufs[i]);
+	}
+
+	tx_queue->tx_stat.pkts += nb_pkts;
+	tx_queue->tx_stat.bytes += tx_bytes;
+
+	return i;
+}
+
+/*
  * Callback to handle sending packets through a real NIC.
  */
 static uint16_t
@@ -445,6 +514,24 @@ open_single_rx_pcap(const char *pcap_filename, pcap_t **pcap)
 	}
 
 	return 0;
+}
+
+static uint64_t
+count_packets_in_pcap(pcap_t **pcap, struct pcap_rx_queue *pcap_q)
+{
+	const u_char *packet;
+	struct pcap_pkthdr header;
+	uint64_t pcap_pkt_count = 0;
+
+	while ((packet = pcap_next(*pcap, &header)))
+		pcap_pkt_count++;
+
+	/* The pcap is reopened so it can be used as normal later. */
+	pcap_close(*pcap);
+	*pcap = NULL;
+	open_single_rx_pcap(pcap_q->name, pcap);
+
+	return pcap_pkt_count;
 }
 
 static int
@@ -639,8 +726,25 @@ eth_stats_reset(struct rte_eth_dev *dev)
 }
 
 static void
-eth_dev_close(struct rte_eth_dev *dev __rte_unused)
+eth_dev_close(struct rte_eth_dev *dev)
 {
+	unsigned int i;
+	struct pmd_internals *internals = dev->data->dev_private;
+
+	/* Device wide flag, but cleanup must be performed per queue. */
+	if (internals->infinite_rx) {
+		for (i = 0; i < dev->data->nb_rx_queues; i++) {
+			struct pcap_rx_queue *pcap_q = &internals->rx_queue[i];
+			struct rte_mbuf *pcap_buf;
+
+			while (!rte_ring_dequeue(pcap_q->pkts,
+					(void **)&pcap_buf))
+				rte_pktmbuf_free(pcap_buf);
+
+			rte_ring_free(pcap_q->pkts);
+		}
+	}
+
 }
 
 static void
@@ -670,6 +774,59 @@ eth_rx_queue_setup(struct rte_eth_dev *dev,
 	pcap_q->port_id = dev->data->port_id;
 	pcap_q->queue_id = rx_queue_id;
 	dev->data->rx_queues[rx_queue_id] = pcap_q;
+
+	if (internals->infinite_rx) {
+		struct pmd_process_private *pp;
+		char ring_name[NAME_MAX];
+		static uint32_t ring_number;
+		uint64_t pcap_pkt_count = 0;
+		struct rte_mbuf *bufs[1];
+		pcap_t **pcap;
+
+		pp = rte_eth_devices[pcap_q->port_id].process_private;
+		pcap = &pp->rx_pcap[pcap_q->queue_id];
+
+		if (unlikely(*pcap == NULL))
+			return -ENOENT;
+
+		pcap_pkt_count = count_packets_in_pcap(pcap, pcap_q);
+
+		snprintf(ring_name, sizeof(ring_name), "PCAP_RING%" PRIu16,
+				ring_number);
+
+		pcap_q->pkts = rte_ring_create(ring_name,
+				rte_align64pow2(pcap_pkt_count + 1), 0,
+				RING_F_SP_ENQ | RING_F_SC_DEQ);
+		ring_number++;
+		if (!pcap_q->pkts)
+			return -ENOENT;
+
+		/* Fill ring with packets from PCAP file one by one. */
+		while (eth_pcap_rx(pcap_q, bufs, 1)) {
+			/* Check for multiseg mbufs. */
+			if (bufs[0]->nb_segs != 1) {
+				rte_pktmbuf_free(*bufs);
+
+				while (!rte_ring_dequeue(pcap_q->pkts,
+						(void **)bufs))
+					rte_pktmbuf_free(*bufs);
+
+				rte_ring_free(pcap_q->pkts);
+				PMD_LOG(ERR, "Multiseg mbufs are not supported in infinite_rx "
+						"mode.");
+				return -EINVAL;
+			}
+
+			rte_ring_enqueue_bulk(pcap_q->pkts,
+					(void * const *)bufs, 1, NULL);
+		}
+		/*
+		 * Reset the stats for this queue since eth_pcap_rx calls above
+		 * didn't result in the application receiving packets.
+		 */
+		pcap_q->rx_stat.pkts = 0;
+		pcap_q->rx_stat.bytes = 0;
+	}
 
 	return 0;
 }
@@ -908,6 +1065,34 @@ select_phy_mac(const char *key __rte_unused, const char *value,
 	return 0;
 }
 
+static int
+get_infinite_rx_arg(const char *key __rte_unused,
+		const char *value, void *extra_args)
+{
+	if (extra_args) {
+		const int infinite_rx = atoi(value);
+		int *enable_infinite_rx = extra_args;
+
+		if (infinite_rx)
+			*enable_infinite_rx = 1;
+	}
+	return 0;
+}
+
+static int
+get_tx_drop_arg(const char *key __rte_unused,
+		const char *value, void *extra_args)
+{
+	if (extra_args) {
+		const int tx_drop = atoi(value);
+		int *enable_tx_drop = extra_args;
+
+		if (tx_drop)
+			*enable_tx_drop = 1;
+	}
+	return 0;
+}
+
 static struct rte_vdev_driver pmd_pcap_drv;
 
 static int
@@ -1105,7 +1290,8 @@ static int
 eth_from_pcaps(struct rte_vdev_device *vdev,
 		struct pmd_devargs *rx_queues, const unsigned int nb_rx_queues,
 		struct pmd_devargs *tx_queues, const unsigned int nb_tx_queues,
-		int single_iface, unsigned int using_dumpers)
+		int single_iface, unsigned int using_dumpers,
+		unsigned int infinite_rx, unsigned int tx_drop)
 {
 	struct pmd_internals *internals = NULL;
 	struct rte_eth_dev *eth_dev = NULL;
@@ -1132,9 +1318,17 @@ eth_from_pcaps(struct rte_vdev_device *vdev,
 		}
 	}
 
-	eth_dev->rx_pkt_burst = eth_pcap_rx;
+	internals->infinite_rx = infinite_rx;
+	/* Assign rx ops. */
+	if (infinite_rx)
+		eth_dev->rx_pkt_burst = eth_pcap_rx_infinite;
+	else
+		eth_dev->rx_pkt_burst = eth_pcap_rx;
 
-	if (using_dumpers)
+	/* Assign tx ops. */
+	if (tx_drop)
+		eth_dev->tx_pkt_burst = eth_tx_drop;
+	else if (using_dumpers)
 		eth_dev->tx_pkt_burst = eth_pcap_tx_dumper;
 	else
 		eth_dev->tx_pkt_burst = eth_pcap_tx;
@@ -1148,6 +1342,7 @@ pmd_pcap_probe(struct rte_vdev_device *dev)
 {
 	const char *name;
 	unsigned int is_rx_pcap = 0, is_tx_pcap = 0;
+	unsigned int infinite_rx = 0, infinite_rx_arg_cnt = 0, tx_drop = 0;
 	struct rte_kvargs *kvlist;
 	struct pmd_devargs pcaps = {0};
 	struct pmd_devargs dumpers = {0};
@@ -1216,7 +1411,25 @@ pmd_pcap_probe(struct rte_vdev_device *dev)
 	is_rx_pcap = rte_kvargs_count(kvlist, ETH_PCAP_RX_PCAP_ARG) ? 1 : 0;
 	pcaps.num_of_queue = 0;
 
+	infinite_rx_arg_cnt = rte_kvargs_count(kvlist,
+			ETH_PCAP_INFINITE_RX_ARG);
+
 	if (is_rx_pcap) {
+		/*
+		 * We check whether we want to infinitely rx the pcap file.
+		 */
+		if (infinite_rx_arg_cnt == 1) {
+			ret = rte_kvargs_process(kvlist,
+					ETH_PCAP_INFINITE_RX_ARG,
+					&get_infinite_rx_arg, &infinite_rx);
+			if (ret < 0)
+				goto free_kvlist;
+		} else if (infinite_rx_arg_cnt >= 1) {
+			PMD_LOG(WARNING, "infinite_rx has not been enabled since the "
+					"argument has been provided more than once "
+					"for %s", name);
+		}
+
 		ret = rte_kvargs_process(kvlist, ETH_PCAP_RX_PCAP_ARG,
 				&open_rx_pcap, &pcaps);
 	} else {
@@ -1228,18 +1441,32 @@ pmd_pcap_probe(struct rte_vdev_device *dev)
 		goto free_kvlist;
 
 	/*
-	 * We check whether we want to open a TX stream to a real NIC or a
-	 * pcap file
+	 * We check whether we want to open a TX stream to a real NIC,
+	 * a pcap file, or drop packets on tx
 	 */
 	is_tx_pcap = rte_kvargs_count(kvlist, ETH_PCAP_TX_PCAP_ARG) ? 1 : 0;
 	dumpers.num_of_queue = 0;
 
-	if (is_tx_pcap)
+	if (rte_kvargs_count(kvlist, ETH_PCAP_TX_DROP_ARG) == 1) {
+		ret = rte_kvargs_process(kvlist, ETH_PCAP_TX_DROP_ARG,
+				&get_tx_drop_arg, &tx_drop);
+		if (ret < 0)
+			goto free_kvlist;
+	}
+
+	if (tx_drop) {
+		unsigned int i;
+		/* Add 1 dummy queue per rxq which counts and drops packets. */
+		for (i = 0; i < pcaps.num_of_queue; i++)
+			ret = add_queue(&dumpers, "dummy", "tx_drop", NULL,
+					NULL);
+	} else if (is_tx_pcap) {
 		ret = rte_kvargs_process(kvlist, ETH_PCAP_TX_PCAP_ARG,
 				&open_tx_pcap, &dumpers);
-	else
+	} else {
 		ret = rte_kvargs_process(kvlist, ETH_PCAP_TX_IFACE_ARG,
 				&open_tx_iface, &dumpers);
+	}
 
 	if (ret < 0)
 		goto free_kvlist;
@@ -1285,8 +1512,12 @@ create_eth:
 		goto free_kvlist;
 	}
 
+	PMD_LOG(INFO, "Configure pmd_pcap: infinite_rx is %s",
+			infinite_rx ? "enabled" : "disabled");
+
 	ret = eth_from_pcaps(dev, &pcaps, pcaps.num_of_queue, &dumpers,
-		dumpers.num_of_queue, single_iface, is_tx_pcap);
+		dumpers.num_of_queue, single_iface, is_tx_pcap, infinite_rx,
+		tx_drop);
 
 free_kvlist:
 	rte_kvargs_free(kvlist);
@@ -1297,6 +1528,7 @@ free_kvlist:
 static int
 pmd_pcap_remove(struct rte_vdev_device *dev)
 {
+	unsigned int i;
 	struct pmd_internals *internals = NULL;
 	struct rte_eth_dev *eth_dev = NULL;
 
@@ -1316,6 +1548,20 @@ pmd_pcap_remove(struct rte_vdev_device *dev)
 		if (internals != NULL && internals->phy_mac == 0)
 			/* not dynamically allocated, must not be freed */
 			eth_dev->data->mac_addrs = NULL;
+	}
+
+	/* Device wide flag, but cleanup must be performed per queue. */
+	if (internals->infinite_rx) {
+		for (i = 0; i < eth_dev->data->nb_rx_queues; i++) {
+			struct pcap_rx_queue *pcap_q = &internals->rx_queue[i];
+			struct rte_mbuf *pcap_buf;
+
+			while (!rte_ring_dequeue(pcap_q->pkts,
+					(void **)&pcap_buf))
+				rte_pktmbuf_free(pcap_buf);
+
+			rte_ring_free(pcap_q->pkts);
+		}
 	}
 
 	rte_free(eth_dev->process_private);
@@ -1338,7 +1584,9 @@ RTE_PMD_REGISTER_PARAM_STRING(net_pcap,
 	ETH_PCAP_RX_IFACE_IN_ARG "=<ifc> "
 	ETH_PCAP_TX_IFACE_ARG "=<ifc> "
 	ETH_PCAP_IFACE_ARG "=<ifc> "
-	ETH_PCAP_PHY_MAC_ARG "=<int>");
+	ETH_PCAP_PHY_MAC_ARG "=<int>"
+	ETH_PCAP_INFINITE_RX_ARG "=<0|1>"
+	ETH_PCAP_TX_DROP_ARG "=<0|1>");
 
 RTE_INIT(eth_pcap_init_log)
 {
