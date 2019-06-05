@@ -1517,9 +1517,7 @@ virtio_recv_pkts_inorder(void *rx_queue,
 
 			rx_pkts[nb_rx]->pkt_len += (uint32_t)(len[i]);
 
-			if (prev)
-				prev->next = rxm;
-
+			prev->next = rxm;
 			prev = rxm;
 			seg_res -= 1;
 		}
@@ -1703,9 +1701,7 @@ virtio_recv_mergeable_pkts(void *rx_queue,
 			rx_pkts[nb_rx]->pkt_len += (uint32_t)(len[i]);
 			rx_pkts[nb_rx]->data_len += (uint16_t)(len[i]);
 
-			if (prev)
-				prev->next = rxm;
-
+			prev->next = rxm;
 			prev = rxm;
 			seg_res -= 1;
 		}
@@ -1879,9 +1875,7 @@ virtio_recv_mergeable_pkts_packed(void *rx_queue,
 			rx_pkts[nb_rx]->pkt_len += (uint32_t)(len[i]);
 			rx_pkts[nb_rx]->data_len += (uint16_t)(len[i]);
 
-			if (prev)
-				prev->next = rxm;
-
+			prev->next = rxm;
 			prev = rxm;
 			seg_res -= 1;
 		}
@@ -1924,8 +1918,7 @@ virtio_recv_mergeable_pkts_packed(void *rx_queue,
 		} else {
 			PMD_RX_LOG(ERR,
 					"No enough segments for packet.");
-			if (prev)
-				virtio_discard_rxbuf(vq, prev);
+			virtio_discard_rxbuf(vq, prev);
 			rxvq->stats.errors++;
 			break;
 		}
