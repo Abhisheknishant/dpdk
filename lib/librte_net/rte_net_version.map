@@ -13,6 +13,13 @@ DPDK_17.05 {
 
 } DPDK_16.11;
 
+DPDK_19.08 {
+	global:
+
+	eth_random_addr;
+	eth_format_addr;
+} DPDK_17.05;
+
 EXPERIMENTAL {
 	global:
 
