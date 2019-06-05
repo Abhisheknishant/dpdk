@@ -46,6 +46,7 @@ default_cflags += '-D_GNU_SOURCE'
 
 foreach l:libraries
 	build = true
+	reason = '<unknown reason>' # set if build == false to explain why
 	name = l
 	version = 1
 	allow_experimental_apis = false
@@ -68,7 +69,10 @@ foreach l:libraries
 	dir_name = 'librte_' + l
 	subdir(dir_name)
 
-	if build
+	if not build
+		dpdk_libs_disabled += name
+		set_variable(name.underscorify() + '_disable_reason', reason)
+	else
 		enabled_libs += name
 		dpdk_conf.set('RTE_LIBRTE_' + name.to_upper(), 1)
 		install_headers(headers)
