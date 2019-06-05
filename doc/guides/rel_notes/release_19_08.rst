@@ -54,6 +54,12 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Added MCS lock library.**
+
+  Added MCS lock library. It provides scalability by spinning on a
+  CPU/thread local variable which avoids expensive cache bouncings.
+  It provides fairness by maintaining a list of acquirers and passing
+  the lock to each CPU/thread in the order they acquired the lock.
 
 Removed Items
 -------------
