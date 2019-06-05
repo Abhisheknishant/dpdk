@@ -4,6 +4,8 @@
 # This library is processed before EAL
 includes = [global_inc]
 
+cflags  += '-DALLOW_EXPERIMENTAL_API'
+
 version = 2
 sources = files('cmdline.c',
 	'cmdline_cirbuf.c',
@@ -28,3 +30,4 @@ headers = files('cmdline.h',
 	'cmdline_socket.h',
 	'cmdline_cirbuf.h',
 	'cmdline_parse_portlist.h')
+deps += ['net']
