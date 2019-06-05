@@ -1875,7 +1875,6 @@ virtio_recv_mergeable_pkts_packed(void *rx_queue,
 			rxm->data_len = (uint16_t)(len[i]);
 
 			rx_pkts[nb_rx]->pkt_len += (uint32_t)(len[i]);
-			rx_pkts[nb_rx]->data_len += (uint16_t)(len[i]);
 
 			if (prev)
 				prev->next = rxm;
@@ -1912,7 +1911,6 @@ virtio_recv_mergeable_pkts_packed(void *rx_queue,
 				prev->next = rxm;
 				prev = rxm;
 				rx_pkts[nb_rx]->pkt_len += len[extra_idx];
-				rx_pkts[nb_rx]->data_len += len[extra_idx];
 				extra_idx += 1;
 			}
 			seg_res -= rcv_cnt;
