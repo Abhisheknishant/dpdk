@@ -1614,7 +1614,7 @@ virtio_recv_mergeable_pkts(void *rx_queue,
 	struct virtqueue *vq = rxvq->vq;
 	struct virtio_hw *hw = vq->hw;
 	struct rte_mbuf *rxm;
-	struct rte_mbuf *prev;
+	struct rte_mbuf *prev = NULL;
 	uint16_t nb_used, num, nb_rx = 0;
 	uint32_t len[VIRTIO_MBUF_BURST_SZ];
 	struct rte_mbuf *rcv_pkts[VIRTIO_MBUF_BURST_SZ];
@@ -1721,7 +1721,6 @@ virtio_recv_mergeable_pkts(void *rx_queue,
 		uint16_t rcv_cnt = RTE_MIN((uint16_t)seg_res,
 					VIRTIO_MBUF_BURST_SZ);
 
-		prev = rcv_pkts[nb_rx];
 		if (likely(VIRTQUEUE_NUSED(vq) >= rcv_cnt)) {
 			virtio_rmb(hw->weak_barriers);
 			num = virtqueue_dequeue_burst_rx(vq, rcv_pkts, len,
@@ -1738,7 +1737,6 @@ virtio_recv_mergeable_pkts(void *rx_queue,
 				prev->next = rxm;
 				prev = rxm;
 				rx_pkts[nb_rx]->pkt_len += len[extra_idx];
-				rx_pkts[nb_rx]->data_len += len[extra_idx];
 				extra_idx += 1;
 			};
 			seg_res -= rcv_cnt;
