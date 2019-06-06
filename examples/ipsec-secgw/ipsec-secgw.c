@@ -230,34 +230,67 @@ static struct rte_eth_conf port_conf = {
 static struct socket_ctx socket_ctx[NB_SOCKETS];
 
 static inline void
+adjust_ipv4_pktlen(struct rte_mbuf *m, const struct rte_ipv4_hdr *iph,
+	uint32_t l2_len)
+{
+	uint32_t plen, trim;
+
+	plen = rte_be_to_cpu_16(iph->total_length) + l2_len;
+	if (plen < m->pkt_len) {
+		trim = m->pkt_len - plen;
+		rte_pktmbuf_trim(m, trim);
+	}
+}
+
+static inline void
+adjust_ipv6_pktlen(struct rte_mbuf *m, const struct rte_ipv6_hdr *iph,
+	uint32_t l2_len)
+{
+	uint32_t plen, trim;
+
+	plen = rte_be_to_cpu_16(iph->payload_len) + sizeof(*iph) + l2_len;
+	if (plen < m->pkt_len) {
+		trim = m->pkt_len - plen;
+		rte_pktmbuf_trim(m, trim);
+	}
+}
+
+static inline void
 prepare_one_packet(struct rte_mbuf *pkt, struct ipsec_traffic *t)
 {
-	uint8_t *nlp;
-	struct rte_ether_hdr *eth;
+	const struct rte_ether_hdr *eth;
+	const struct rte_ipv4_hdr *iph4;
+	const struct rte_ipv6_hdr *iph6;
 
-	eth = rte_pktmbuf_mtod(pkt, struct rte_ether_hdr *);
+	eth = rte_pktmbuf_mtod(pkt, const struct rte_ether_hdr *);
 	if (eth->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4)) {
-		nlp = (uint8_t *)rte_pktmbuf_adj(pkt, RTE_ETHER_HDR_LEN);
-		nlp = RTE_PTR_ADD(nlp, offsetof(struct ip, ip_p));
-		if (*nlp == IPPROTO_ESP)
+
+		iph4 = (const struct rte_ipv4_hdr *)rte_pktmbuf_adj(pkt,
+			RTE_ETHER_HDR_LEN);
+		adjust_ipv4_pktlen(pkt, iph4, 0);
+
+		if (iph4->next_proto_id == IPPROTO_ESP)
 			t->ipsec.pkts[(t->ipsec.num)++] = pkt;
 		else {
-			t->ip4.data[t->ip4.num] = nlp;
+			t->ip4.data[t->ip4.num] = &iph4->next_proto_id;
 			t->ip4.pkts[(t->ip4.num)++] = pkt;
 		}
 		pkt->l2_len = 0;
-		pkt->l3_len = sizeof(struct ip);
+		pkt->l3_len = sizeof(*iph4);
 	} else if (eth->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV6)) {
-		nlp = (uint8_t *)rte_pktmbuf_adj(pkt, RTE_ETHER_HDR_LEN);
-		nlp = RTE_PTR_ADD(nlp, offsetof(struct ip6_hdr, ip6_nxt));
-		if (*nlp == IPPROTO_ESP)
+
+		iph6 = (const struct rte_ipv6_hdr *)rte_pktmbuf_adj(pkt,
+			RTE_ETHER_HDR_LEN);
+		adjust_ipv6_pktlen(pkt, iph6, 0);
+
+		if (iph6->proto == IPPROTO_ESP)
 			t->ipsec.pkts[(t->ipsec.num)++] = pkt;
 		else {
-			t->ip6.data[t->ip6.num] = nlp;
+			t->ip6.data[t->ip6.num] = &iph6->proto;
 			t->ip6.pkts[(t->ip6.num)++] = pkt;
 		}
 		pkt->l2_len = 0;
-		pkt->l3_len = sizeof(struct ip6_hdr);
+		pkt->l3_len = sizeof(*iph6);
 	} else {
 		/* Unknown/Unsupported type, drop the packet */
 		RTE_LOG(ERR, IPSEC, "Unsupported packet type 0x%x\n",
