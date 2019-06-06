@@ -215,9 +215,13 @@ extern "C" {
 #include <rte_config.h>
 #include <rte_memory.h>
 #include <rte_errno.h>
+#include <rte_spinlock.h>
+
+#include <sys/queue.h>
 
 struct rte_mbuf; /* we just use mbuf pointers; no need to include rte_mbuf.h */
 struct rte_event;
+struct rte_eventdev_callback;
 
 /* Event device capability bitmap flags */
 #define RTE_EVENT_DEV_CAP_QUEUE_QOS           (1ULL << 0)
@@ -306,6 +310,19 @@ struct rte_event;
  * @see rte_event_queue_setup(), rte_event_enqueue_burst()
  * @see rte_event_port_link()
  */
+
+TAILQ_HEAD(rte_eventdev_enq_cb_list, rte_eventdev_callback);
+TAILQ_HEAD(rte_eventdev_deq_cb_list, rte_eventdev_callback);
+
+typedef uint16_t (*rte_eventdev_cb_fn)(uint8_t dev_id, uint8_t port_id,
+		struct rte_event *ev, uint16_t nb_events, void *cb_arg);
+
+struct rte_eventdev_callback {
+	TAILQ_ENTRY(rte_eventdev_callback) next; /* Callbacks list */
+	rte_eventdev_cb_fn cb_fn; /* Callback address */
+	void *cb_arg; /* Parameter for callback */
+	uint32_t active; /* Callback is executing */
+};
 
 /**
  * Get the total number of event devices that have been successfully
@@ -1302,6 +1319,9 @@ struct rte_eventdev {
 	struct rte_device *dev;
 	/**< Device info. supplied by probing */
 
+	struct rte_eventdev_enq_cb_list enq_cbs;
+	struct rte_eventdev_deq_cb_list deq_cbs;
+
 	RTE_STD_C11
 	uint8_t attached : 1;
 	/**< Flag indicating the device is attached */
@@ -1310,9 +1330,217 @@ struct rte_eventdev {
 extern struct rte_eventdev *rte_eventdevs;
 /** @internal The pool of rte_eventdev structures. */
 
+/**
+ * Register a callback function for enqueue on device-port Event dev.
+ *
+ * @param dev_id
+ *  Event device id.
+ * @param port
+ *  Event port.
+ * @param cb_fn
+ *  User supplied callback function to be called.
+ * @param cb_arg
+ *  Pointer to the parameters for the registered callback.
+ *
+ * @return
+ *  - On success, zero.
+ *  - On failure, a negative value.
+ */
+int __rte_experimental
+rte_event_preenq_callback_register(uint8_t dev_id, uint8_t port_id,
+		rte_eventdev_cb_fn cb_fn, void *cb_arg);
+
+/**
+ * Register a callback function for dequeue on device-port Event dev.
+ *
+ * @param dev_id
+ *  Event device id.
+ * @param port
+ *  Event port.
+ * @param cb_fn
+ *  User supplied callback function to be called.
+ * @param cb_arg
+ *  Pointer to the parameters for the registered callback.
+ *
+ * @return
+ *  - On success, zero.
+ *  - On failure, a negative value.
+ */
+int __rte_experimental
+rte_event_pstdeq_callback_register(uint8_t dev_id, uint8_t port_id,
+		rte_eventdev_cb_fn cb_fn, void *cb_arg);
+
+/**
+ * Unregister a callback function for enqueue on device-port Event dev.
+ *
+ * @param dev_id
+ *  Event device id.
+ * @param port
+ *  Event port.
+ * @param cb_fn
+ *  User supplied callback function to be called.
+ * @param cb_arg
+ *  Pointer to the parameters for the registered callback. -1 means to
+ *  remove all for the same callback address and same event.
+ *
+ * @return
+ *  - On success, zero.
+ *  - On failure, a negative value.
+ */
+int __rte_experimental
+rte_event_preenq_callback_unregister(uint8_t dev_id, uint8_t port_id,
+		rte_eventdev_cb_fn cb_fn, void *cb_arg);
+
+/**
+ * Unregister a callback function for dequeue on device-port Event dev.
+ *
+ * @param dev_id
+ *  Event device id.
+ * @param port
+ *  Event port.
+ * @param cb_fn
+ *  User supplied callback function to be called.
+ * @param cb_arg
+ *  Pointer to the parameters for the registered callback. -1 means to
+ *  remove all for the same callback address and same event.
+ *
+ * @return
+ *  - On success, zero.
+ *  - On failure, a negative value.
+ */
+int __rte_experimental
+rte_event_pstdeq_callback_unregister(uint8_t dev_id, uint8_t port_id,
+		rte_eventdev_cb_fn cb_fn, void *cb_arg);
+
+/**
+ * Add a callback to be called on event enqueue on a given device & port.
+ *
+ * This API configures a function to be called for each burst of
+ * events enqueued on a given event device-port. The return value is a pointer
+ * that can be used to later remove the callback using
+ * rte_eventdev_remove_preenq_callback().
+ *
+ * Multiple functions are called in the order that they are added.
+ *
+ * @param dev_id
+ *   The device identifier of the Event device.
+ * @param port_id
+ *   The port on the Event device on which the callback is to be added.
+ * @param fn
+ *   The callback function
+ * @param user_param
+ *   A generic pointer parameter which will be passed to each invocation of the
+ *   callback function on this port and queue.
+ *
+ * @return
+ *   NULL on error.
+ *   On success, a pointer value which can later be used to remove the callback.
+ */
+struct rte_eventdev_callback * __rte_experimental
+rte_event_add_preenq_callback(uint8_t dev_id,
+		__rte_unused uint8_t port_id, rte_eventdev_cb_fn cb_fn,
+		void *cb_arg);
+
+/**
+ * Add a callback to be called on event dequeue on a given device & port.
+ *
+ * This API configures a function to be called for each burst of
+ * events dequeued on a given event device-port. The return value is a pointer
+ * that can be used to later remove the callback using
+ * rte_eventdev_remove_pstdeq_callback().
+ *
+ * Multiple functions are called in the order that they are added.
+ *
+ * @param dev_id
+ *   The device identifier of the Event device.
+ * @param port_id
+ *   The port on the Event device on which the callback is to be added.
+ * @param fn
+ *   The callback function
+ * @param user_param
+ *   A generic pointer parameter which will be passed to each invocation of the
+ *   callback function on this port and queue.
+ *
+ * @return
+ *   NULL on error.
+ *   On success, a pointer value which can later be used to remove the callback.
+ */
+struct rte_eventdev_callback * __rte_experimental
+rte_event_add_pstdeq_callback(uint8_t dev_id,
+		__rte_unused uint8_t port_id, rte_eventdev_cb_fn cb_fn,
+		void *cb_arg);
+
+/**
+ * Remove an event callback from a given dev and port.
+ *
+ * This function is used to remove callbacks that were added to a event dev-port
+ * using rte_event_add_preenq_callback().
+ *
+ * Note: the callback is removed from the callback list but it isn't freed
+ * since the it may still be in use. The memory for the callback can be
+ * subsequently freed back by the application by calling rte_free():
+ *
+ * - Immediately - if the eventdev is stopped, or the user knows that no
+ *   callbacks are in flight e.g. if called from the thread doing enqueue
+ *   on that eventdev.
+ *
+ * - After a short delay - where the delay is sufficient to allow any
+ *   in-flight callbacks to complete.
+ *
+ * @param dev_id
+ *   The device identifier of the Event device.
+ * @param port_id
+ *   The port on the Event device from which the callback is to be removed.
+ * @param user_cb
+ *   User supplied callback created via rte_event_add_preenq_callback().
+ *
+ * @return
+ *   - 0: Success. Callback was removed.
+ *   - -ENOTSUP: Callback support is not available.
+ *   - -EINVAL:  The dev_id or the port_id is out of range, or the callback
+ *               is NULL or not found for the dev|port.
+ */
+int __rte_experimental
+rte_event_remove_preenq_callback(uint8_t dev_id, uint8_t port_id,
+		const struct rte_eventdev_callback *user_cb);
+
+/**
+ * Remove an event callback from a given dev and port.
+ *
+ * This function is used to remove callbacks that were added to a event dev-port
+ * using rte_event_add_pstdeq_callback().
+ *
+ * Note: the callback is removed from the callback list but it isn't freed
+ * since the it may still be in use. The memory for the callback can be
+ * subsequently freed back by the application by calling rte_free():
+ *
+ * - Immediately - if the eventdev is stopped, or the user knows that no
+ *   callbacks are in flight e.g. if called from the thread doing dequeue
+ *   on that eventdev.
+ *
+ * - After a short delay - where the delay is sufficient to allow any
+ *   in-flight callbacks to complete.
+ *
+ * @param dev_id
+ *   The device identifier of the Event device.
+ * @param port_id
+ *   The port on the Event device from which the callback is to be removed.
+ * @param user_cb
+ *   User supplied callback created via rte_event_add_pstdeq_callback().
+ *
+ * @return
+ *   - 0: Success. Callback was removed.
+ *   - -ENOTSUP: Callback support is not available.
+ *   - -EINVAL:  The dev_id or the port_id is out of range, or the callback
+ *               is NULL or not found for the dev|port.
+ */
+int __rte_experimental
+rte_event_remove_pstdeq_callback(uint8_t dev_id, uint8_t port_id,
+		const struct rte_eventdev_callback *user_cb);
+
 static __rte_always_inline uint16_t
 __rte_event_enqueue_burst(uint8_t dev_id, uint8_t port_id,
-			const struct rte_event ev[], uint16_t nb_events,
+			struct rte_event ev[], uint16_t nb_events,
 			const event_enqueue_burst_t fn)
 {
 	const struct rte_eventdev *dev = &rte_eventdevs[dev_id];
@@ -1328,6 +1556,22 @@ __rte_event_enqueue_burst(uint8_t dev_id, uint8_t port_id,
 		return 0;
 	}
 #endif
+
+#ifdef RTE_EVENTDEV_ENQDEQ_CALLBACKS
+	if (likely(rte_eventdevs[dev_id].attached)) {
+		struct rte_eventdev_callback *cb = NULL;
+		TAILQ_FOREACH(cb, &(dev->enq_cbs), next)
+		{
+			if (cb->cb_fn == NULL)
+				continue;
+
+			cb->active = 1;
+			nb_events = cb->cb_fn(dev_id, port_id, ev, nb_events, cb->cb_arg);
+			cb->active = 0;
+		}
+	}
+#endif
+
 	/*
 	 * Allow zero cost non burst mode routine invocation if application
 	 * requests nb_events as const one
@@ -1383,7 +1627,7 @@ __rte_event_enqueue_burst(uint8_t dev_id, uint8_t port_id,
  */
 static inline uint16_t
 rte_event_enqueue_burst(uint8_t dev_id, uint8_t port_id,
-			const struct rte_event ev[], uint16_t nb_events)
+			struct rte_event ev[], uint16_t nb_events)
 {
 	const struct rte_eventdev *dev = &rte_eventdevs[dev_id];
 
@@ -1434,7 +1678,7 @@ rte_event_enqueue_burst(uint8_t dev_id, uint8_t port_id,
  */
 static inline uint16_t
 rte_event_enqueue_new_burst(uint8_t dev_id, uint8_t port_id,
-			const struct rte_event ev[], uint16_t nb_events)
+			struct rte_event ev[], uint16_t nb_events)
 {
 	const struct rte_eventdev *dev = &rte_eventdevs[dev_id];
 
@@ -1485,7 +1729,7 @@ rte_event_enqueue_new_burst(uint8_t dev_id, uint8_t port_id,
  */
 static inline uint16_t
 rte_event_enqueue_forward_burst(uint8_t dev_id, uint8_t port_id,
-			const struct rte_event ev[], uint16_t nb_events)
+			struct rte_event ev[], uint16_t nb_events)
 {
 	const struct rte_eventdev *dev = &rte_eventdevs[dev_id];
 
@@ -1603,6 +1847,21 @@ rte_event_dequeue_burst(uint8_t dev_id, uint8_t port_id, struct rte_event ev[],
 	if (port_id >= dev->data->nb_ports) {
 		rte_errno = -EINVAL;
 		return 0;
+	}
+#endif
+
+#ifdef RTE_EVENTDEV_ENQDEQ_CALLBACKS
+	if (likely(rte_eventdevs[dev_id].attached)) {
+		struct rte_eventdev_callback *cb = NULL;
+		TAILQ_FOREACH(cb, &(dev->deq_cbs), next)
+		{
+			if (cb->cb_fn == NULL)
+				continue;
+
+			cb->active = 1;
+			nb_events = cb->cb_fn(dev_id, port_id, ev, nb_events, cb->cb_arg);
+			cb->active = 0;
+		}
 	}
 #endif
 

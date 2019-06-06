@@ -126,6 +126,14 @@ DPDK_19.05 {
 EXPERIMENTAL {
 	global:
 
+	rte_event_add_preenq_callback;
+	rte_event_add_pstdeq_callback;
 	rte_event_eth_rx_adapter_cb_register;
 	rte_event_eth_rx_adapter_stats_get;
+	rte_event_preenq_callback_register;
+	rte_event_preenq_callback_unregister;
+	rte_event_pstdeq_callback_register;
+	rte_event_pstdeq_callback_unregister;
+	rte_event_remove_preenq_callback;
+	rte_event_remove_pstdeq_callback;
 };

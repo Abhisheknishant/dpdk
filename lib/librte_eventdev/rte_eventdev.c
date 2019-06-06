@@ -44,6 +44,11 @@ static struct rte_eventdev_global eventdev_globals = {
 	.nb_devs		= 0
 };
 
+/* spinlock for pre-enqueue callbacks */
+rte_spinlock_t rte_eventdev_preenq_cb_lock = RTE_SPINLOCK_INITIALIZER;
+/* spinlock for post-dequeue callbacks */
+rte_spinlock_t rte_eventdev_pstdeq_cb_lock = RTE_SPINLOCK_INITIALIZER;
+
 /* Event dev north bound API implementation */
 
 uint8_t
@@ -524,6 +529,10 @@ rte_event_dev_configure(uint8_t dev_id,
 	}
 
 	dev->data->event_dev_cap = info.event_dev_cap;
+
+	TAILQ_INIT(&(dev->enq_cbs));
+	TAILQ_INIT(&(dev->deq_cbs));
+
 	return diag;
 }
 
@@ -1276,6 +1285,358 @@ rte_event_dev_close(uint8_t dev_id)
 	}
 
 	return (*dev->dev_ops->dev_close)(dev);
+}
+
+int __rte_experimental
+rte_event_preenq_callback_register(uint8_t eventdev_id,
+		__rte_unused uint8_t port,
+		rte_eventdev_cb_fn cb_fn, void *cb_arg)
+{
+#ifndef RTE_EVENTDEV_ENQDEQ_CALLBACKS
+	rte_errno = ENOTSUP;
+	return -ENOTSUP;
+#endif
+
+	struct rte_eventdev *dev;
+	rte_spinlock_t *lock = &rte_eventdev_preenq_cb_lock;
+	struct rte_eventdev_callback *user_cb = NULL;
+
+	if (!cb_fn)
+		return -EINVAL;
+
+	dev = &rte_eventdevs[eventdev_id];
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->dev_stop, -EINVAL);
+
+	rte_spinlock_lock(lock);
+
+	TAILQ_FOREACH(user_cb, &(dev->enq_cbs), next)
+	{
+		if (user_cb->cb_fn == cb_fn &&
+		user_cb->cb_arg == cb_arg)
+			break;
+	}
+
+	/* create a new callback. */
+	if (user_cb == NULL) {
+		user_cb = rte_zmalloc("EVENT_USER_CALLBACK",
+				sizeof(struct rte_eventdev_callback), 0);
+		if (user_cb != NULL) {
+			user_cb->cb_fn = cb_fn;
+			user_cb->cb_arg = cb_arg;
+			TAILQ_INSERT_TAIL(&(dev->enq_cbs), user_cb, next);
+		}
+	}
+
+	rte_spinlock_unlock(lock);
+
+	return (user_cb == NULL) ? -ENOMEM : 0;
+}
+
+int __rte_experimental
+rte_event_pstdeq_callback_register(uint8_t eventdev_id,
+		__rte_unused uint8_t port,
+		rte_eventdev_cb_fn cb_fn, void *cb_arg)
+{
+#ifndef RTE_EVENTDEV_ENQDEQ_CALLBACKS
+	rte_errno = ENOTSUP;
+	return -ENOTSUP;
+#endif
+
+	struct rte_eventdev *dev;
+	static rte_spinlock_t *lock = &rte_eventdev_pstdeq_cb_lock;
+	struct rte_eventdev_callback *user_cb = NULL;
+
+	if (!cb_fn)
+		return -EINVAL;
+
+	dev = &rte_eventdevs[eventdev_id];
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->dev_stop, -EINVAL);
+
+	rte_spinlock_lock(lock);
+
+	TAILQ_FOREACH(user_cb, &(dev->deq_cbs), next)
+	{
+		if (user_cb->cb_fn == cb_fn &&
+				user_cb->cb_arg == cb_arg)
+			break;
+	}
+
+	/* create a new callback. */
+	if (user_cb == NULL) {
+		user_cb = rte_zmalloc("EVENT_USER_CALLBACK",
+				sizeof(struct rte_eventdev_callback), 0);
+		if (user_cb != NULL) {
+			user_cb->cb_fn = cb_fn;
+			user_cb->cb_arg = cb_arg;
+			TAILQ_INSERT_TAIL(&(dev->deq_cbs), user_cb, next);
+		}
+	}
+
+	rte_spinlock_unlock(lock);
+
+	return (user_cb == NULL) ? -ENOMEM : 0;
+}
+
+int __rte_experimental
+rte_event_remove_preenq_callback(uint8_t eventdev_id,
+		__rte_unused uint8_t port,
+		const struct rte_eventdev_callback *user_cb)
+{
+#ifndef RTE_EVENTDEV_ENQDEQ_CALLBACKS
+	rte_errno = ENOTSUP;
+	return -ENOTSUP;
+#endif
+
+	int ret = 0;
+	struct rte_eventdev *dev;
+	static rte_spinlock_t *lock = &rte_eventdev_preenq_cb_lock;
+	struct rte_eventdev_callback *cb, *next_cb;
+
+	if (!user_cb)
+		return -EINVAL;
+
+	dev = &rte_eventdevs[eventdev_id];
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->dev_stop, -EINVAL);
+
+	rte_spinlock_lock(lock);
+
+	ret = -EINVAL;
+	for (cb = TAILQ_FIRST(&dev->enq_cbs); cb != NULL; cb = next_cb) {
+		next_cb = TAILQ_NEXT(cb, next);
+
+		if (cb == user_cb) {
+			next_cb = TAILQ_NEXT(cb, next);
+			ret = 0;
+			break;
+		}
+	}
+
+	rte_spinlock_unlock(lock);
+
+	return ret;
+}
+
+int __rte_experimental
+rte_event_remove_pstdeq_callback(uint8_t eventdev_id,
+		__rte_unused uint8_t port,
+		const struct rte_eventdev_callback *user_cb)
+{
+#ifndef RTE_EVENTDEV_ENQDEQ_CALLBACKS
+	rte_errno = ENOTSUP;
+	return -ENOTSUP;
+#endif
+
+	int ret = 0;
+	struct rte_eventdev *dev;
+	static rte_spinlock_t *lock = &rte_eventdev_pstdeq_cb_lock;
+	struct rte_eventdev_callback *cb, *next_cb;
+
+	if (!user_cb)
+		return -EINVAL;
+
+	dev = &rte_eventdevs[eventdev_id];
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->dev_stop, -EINVAL);
+
+	rte_spinlock_lock(lock);
+
+	ret = -EINVAL;
+	for (cb = TAILQ_FIRST(&dev->deq_cbs); cb != NULL; cb = next_cb) {
+		next_cb = TAILQ_NEXT(cb, next);
+
+		if (cb == user_cb) {
+			next_cb = TAILQ_NEXT(cb, next);
+			ret = 0;
+			break;
+		}
+	}
+
+	rte_spinlock_unlock(lock);
+
+	return ret;
+}
+
+struct rte_eventdev_callback * __rte_experimental
+rte_event_add_preenq_callback(uint8_t eventdev_id,
+		__rte_unused uint8_t port,
+		rte_eventdev_cb_fn cb_fn, void *cb_arg)
+{
+#ifndef RTE_EVENTDEV_ENQDEQ_CALLBACKS
+	rte_errno = ENOTSUP;
+	return NULL;
+#endif
+
+	struct rte_eventdev *dev;
+	rte_spinlock_t *lock = &rte_eventdev_preenq_cb_lock;
+	struct rte_eventdev_callback *user_cb = NULL;
+
+	dev = &rte_eventdevs[eventdev_id];
+
+	if ((*dev->dev_ops->dev_stop == NULL) || (!cb_fn)) {
+		rte_errno = EINVAL;
+		return NULL;
+	}
+
+	rte_spinlock_lock(lock);
+
+	TAILQ_FOREACH(user_cb, &(dev->enq_cbs), next)
+	{
+		if (user_cb->cb_fn == cb_fn &&
+				user_cb->cb_arg == cb_arg)
+			break;
+	}
+
+	/* create a new callback. */
+	if (user_cb == NULL) {
+		user_cb = rte_zmalloc("EVENT_USER_CALLBACK",
+				sizeof(struct rte_eventdev_callback), 0);
+		if (user_cb != NULL) {
+			user_cb->cb_fn = cb_fn;
+			user_cb->cb_arg = cb_arg;
+			TAILQ_INSERT_TAIL(&(dev->enq_cbs), user_cb, next);
+		}
+	}
+
+	rte_spinlock_unlock(lock);
+	if (user_cb == NULL) {
+		rte_errno = ENOMEM;
+		return NULL;
+	}
+
+	return user_cb;
+}
+
+struct rte_eventdev_callback * __rte_experimental
+rte_event_add_pstdeq_callback(uint8_t eventdev_id,
+		__rte_unused uint8_t port,
+		rte_eventdev_cb_fn cb_fn, void *cb_arg)
+{
+#ifndef RTE_EVENTDEV_ENQDEQ_CALLBACKS
+	rte_errno = ENOTSUP;
+	return NULL;
+#endif
+
+	struct rte_eventdev *dev;
+	rte_spinlock_t *lock = &rte_eventdev_pstdeq_cb_lock;
+	struct rte_eventdev_callback *user_cb = NULL;
+
+	dev = &rte_eventdevs[eventdev_id];
+
+	if ((*dev->dev_ops->dev_stop == NULL) || (!cb_fn)) {
+		rte_errno = EINVAL;
+		return NULL;
+	}
+
+	rte_spinlock_lock(lock);
+
+	TAILQ_FOREACH(user_cb, &(dev->enq_cbs), next)
+	{
+		if (user_cb->cb_fn == cb_fn &&
+				user_cb->cb_arg == cb_arg)
+			break;
+	}
+
+	/* create a new callback. */
+	if (user_cb == NULL) {
+		user_cb = rte_zmalloc("EVENT_USER_CALLBACK",
+				sizeof(struct rte_eventdev_callback), 0);
+		if (user_cb != NULL) {
+			user_cb->cb_fn = cb_fn;
+			user_cb->cb_arg = cb_arg;
+			TAILQ_INSERT_TAIL(&(dev->enq_cbs), user_cb, next);
+		}
+	}
+
+	rte_spinlock_unlock(lock);
+	if (user_cb == NULL) {
+		rte_errno = ENOMEM;
+		return NULL;
+	}
+
+	return user_cb;
+}
+
+int __rte_experimental
+rte_event_preenq_callback_unregister(uint8_t eventdev_id,
+		__rte_unused uint8_t port,
+		rte_eventdev_cb_fn cb_fn, void *cb_arg)
+{
+#ifndef RTE_EVENTDEV_ENQDEQ_CALLBACKS
+	return -ENOTSUP;
+#endif
+
+	int ret = 0;
+	struct rte_eventdev *dev;
+	static rte_spinlock_t *lock = &rte_eventdev_preenq_cb_lock;
+	struct rte_eventdev_callback *cb, *next;
+
+	if (!cb_fn)
+		return -EINVAL;
+
+	dev = &rte_eventdevs[eventdev_id];
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->dev_stop, -EINVAL);
+
+	rte_spinlock_lock(lock);
+
+	ret = -EINVAL;
+	for (cb = TAILQ_FIRST(&dev->enq_cbs); cb != NULL; cb = next) {
+		next = TAILQ_NEXT(cb, next);
+
+		if (cb->cb_fn != cb_fn || cb->cb_arg != cb_arg)
+			continue;
+
+		if (cb->active == 0) {
+			TAILQ_REMOVE(&(dev->enq_cbs), cb, next);
+			rte_free(cb);
+			ret = 0;
+		} else
+			ret = -EAGAIN;
+	}
+
+	rte_spinlock_unlock(lock);
+
+	return ret;
+}
+
+int __rte_experimental
+rte_event_pstdeq_callback_unregister(uint8_t eventdev_id,
+		__rte_unused uint8_t port,
+		rte_eventdev_cb_fn cb_fn, void *cb_arg)
+{
+#ifndef RTE_EVENTDEV_ENQDEQ_CALLBACKS
+	return -ENOTSUP;
+#endif
+
+	int ret = 0;
+	struct rte_eventdev *dev;
+	static rte_spinlock_t *lock = &rte_eventdev_pstdeq_cb_lock;
+	struct rte_eventdev_callback *cb, *next;
+
+	if (!cb_fn)
+		return -EINVAL;
+
+	dev = &rte_eventdevs[eventdev_id];
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->dev_stop, -EINVAL);
+
+	rte_spinlock_lock(lock);
+
+	ret = -EINVAL;
+	for (cb = TAILQ_FIRST(&dev->deq_cbs); cb != NULL; cb = next) {
+		next = TAILQ_NEXT(cb, next);
+
+		if (cb->cb_fn != cb_fn || cb->cb_arg != cb_arg)
+			continue;
+
+		if (cb->active == 0) {
+			TAILQ_REMOVE(&(dev->deq_cbs), cb, next);
+			rte_free(cb);
+			ret = 0;
+		} else
+			ret = -EAGAIN;
+	}
+
+	rte_spinlock_unlock(lock);
+
+	return ret;
 }
 
 static inline int
