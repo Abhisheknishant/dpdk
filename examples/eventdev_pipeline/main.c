@@ -20,6 +20,37 @@ struct config_data cdata = {
 	.worker_cq_depth = 16
 };
 
+#ifdef RTE_EVENTDEV_ENQDEQ_CALLBACKS
+uint16_t
+dump_flowid_events(uint8_t dev_id, uint8_t port_id,
+		__rte_unused struct rte_event *ev,
+		__rte_unused uint16_t nb_events,
+		__rte_unused void *cb_arg);
+
+uint16_t
+dump_flowid_events(uint8_t dev_id, uint8_t port_id,
+		__rte_unused struct rte_event *ev,
+		__rte_unused uint16_t nb_events,
+		__rte_unused void *cb_arg)
+{
+	if (unlikely(nb_events == 0))
+		return 0;
+
+	for (int i = 0; i < nb_events; i++)
+		printf(" dev_id (%u) port_id (%u)\n "
+				"- ev(%p) nb_events (%u)\n"
+				"- flow_id (%u)\n"
+				"- sub_event_type (%u) event_type (%u)\n",
+				dev_id, port_id,
+				ev, nb_events,
+				ev[i].flow_id,
+				ev[i].sub_event_type,
+				ev[i].event_type);
+
+	return nb_events;
+}
+#endif
+
 static bool
 core_in_use(unsigned int lcore_id) {
 	return (fdata->rx_core[lcore_id] || fdata->sched_core[lcore_id] ||
@@ -398,6 +429,14 @@ signal_handler(int signum)
 	if ((signum == SIGINT || signum == SIGTERM) && !once) {
 		printf("\n\nSignal %d received, preparing to exit...\n",
 				signum);
+
+#ifdef RTE_EVENTDEV_ENQDEQ_CALLBACKS
+		rte_eventdev_preenq_callback_unregister(0, 0,
+				dump_flowid_events, NULL);
+		rte_eventdev_pstdeq_callback_unregister(0, 0,
+				dump_flowid_events, NULL);
+#endif
+
 		if (cdata.dump_dev)
 			rte_event_dev_dump(0, stdout);
 		once = 1;
@@ -558,6 +597,16 @@ main(int argc, char **argv)
 
 	if (core_in_use(lcore_id))
 		fdata->cap.worker(&worker_data[worker_idx++]);
+
+#ifdef RTE_EVENTDEV_ENQDEQ_CALLBACKS
+	if (rte_eventdev_preenq_callback_register(0, 0,
+			dump_flowid_events, NULL))
+		printf(" Failed to register enq callback\n");
+
+	if (rte_eventdev_pstdeq_callback_register(0, 0,
+			dump_flowid_events, NULL))
+		printf(" Failed to register deq callback\n");
+#endif
 
 	rte_eal_mp_wait_lcore();
 
