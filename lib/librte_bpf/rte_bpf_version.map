@@ -7,6 +7,10 @@ EXPERIMENTAL {
 	rte_bpf_eth_rx_unload;
 	rte_bpf_eth_tx_elf_load;
 	rte_bpf_eth_tx_unload;
+	rte_bpf_event_deq_load;
+	rte_bpf_event_deq_unload;
+	rte_bpf_event_enq_load;
+	rte_bpf_event_enq_unload;
 	rte_bpf_exec;
 	rte_bpf_exec_burst;
 	rte_bpf_get_jit;
