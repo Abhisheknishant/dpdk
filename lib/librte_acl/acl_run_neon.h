@@ -165,7 +165,6 @@ search_neon_8(const struct rte_acl_ctx *ctx, const uint8_t **data,
 	uint64_t index_array[8];
 	struct completion cmplt[8];
 	struct parms parms[8];
-	int32x4_t input0, input1;
 
 	acl_set_flow(&flows, cmplt, RTE_DIM(cmplt), data, results,
 		     total_packets, categories, ctx->trans_table);
@@ -181,17 +180,14 @@ search_neon_8(const struct rte_acl_ctx *ctx, const uint8_t **data,
 
 	while (flows.started > 0) {
 		/* Gather 4 bytes of input data for each stream. */
-		input0 = vsetq_lane_s32(GET_NEXT_4BYTES(parms, 0), input0, 0);
-		input1 = vsetq_lane_s32(GET_NEXT_4BYTES(parms, 4), input1, 0);
-
-		input0 = vsetq_lane_s32(GET_NEXT_4BYTES(parms, 1), input0, 1);
-		input1 = vsetq_lane_s32(GET_NEXT_4BYTES(parms, 5), input1, 1);
-
-		input0 = vsetq_lane_s32(GET_NEXT_4BYTES(parms, 2), input0, 2);
-		input1 = vsetq_lane_s32(GET_NEXT_4BYTES(parms, 6), input1, 2);
-
-		input0 = vsetq_lane_s32(GET_NEXT_4BYTES(parms, 3), input0, 3);
-		input1 = vsetq_lane_s32(GET_NEXT_4BYTES(parms, 7), input1, 3);
+		int32x4_t input0 = {GET_NEXT_4BYTES(parms, 0),
+				    GET_NEXT_4BYTES(parms, 1),
+				    GET_NEXT_4BYTES(parms, 2),
+				    GET_NEXT_4BYTES(parms, 3)};
+		int32x4_t input1 = {GET_NEXT_4BYTES(parms, 4),
+				    GET_NEXT_4BYTES(parms, 5),
+				    GET_NEXT_4BYTES(parms, 6),
+				    GET_NEXT_4BYTES(parms, 7)};
 
 		/* Process the 4 bytes of input on each stream. */
 
@@ -227,7 +223,6 @@ search_neon_4(const struct rte_acl_ctx *ctx, const uint8_t **data,
 	uint64_t index_array[4];
 	struct completion cmplt[4];
 	struct parms parms[4];
-	int32x4_t input;
 
 	acl_set_flow(&flows, cmplt, RTE_DIM(cmplt), data, results,
 		     total_packets, categories, ctx->trans_table);
@@ -242,10 +237,10 @@ search_neon_4(const struct rte_acl_ctx *ctx, const uint8_t **data,
 
 	while (flows.started > 0) {
 		/* Gather 4 bytes of input data for each stream. */
-		input = vsetq_lane_s32(GET_NEXT_4BYTES(parms, 0), input, 0);
-		input = vsetq_lane_s32(GET_NEXT_4BYTES(parms, 1), input, 1);
-		input = vsetq_lane_s32(GET_NEXT_4BYTES(parms, 2), input, 2);
-		input = vsetq_lane_s32(GET_NEXT_4BYTES(parms, 3), input, 3);
+		int32x4_t input = {GET_NEXT_4BYTES(parms, 0),
+				   GET_NEXT_4BYTES(parms, 1),
+				   GET_NEXT_4BYTES(parms, 2),
+				   GET_NEXT_4BYTES(parms, 3)};
 
 		/* Process the 4 bytes of input on each stream. */
 		input = transition4(input, flows.trans, index_array);
