@@ -82,6 +82,24 @@ To guarantee the constraint, capabilities in dev_conf.rxmode.offloads will be ch
 
 fdir_conf->mode will also be checked.
 
+VF Runtime Options
+^^^^^^^^^^^^^^^^^^
+
+The following ``devargs`` options can be enabled at runtime. They must
+be passed as part of EAL arguments. For example,
+
+.. code-block:: console
+
+   testpmd -w af:10.0,pflink_fullchk=1 -- -i
+
+- ``pflink_fullchk`` (default **0**)
+
+  Toggle behavior to get ixgbevf link status quickly by checking the
+  mailbox status or not. If set, the VF will check the PF's link status
+  and the PF's mailbox running status, which will trigger PF's mailbox
+  interrupt generation. Otherwise, just check PF's link status, then no
+  mailbox interrupt in PF.
+
 RX Burst Size
 ^^^^^^^^^^^^^
 
