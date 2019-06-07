@@ -493,6 +493,25 @@ qat_sym_build_request(void *in_op, uint8_t *out_msg,
 		(cipher_param->cipher_offset + cipher_param->cipher_length)
 		: (auth_param->auth_off + auth_param->auth_len);
 
+	/* Handle case of auth-gen-then-cipher with digest encrypted */
+	if (wireless_auth &&
+			(auth_ofs + auth_len < cipher_ofs + cipher_len) &&
+			(op->sym->auth.digest.phys_addr ==
+				(in_place ? src_buf_start : dst_buf_start) +
+				auth_ofs + auth_len)) {
+		/* Handle partial digest encryption */
+		if (cipher_ofs + cipher_len <
+				auth_ofs + auth_len + ctx->digest_length)
+			qat_req->comn_mid.dst_length =
+				qat_req->comn_mid.src_length +=
+				auth_ofs + auth_len + ctx->digest_length -
+				cipher_ofs - cipher_len;
+		struct icp_qat_fw_comn_req_hdr *header = &qat_req->comn_hdr;
+		ICP_QAT_FW_LA_DIGEST_IN_BUFFER_SET(
+			header->serv_specif_flags,
+			ICP_QAT_FW_LA_DIGEST_IN_BUFFER);
+	}
+
 	if (do_sgl) {
 
 		ICP_QAT_FW_COMN_PTR_TYPE_SET(qat_req->comn_hdr.comn_req_flags,
@@ -533,18 +552,6 @@ qat_sym_build_request(void *in_op, uint8_t *out_msg,
 	} else {
 		qat_req->comn_mid.src_data_addr = src_buf_start;
 		qat_req->comn_mid.dest_data_addr = dst_buf_start;
-		/* handle case of auth-gen-then-cipher with digest encrypted */
-		if (wireless_auth && in_place &&
-		    (op->sym->auth.digest.phys_addr ==
-				src_buf_start + auth_ofs + auth_len) &&
-		    (auth_ofs + auth_len + ctx->digest_length <=
-				cipher_ofs + cipher_len)) {
-			struct icp_qat_fw_comn_req_hdr *header =
-						&qat_req->comn_hdr;
-			ICP_QAT_FW_LA_DIGEST_IN_BUFFER_SET(
-				header->serv_specif_flags,
-				ICP_QAT_FW_LA_DIGEST_IN_BUFFER);
-		}
 	}
 
 #if RTE_LOG_DP_LEVEL >= RTE_LOG_DEBUG
