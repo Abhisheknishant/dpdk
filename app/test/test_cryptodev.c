@@ -3341,7 +3341,7 @@ test_kasumi_encryption_sgl(const struct kasumi_test_data *tdata)
 	if (!(feat_flags & RTE_CRYPTODEV_FF_IN_PLACE_SGL)) {
 		printf("Device doesn't support in-place scatter-gather. "
 				"Test Skipped.\n");
-		return 0;
+		return -ENOTSUP;
 	}
 
 	/* Create KASUMI session */
@@ -3492,7 +3492,7 @@ test_kasumi_encryption_oop_sgl(const struct kasumi_test_data *tdata)
 		printf("Device doesn't support out-of-place scatter-gather "
 				"in both input and output mbufs. "
 				"Test Skipped.\n");
-		return 0;
+		return -ENOTSUP;
 	}
 
 	/* Create KASUMI session */
@@ -3847,7 +3847,7 @@ test_snow3g_encryption_oop_sgl(const struct snow3g_test_data *tdata)
 		printf("Device doesn't support out-of-place scatter-gather "
 				"in both input and output mbufs. "
 				"Test Skipped.\n");
-		return 0;
+		return -ENOTSUP;
 	}
 
 	/* Create SNOW 3G session */
@@ -5029,7 +5029,7 @@ test_zuc_encryption_sgl(const struct wireless_test_data *tdata)
 	if (!(feat_flags & RTE_CRYPTODEV_FF_IN_PLACE_SGL)) {
 		printf("Device doesn't support in-place scatter-gather. "
 				"Test Skipped.\n");
-		return 0;
+		return -ENOTSUP;
 	}
 
 	plaintext_len = ceil_byte_length(tdata->plaintext.len);
