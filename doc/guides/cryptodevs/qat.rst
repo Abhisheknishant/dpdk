@@ -82,6 +82,7 @@ Limitations
 * ZUC EEA3/EIA3 is not supported by dh895xcc devices
 * Maximum additional authenticated data (AAD) for GCM is 240 bytes long and must be passed to the device in a buffer rounded up to the nearest block-size multiple (x16) and padded with zeros.
 * Queue pairs are not thread-safe (that is, within a single queue pair, RX and TX from different lcores is not supported).
+* Only SNOW 3G (UIA2), KASUMI (F9) and ZUC (EIA3) are supported, when using hash-cipher with digest appended and encrypted operations.
 
 Extra notes on KASUMI F9
 ~~~~~~~~~~~~~~~~~~~~~~~~
