@@ -39,7 +39,6 @@ struct kni_dev {
 	/* kni list */
 	struct list_head list;
 
-	int status;
 	uint32_t core_id;            /* Core ID to bind */
 	char name[RTE_KNI_NAMESIZE]; /* Network device name */
 	struct task_struct *pthread;
