@@ -83,9 +83,6 @@ struct kni_dev {
 	/* mbuf size */
 	uint32_t mbuf_size;
 
-	/* synchro for request processing */
-	unsigned long synchro;
-
 	/* buffers */
 	void *pa[MBUF_BURST_SZ];
 	void *va[MBUF_BURST_SZ];
