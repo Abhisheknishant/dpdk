@@ -68,6 +68,7 @@ struct comp_test_data {
 
 	double ratio;
 	enum cleanup_st cleanup;
+	int perf_comp_force_stop;
 };
 
 int
