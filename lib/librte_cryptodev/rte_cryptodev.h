@@ -18,6 +18,8 @@
 extern "C" {
 #endif
 
+#include <sys/queue.h>
+
 #include "rte_kvargs.h"
 #include "rte_crypto.h"
 #include "rte_dev.h"
@@ -794,9 +796,23 @@ typedef uint16_t (*enqueue_pkt_burst_t)(void *qp,
 
 
 struct rte_cryptodev_callback;
+struct rte_cryptodev_enqdeq_callback;
 
 /** Structure to keep track of registered callbacks */
 TAILQ_HEAD(rte_cryptodev_cb_list, rte_cryptodev_callback);
+TAILQ_HEAD(rte_cryptodev_enq_cb_list, rte_cryptodev_enqdeq_callback);
+TAILQ_HEAD(rte_cryptodev_deq_cb_list, rte_cryptodev_enqdeq_callback);
+
+typedef uint16_t (*rte_cryptodev_enqdeq_cb_fn)(uint8_t dev_id, uint8_t qp_id,
+		struct rte_crypto_op **ops, uint16_t nb_ops,
+		void *cb_arg);
+
+struct rte_cryptodev_enqdeq_callback {
+	TAILQ_ENTRY(rte_cryptodev_enqdeq_callback) next; /* Callbacks list */
+	rte_cryptodev_enqdeq_cb_fn cb_fn; /* Callback address */
+	void *cb_arg; /* Parameter for callback */
+	uint32_t active; /* Callback is executing */
+};
 
 /** The data structure associated with each crypto device. */
 struct rte_cryptodev {
@@ -822,6 +838,9 @@ struct rte_cryptodev {
 
 	void *security_ctx;
 	/**< Context for security ops */
+
+	struct rte_cryptodev_enq_cb_list enq_cbs;
+	struct rte_cryptodev_deq_cb_list deq_cbs;
 
 	__extension__
 	uint8_t attached : 1;
@@ -907,6 +926,19 @@ rte_cryptodev_dequeue_burst(uint8_t dev_id, uint16_t qp_id,
 	nb_ops = (*dev->dequeue_burst)
 			(dev->data->queue_pairs[qp_id], ops, nb_ops);
 
+#ifdef RTE_CRYPTODEV_ENQDEQ_CALLBACKS
+	struct rte_cryptodev_enqdeq_callback *cb = NULL;
+
+	TAILQ_FOREACH(cb, &(dev->deq_cbs), next) {
+		if (cb->cb_fn == NULL)
+			continue;
+
+		cb->active = 1;
+		nb_ops = cb->cb_fn(dev_id, qp_id, ops, nb_ops, cb->cb_arg);
+		cb->active = 0;
+	}
+#endif
+
 	return nb_ops;
 }
 
@@ -946,6 +978,19 @@ rte_cryptodev_enqueue_burst(uint8_t dev_id, uint16_t qp_id,
 		struct rte_crypto_op **ops, uint16_t nb_ops)
 {
 	struct rte_cryptodev *dev = &rte_cryptodevs[dev_id];
+
+#ifdef RTE_CRYPTODEV_ENQDEQ_CALLBACKS
+	struct rte_cryptodev_enqdeq_callback *cb = NULL;
+
+	TAILQ_FOREACH(cb, &(dev->enq_cbs), next) {
+		if (cb->cb_fn == NULL)
+			continue;
+
+		cb->active = 1;
+		nb_ops = cb->cb_fn(dev_id, qp_id, ops, nb_ops, cb->cb_arg);
+		cb->active = 0;
+	}
+#endif
 
 	return (*dev->enqueue_burst)(
 			dev->data->queue_pairs[qp_id], ops, nb_ops);
@@ -1248,6 +1293,86 @@ rte_cryptodev_sym_session_set_user_data(
 void * __rte_experimental
 rte_cryptodev_sym_session_get_user_data(
 					struct rte_cryptodev_sym_session *sess);
+
+/**
+ * Register user callback for pre-enqueue of crypto.
+ *
+ * @param dev_id
+ *   The identifier of the device.
+ * @param qp_id
+ *   The index of the queue pair.
+ * @param cb_fn
+ *   user callback to register.
+ * @param cb_arg
+ *   user args to be passed during invoke.
+ *
+ * @return
+ *  - On success returns 0.
+ *  - On failure returns < 0.
+ */
+int
+rte_cryptodev_preenq_callback_register(uint8_t dev_id, uint8_t qp_id,
+		rte_cryptodev_enqdeq_cb_fn cb_fn, void *cb_arg);
+
+/**
+ * unregister user callback for pre-enqueue of crypto.
+ *
+ * @param dev_id
+ *   The identifier of the device.
+ * @param qp_id
+ *   The index of the queue pair.
+ * @param cb_fn
+ *   user callback to register.
+ * @param cb_arg
+ *   user args to be passed during invoke.
+ *
+ * @return
+ *  - On success returns 0.
+ *  - On failure returns < 0.
+ */
+int
+rte_cryptodev_preenq_callback_unregister(uint8_t dev_id, uint8_t qp_id,
+		rte_cryptodev_enqdeq_cb_fn cb_fn, void *cb_arg);
+
+/**
+ * Register user callback for post-dequeue of crypto.
+ *
+ * @param dev_id
+ *   The identifier of the device.
+ * @param qp_id
+ *   The index of the queue pair.
+ * @param cb_fn
+ *   user callback to register.
+ * @param cb_arg
+ *   user args to be passed during invoke.
+ *
+ * @return
+ *  - On success returns 0.
+ *  - On failure returns < 0.
+ */
+int
+rte_cryptodev_pstdeq_callback_register(uint8_t dev_id, uint8_t qp_id,
+		rte_cryptodev_enqdeq_cb_fn cb_fn, void *cb_arg);
+
+/**
+ * unregister user callback for post-dequeue of crypto.
+ *
+ * @param dev_id
+ *   The identifier of the device.
+ * @param qp_id
+ *   The index of the queue pair.
+ * @param cb_fn
+ *   user callback to register.
+ * @param cb_arg
+ *   user args to be passed during invoke.
+ *
+ * @return
+ *  - On success returns 0.
+ *  - On failure returns < 0.
+ */
+int
+rte_cryptodev_pstdeq_callback_unregister(uint8_t dev_id, uint8_t qp_id,
+		rte_cryptodev_enqdeq_cb_fn cb_fn, void *cb_arg);
 
 #ifdef __cplusplus
 }

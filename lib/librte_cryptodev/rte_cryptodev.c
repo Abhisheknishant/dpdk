@@ -57,6 +57,11 @@ static struct rte_cryptodev_global cryptodev_globals = {
 /* spinlock for crypto device callbacks */
 static rte_spinlock_t rte_cryptodev_cb_lock = RTE_SPINLOCK_INITIALIZER;
 
+/* spinlock for pre-enqueue callbacks */
+rte_spinlock_t rte_cryptodev_preenq_cb_lock = RTE_SPINLOCK_INITIALIZER;
+/* spinlock for post-dequeue callbacks */
+rte_spinlock_t rte_cryptodev_pstdeq_cb_lock = RTE_SPINLOCK_INITIALIZER;
+
 
 /**
  * The user application callback description.
@@ -707,6 +712,8 @@ rte_cryptodev_pmd_allocate(const char *name, int socket_id)
 
 		/* init user callbacks */
 		TAILQ_INIT(&(cryptodev->link_intr_cbs));
+		TAILQ_INIT(&(cryptodev->enq_cbs));
+		TAILQ_INIT(&(cryptodev->deq_cbs));
 
 		cryptodev->attached = RTE_CRYPTODEV_ATTACHED;
 
@@ -1735,4 +1742,178 @@ rte_cryptodev_allocate_driver(struct cryptodev_driver *crypto_drv,
 	TAILQ_INSERT_TAIL(&cryptodev_driver_list, crypto_drv, next);
 
 	return nb_drivers++;
+}
+
+int __rte_experimental
+rte_cryptodev_preenq_callback_register(uint8_t dev_id, uint8_t qp_id,
+		rte_cryptodev_enqdeq_cb_fn cb_fn, void *cb_arg)
+{
+	struct rte_cryptodev *dev;
+	struct rte_cryptodev_enqdeq_callback *user_cb;
+	rte_spinlock_t *lock = &rte_cryptodev_preenq_cb_lock;
+
+	if (!cb_fn)
+		return -EINVAL;
+
+	if (!rte_cryptodev_pmd_is_valid_dev(dev_id)) {
+		CDEV_LOG_ERR("Invalid dev_id=%"PRIu8 " qp_id=%"PRIu8,
+				dev_id, qp_id);
+		return -EINVAL;
+	}
+
+	dev = &rte_crypto_devices[dev_id];
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->dev_stop, -EINVAL);
+
+	rte_spinlock_lock(lock);
+
+	TAILQ_FOREACH(user_cb, &(dev->enq_cbs), next) {
+	if ((void *) user_cb->cb_fn == (void *) cb_fn &&
+			user_cb->cb_arg == cb_arg)
+		break;
+	}
+
+	/* create a new callback. */
+	if (user_cb == NULL) {
+		user_cb = rte_zmalloc("CRYPTO_USER_CALLBACK",
+			sizeof(struct rte_cryptodev_enqdeq_callback), 0);
+		if (user_cb != NULL) {
+			user_cb->cb_fn = cb_fn;
+			user_cb->cb_arg = cb_arg;
+			TAILQ_INSERT_TAIL(&(dev->enq_cbs), user_cb, next);
+		}
+	}
+
+	rte_spinlock_unlock(lock);
+
+	return (user_cb == NULL) ? -ENOMEM : 0;
+}
+
+int __rte_experimental
+rte_cryptodev_preenq_callback_unregister(uint8_t dev_id, uint8_t qp_id,
+		rte_cryptodev_enqdeq_cb_fn cb_fn, void *cb_arg)
+{
+	int ret = 0;
+	struct rte_cryptodev *dev;
+	struct rte_cryptodev_enqdeq_callback *cb, *next;
+	rte_spinlock_t *lock = &rte_cryptodev_preenq_cb_lock;
+
+	if (!cb_fn)
+		return -EINVAL;
+
+	if (!rte_cryptodev_pmd_is_valid_dev(dev_id)) {
+		CDEV_LOG_ERR("Invalid dev_id=%"PRIu8 " qp_id=%"PRIu8,
+				dev_id, qp_id);
+		return -EINVAL;
+	}
+
+	dev = &rte_crypto_devices[dev_id];
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->dev_stop, -EINVAL);
+
+	rte_spinlock_lock(lock);
+
+	ret = -EINVAL;
+	for (cb = TAILQ_FIRST(&dev->enq_cbs); cb != NULL; cb = next) {
+		next = TAILQ_NEXT(cb, next);
+
+		if (cb->cb_fn != cb_fn || cb->cb_arg != cb_arg)
+			continue;
+
+		if (cb->active == 0) {
+			TAILQ_REMOVE(&(dev->enq_cbs), cb, next);
+			rte_free(cb);
+			ret = 0;
+		} else
+			ret = -EAGAIN;
+	}
+
+	rte_spinlock_unlock(lock);
+
+	return ret;
+}
+
+int __rte_experimental
+rte_cryptodev_pstdeq_callback_register(uint8_t dev_id, uint8_t qp_id,
+		rte_cryptodev_enqdeq_cb_fn cb_fn, void *cb_arg)
+{
+	struct rte_cryptodev *dev;
+	struct rte_cryptodev_enqdeq_callback *user_cb;
+	rte_spinlock_t *lock = &rte_cryptodev_pstdeq_cb_lock;
+
+	if (!cb_fn)
+		return -EINVAL;
+
+	if (!rte_cryptodev_pmd_is_valid_dev(dev_id)) {
+		CDEV_LOG_ERR("Invalid dev_id=%"PRIu8 " qp_id=%"PRIu8,
+				dev_id, qp_id);
+		return -EINVAL;
+	}
+
+	dev = &rte_crypto_devices[dev_id];
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->dev_stop, -EINVAL);
+
+	rte_spinlock_lock(lock);
+
+	TAILQ_FOREACH(user_cb, &(dev->deq_cbs), next) {
+		if ((void *) user_cb->cb_fn == (void *) cb_fn &&
+				user_cb->cb_arg == cb_arg)
+			break;
+	}
+
+	/* create a new callback. */
+	if (user_cb == NULL) {
+		user_cb = rte_zmalloc("CRYPTO_USER_CALLBACK",
+			sizeof(struct rte_cryptodev_enqdeq_callback), 0);
+		if (user_cb != NULL) {
+			user_cb->cb_fn = cb_fn;
+			user_cb->cb_arg = cb_arg;
+			TAILQ_INSERT_TAIL(&(dev->deq_cbs), user_cb, next);
+		}
+	}
+
+	rte_spinlock_unlock(lock);
+
+	return (user_cb == NULL) ? -ENOMEM : 0;
+}
+
+int __rte_experimental
+rte_cryptodev_pstdeq_callback_unregister(uint8_t dev_id, uint8_t qp_id,
+		rte_cryptodev_enqdeq_cb_fn cb_fn, void *cb_arg)
+{
+	int ret = 0;
+	struct rte_cryptodev *dev;
+	struct rte_cryptodev_enqdeq_callback *cb, *next;
+	rte_spinlock_t *lock = &rte_cryptodev_pstdeq_cb_lock;
+
+	if (!cb_fn)
+		return -EINVAL;
+
+	if (!rte_cryptodev_pmd_is_valid_dev(dev_id)) {
+		CDEV_LOG_ERR("Invalid dev_id=%"PRIu8 " qp_id=%"PRIu8,
+				dev_id, qp_id);
+		return -EINVAL;
+	}
+
+	dev = &rte_crypto_devices[dev_id];
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->dev_stop, -EINVAL);
+
+	rte_spinlock_lock(lock);
+
+	ret = -EINVAL;
+	for (cb = TAILQ_FIRST(&dev->deq_cbs); cb != NULL; cb = next) {
+		next = TAILQ_NEXT(cb, next);
+
+		if (cb->cb_fn != cb_fn || cb->cb_arg != cb_arg)
+			continue;
+
+		if (cb->active == 0) {
+			TAILQ_REMOVE(&(dev->deq_cbs), cb, next);
+			rte_free(cb);
+			ret = 0;
+		} else
+			ret = -EAGAIN;
+	}
+
+	rte_spinlock_unlock(lock);
+
+	return ret;
 }
