@@ -4651,6 +4651,12 @@ For example:
    cd examples/bpf
    clang -O2 -target bpf -c t1.c
 
+.. note::
+
+   To build DPDK based example, appropriate include and library path is to be
+   passed to compiler. For other examples, corresponding dependencies is to be
+   passed for include and libraries.
+
 Then to load (and JIT compile) t1.o at RX queue 0, port 1:
 
 .. code-block:: console
