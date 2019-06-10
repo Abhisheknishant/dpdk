@@ -16,5 +16,5 @@ custom_target('igb_uio',
 		'modules'],
 	depends: mkfile,
 	install: true,
-	install_dir: kernel_dir + '/../extra/dpdk',
+	install_dir: kernel_install_dir + '/extra/dpdk',
 	build_by_default: get_option('enable_kmods'))

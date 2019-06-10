@@ -14,8 +14,8 @@ option('ibverbs_link', type: 'combo', choices : ['shared', 'dlopen'], value: 'sh
 	description: 'Linkage method (shared/dlopen) for Mellanox PMDs with ibverbs dependencies.')
 option('include_subdir_arch', type: 'string', value: '',
 	description: 'subdirectory where to install arch-dependent headers')
-option('kernel_dir', type: 'string', value: '',
-	description: 'path to the kernel for building kernel modules, they will be installed in $DEST_DIR/$kernel_dir/../extra/dpdk')
+option('kernel_version', type: 'string', value: '',
+	description: 'kernel version for building kernel modules')
 option('lib_musdk_dir', type: 'string', value: '',
 	description: 'path to the MUSDK library installation directory')
 option('machine', type: 'string', value: 'native',
