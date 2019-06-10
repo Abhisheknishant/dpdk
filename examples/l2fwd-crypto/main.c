@@ -255,6 +255,22 @@ struct l2fwd_crypto_statistics crypto_statistics[RTE_CRYPTO_MAX_DEVS];
 /* default period is 10 seconds */
 static int64_t timer_period = 10 * TIMER_MILLISECOND * 1000;
 
+#ifdef RTE_CRYPTODEV_ENQDEQ_CALLBACKS
+static uint16_t dump_crypto(__rte_unused uint8_t dev_id,
+		__rte_unused uint8_t qp_id,
+		__rte_unused struct rte_crypto_op **ops,
+		__rte_unused uint16_t nb_ops,
+		__rte_unused void *cb_arg)
+{
+	if (nb_ops)
+		RTE_LOG(DEBUG, L2FWD, " dev_id (%u) qp_id (%u)"
+				" ops (%p) nb_ops (%u)\n",
+				dev_id, qp_id, ops, nb_ops);
+
+	return nb_ops;
+}
+#endif
+
 /* Print out statistics on packets dropped */
 static void
 print_stats(void)
@@ -2783,6 +2799,18 @@ main(int argc, char **argv)
 				(unsigned)cdev_id);
 	}
 
+#ifdef RTE_CRYPTODEV_ENQDEQ_CALLBACKS
+	ret = rte_cryptodev_preenq_callback_register(0, 0, dump_crypto, NULL);
+	if (ret != 0)
+		RTE_LOG(ERR, L2FWD, " failed to preenq callback register\n");
+	RTE_LOG(INFO, L2FWD, " preenq callback register success\n");
+
+	ret = rte_cryptodev_pstdeq_callback_register(0, 0, dump_crypto, NULL);
+	if (ret != 0)
+		RTE_LOG(ERR, L2FWD, " failed to pstdeq callback register\n");
+	RTE_LOG(INFO, L2FWD, " pstdeq callback register success\n");
+#endif
+
 	/* launch per-lcore init on every lcore */
 	rte_eal_mp_remote_launch(l2fwd_launch_one_lcore, (void *)&options,
 			CALL_MASTER);
@@ -2790,6 +2818,16 @@ main(int argc, char **argv)
 		if (rte_eal_wait_lcore(lcore_id) < 0)
 			return -1;
 	}
+
+#ifdef RTE_CRYPTODEV_ENQDEQ_CALLBACKS
+	ret = rte_cryptodev_preenq_callback_unregister(0, 0, dump_crypto, NULL);
+	if (ret != 0)
+		printf(" faield rte_cryptodev_preenq_callback_unregister\n");
+
+	ret = rte_cryptodev_pstdeq_callback_unregister(0, 0, dump_crypto, NULL);
+	if (ret != 0)
+		printf(" failed rte_cryptodev_pstdeq_callback_unregister\n");
+#endif
 
 	return 0;
 }
