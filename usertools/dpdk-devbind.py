@@ -18,6 +18,8 @@ encryption_class = {'Class': '10', 'Vendor': None, 'Device': None,
                    'SVendor': None, 'SDevice': None}
 intel_processor_class = {'Class': '0b', 'Vendor': '8086', 'Device': None,
                    'SVendor': None, 'SDevice': None}
+acceleration_class = {'Class': '12', 'Vendor': None, 'Device': None,
+               'SVendor': None, 'SDevice': None}
 cavium_sso = {'Class': '08', 'Vendor': '177d', 'Device': 'a04b,a04d',
               'SVendor': None, 'SDevice': None}
 cavium_fpa = {'Class': '08', 'Vendor': '177d', 'Device': 'a053',
@@ -40,6 +42,7 @@ network_devices = [network_class, cavium_pkx, avp_vnic, ifpga_class]
 crypto_devices = [encryption_class, intel_processor_class]
 eventdev_devices = [cavium_sso, cavium_tim, octeontx2_sso]
 mempool_devices = [cavium_fpa, octeontx2_npa]
+baseband_devices = [acceleration_class]
 compress_devices = [cavium_zip]
 
 # global dict ethernet devices present. Dictionary indexed by PCI address.
@@ -89,7 +92,7 @@ Options:
 
     --status-dev:
         Print the status of given device group. Supported device groups are:
-        "net", "crypto", "event", "mempool" and "compress"
+        "net", "crypto", "baseband", "event", "mempool" and "compress"
 
     -b driver, --bind=driver:
         Select the driver to use or \"none\" to unbind the device
@@ -586,6 +589,9 @@ def show_status():
     if status_dev == "crypto" or status_dev == "all":
         show_device_status(crypto_devices, "Crypto")
 
+    if status_dev == "baseband" or status_dev == "all":
+        show_device_status(baseband_devices, "Baseband")
+
     if status_dev == "event" or status_dev == "all":
         show_device_status(eventdev_devices, "Eventdev")
 
@@ -667,6 +673,7 @@ def do_arg_actions():
             # refresh if we have changed anything
             get_device_details(network_devices)
             get_device_details(crypto_devices)
+            get_device_details(baseband_devices)
             get_device_details(eventdev_devices)
             get_device_details(mempool_devices)
             get_device_details(compress_devices)
@@ -688,6 +695,7 @@ def main():
     get_device_details(network_devices)
     get_device_details(crypto_devices)
     get_device_details(eventdev_devices)
+    get_device_details(baseband_devices)
     get_device_details(mempool_devices)
     get_device_details(compress_devices)
     do_arg_actions()
