@@ -3,5 +3,6 @@
 
 deps += ['rawdev', 'mbuf', 'mempool',
 	 'pci', 'bus_pci']
-sources = files('ntb_rawdev.c')
+sources = files('ntb_rawdev.c',
+                'ntb_hw_intel.c')
 allow_experimental_apis = true
