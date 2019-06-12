@@ -234,6 +234,12 @@ struct ice_vsi {
 	bool offset_loaded;
 };
 
+/* Struct to store flow created. */
+struct rte_flow {
+	TAILQ_ENTRY(rte_flow) node;
+void *rule;
+};
+
 struct ice_pf {
 	struct ice_adapter *adapter; /* The adapter this PF associate to */
 	struct ice_vsi *main_vsi; /* pointer to main VSI structure */
