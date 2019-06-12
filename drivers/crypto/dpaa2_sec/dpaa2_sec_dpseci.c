@@ -3152,7 +3152,7 @@ dpaa2_sec_process_atomic_event(struct qbman_swp *swp __attribute__((unused)),
 }
 
 int
-dpaa2_sec_eventq_attach(const struct rte_cryptodev *dev,
+__rte_internal dpaa2_sec_eventq_attach(const struct rte_cryptodev *dev,
 		int qp_id,
 		uint16_t dpcon_id,
 		const struct rte_event *event)
@@ -3195,7 +3195,7 @@ dpaa2_sec_eventq_attach(const struct rte_cryptodev *dev,
 }
 
 int
-dpaa2_sec_eventq_detach(const struct rte_cryptodev *dev,
+__rte_internal dpaa2_sec_eventq_detach(const struct rte_cryptodev *dev,
 			int qp_id)
 {
 	struct dpaa2_sec_dev_private *priv = dev->data->dev_private;
