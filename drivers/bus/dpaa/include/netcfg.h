@@ -46,12 +46,12 @@ struct netcfg_interface {
  * cfg_file: FMC config XML file
  * Returns the configuration information in newly allocated memory.
  */
-struct netcfg_info *netcfg_acquire(void);
+struct netcfg_info __rte_internal *netcfg_acquire(void);
 
 /* cfg_ptr: configuration information pointer.
  * Frees the resources allocated by the configuration layer.
  */
-void netcfg_release(struct netcfg_info *cfg_ptr);
+void __rte_internal netcfg_release(struct netcfg_info *cfg_ptr);
 
 #ifdef RTE_LIBRTE_DPAA_DEBUG_DRIVER
 /* cfg_ptr: configuration information pointer.

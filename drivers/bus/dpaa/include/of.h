@@ -87,7 +87,7 @@ struct dt_file {
 	uint64_t buf[OF_FILE_BUF_MAX >> 3];
 };
 
-const struct device_node *of_find_compatible_node(
+const __rte_internal struct device_node *of_find_compatible_node(
 					const struct device_node *from,
 					const char *type __always_unused,
 					const char *compatible)
@@ -98,7 +98,7 @@ const struct device_node *of_find_compatible_node(
 		dev_node != NULL; \
 		dev_node = of_find_compatible_node(dev_node, type, compatible))
 
-const void *of_get_property(const struct device_node *from, const char *name,
+const __rte_internal void *of_get_property(const struct device_node *from, const char *name,
 			    size_t *lenp) __attribute__((nonnull(2)));
 bool of_device_is_available(const struct device_node *dev_node);
 
@@ -109,7 +109,7 @@ const struct device_node *of_get_parent(const struct device_node *dev_node);
 const struct device_node *of_get_next_child(const struct device_node *dev_node,
 					    const struct device_node *prev);
 
-const void *of_get_mac_address(const struct device_node *np);
+const void __rte_internal *of_get_mac_address(const struct device_node *np);
 
 #define for_each_child_node(parent, child) \
 	for (child = of_get_next_child(parent, NULL); child != NULL; \

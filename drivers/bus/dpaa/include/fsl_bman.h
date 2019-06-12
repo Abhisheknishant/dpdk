@@ -264,13 +264,13 @@ int bman_shutdown_pool(u32 bpid);
  * the structure provided by the caller can be released or reused after the
  * function returns.
  */
-struct bman_pool *bman_new_pool(const struct bman_pool_params *params);
+struct bman_pool __rte_internal *bman_new_pool(const struct bman_pool_params *params);
 
 /**
  * bman_free_pool - Deallocates a Buffer Pool object
  * @pool: the pool object to release
  */
-void bman_free_pool(struct bman_pool *pool);
+void __rte_internal bman_free_pool(struct bman_pool *pool);
 
 /**
  * bman_get_params - Returns a pool object's parameters.
@@ -279,7 +279,7 @@ void bman_free_pool(struct bman_pool *pool);
  * The returned pointer refers to state within the pool object so must not be
  * modified and can no longer be read once the pool object is destroyed.
  */
-const struct bman_pool_params *bman_get_params(const struct bman_pool *pool);
+const struct bman_pool_params __rte_internal *bman_get_params(const struct bman_pool *pool);
 
 /**
  * bman_release - Release buffer(s) to the buffer pool
@@ -289,7 +289,7 @@ const struct bman_pool_params *bman_get_params(const struct bman_pool *pool);
  * @flags: bit-mask of BMAN_RELEASE_FLAG_*** options
  *
  */
-int bman_release(struct bman_pool *pool, const struct bm_buffer *bufs, u8 num,
+int __rte_internal bman_release(struct bman_pool *pool, const struct bm_buffer *bufs, u8 num,
 		 u32 flags);
 
 /**
@@ -302,7 +302,7 @@ int bman_release(struct bman_pool *pool, const struct bm_buffer *bufs, u8 num,
  * The return value will be the number of buffers obtained from the pool, or a
  * negative error code if a h/w error or pool starvation was encountered.
  */
-int bman_acquire(struct bman_pool *pool, struct bm_buffer *bufs, u8 num,
+int __rte_internal bman_acquire(struct bman_pool *pool, struct bm_buffer *bufs, u8 num,
 		 u32 flags);
 
 /**
@@ -317,7 +317,7 @@ int bman_query_pools(struct bm_pool_state *state);
  *
  * Return the number of the free buffers
  */
-u32 bman_query_free_buffers(struct bman_pool *pool);
+u32 __rte_internal bman_query_free_buffers(struct bman_pool *pool);
 
 /**
  * bman_update_pool_thresholds - Change the buffer pool's depletion thresholds
