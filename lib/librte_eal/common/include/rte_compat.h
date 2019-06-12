@@ -89,4 +89,16 @@ __attribute__((section(".text.experimental")))
 
 #endif
 
+/*
+ * __rte_internal tags mark functions as internal only, If specified in public
+ * header files, this tag will resolve to an error directive, preventing
+ * external applications from attempting to make calls to functions not meant
+ * for consumption outside the dpdk library
+ */
+#ifdef BUILDING_RTE_SDK
+#define __rte_internal __attribute__((section(".text.internal")))
+#else
+#define __rte_internal __attribute__((error("This function cannot be used outside of the core DPDK library"), \
+	section(".text.internal")))
+#endif
 #endif /* _RTE_COMPAT_H_ */

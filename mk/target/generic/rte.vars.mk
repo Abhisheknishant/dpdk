@@ -96,7 +96,7 @@ LDFLAGS += -L$(RTE_OUTPUT)/lib
 # defined.
 ifeq ($(BUILDING_RTE_SDK),1)
 # building sdk
-CFLAGS += -include $(RTE_OUTPUT)/include/rte_config.h
+CFLAGS += -include $(RTE_OUTPUT)/include/rte_config.h -DBUILDING_RTE_SDK
 else
 # if we are building an external application, include SDK's lib and
 # includes too
