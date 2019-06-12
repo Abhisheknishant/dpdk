@@ -566,8 +566,8 @@ mlx5_txq_ibv_new(struct rte_eth_dev *dev, uint16_t idx)
 	txq_uar_init(txq_ctrl);
 	if (qp.comp_mask & MLX5DV_QP_MASK_UAR_MMAP_OFFSET) {
 		txq_ctrl->uar_mmap_offset = qp.uar_mmap_offset;
-		DRV_LOG(DEBUG, "port %u: uar_mmap_offset 0x%lx",
-			dev->data->port_id, txq_ctrl->uar_mmap_offset);
+		DRV_LOG(DEBUG, "port %u: uar_mmap_offset 0x%x",
+			dev->data->port_id, (int)(txq_ctrl->uar_mmap_offset));
 	} else {
 		DRV_LOG(ERR,
 			"port %u failed to retrieve UAR info, invalid"
