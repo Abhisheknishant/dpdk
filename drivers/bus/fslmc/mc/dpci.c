@@ -314,7 +314,7 @@ int dpci_get_attributes(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpci_set_rx_queue(struct fsl_mc_io *mc_io,
+int __rte_internal dpci_set_rx_queue(struct fsl_mc_io *mc_io,
 		      uint32_t cmd_flags,
 		      uint16_t token,
 		      uint8_t priority,
@@ -476,7 +476,7 @@ int dpci_get_api_version(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpci_set_opr(struct fsl_mc_io *mc_io,
+int __rte_internal dpci_set_opr(struct fsl_mc_io *mc_io,
 		 uint32_t cmd_flags,
 		 uint16_t token,
 		 uint8_t index,
@@ -514,7 +514,7 @@ int dpci_set_opr(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpci_get_opr(struct fsl_mc_io *mc_io,
+int __rte_internal dpci_get_opr(struct fsl_mc_io *mc_io,
 		 uint32_t cmd_flags,
 		 uint16_t token,
 		 uint8_t index,

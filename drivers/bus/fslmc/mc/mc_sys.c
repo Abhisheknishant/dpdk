@@ -51,7 +51,7 @@ static int mc_status_to_error(enum mc_cmd_status status)
 	return -EINVAL;
 }
 
-int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd)
+int __rte_internal mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd)
 {
 	enum mc_cmd_status status;
 	uint64_t response;

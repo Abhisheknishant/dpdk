@@ -25,7 +25,7 @@
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpcon_open(struct fsl_mc_io *mc_io,
+int __rte_internal dpcon_open(struct fsl_mc_io *mc_io,
 	       uint32_t cmd_flags,
 	       int dpcon_id,
 	       uint16_t *token)
@@ -267,7 +267,7 @@ int dpcon_reset(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpcon_get_attributes(struct fsl_mc_io *mc_io,
+int __rte_internal dpcon_get_attributes(struct fsl_mc_io *mc_io,
 			 uint32_t cmd_flags,
 			 uint16_t token,
 			 struct dpcon_attr *attr)

@@ -26,7 +26,7 @@
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpbp_open(struct fsl_mc_io *mc_io,
+int __rte_internal dpbp_open(struct fsl_mc_io *mc_io,
 	      uint32_t cmd_flags,
 	      int dpbp_id,
 	      uint16_t *token)
@@ -157,7 +157,7 @@ int dpbp_destroy(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpbp_enable(struct fsl_mc_io *mc_io,
+int __rte_internal dpbp_enable(struct fsl_mc_io *mc_io,
 		uint32_t cmd_flags,
 		uint16_t token)
 {
@@ -179,7 +179,7 @@ int dpbp_enable(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpbp_disable(struct fsl_mc_io *mc_io,
+int __rte_internal dpbp_disable(struct fsl_mc_io *mc_io,
 		 uint32_t cmd_flags,
 		 uint16_t token)
 {
@@ -235,7 +235,7 @@ int dpbp_is_enabled(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpbp_reset(struct fsl_mc_io *mc_io,
+int __rte_internal dpbp_reset(struct fsl_mc_io *mc_io,
 	       uint32_t cmd_flags,
 	       uint16_t token)
 {
@@ -258,7 +258,7 @@ int dpbp_reset(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpbp_get_attributes(struct fsl_mc_io *mc_io,
+int __rte_internal dpbp_get_attributes(struct fsl_mc_io *mc_io,
 			uint32_t cmd_flags,
 			uint16_t token,
 			struct dpbp_attr *attr)
@@ -329,7 +329,7 @@ int dpbp_get_api_version(struct fsl_mc_io *mc_io,
  * Return:  '0' on Success; Error code otherwise.
  */
 
-int dpbp_get_num_free_bufs(struct fsl_mc_io *mc_io,
+int __rte_internal dpbp_get_num_free_bufs(struct fsl_mc_io *mc_io,
 			   uint32_t cmd_flags,
 			   uint16_t token,
 			   uint32_t *num_free_bufs)

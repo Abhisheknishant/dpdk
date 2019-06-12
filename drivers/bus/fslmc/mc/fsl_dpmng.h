@@ -34,7 +34,7 @@ struct mc_version {
 	uint32_t revision;
 };
 
-int mc_get_version(struct fsl_mc_io *mc_io,
+int __rte_internal mc_get_version(struct fsl_mc_io *mc_io,
 		   uint32_t cmd_flags,
 		   struct mc_version *mc_ver_info);
 
@@ -48,7 +48,7 @@ struct mc_soc_version {
 	uint32_t pvr;
 };
 
-int mc_get_soc_version(struct fsl_mc_io *mc_io,
+int __rte_internal mc_get_soc_version(struct fsl_mc_io *mc_io,
 		       uint32_t cmd_flags,
 		       struct mc_soc_version *mc_platform_info);
 #endif /* __FSL_DPMNG_H */

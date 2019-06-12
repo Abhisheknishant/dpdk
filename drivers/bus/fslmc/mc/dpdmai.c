@@ -24,7 +24,7 @@
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpdmai_open(struct fsl_mc_io *mc_io,
+int __rte_internal dpdmai_open(struct fsl_mc_io *mc_io,
 		uint32_t cmd_flags,
 		int dpdmai_id,
 		uint16_t *token)
@@ -62,7 +62,7 @@ int dpdmai_open(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpdmai_close(struct fsl_mc_io *mc_io,
+int __rte_internal dpdmai_close(struct fsl_mc_io *mc_io,
 		 uint32_t cmd_flags,
 		 uint16_t token)
 {
@@ -170,7 +170,7 @@ int dpdmai_destroy(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpdmai_enable(struct fsl_mc_io *mc_io,
+int __rte_internal dpdmai_enable(struct fsl_mc_io *mc_io,
 		  uint32_t cmd_flags,
 		  uint16_t token)
 {
@@ -193,7 +193,7 @@ int dpdmai_enable(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpdmai_disable(struct fsl_mc_io *mc_io,
+int __rte_internal dpdmai_disable(struct fsl_mc_io *mc_io,
 		   uint32_t cmd_flags,
 		   uint16_t token)
 {
@@ -275,7 +275,7 @@ int dpdmai_reset(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpdmai_get_attributes(struct fsl_mc_io *mc_io,
+int __rte_internal dpdmai_get_attributes(struct fsl_mc_io *mc_io,
 			  uint32_t cmd_flags,
 			  uint16_t token,
 			  struct dpdmai_attr *attr)
@@ -318,7 +318,7 @@ int dpdmai_get_attributes(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpdmai_set_rx_queue(struct fsl_mc_io *mc_io,
+int __rte_internal dpdmai_set_rx_queue(struct fsl_mc_io *mc_io,
 			uint32_t cmd_flags,
 			uint16_t token,
 			uint8_t queue_idx,
@@ -360,7 +360,7 @@ int dpdmai_set_rx_queue(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpdmai_get_rx_queue(struct fsl_mc_io *mc_io,
+int __rte_internal dpdmai_get_rx_queue(struct fsl_mc_io *mc_io,
 			uint32_t cmd_flags,
 			uint16_t token,
 			uint8_t queue_idx,
@@ -410,7 +410,7 @@ int dpdmai_get_rx_queue(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpdmai_get_tx_queue(struct fsl_mc_io *mc_io,
+int __rte_internal dpdmai_get_tx_queue(struct fsl_mc_io *mc_io,
 			uint32_t cmd_flags,
 			uint16_t token,
 			uint8_t queue_idx,

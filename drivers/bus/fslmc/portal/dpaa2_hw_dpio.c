@@ -229,7 +229,7 @@ dpaa2_configure_stashing(struct dpaa2_dpio_dev *dpio_dev, int lcoreid)
 	return 0;
 }
 
-static struct dpaa2_dpio_dev *dpaa2_get_qbman_swp(int lcoreid)
+static struct dpaa2_dpio_dev *__rte_internal dpaa2_get_qbman_swp(int lcoreid)
 {
 	struct dpaa2_dpio_dev *dpio_dev = NULL;
 	int ret;
@@ -253,7 +253,7 @@ static struct dpaa2_dpio_dev *dpaa2_get_qbman_swp(int lcoreid)
 }
 
 int
-dpaa2_affine_qbman_swp(void)
+__rte_internal dpaa2_affine_qbman_swp(void)
 {
 	unsigned int lcore_id = rte_lcore_id();
 	uint64_t tid = syscall(SYS_gettid);
@@ -301,7 +301,7 @@ dpaa2_affine_qbman_swp(void)
 }
 
 int
-dpaa2_affine_qbman_ethrx_swp(void)
+__rte_internal dpaa2_affine_qbman_ethrx_swp(void)
 {
 	unsigned int lcore_id = rte_lcore_id();
 	uint64_t tid = syscall(SYS_gettid);
@@ -572,7 +572,7 @@ err:
 }
 
 void
-dpaa2_free_dq_storage(struct queue_storage_info_t *q_storage)
+__rte_internal dpaa2_free_dq_storage(struct queue_storage_info_t *q_storage)
 {
 	int i = 0;
 
@@ -583,7 +583,7 @@ dpaa2_free_dq_storage(struct queue_storage_info_t *q_storage)
 }
 
 int
-dpaa2_alloc_dq_storage(struct queue_storage_info_t *q_storage)
+__rte_internal dpaa2_alloc_dq_storage(struct queue_storage_info_t *q_storage)
 {
 	int i = 0;
 
@@ -603,7 +603,7 @@ fail:
 }
 
 uint32_t
-dpaa2_free_eq_descriptors(void)
+__rte_internal dpaa2_free_eq_descriptors(void)
 {
 	struct dpaa2_dpio_dev *dpio_dev = DPAA2_PER_LCORE_DPIO;
 	struct qbman_result *eqresp;
