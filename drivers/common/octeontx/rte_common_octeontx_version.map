@@ -1,7 +1,14 @@
-DPDK_18.05 {
+INTERNAL {
 	global:
 
 	octeontx_mbox_set_ram_mbox_base;
 	octeontx_mbox_set_reg;
 	octeontx_mbox_send;
+};
+
+DPDK_18.05 {
+	global:
+	octeontx_logtype_mbox;
+
+	local: *;
 };

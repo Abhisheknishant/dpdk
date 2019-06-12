@@ -29,9 +29,9 @@ struct octeontx_mbox_hdr {
 	uint8_t res_code; /* Functional layer response code */
 };
 
-int octeontx_mbox_set_ram_mbox_base(uint8_t *ram_mbox_base);
-int octeontx_mbox_set_reg(uint8_t *reg);
-int octeontx_mbox_send(struct octeontx_mbox_hdr *hdr,
+int __rte_internal octeontx_mbox_set_ram_mbox_base(uint8_t *ram_mbox_base);
+int __rte_internal octeontx_mbox_set_reg(uint8_t *reg);
+int __rte_internal octeontx_mbox_send(struct octeontx_mbox_hdr *hdr,
 		void *txdata, uint16_t txlen, void *rxdata, uint16_t rxlen);
 
 #endif /* __OCTEONTX_MBOX_H__ */
