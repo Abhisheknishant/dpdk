@@ -1,4 +1,4 @@
-DPDK_18.11 {
+INTERNAL {
 	global:
 
 	dpaax_iova_table_update;
@@ -6,6 +6,8 @@ DPDK_18.11 {
 	dpaax_iova_table_dump;
 	dpaax_iova_table_p;
 	dpaax_iova_table_populate;
+};
 
+DPDK_18.11 {
 	local: *;
 };
