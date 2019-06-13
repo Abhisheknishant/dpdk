@@ -93,6 +93,7 @@ is_null_map(const struct user_mem_map *map)
 	return map->addr == 0 && map->iova == 0 && map->len == 0;
 }
 
+#ifndef RTE_ARCH_PPC_64
 /* we may need to merge user mem maps together in case of user mapping/unmapping
  * chunks of memory, so we'll need a comparator function to sort segments.
  */
@@ -126,6 +127,7 @@ user_mem_map_cmp(const void *a, const void *b)
 
 	return 0;
 }
+#endif
 
 /* adjust user map entry. this may result in shortening of existing map, or in
  * splitting existing map in two pieces.
@@ -162,6 +164,7 @@ adjust_map(struct user_mem_map *src, struct user_mem_map *end,
 	}
 }
 
+#ifndef RTE_ARCH_PPC_64
 /* try merging two maps into one, return 1 if succeeded */
 static int
 merge_map(struct user_mem_map *left, struct user_mem_map *right)
@@ -177,6 +180,7 @@ merge_map(struct user_mem_map *left, struct user_mem_map *right)
 
 	return 1;
 }
+#endif
 
 static struct user_mem_map *
 find_user_mem_map(struct user_mem_maps *user_mem_maps, uint64_t addr,
@@ -211,6 +215,16 @@ find_user_mem_map(struct user_mem_maps *user_mem_maps, uint64_t addr,
 	return NULL;
 }
 
+#ifdef RTE_ARCH_PPC_64
+/* Recreation of DMA window requires unregistering DMA memory.
+ * Compaction confuses the logic and causes false reports in the recreation.
+ * For now, we do not compact user maps in ppc64le.
+ */
+static void
+compact_user_maps(__rte_unused struct user_mem_maps *user_mem_maps)
+{
+}
+#else
 /* this will sort all user maps, and merge/compact any adjacent maps */
 static void
 compact_user_maps(struct user_mem_maps *user_mem_maps)
@@ -256,6 +270,7 @@ compact_user_maps(struct user_mem_maps *user_mem_maps)
 		user_mem_maps->n_maps = cur_idx;
 	}
 }
+#endif
 
 static int
 vfio_open_group_fd(int iommu_group_num)
@@ -1306,6 +1321,7 @@ vfio_type1_dma_map(int vfio_container_fd)
 	return rte_memseg_walk(type1_map, &vfio_container_fd);
 }
 
+#ifdef RTE_ARCH_PPC_64
 static int
 vfio_spapr_dma_do_map(int vfio_container_fd, uint64_t vaddr, uint64_t iova,
 		uint64_t len, int do_map)
@@ -1357,14 +1373,6 @@ vfio_spapr_dma_do_map(int vfio_container_fd, uint64_t vaddr, uint64_t iova,
 		}
 
 	} else {
-		ret = ioctl(vfio_container_fd,
-				VFIO_IOMMU_SPAPR_UNREGISTER_MEMORY, &reg);
-		if (ret) {
-			RTE_LOG(ERR, EAL, "  cannot unregister vaddr for IOMMU, error %i (%s)\n",
-					errno, strerror(errno));
-			return -1;
-		}
-
 		memset(&dma_unmap, 0, sizeof(dma_unmap));
 		dma_unmap.argsz = sizeof(struct vfio_iommu_type1_dma_unmap);
 		dma_unmap.size = len;
@@ -1377,22 +1385,48 @@ vfio_spapr_dma_do_map(int vfio_container_fd, uint64_t vaddr, uint64_t iova,
 					errno, strerror(errno));
 			return -1;
 		}
+
+		ret = ioctl(vfio_container_fd,
+				VFIO_IOMMU_SPAPR_UNREGISTER_MEMORY, &reg);
+		if (ret) {
+			RTE_LOG(ERR, EAL, "  cannot unregister vaddr for IOMMU, error %i (%s)\n",
+					errno, strerror(errno));
+			return -1;
+		}
 	}
 
 	return 0;
 }
 
+struct spapr_remap_walk_param {
+	int vfio_container_fd;
+	uint64_t window_size;
+};
+
 static int
 vfio_spapr_map_walk(const struct rte_memseg_list *msl,
 		const struct rte_memseg *ms, void *arg)
 {
-	int *vfio_container_fd = arg;
+	struct spapr_remap_walk_param *p = arg;
 
-	if (msl->external)
+	if (msl->external || ms->iova >= p->window_size)
 		return 0;
 
-	return vfio_spapr_dma_do_map(*vfio_container_fd, ms->addr_64, ms->iova,
+	return vfio_spapr_dma_do_map(p->vfio_container_fd, ms->addr_64, ms->iova,
 			ms->len, 1);
+}
+
+static int
+vfio_spapr_unmap_walk(const struct rte_memseg_list *msl,
+		const struct rte_memseg *ms, void *arg)
+{
+	struct spapr_remap_walk_param *p = arg;
+
+	if (msl->external || ms->iova >= p->window_size)
+		return 0;
+
+	return vfio_spapr_dma_do_map(p->vfio_container_fd, ms->addr_64, ms->iova,
+			ms->len, 0);
 }
 
 struct spapr_walk_param {
@@ -1461,14 +1495,13 @@ vfio_spapr_create_new_dma_window(int vfio_container_fd,
 	return 0;
 }
 
+static struct vfio_iommu_spapr_tce_create prev_create;
+
 static int
 vfio_spapr_dma_mem_map(int vfio_container_fd, uint64_t vaddr, uint64_t iova,
 		uint64_t len, int do_map)
 {
-	struct spapr_walk_param param;
-	struct vfio_iommu_spapr_tce_create create = {
-		.argsz = sizeof(create),
-	};
+	struct vfio_iommu_spapr_tce_create create;
 	struct vfio_config *vfio_cfg;
 	struct user_mem_maps *user_mem_maps;
 	int i, ret = 0;
@@ -1482,43 +1515,59 @@ vfio_spapr_dma_mem_map(int vfio_container_fd, uint64_t vaddr, uint64_t iova,
 	user_mem_maps = &vfio_cfg->mem_maps;
 	rte_spinlock_recursive_lock(&user_mem_maps->lock);
 
-	/* check if window size needs to be adjusted */
-	memset(&param, 0, sizeof(param));
-
-	/* we're inside a callback so use thread-unsafe version */
-	if (rte_memseg_walk_thread_unsafe(vfio_spapr_window_size_walk,
-				&param) < 0) {
-		RTE_LOG(ERR, EAL, "Could not get window size\n");
-		ret = -1;
-		goto out;
-	}
+	memcpy(&create, &prev_create, sizeof(create));
 
 	/* also check user maps */
 	for (i = 0; i < user_mem_maps->n_maps; i++) {
-		uint64_t max = user_mem_maps->maps[i].iova +
-				user_mem_maps->maps[i].len;
-		create.window_size = RTE_MAX(create.window_size, max);
+		struct user_mem_map *map = &user_mem_maps->maps[i];
+
+		if (vaddr == map->addr && len == map->len)
+			continue;
+		create.window_size = RTE_MAX(create.window_size, map->iova + map->len);
 	}
 
 	/* sPAPR requires window size to be a power of 2 */
-	create.window_size = rte_align64pow2(param.window_size);
-	create.page_shift = __builtin_ctzll(param.hugepage_sz);
-	create.levels = 1;
+	create.window_size = rte_align64pow2(create.window_size);
 
 	if (do_map) {
-		void *addr;
 		/* re-create window and remap the entire memory */
-		if (iova > create.window_size) {
+		if (iova + len > create.window_size) {
+			struct spapr_remap_walk_param param = {
+				.vfio_container_fd = vfio_container_fd,
+			    .window_size = create.window_size,
+			};
+
+			/* we're inside a callback, so use thread-unsafe version
+			 */
+			rte_memseg_walk_thread_unsafe(vfio_spapr_unmap_walk,
+					&param);
+			/* destruct all user maps */
+			for (i = 0; i < user_mem_maps->n_maps; i++) {
+				struct user_mem_map *map =
+						&user_mem_maps->maps[i];
+				if (vaddr == map->addr && len == map->len)
+					continue;
+				if (vfio_spapr_dma_do_map(vfio_container_fd,
+						map->addr, map->iova, map->len,
+						0)) {
+					RTE_LOG(ERR, EAL, "Could not destruct user DMA maps\n");
+					ret = -1;
+					goto out;
+				}
+			}
+
+			create.window_size = rte_align64pow2(iova + len);
 			if (vfio_spapr_create_new_dma_window(vfio_container_fd,
 					&create) < 0) {
 				RTE_LOG(ERR, EAL, "Could not create new DMA window\n");
 				ret = -1;
 				goto out;
 			}
+			memcpy(&prev_create, &create, sizeof(create));
 			/* we're inside a callback, so use thread-unsafe version
 			 */
 			if (rte_memseg_walk_thread_unsafe(vfio_spapr_map_walk,
-					&vfio_container_fd) < 0) {
+					&param) < 0) {
 				RTE_LOG(ERR, EAL, "Could not recreate DMA maps\n");
 				ret = -1;
 				goto out;
@@ -1527,6 +1576,8 @@ vfio_spapr_dma_mem_map(int vfio_container_fd, uint64_t vaddr, uint64_t iova,
 			for (i = 0; i < user_mem_maps->n_maps; i++) {
 				struct user_mem_map *map =
 						&user_mem_maps->maps[i];
+				if (vaddr == map->addr && len == map->len)
+					continue;
 				if (vfio_spapr_dma_do_map(vfio_container_fd,
 						map->addr, map->iova, map->len,
 						1)) {
@@ -1536,23 +1587,8 @@ vfio_spapr_dma_mem_map(int vfio_container_fd, uint64_t vaddr, uint64_t iova,
 				}
 			}
 		}
-
-		/* now that we've remapped all of the memory that was present
-		 * before, map the segment that we were requested to map.
-		 *
-		 * however, if we were called by the callback, the memory we
-		 * were called with was already in the memseg list, so previous
-		 * mapping should've mapped that segment already.
-		 *
-		 * virt2memseg_list is a relatively cheap check, so use that. if
-		 * memory is within any memseg list, it's a memseg, so it's
-		 * already mapped.
-		 */
-		addr = (void *)(uintptr_t)vaddr;
-		if (rte_mem_virt2memseg_list(addr) == NULL &&
-				vfio_spapr_dma_do_map(vfio_container_fd,
-					vaddr, iova, len, 1) < 0) {
-			RTE_LOG(ERR, EAL, "Could not map segment\n");
+		if (vfio_spapr_dma_do_map(vfio_container_fd, vaddr, iova, len, 1)) {
+			RTE_LOG(ERR, EAL, "Failed to map DMA\n");
 			ret = -1;
 			goto out;
 		}
@@ -1593,6 +1629,7 @@ vfio_spapr_dma_map(int vfio_container_fd)
 		RTE_LOG(ERR, EAL, "Could not create new DMA window\n");
 		return -1;
 	}
+	memcpy(&prev_create, &create, sizeof(create));
 
 	/* map all DPDK segments for DMA. use 1:1 PA to IOVA mapping */
 	if (rte_memseg_walk(vfio_spapr_map_walk, &vfio_container_fd) < 0)
@@ -1600,6 +1637,21 @@ vfio_spapr_dma_map(int vfio_container_fd)
 
 	return 0;
 }
+#else
+static int
+vfio_spapr_dma_mem_map(int __rte_unused vfio_container_fd,
+			uint64_t __rte_unused vaddr,
+			uint64_t __rte_unused iova, uint64_t __rte_unused len,
+			int __rte_unused do_map)
+{
+	return 0;
+}
+static int
+vfio_spapr_dma_map(int __rte_unused vfio_container_fd)
+{
+	return 0;
+}
+#endif
 
 static int
 vfio_noiommu_dma_map(int __rte_unused vfio_container_fd)
