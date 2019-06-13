@@ -181,6 +181,19 @@ nfb_eth_ndp_rx(void *queue,
 
 			mbuf->pkt_len = packet_size;
 			mbuf->port = ndp->in_port;
+			mbuf->ol_flags = 0;
+
+#ifdef NFB_HW_TIMESTAMP
+			/* nanoseconds */
+			mbuf->timestamp = rte_le_to_cpu_32(*((uint32_t *)
+				(packets[i].header + 4)));
+			mbuf->timestamp <<= 32;
+			/* seconds */
+			mbuf->timestamp |= rte_le_to_cpu_32(*((uint32_t *)
+				(packets[i].header + 8)));
+			mbuf->ol_flags |= PKT_RX_TIMESTAMP;
+#endif /* NFB_HW_TIMESTAMP */
+
 			bufs[num_rx++] = mbuf;
 			num_bytes += packet_size;
 		} else {

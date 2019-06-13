@@ -69,6 +69,10 @@ These configuration options can be modified before compilation in the
 
    Value **y** enables compilation of nfb PMD.
 
+*  ``CONFIG_RTE_LIBRTE_NFB_HW_TIMESTAMP`` default value: **n**
+
+   Value **y** enables HW packet timestamping.
+
 Using the NFB PMD
 ----------------------
 
@@ -142,3 +146,21 @@ Example output:
      TX threshold registers: pthresh=0 hthresh=0 wthresh=0
      TX RS bit threshold=0 - TXQ flags=0x0
    testpmd>
+
+Timestamp
+----------------
+
+Timestamping needs to be enabled during compile time, as there is no way
+to check whether a timestamping unit is runnig during run time.
+
+While enabled, a validity flag of a timestamp is set and a timestamp data is inserted into a rte_mbuf struct.
+The timestamping unit still needs to be enabled separately according to the documentation of NFB products.
+
+Timestamp is in uint64_t field where upper 32 bits represents nanoseconds and lower 32 bits seconds.
+
+Nanoseconds contains the nanosecond part of the timestamp representing the
+time of frame receipt on physical network interface. It is the number of nanoseconds elapsed
+since the beginning of the second in Timestamp (seconds) field.
+
+Seconds contains the second part of the timestamp representing the time of frame
+receipt on physical network interface.

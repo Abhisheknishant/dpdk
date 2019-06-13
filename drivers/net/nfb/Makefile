@@ -16,6 +16,11 @@ INCLUDES :=-I$(SRCDIR)
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
 CFLAGS += $(shell command -v pkg-config > /dev/null 2>&1 && pkg-config --cflags netcope-common)
+
+ifeq ($(CONFIG_RTE_LIBRTE_NFB_HW_TIMESTAMP),y)
+    CFLAGS += -DNFB_HW_TIMESTAMP
+endif
+
 LDLIBS += -lrte_eal -lrte_mbuf -lrte_mempool
 LDLIBS += -lrte_ethdev -lrte_net
 LDLIBS += -lrte_bus_pci

@@ -13,3 +13,7 @@ ext_deps += dep
 ext_deps += nc
 
 sources = files('nfb_rx.c', 'nfb_tx.c', 'nfb_stats.c', 'nfb_ethdev.c', 'nfb_rxmode.c')
+
+if dpdk_conf.has('RTE_LIBRTE_NFB_HW_TIMESTAMP')
+    cflags += [ '-DNFB_HW_TIMESTAMP' ]
+endif
