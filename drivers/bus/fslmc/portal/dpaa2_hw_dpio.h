@@ -38,21 +38,21 @@ extern uint8_t dpaa2_eqcr_size;
 extern struct dpaa2_io_portal_t dpaa2_io_portal[RTE_MAX_LCORE];
 
 /* Affine a DPIO portal to current processing thread */
-int dpaa2_affine_qbman_swp(void);
+int __rte_internal dpaa2_affine_qbman_swp(void);
 
 /* Affine additional DPIO portal to current crypto processing thread */
-int dpaa2_affine_qbman_ethrx_swp(void);
+int __rte_internal dpaa2_affine_qbman_ethrx_swp(void);
 
 /* allocate memory for FQ - dq storage */
 int
-dpaa2_alloc_dq_storage(struct queue_storage_info_t *q_storage);
+__rte_internal dpaa2_alloc_dq_storage(struct queue_storage_info_t *q_storage);
 
 /* free memory for FQ- dq storage */
 void
-dpaa2_free_dq_storage(struct queue_storage_info_t *q_storage);
+__rte_internal dpaa2_free_dq_storage(struct queue_storage_info_t *q_storage);
 
 /* free the enqueue response descriptors */
 uint32_t
-dpaa2_free_eq_descriptors(void);
+__rte_internal dpaa2_free_eq_descriptors(void);
 
 #endif /* _DPAA2_HW_DPIO_H_ */

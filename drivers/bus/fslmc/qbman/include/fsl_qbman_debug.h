@@ -24,7 +24,7 @@ uint8_t verb;
 	uint8_t reserved2[29];
 };
 
-int qbman_fq_query_state(struct qbman_swp *s, uint32_t fqid,
+int __rte_internal qbman_fq_query_state(struct qbman_swp *s, uint32_t fqid,
 			 struct qbman_fq_query_np_rslt *r);
-uint32_t qbman_fq_state_frame_count(const struct qbman_fq_query_np_rslt *r);
+uint32_t __rte_internal qbman_fq_state_frame_count(const struct qbman_fq_query_np_rslt *r);
 uint32_t qbman_fq_state_byte_count(const struct qbman_fq_query_np_rslt *r);

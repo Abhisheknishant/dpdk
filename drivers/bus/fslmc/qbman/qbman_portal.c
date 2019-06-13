@@ -328,7 +328,7 @@ uint32_t qbman_swp_interrupt_read_status(struct qbman_swp *p)
 	return qbman_cinh_read(&p->sys, QBMAN_CINH_SWP_ISR);
 }
 
-void qbman_swp_interrupt_clear_status(struct qbman_swp *p, uint32_t mask)
+void __rte_internal qbman_swp_interrupt_clear_status(struct qbman_swp *p, uint32_t mask)
 {
 	qbman_cinh_write(&p->sys, QBMAN_CINH_SWP_ISR, mask);
 }
@@ -487,12 +487,12 @@ enum qb_enqueue_commands {
 #define QB_ENQUEUE_CMD_NLIS_SHIFT            14
 #define QB_ENQUEUE_CMD_IS_NESN_SHIFT         15
 
-void qbman_eq_desc_clear(struct qbman_eq_desc *d)
+void __rte_internal qbman_eq_desc_clear(struct qbman_eq_desc *d)
 {
 	memset(d, 0, sizeof(*d));
 }
 
-void qbman_eq_desc_set_no_orp(struct qbman_eq_desc *d, int respond_success)
+void __rte_internal qbman_eq_desc_set_no_orp(struct qbman_eq_desc *d, int respond_success)
 {
 	d->eq.verb &= ~(1 << QB_ENQUEUE_CMD_ORP_ENABLE_SHIFT);
 	if (respond_success)
@@ -501,7 +501,7 @@ void qbman_eq_desc_set_no_orp(struct qbman_eq_desc *d, int respond_success)
 		d->eq.verb |= enqueue_rejects_to_fq;
 }
 
-void qbman_eq_desc_set_orp(struct qbman_eq_desc *d, int respond_success,
+void __rte_internal qbman_eq_desc_set_orp(struct qbman_eq_desc *d, int respond_success,
 			   uint16_t opr_id, uint16_t seqnum, int incomplete)
 {
 	d->eq.verb |= 1 << QB_ENQUEUE_CMD_ORP_ENABLE_SHIFT;
@@ -540,7 +540,7 @@ void qbman_eq_desc_set_orp_nesn(struct qbman_eq_desc *d, uint16_t opr_id,
 	d->eq.seqnum |= 1 << QB_ENQUEUE_CMD_IS_NESN_SHIFT;
 }
 
-void qbman_eq_desc_set_response(struct qbman_eq_desc *d,
+void __rte_internal qbman_eq_desc_set_response(struct qbman_eq_desc *d,
 				dma_addr_t storage_phys,
 				int stash)
 {
@@ -548,18 +548,18 @@ void qbman_eq_desc_set_response(struct qbman_eq_desc *d,
 	d->eq.wae = stash;
 }
 
-void qbman_eq_desc_set_token(struct qbman_eq_desc *d, uint8_t token)
+void __rte_internal qbman_eq_desc_set_token(struct qbman_eq_desc *d, uint8_t token)
 {
 	d->eq.rspid = token;
 }
 
-void qbman_eq_desc_set_fq(struct qbman_eq_desc *d, uint32_t fqid)
+void __rte_internal qbman_eq_desc_set_fq(struct qbman_eq_desc *d, uint32_t fqid)
 {
 	d->eq.verb &= ~(1 << QB_ENQUEUE_CMD_TARGET_TYPE_SHIFT);
 	d->eq.tgtid = fqid;
 }
 
-void qbman_eq_desc_set_qd(struct qbman_eq_desc *d, uint32_t qdid,
+void __rte_internal qbman_eq_desc_set_qd(struct qbman_eq_desc *d, uint32_t qdid,
 			  uint16_t qd_bin, uint8_t qd_prio)
 {
 	d->eq.verb |= 1 << QB_ENQUEUE_CMD_TARGET_TYPE_SHIFT;
@@ -576,7 +576,7 @@ void qbman_eq_desc_set_eqdi(struct qbman_eq_desc *d, int enable)
 		d->eq.verb &= ~(1 << QB_ENQUEUE_CMD_IRQ_ON_DISPATCH_SHIFT);
 }
 
-void qbman_eq_desc_set_dca(struct qbman_eq_desc *d, int enable,
+void __rte_internal qbman_eq_desc_set_dca(struct qbman_eq_desc *d, int enable,
 			   uint8_t dqrr_idx, int park)
 {
 	if (enable) {
@@ -876,7 +876,7 @@ static int qbman_swp_enqueue_multiple_mem_back(struct qbman_swp *s,
 	return num_enqueued;
 }
 
-inline int qbman_swp_enqueue_multiple(struct qbman_swp *s,
+inline int __rte_internal qbman_swp_enqueue_multiple(struct qbman_swp *s,
 				      const struct qbman_eq_desc *d,
 				      const struct qbman_fd *fd,
 				      uint32_t *flags,
@@ -1014,7 +1014,7 @@ static int qbman_swp_enqueue_multiple_fd_mem_back(struct qbman_swp *s,
 	return num_enqueued;
 }
 
-inline int qbman_swp_enqueue_multiple_fd(struct qbman_swp *s,
+inline int __rte_internal qbman_swp_enqueue_multiple_fd(struct qbman_swp *s,
 					 const struct qbman_eq_desc *d,
 					 struct qbman_fd **fd,
 					 uint32_t *flags,
@@ -1143,7 +1143,7 @@ static int qbman_swp_enqueue_multiple_desc_mem_back(struct qbman_swp *s,
 
 	return num_enqueued;
 }
-inline int qbman_swp_enqueue_multiple_desc(struct qbman_swp *s,
+inline int __rte_internal qbman_swp_enqueue_multiple_desc(struct qbman_swp *s,
 					   const struct qbman_eq_desc *d,
 					   const struct qbman_fd *fd,
 					   int num_frames)
@@ -1163,7 +1163,7 @@ void qbman_swp_push_get(struct qbman_swp *s, uint8_t channel_idx, int *enabled)
 	*enabled = src | (1 << channel_idx);
 }
 
-void qbman_swp_push_set(struct qbman_swp *s, uint8_t channel_idx, int enable)
+void __rte_internal qbman_swp_push_set(struct qbman_swp *s, uint8_t channel_idx, int enable)
 {
 	uint16_t dqsrc;
 
@@ -1200,12 +1200,12 @@ enum qb_pull_dt_e {
 	qb_pull_dt_framequeue
 };
 
-void qbman_pull_desc_clear(struct qbman_pull_desc *d)
+void __rte_internal qbman_pull_desc_clear(struct qbman_pull_desc *d)
 {
 	memset(d, 0, sizeof(*d));
 }
 
-void qbman_pull_desc_set_storage(struct qbman_pull_desc *d,
+void __rte_internal qbman_pull_desc_set_storage(struct qbman_pull_desc *d,
 				 struct qbman_result *storage,
 				 dma_addr_t storage_phys,
 				 int stash)
@@ -1225,7 +1225,7 @@ void qbman_pull_desc_set_storage(struct qbman_pull_desc *d,
 	d->pull.rsp_addr = storage_phys;
 }
 
-void qbman_pull_desc_set_numframes(struct qbman_pull_desc *d,
+void __rte_internal qbman_pull_desc_set_numframes(struct qbman_pull_desc *d,
 				   uint8_t numframes)
 {
 	d->pull.numf = numframes - 1;
@@ -1236,7 +1236,7 @@ void qbman_pull_desc_set_token(struct qbman_pull_desc *d, uint8_t token)
 	d->pull.tok = token;
 }
 
-void qbman_pull_desc_set_fq(struct qbman_pull_desc *d, uint32_t fqid)
+void __rte_internal qbman_pull_desc_set_fq(struct qbman_pull_desc *d, uint32_t fqid)
 {
 	d->pull.verb |= 1 << QB_VDQCR_VERB_DCT_SHIFT;
 	d->pull.verb |= qb_pull_dt_framequeue << QB_VDQCR_VERB_DT_SHIFT;
@@ -1321,7 +1321,7 @@ static int qbman_swp_pull_mem_back(struct qbman_swp *s,
 	return 0;
 }
 
-inline int qbman_swp_pull(struct qbman_swp *s, struct qbman_pull_desc *d)
+inline int __rte_internal qbman_swp_pull(struct qbman_swp *s, struct qbman_pull_desc *d)
 {
 	return qbman_swp_pull_ptr(s, d);
 }
@@ -1345,7 +1345,7 @@ inline int qbman_swp_pull(struct qbman_swp *s, struct qbman_pull_desc *d)
 
 #include <rte_prefetch.h>
 
-void qbman_swp_prefetch_dqrr_next(struct qbman_swp *s)
+void __rte_internal qbman_swp_prefetch_dqrr_next(struct qbman_swp *s)
 {
 	const struct qbman_result *p;
 
@@ -1358,7 +1358,7 @@ void qbman_swp_prefetch_dqrr_next(struct qbman_swp *s)
  * only once, so repeated calls can return a sequence of DQRR entries, without
  * requiring they be consumed immediately or in any particular order.
  */
-inline const struct qbman_result *qbman_swp_dqrr_next(struct qbman_swp *s)
+inline const struct qbman_result *__rte_internal qbman_swp_dqrr_next(struct qbman_swp *s)
 {
 	return qbman_swp_dqrr_next_ptr(s);
 }
@@ -1483,7 +1483,7 @@ const struct qbman_result *qbman_swp_dqrr_next_mem_back(struct qbman_swp *s)
 }
 
 /* Consume DQRR entries previously returned from qbman_swp_dqrr_next(). */
-void qbman_swp_dqrr_consume(struct qbman_swp *s,
+void __rte_internal qbman_swp_dqrr_consume(struct qbman_swp *s,
 			    const struct qbman_result *dq)
 {
 	qbman_cinh_write(&s->sys,
@@ -1491,7 +1491,7 @@ void qbman_swp_dqrr_consume(struct qbman_swp *s,
 }
 
 /* Consume DQRR entries previously returned from qbman_swp_dqrr_next(). */
-void qbman_swp_dqrr_idx_consume(struct qbman_swp *s,
+void __rte_internal qbman_swp_dqrr_idx_consume(struct qbman_swp *s,
 			    uint8_t dqrr_index)
 {
 	qbman_cinh_write(&s->sys, QBMAN_CINH_SWP_DCAP, dqrr_index);
@@ -1501,7 +1501,7 @@ void qbman_swp_dqrr_idx_consume(struct qbman_swp *s,
 /* Polling user-provided storage */
 /*********************************/
 
-int qbman_result_has_new_result(struct qbman_swp *s,
+int __rte_internal qbman_result_has_new_result(struct qbman_swp *s,
 				struct qbman_result *dq)
 {
 	if (dq->dq.tok == 0)
@@ -1529,7 +1529,7 @@ int qbman_result_has_new_result(struct qbman_swp *s,
 	return 1;
 }
 
-int qbman_check_new_result(struct qbman_result *dq)
+int __rte_internal qbman_check_new_result(struct qbman_result *dq)
 {
 	if (dq->dq.tok == 0)
 		return 0;
@@ -1544,7 +1544,7 @@ int qbman_check_new_result(struct qbman_result *dq)
 	return 1;
 }
 
-int qbman_check_command_complete(struct qbman_result *dq)
+int __rte_internal __rte_internal qbman_check_command_complete(struct qbman_result *dq)
 {
 	struct qbman_swp *s;
 
@@ -1631,17 +1631,17 @@ int qbman_result_is_FQPN(const struct qbman_result *dq)
 
 /* These APIs assume qbman_result_is_DQ() is TRUE */
 
-uint8_t qbman_result_DQ_flags(const struct qbman_result *dq)
+uint8_t __rte_internal qbman_result_DQ_flags(const struct qbman_result *dq)
 {
 	return dq->dq.stat;
 }
 
-uint16_t qbman_result_DQ_seqnum(const struct qbman_result *dq)
+uint16_t __rte_internal qbman_result_DQ_seqnum(const struct qbman_result *dq)
 {
 	return dq->dq.seqnum;
 }
 
-uint16_t qbman_result_DQ_odpid(const struct qbman_result *dq)
+uint16_t __rte_internal qbman_result_DQ_odpid(const struct qbman_result *dq)
 {
 	return dq->dq.oprid;
 }
@@ -1661,12 +1661,12 @@ uint32_t qbman_result_DQ_frame_count(const struct qbman_result *dq)
 	return dq->dq.fq_frm_cnt;
 }
 
-uint64_t qbman_result_DQ_fqd_ctx(const struct qbman_result *dq)
+uint64_t __rte_internal qbman_result_DQ_fqd_ctx(const struct qbman_result *dq)
 {
 	return dq->dq.fqd_ctx;
 }
 
-const struct qbman_fd *qbman_result_DQ_fd(const struct qbman_result *dq)
+const struct qbman_fd *__rte_internal qbman_result_DQ_fd(const struct qbman_result *dq)
 {
 	return (const struct qbman_fd *)&dq->dq.fd[0];
 }
@@ -1674,7 +1674,7 @@ const struct qbman_fd *qbman_result_DQ_fd(const struct qbman_result *dq)
 /**************************************/
 /* Parsing state-change notifications */
 /**************************************/
-uint8_t qbman_result_SCN_state(const struct qbman_result *scn)
+uint8_t __rte_internal qbman_result_SCN_state(const struct qbman_result *scn)
 {
 	return scn->scn.state;
 }
@@ -1733,22 +1733,22 @@ uint64_t qbman_result_cgcu_icnt(const struct qbman_result *scn)
 /********************/
 /* Parsing EQ RESP  */
 /********************/
-struct qbman_fd *qbman_result_eqresp_fd(struct qbman_result *eqresp)
+struct qbman_fd *__rte_internal qbman_result_eqresp_fd(struct qbman_result *eqresp)
 {
 	return (struct qbman_fd *)&eqresp->eq_resp.fd[0];
 }
 
-void qbman_result_eqresp_set_rspid(struct qbman_result *eqresp, uint8_t val)
+void __rte_internal qbman_result_eqresp_set_rspid(struct qbman_result *eqresp, uint8_t val)
 {
 	eqresp->eq_resp.rspid = val;
 }
 
-uint8_t qbman_result_eqresp_rspid(struct qbman_result *eqresp)
+uint8_t __rte_internal qbman_result_eqresp_rspid(struct qbman_result *eqresp)
 {
 	return eqresp->eq_resp.rspid;
 }
 
-uint8_t qbman_result_eqresp_rc(struct qbman_result *eqresp)
+uint8_t __rte_internal qbman_result_eqresp_rc(struct qbman_result *eqresp)
 {
 	if (eqresp->eq_resp.rc == 0xE)
 		return 0;
@@ -1762,13 +1762,13 @@ uint8_t qbman_result_eqresp_rc(struct qbman_result *eqresp)
 #define QB_BR_RC_VALID_SHIFT  5
 #define QB_BR_RCDI_SHIFT      6
 
-void qbman_release_desc_clear(struct qbman_release_desc *d)
+void __rte_internal qbman_release_desc_clear(struct qbman_release_desc *d)
 {
 	memset(d, 0, sizeof(*d));
 	d->br.verb = 1 << QB_BR_RC_VALID_SHIFT;
 }
 
-void qbman_release_desc_set_bpid(struct qbman_release_desc *d, uint16_t bpid)
+void __rte_internal qbman_release_desc_set_bpid(struct qbman_release_desc *d, uint16_t bpid)
 {
 	d->br.bpid = bpid;
 }
@@ -1851,7 +1851,7 @@ static int qbman_swp_release_mem_back(struct qbman_swp *s,
 	return 0;
 }
 
-inline int qbman_swp_release(struct qbman_swp *s,
+inline int __rte_internal qbman_swp_release(struct qbman_swp *s,
 			     const struct qbman_release_desc *d,
 			     const uint64_t *buffers,
 			     unsigned int num_buffers)
@@ -1879,7 +1879,7 @@ struct qbman_acquire_rslt {
 	uint64_t buf[7];
 };
 
-int qbman_swp_acquire(struct qbman_swp *s, uint16_t bpid, uint64_t *buffers,
+int __rte_internal qbman_swp_acquire(struct qbman_swp *s, uint16_t bpid, uint64_t *buffers,
 		      unsigned int num_buffers)
 {
 	struct qbman_acquire_desc *p;
@@ -2097,12 +2097,12 @@ int qbman_swp_CDAN_set_context_enable(struct qbman_swp *s, uint16_t channelid,
 				  1, ctx);
 }
 
-uint8_t qbman_get_dqrr_idx(const struct qbman_result *dqrr)
+uint8_t __rte_internal qbman_get_dqrr_idx(const struct qbman_result *dqrr)
 {
 	return QBMAN_IDX_FROM_DQRR(dqrr);
 }
 
-struct qbman_result *qbman_get_dqrr_from_idx(struct qbman_swp *s, uint8_t idx)
+struct qbman_result *__rte_internal qbman_get_dqrr_from_idx(struct qbman_swp *s, uint8_t idx)
 {
 	struct qbman_result *dq;
 

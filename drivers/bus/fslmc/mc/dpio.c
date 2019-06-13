@@ -26,7 +26,7 @@
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpio_open(struct fsl_mc_io *mc_io,
+int __rte_internal dpio_open(struct fsl_mc_io *mc_io,
 	      uint32_t cmd_flags,
 	      int dpio_id,
 	      uint16_t *token)
@@ -61,7 +61,7 @@ int dpio_open(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpio_close(struct fsl_mc_io *mc_io,
+int __rte_internal dpio_close(struct fsl_mc_io *mc_io,
 	       uint32_t cmd_flags,
 	       uint16_t token)
 {
@@ -173,7 +173,7 @@ int dpio_destroy(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise
  */
-int dpio_enable(struct fsl_mc_io *mc_io,
+int __rte_internal dpio_enable(struct fsl_mc_io *mc_io,
 		uint32_t cmd_flags,
 		uint16_t token)
 {
@@ -196,7 +196,7 @@ int dpio_enable(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise
  */
-int dpio_disable(struct fsl_mc_io *mc_io,
+int __rte_internal dpio_disable(struct fsl_mc_io *mc_io,
 		 uint32_t cmd_flags,
 		 uint16_t token)
 {
@@ -253,7 +253,7 @@ int dpio_is_enabled(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpio_reset(struct fsl_mc_io *mc_io,
+int __rte_internal dpio_reset(struct fsl_mc_io *mc_io,
 	       uint32_t cmd_flags,
 	       uint16_t token)
 {
@@ -277,7 +277,7 @@ int dpio_reset(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise
  */
-int dpio_get_attributes(struct fsl_mc_io *mc_io,
+int __rte_internal dpio_get_attributes(struct fsl_mc_io *mc_io,
 			uint32_t cmd_flags,
 			uint16_t token,
 			struct dpio_attr *attr)
@@ -322,7 +322,7 @@ int dpio_get_attributes(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpio_set_stashing_destination(struct fsl_mc_io *mc_io,
+int __rte_internal dpio_set_stashing_destination(struct fsl_mc_io *mc_io,
 				  uint32_t cmd_flags,
 				  uint16_t token,
 				  uint8_t sdest)
@@ -386,7 +386,7 @@ int dpio_get_stashing_destination(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpio_add_static_dequeue_channel(struct fsl_mc_io *mc_io,
+int __rte_internal dpio_add_static_dequeue_channel(struct fsl_mc_io *mc_io,
 				    uint32_t cmd_flags,
 				    uint16_t token,
 				    int dpcon_id,
@@ -425,7 +425,7 @@ int dpio_add_static_dequeue_channel(struct fsl_mc_io *mc_io,
  *
  * Return:	'0' on Success; Error code otherwise.
  */
-int dpio_remove_static_dequeue_channel(struct fsl_mc_io *mc_io,
+int __rte_internal dpio_remove_static_dequeue_channel(struct fsl_mc_io *mc_io,
 				       uint32_t cmd_flags,
 				       uint16_t token,
 				       int dpcon_id)

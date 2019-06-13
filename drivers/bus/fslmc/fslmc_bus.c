@@ -28,7 +28,7 @@ int dpaa2_logtype_bus;
 #define FSLMC_BUS_NAME	fslmc
 
 struct rte_fslmc_bus rte_fslmc_bus;
-uint8_t dpaa2_virt_mode;
+uint8_t __rte_internal dpaa2_virt_mode;
 
 uint32_t
 rte_fslmc_get_device_count(enum rte_dpaa2_dev_type device_type)

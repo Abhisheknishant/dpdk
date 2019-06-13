@@ -89,7 +89,7 @@ dpaa2_create_dpbp_device(int vdev_fd __rte_unused,
 	return 0;
 }
 
-struct dpaa2_dpbp_dev *dpaa2_alloc_dpbp_dev(void)
+struct dpaa2_dpbp_dev *__rte_internal dpaa2_alloc_dpbp_dev(void)
 {
 	struct dpaa2_dpbp_dev *dpbp_dev = NULL;
 
@@ -102,7 +102,7 @@ struct dpaa2_dpbp_dev *dpaa2_alloc_dpbp_dev(void)
 	return dpbp_dev;
 }
 
-void dpaa2_free_dpbp_dev(struct dpaa2_dpbp_dev *dpbp)
+void __rte_internal dpaa2_free_dpbp_dev(struct dpaa2_dpbp_dev *dpbp)
 {
 	struct dpaa2_dpbp_dev *dpbp_dev = NULL;
 
@@ -115,7 +115,7 @@ void dpaa2_free_dpbp_dev(struct dpaa2_dpbp_dev *dpbp)
 	}
 }
 
-int dpaa2_dpbp_supported(void)
+int __rte_internal dpaa2_dpbp_supported(void)
 {
 	if (TAILQ_EMPTY(&dpbp_dev_list))
 		return -1;

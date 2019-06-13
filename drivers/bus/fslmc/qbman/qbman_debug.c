@@ -23,7 +23,7 @@ struct qbman_fq_query_desc {
 	uint8_t reserved2[57];
 };
 
-int qbman_fq_query_state(struct qbman_swp *s, uint32_t fqid,
+int __rte_internal qbman_fq_query_state(struct qbman_swp *s, uint32_t fqid,
 			 struct qbman_fq_query_np_rslt *r)
 {
 	struct qbman_fq_query_desc *p;
@@ -54,7 +54,7 @@ int qbman_fq_query_state(struct qbman_swp *s, uint32_t fqid,
 	return 0;
 }
 
-uint32_t qbman_fq_state_frame_count(const struct qbman_fq_query_np_rslt *r)
+uint32_t __rte_internal qbman_fq_state_frame_count(const struct qbman_fq_query_np_rslt *r)
 {
 	return (r->frm_cnt & 0x00FFFFFF);
 }

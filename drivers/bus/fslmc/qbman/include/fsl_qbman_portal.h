@@ -108,7 +108,7 @@ uint32_t qbman_swp_interrupt_read_status(struct qbman_swp *p);
  * @p: the given software portal object.
  * @mask: The value to set in SWP_ISR register.
  */
-void qbman_swp_interrupt_clear_status(struct qbman_swp *p, uint32_t mask);
+void __rte_internal qbman_swp_interrupt_clear_status(struct qbman_swp *p, uint32_t mask);
 
 /**
  * qbman_swp_dqrr_thrshld_read_status() - Get the data in software portal
@@ -277,7 +277,7 @@ void qbman_swp_push_get(struct qbman_swp *s, uint8_t channel_idx, int *enabled);
  * rather by specifying the index (from 0 to 15) that has been mapped to the
  * desired channel.
  */
-void qbman_swp_push_set(struct qbman_swp *s, uint8_t channel_idx, int enable);
+void __rte_internal qbman_swp_push_set(struct qbman_swp *s, uint8_t channel_idx, int enable);
 
 /* ------------------- */
 /* Pull-mode dequeuing */
@@ -316,7 +316,7 @@ enum qbman_pull_type_e {
  * default/starting state.
  * @d: the pull dequeue descriptor to be cleared.
  */
-void qbman_pull_desc_clear(struct qbman_pull_desc *d);
+void __rte_internal qbman_pull_desc_clear(struct qbman_pull_desc *d);
 
 /**
  * qbman_pull_desc_set_storage()- Set the pull dequeue storage
@@ -331,7 +331,7 @@ void qbman_pull_desc_clear(struct qbman_pull_desc *d);
  * the caller provides in 'storage_phys'), and 'stash' controls whether or not
  * those writes to main-memory express a cache-warming attribute.
  */
-void qbman_pull_desc_set_storage(struct qbman_pull_desc *d,
+void __rte_internal qbman_pull_desc_set_storage(struct qbman_pull_desc *d,
 				 struct qbman_result *storage,
 				 uint64_t storage_phys,
 				 int stash);
@@ -340,7 +340,7 @@ void qbman_pull_desc_set_storage(struct qbman_pull_desc *d,
  * @d: the pull dequeue descriptor to be set.
  * @numframes: number of frames to be set, must be between 1 and 16, inclusive.
  */
-void qbman_pull_desc_set_numframes(struct qbman_pull_desc *d,
+void __rte_internal qbman_pull_desc_set_numframes(struct qbman_pull_desc *d,
 				   uint8_t numframes);
 /**
  * qbman_pull_desc_set_token() - Set dequeue token for pull command
@@ -363,7 +363,7 @@ void qbman_pull_desc_set_token(struct qbman_pull_desc *d, uint8_t token);
  * qbman_pull_desc_set_fq() - Set fqid from which the dequeue command dequeues.
  * @fqid: the frame queue index of the given FQ.
  */
-void qbman_pull_desc_set_fq(struct qbman_pull_desc *d, uint32_t fqid);
+void __rte_internal qbman_pull_desc_set_fq(struct qbman_pull_desc *d, uint32_t fqid);
 
 /**
  * qbman_pull_desc_set_wq() - Set wqid from which the dequeue command dequeues.
@@ -398,7 +398,7 @@ void qbman_pull_desc_set_rad(struct qbman_pull_desc *d, int rad);
  * Return 0 for success, and -EBUSY if the software portal is not ready
  * to do pull dequeue.
  */
-int qbman_swp_pull(struct qbman_swp *s, struct qbman_pull_desc *d);
+int __rte_internal qbman_swp_pull(struct qbman_swp *s, struct qbman_pull_desc *d);
 
 /* -------------------------------- */
 /* Polling DQRR for dequeue results */
@@ -412,13 +412,13 @@ int qbman_swp_pull(struct qbman_swp *s, struct qbman_pull_desc *d);
  * only once, so repeated calls can return a sequence of DQRR entries, without
  * requiring they be consumed immediately or in any particular order.
  */
-const struct qbman_result *qbman_swp_dqrr_next(struct qbman_swp *p);
+const struct qbman_result *__rte_internal qbman_swp_dqrr_next(struct qbman_swp *p);
 
 /**
  * qbman_swp_prefetch_dqrr_next() - prefetch the next DQRR entry.
  * @s: the software portal object.
  */
-void qbman_swp_prefetch_dqrr_next(struct qbman_swp *s);
+void __rte_internal qbman_swp_prefetch_dqrr_next(struct qbman_swp *s);
 
 /**
  * qbman_swp_dqrr_consume() -  Consume DQRR entries previously returned from
@@ -426,14 +426,14 @@ void qbman_swp_prefetch_dqrr_next(struct qbman_swp *s);
  * @s: the software portal object.
  * @dq: the DQRR entry to be consumed.
  */
-void qbman_swp_dqrr_consume(struct qbman_swp *s, const struct qbman_result *dq);
+void __rte_internal qbman_swp_dqrr_consume(struct qbman_swp *s, const struct qbman_result *dq);
 
 /**
  * qbman_swp_dqrr_idx_consume() -  Given the DQRR index consume the DQRR entry
  * @s: the software portal object.
  * @dqrr_index: the DQRR index entry to be consumed.
  */
-void qbman_swp_dqrr_idx_consume(struct qbman_swp *s, uint8_t dqrr_index);
+void __rte_internal qbman_swp_dqrr_idx_consume(struct qbman_swp *s, uint8_t dqrr_index);
 
 /**
  * qbman_get_dqrr_idx() - Get dqrr index from the given dqrr
@@ -441,7 +441,7 @@ void qbman_swp_dqrr_idx_consume(struct qbman_swp *s, uint8_t dqrr_index);
  *
  * Return dqrr index.
  */
-uint8_t qbman_get_dqrr_idx(const struct qbman_result *dqrr);
+uint8_t __rte_internal qbman_get_dqrr_idx(const struct qbman_result *dqrr);
 
 /**
  * qbman_get_dqrr_from_idx() - Use index to get the dqrr entry from the
@@ -451,7 +451,7 @@ uint8_t qbman_get_dqrr_idx(const struct qbman_result *dqrr);
  *
  * Return dqrr entry object.
  */
-struct qbman_result *qbman_get_dqrr_from_idx(struct qbman_swp *s, uint8_t idx);
+struct qbman_result *__rte_internal qbman_get_dqrr_from_idx(struct qbman_swp *s, uint8_t idx);
 
 /* ------------------------------------------------- */
 /* Polling user-provided storage for dequeue results */
@@ -476,7 +476,7 @@ struct qbman_result *qbman_get_dqrr_from_idx(struct qbman_swp *s, uint8_t idx);
  * Return 1 for getting a valid dequeue result, or 0 for not getting a valid
  * dequeue result.
  */
-int qbman_result_has_new_result(struct qbman_swp *s,
+int __rte_internal qbman_result_has_new_result(struct qbman_swp *s,
 				struct qbman_result *dq);
 
 /**
@@ -488,9 +488,9 @@ int qbman_result_has_new_result(struct qbman_swp *s,
  * Return 1 for getting a valid dequeue result, or 0 for not getting a valid
  * dequeue result.
  */
-int qbman_check_command_complete(struct qbman_result *dq);
+int __rte_internal __rte_internal qbman_check_command_complete(struct qbman_result *dq);
 
-int qbman_check_new_result(struct qbman_result *dq);
+int __rte_internal qbman_check_new_result(struct qbman_result *dq);
 
 /* -------------------------------------------------------- */
 /* Parsing dequeue entries (DQRR and user-provided storage) */
@@ -649,7 +649,7 @@ static inline int qbman_result_DQ_is_pull_complete(
  *
  * Return seqnum.
  */
-uint16_t qbman_result_DQ_seqnum(const struct qbman_result *dq);
+uint16_t __rte_internal qbman_result_DQ_seqnum(const struct qbman_result *dq);
 
 /**
  * qbman_result_DQ_odpid() - Get the seqnum field in dequeue response
@@ -658,7 +658,7 @@ uint16_t qbman_result_DQ_seqnum(const struct qbman_result *dq);
  *
  * Return odpid.
  */
-uint16_t qbman_result_DQ_odpid(const struct qbman_result *dq);
+uint16_t __rte_internal qbman_result_DQ_odpid(const struct qbman_result *dq);
 
 /**
  * qbman_result_DQ_fqid() - Get the fqid in dequeue response
@@ -690,7 +690,7 @@ uint32_t qbman_result_DQ_frame_count(const struct qbman_result *dq);
  *
  * Return the frame queue context.
  */
-uint64_t qbman_result_DQ_fqd_ctx(const struct qbman_result *dq);
+uint64_t __rte_internal qbman_result_DQ_fqd_ctx(const struct qbman_result *dq);
 
 /**
  * qbman_result_DQ_fd() - Get the frame descriptor in dequeue response
@@ -698,7 +698,7 @@ uint64_t qbman_result_DQ_fqd_ctx(const struct qbman_result *dq);
  *
  * Return the frame descriptor.
  */
-const struct qbman_fd *qbman_result_DQ_fd(const struct qbman_result *dq);
+const struct qbman_fd *__rte_internal qbman_result_DQ_fd(const struct qbman_result *dq);
 
 /* State-change notifications (FQDAN/CDAN/CSCN/...). */
 
@@ -708,7 +708,7 @@ const struct qbman_fd *qbman_result_DQ_fd(const struct qbman_result *dq);
  *
  * Return the state in the notifiation.
  */
-uint8_t qbman_result_SCN_state(const struct qbman_result *scn);
+uint8_t __rte_internal qbman_result_SCN_state(const struct qbman_result *scn);
 
 /**
  * qbman_result_SCN_rid() - Get the resource id from the notification
@@ -841,7 +841,7 @@ struct qbman_eq_response {
  * default/starting state.
  * @d: the given enqueue descriptor.
  */
-void qbman_eq_desc_clear(struct qbman_eq_desc *d);
+void __rte_internal qbman_eq_desc_clear(struct qbman_eq_desc *d);
 
 /* Exactly one of the following descriptor "actions" should be set. (Calling
  * any one of these will replace the effect of any prior call to one of these.)
@@ -861,7 +861,7 @@ void qbman_eq_desc_clear(struct qbman_eq_desc *d);
  * @response_success: 1 = enqueue with response always; 0 = enqueue with
  * rejections returned on a FQ.
  */
-void qbman_eq_desc_set_no_orp(struct qbman_eq_desc *d, int respond_success);
+void __rte_internal qbman_eq_desc_set_no_orp(struct qbman_eq_desc *d, int respond_success);
 /**
  * qbman_eq_desc_set_orp() - Set order-resotration in the enqueue descriptor
  * @d: the enqueue descriptor.
@@ -872,7 +872,7 @@ void qbman_eq_desc_set_no_orp(struct qbman_eq_desc *d, int respond_success);
  * @incomplete: indiates whether this is the last fragments using the same
  * sequeue number.
  */
-void qbman_eq_desc_set_orp(struct qbman_eq_desc *d, int respond_success,
+void __rte_internal qbman_eq_desc_set_orp(struct qbman_eq_desc *d, int respond_success,
 			   uint16_t opr_id, uint16_t seqnum, int incomplete);
 
 /**
@@ -906,7 +906,7 @@ void qbman_eq_desc_set_orp_nesn(struct qbman_eq_desc *d, uint16_t opr_id,
  * data structure.) 'stash' controls whether or not the write to main-memory
  * expresses a cache-warming attribute.
  */
-void qbman_eq_desc_set_response(struct qbman_eq_desc *d,
+void __rte_internal qbman_eq_desc_set_response(struct qbman_eq_desc *d,
 				uint64_t storage_phys,
 				int stash);
 
@@ -920,7 +920,7 @@ void qbman_eq_desc_set_response(struct qbman_eq_desc *d,
  * result "storage" before issuing an enqueue, and use any non-zero 'token'
  * value.
  */
-void qbman_eq_desc_set_token(struct qbman_eq_desc *d, uint8_t token);
+void __rte_internal qbman_eq_desc_set_token(struct qbman_eq_desc *d, uint8_t token);
 
 /**
  * Exactly one of the following descriptor "targets" should be set. (Calling any
@@ -935,7 +935,7 @@ void qbman_eq_desc_set_token(struct qbman_eq_desc *d, uint8_t token);
  * @d: the enqueue descriptor
  * @fqid: the id of the frame queue to be enqueued.
  */
-void qbman_eq_desc_set_fq(struct qbman_eq_desc *d, uint32_t fqid);
+void __rte_internal qbman_eq_desc_set_fq(struct qbman_eq_desc *d, uint32_t fqid);
 
 /**
  * qbman_eq_desc_set_qd() - Set Queuing Destination for the enqueue command.
@@ -944,7 +944,7 @@ void qbman_eq_desc_set_fq(struct qbman_eq_desc *d, uint32_t fqid);
  * @qd_bin: the queuing destination bin
  * @qd_prio: the queuing destination priority.
  */
-void qbman_eq_desc_set_qd(struct qbman_eq_desc *d, uint32_t qdid,
+void __rte_internal qbman_eq_desc_set_qd(struct qbman_eq_desc *d, uint32_t qdid,
 			  uint16_t qd_bin, uint8_t qd_prio);
 
 /**
@@ -969,7 +969,7 @@ void qbman_eq_desc_set_eqdi(struct qbman_eq_desc *d, int enable);
  * held-active (order-preserving) FQ, whether the FQ should be parked instead of
  * being rescheduled.)
  */
-void qbman_eq_desc_set_dca(struct qbman_eq_desc *d, int enable,
+void __rte_internal qbman_eq_desc_set_dca(struct qbman_eq_desc *d, int enable,
 			   uint8_t dqrr_idx, int park);
 
 /**
@@ -978,7 +978,7 @@ void qbman_eq_desc_set_dca(struct qbman_eq_desc *d, int enable,
  *
  * Return the fd pointer.
  */
-struct qbman_fd *qbman_result_eqresp_fd(struct qbman_result *eqresp);
+struct qbman_fd *__rte_internal qbman_result_eqresp_fd(struct qbman_result *eqresp);
 
 /**
  * qbman_result_eqresp_set_rspid() - Set the response id in enqueue response.
@@ -988,7 +988,7 @@ struct qbman_fd *qbman_result_eqresp_fd(struct qbman_result *eqresp);
  * This value is set into the response id before the enqueue command, which,
  * get overwritten by qbman once the enqueue command is complete.
  */
-void qbman_result_eqresp_set_rspid(struct qbman_result *eqresp, uint8_t val);
+void __rte_internal qbman_result_eqresp_set_rspid(struct qbman_result *eqresp, uint8_t val);
 
 /**
  * qbman_result_eqresp_rspid() - Get the response id.
@@ -1000,7 +1000,7 @@ void qbman_result_eqresp_set_rspid(struct qbman_result *eqresp, uint8_t val);
  * copied into the enqueue response to determine if the command has been
  * completed, and response has been updated.
  */
-uint8_t qbman_result_eqresp_rspid(struct qbman_result *eqresp);
+uint8_t __rte_internal qbman_result_eqresp_rspid(struct qbman_result *eqresp);
 
 /**
  * qbman_result_eqresp_rc() - determines if enqueue command is sucessful.
@@ -1008,7 +1008,7 @@ uint8_t qbman_result_eqresp_rspid(struct qbman_result *eqresp);
  *
  * Return 0 when command is sucessful.
  */
-uint8_t qbman_result_eqresp_rc(struct qbman_result *eqresp);
+uint8_t __rte_internal qbman_result_eqresp_rc(struct qbman_result *eqresp);
 
 /**
  * qbman_swp_enqueue() - Issue an enqueue command.
@@ -1034,7 +1034,7 @@ int qbman_swp_enqueue(struct qbman_swp *s, const struct qbman_eq_desc *d,
  *
  * Return the number of enqueued frames, -EBUSY if the EQCR is not ready.
  */
-int qbman_swp_enqueue_multiple(struct qbman_swp *s,
+int __rte_internal qbman_swp_enqueue_multiple(struct qbman_swp *s,
 			       const struct qbman_eq_desc *d,
 			       const struct qbman_fd *fd,
 			       uint32_t *flags,
@@ -1051,7 +1051,7 @@ int qbman_swp_enqueue_multiple(struct qbman_swp *s,
  *
  * Return the number of enqueued frames, -EBUSY if the EQCR is not ready.
  */
-int qbman_swp_enqueue_multiple_fd(struct qbman_swp *s,
+int __rte_internal qbman_swp_enqueue_multiple_fd(struct qbman_swp *s,
 				  const struct qbman_eq_desc *d,
 				  struct qbman_fd **fd,
 				  uint32_t *flags,
@@ -1067,7 +1067,7 @@ int qbman_swp_enqueue_multiple_fd(struct qbman_swp *s,
  *
  * Return the number of enqueued frames, -EBUSY if the EQCR is not ready.
  */
-int qbman_swp_enqueue_multiple_desc(struct qbman_swp *s,
+int __rte_internal qbman_swp_enqueue_multiple_desc(struct qbman_swp *s,
 				    const struct qbman_eq_desc *d,
 				    const struct qbman_fd *fd,
 				    int num_frames);
@@ -1108,13 +1108,13 @@ struct qbman_release_desc {
  * default/starting state.
  * @d: the qbman release descriptor.
  */
-void qbman_release_desc_clear(struct qbman_release_desc *d);
+void __rte_internal qbman_release_desc_clear(struct qbman_release_desc *d);
 
 /**
  * qbman_release_desc_set_bpid() - Set the ID of the buffer pool to release to
  * @d: the qbman release descriptor.
  */
-void qbman_release_desc_set_bpid(struct qbman_release_desc *d, uint16_t bpid);
+void __rte_internal qbman_release_desc_set_bpid(struct qbman_release_desc *d, uint16_t bpid);
 
 /**
  * qbman_release_desc_set_rcdi() - Determines whether or not the portal's RCDI
@@ -1132,7 +1132,7 @@ void qbman_release_desc_set_rcdi(struct qbman_release_desc *d, int enable);
  *
  * Return 0 for success, -EBUSY if the release command ring is not ready.
  */
-int qbman_swp_release(struct qbman_swp *s, const struct qbman_release_desc *d,
+int __rte_internal qbman_swp_release(struct qbman_swp *s, const struct qbman_release_desc *d,
 		      const uint64_t *buffers, unsigned int num_buffers);
 
 /* TODO:
@@ -1157,7 +1157,7 @@ int qbman_swp_release_thresh(struct qbman_swp *s, unsigned int thresh);
  * Return 0 for success, or negative error code if the acquire command
  * fails.
  */
-int qbman_swp_acquire(struct qbman_swp *s, uint16_t bpid, uint64_t *buffers,
+int __rte_internal qbman_swp_acquire(struct qbman_swp *s, uint16_t bpid, uint64_t *buffers,
 		      unsigned int num_buffers);
 
 	/*****************/
