@@ -13,7 +13,7 @@
 #define CPT_OFFSET_CONTROL_BYTES 8
 
 int32_t
-cpt_pmd_ops_helper_get_mlen_direct_mode(void)
+__rte_internal cpt_pmd_ops_helper_get_mlen_direct_mode(void)
 {
 	uint32_t len = 0;
 
@@ -27,7 +27,7 @@ cpt_pmd_ops_helper_get_mlen_direct_mode(void)
 }
 
 int
-cpt_pmd_ops_helper_get_mlen_sg_mode(void)
+__rte_internal cpt_pmd_ops_helper_get_mlen_sg_mode(void)
 {
 	uint32_t len = 0;
 

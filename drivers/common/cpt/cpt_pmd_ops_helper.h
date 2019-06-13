@@ -20,7 +20,7 @@
  */
 
 int32_t
-cpt_pmd_ops_helper_get_mlen_direct_mode(void);
+__rte_internal cpt_pmd_ops_helper_get_mlen_direct_mode(void);
 
 /*
  * Get size of contiguous meta buffer to be allocated when working in scatter
@@ -30,5 +30,5 @@ cpt_pmd_ops_helper_get_mlen_direct_mode(void);
  *   - length
  */
 int
-cpt_pmd_ops_helper_get_mlen_sg_mode(void);
+__rte_internal cpt_pmd_ops_helper_get_mlen_sg_mode(void);
 #endif /* _CPT_PMD_OPS_HELPER_H_ */
