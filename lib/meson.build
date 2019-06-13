@@ -35,6 +35,7 @@ if is_windows
 endif
 
 default_cflags = machine_args
+default_cflags += '-DBUILDING_RTE_SDK'
 if cc.has_argument('-Wno-format-truncation')
 	default_cflags += '-Wno-format-truncation'
 endif

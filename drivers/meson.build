@@ -23,6 +23,7 @@ endif
 
 # specify -D_GNU_SOURCE unconditionally
 default_cflags += '-D_GNU_SOURCE'
+default_cflags += '-DBUILDING_RTE_SDK'
 
 foreach class:dpdk_driver_classes
 	drivers = []
