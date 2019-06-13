@@ -190,7 +190,7 @@ mbox_send(struct mbox *m, struct octeontx_mbox_hdr *hdr, const void *txmsg,
 }
 
 int
-octeontx_mbox_set_ram_mbox_base(uint8_t *ram_mbox_base)
+__rte_internal octeontx_mbox_set_ram_mbox_base(uint8_t *ram_mbox_base)
 {
 	struct mbox *m = &octeontx_mbox;
 
@@ -213,7 +213,7 @@ octeontx_mbox_set_ram_mbox_base(uint8_t *ram_mbox_base)
 }
 
 int
-octeontx_mbox_set_reg(uint8_t *reg)
+__rte_internal octeontx_mbox_set_reg(uint8_t *reg)
 {
 	struct mbox *m = &octeontx_mbox;
 
@@ -236,7 +236,7 @@ octeontx_mbox_set_reg(uint8_t *reg)
 }
 
 int
-octeontx_mbox_send(struct octeontx_mbox_hdr *hdr, void *txdata,
+__rte_internal octeontx_mbox_send(struct octeontx_mbox_hdr *hdr, void *txdata,
 				 uint16_t txlen, void *rxdata, uint16_t rxlen)
 {
 	struct mbox *m = &octeontx_mbox;
