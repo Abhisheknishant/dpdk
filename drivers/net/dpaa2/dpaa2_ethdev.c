@@ -1798,7 +1798,7 @@ dpaa2_dev_rss_hash_conf_get(struct rte_eth_dev *dev,
 	return 0;
 }
 
-int dpaa2_eth_eventq_attach(const struct rte_eth_dev *dev,
+int __rte_internal dpaa2_eth_eventq_attach(const struct rte_eth_dev *dev,
 		int eth_rx_queue_id,
 		uint16_t dpcon_id,
 		const struct rte_event_eth_rx_adapter_queue_conf *queue_conf)
@@ -1881,7 +1881,7 @@ int dpaa2_eth_eventq_attach(const struct rte_eth_dev *dev,
 	return 0;
 }
 
-int dpaa2_eth_eventq_detach(const struct rte_eth_dev *dev,
+int __rte_internal dpaa2_eth_eventq_detach(const struct rte_eth_dev *dev,
 		int eth_rx_queue_id)
 {
 	struct dpaa2_dev_priv *eth_priv = dev->data->dev_private;
