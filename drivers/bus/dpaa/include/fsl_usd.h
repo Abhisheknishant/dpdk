@@ -56,7 +56,7 @@ int bman_allocate_raw_portal(struct dpaa_raw_portal *portal);
 int bman_free_raw_portal(struct dpaa_raw_portal *portal);
 
 /* Obtain thread-local UIO file-descriptors */
-int qman_thread_fd(void);
+int __rte_internal qman_thread_fd(void);
 int bman_thread_fd(void);
 
 /* Post-process interrupts. NB, the kernel IRQ handler disables the interrupt
@@ -64,14 +64,14 @@ int bman_thread_fd(void);
  * processing is complete. As such, it is essential to call this before going
  * into another blocking read/select/poll.
  */
-void qman_thread_irq(void);
-void bman_thread_irq(void);
+void __rte_internal qman_thread_irq(void);
+void __rte_internal bman_thread_irq(void);
 
-void qman_clear_irq(void);
+void __rte_internal qman_clear_irq(void);
 
 /* Global setup */
-int qman_global_init(void);
-int bman_global_init(void);
+int __rte_internal qman_global_init(void);
+int __rte_internal bman_global_init(void);
 
 /* Direct portal create and destroy */
 struct qman_portal *fsl_qman_portal_create(void);

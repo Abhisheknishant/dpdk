@@ -694,7 +694,7 @@ int dpaa_eth_rx_queue_setup(struct rte_eth_dev *dev, uint16_t queue_idx,
 }
 
 int
-dpaa_eth_eventq_attach(const struct rte_eth_dev *dev,
+__rte_internal dpaa_eth_eventq_attach(const struct rte_eth_dev *dev,
 		int eth_rx_queue_id,
 		u16 ch_id,
 		const struct rte_event_eth_rx_adapter_queue_conf *queue_conf)
@@ -758,7 +758,7 @@ dpaa_eth_eventq_attach(const struct rte_eth_dev *dev,
 }
 
 int
-dpaa_eth_eventq_detach(const struct rte_eth_dev *dev,
+__rte_internal dpaa_eth_eventq_detach(const struct rte_eth_dev *dev,
 		int eth_rx_queue_id)
 {
 	struct qm_mcc_initfq opts;

@@ -1311,7 +1311,7 @@ struct qman_cgr {
 #define QMAN_CGR_MODE_FRAME          0x00000001
 
 #ifdef CONFIG_FSL_QMAN_FQ_LOOKUP
-void qman_set_fq_lookup_table(void **table);
+void __rte_internal qman_set_fq_lookup_table(void **table);
 #endif
 
 /**
@@ -1319,7 +1319,7 @@ void qman_set_fq_lookup_table(void **table);
  */
 int qman_get_portal_index(void);
 
-u32 qman_portal_dequeue(struct rte_event ev[], unsigned int poll_limit,
+u32 __rte_internal qman_portal_dequeue(struct rte_event ev[], unsigned int poll_limit,
 			void **bufs);
 
 /**
@@ -1330,7 +1330,7 @@ u32 qman_portal_dequeue(struct rte_event ev[], unsigned int poll_limit,
  * processed via qman_poll_***() functions). Returns zero for success, or
  * -EINVAL if the current CPU is sharing a portal hosted on another CPU.
  */
-int qman_irqsource_add(u32 bits);
+int __rte_internal qman_irqsource_add(u32 bits);
 
 /**
  * qman_irqsource_remove - remove processing sources from being interrupt-driven
@@ -1340,7 +1340,7 @@ int qman_irqsource_add(u32 bits);
  * instead be processed via qman_poll_***() functions. Returns zero for success,
  * or -EINVAL if the current CPU is sharing a portal hosted on another CPU.
  */
-int qman_irqsource_remove(u32 bits);
+int __rte_internal qman_irqsource_remove(u32 bits);
 
 /**
  * qman_affine_channel - return the channel ID of an portal
@@ -1352,7 +1352,7 @@ int qman_irqsource_remove(u32 bits);
  */
 u16 qman_affine_channel(int cpu);
 
-unsigned int qman_portal_poll_rx(unsigned int poll_limit,
+unsigned int __rte_internal qman_portal_poll_rx(unsigned int poll_limit,
 				 void **bufs, struct qman_portal *q);
 
 /**
@@ -1363,7 +1363,7 @@ unsigned int qman_portal_poll_rx(unsigned int poll_limit,
  *
  * This function will issue a volatile dequeue command to the QMAN.
  */
-int qman_set_vdq(struct qman_fq *fq, u16 num, uint32_t vdqcr_flags);
+int __rte_internal qman_set_vdq(struct qman_fq *fq, u16 num, uint32_t vdqcr_flags);
 
 /**
  * qman_dequeue - Get the DQRR entry after volatile dequeue command
@@ -1373,7 +1373,7 @@ int qman_set_vdq(struct qman_fq *fq, u16 num, uint32_t vdqcr_flags);
  * is issued. It will keep returning NULL until there is no packet available on
  * the DQRR.
  */
-struct qm_dqrr_entry *qman_dequeue(struct qman_fq *fq);
+struct qm_dqrr_entry __rte_internal *qman_dequeue(struct qman_fq *fq);
 
 /**
  * qman_dqrr_consume - Consume the DQRR entriy after volatile dequeue
@@ -1384,7 +1384,7 @@ struct qm_dqrr_entry *qman_dequeue(struct qman_fq *fq);
  * This will consume the DQRR enrey and make it available for next volatile
  * dequeue.
  */
-void qman_dqrr_consume(struct qman_fq *fq,
+void __rte_internal qman_dqrr_consume(struct qman_fq *fq,
 		       struct qm_dqrr_entry *dq);
 
 /**
@@ -1397,7 +1397,7 @@ void qman_dqrr_consume(struct qman_fq *fq,
  * this function will return -EINVAL, otherwise the return value is >=0 and
  * represents the number of DQRR entries processed.
  */
-int qman_poll_dqrr(unsigned int limit);
+int __rte_internal qman_poll_dqrr(unsigned int limit);
 
 /**
  * qman_poll
@@ -1443,7 +1443,7 @@ void qman_start_dequeues(void);
  * (SDQCR). The requested pools are limited to those the portal has dequeue
  * access to.
  */
-void qman_static_dequeue_add(u32 pools, struct qman_portal *qm);
+void __rte_internal qman_static_dequeue_add(u32 pools, struct qman_portal *qm);
 
 /**
  * qman_static_dequeue_del - Remove pool channels from the portal SDQCR
@@ -1490,7 +1490,7 @@ void qman_dca(const struct qm_dqrr_entry *dq, int park_request);
  * function must be called from the same CPU as that which processed the DQRR
  * entry in the first place.
  */
-void qman_dca_index(u8 index, int park_request);
+void __rte_internal qman_dca_index(u8 index, int park_request);
 
 /**
  * qman_eqcr_is_empty - Determine if portal's EQCR is empty
@@ -1547,7 +1547,7 @@ void qman_set_dc_ern(qman_cb_dc_ern handler, int affine);
  * a frame queue object based on that, rather than assuming/requiring that it be
  * Out of Service.
  */
-int qman_create_fq(u32 fqid, u32 flags, struct qman_fq *fq);
+int __rte_internal qman_create_fq(u32 fqid, u32 flags, struct qman_fq *fq);
 
 /**
  * qman_destroy_fq - Deallocates a FQ
@@ -1565,7 +1565,7 @@ void qman_destroy_fq(struct qman_fq *fq, u32 flags);
  * qman_fq_fqid - Queries the frame queue ID of a FQ object
  * @fq: the frame queue object to query
  */
-u32 qman_fq_fqid(struct qman_fq *fq);
+u32 __rte_internal qman_fq_fqid(struct qman_fq *fq);
 
 /**
  * qman_fq_state - Queries the state of a FQ object
@@ -1577,7 +1577,7 @@ u32 qman_fq_fqid(struct qman_fq *fq);
  * This captures the state, as seen by the driver, at the time the function
  * executes.
  */
-void qman_fq_state(struct qman_fq *fq, enum qman_fq_state *state, u32 *flags);
+void __rte_internal qman_fq_state(struct qman_fq *fq, enum qman_fq_state *state, u32 *flags);
 
 /**
  * qman_init_fq - Initialises FQ fields, leaves the FQ "parked" or "scheduled"
@@ -1613,7 +1613,7 @@ void qman_fq_state(struct qman_fq *fq, enum qman_fq_state *state, u32 *flags);
  * context_a.address fields and will leave the stashing fields provided by the
  * user alone, otherwise it will zero out the context_a.stashing fields.
  */
-int qman_init_fq(struct qman_fq *fq, u32 flags, struct qm_mcc_initfq *opts);
+int __rte_internal qman_init_fq(struct qman_fq *fq, u32 flags, struct qm_mcc_initfq *opts);
 
 /**
  * qman_schedule_fq - Schedules a FQ
@@ -1642,7 +1642,7 @@ int qman_schedule_fq(struct qman_fq *fq);
  * caller should be prepared to accept the callback as the function is called,
  * not only once it has returned.
  */
-int qman_retire_fq(struct qman_fq *fq, u32 *flags);
+int __rte_internal qman_retire_fq(struct qman_fq *fq, u32 *flags);
 
 /**
  * qman_oos_fq - Puts a FQ "out of service"
@@ -1651,7 +1651,7 @@ int qman_retire_fq(struct qman_fq *fq, u32 *flags);
  * The frame queue must be retired and empty, and if any order restoration list
  * was released as ERNs at the time of retirement, they must all be consumed.
  */
-int qman_oos_fq(struct qman_fq *fq);
+int __rte_internal qman_oos_fq(struct qman_fq *fq);
 
 /**
  * qman_fq_flow_control - Set the XON/XOFF state of a FQ
@@ -1684,14 +1684,14 @@ int qman_query_fq_has_pkts(struct qman_fq *fq);
  * @fq: the frame queue object to be queried
  * @np: storage for the queried FQD fields
  */
-int qman_query_fq_np(struct qman_fq *fq, struct qm_mcr_queryfq_np *np);
+int __rte_internal qman_query_fq_np(struct qman_fq *fq, struct qm_mcr_queryfq_np *np);
 
 /**
  * qman_query_fq_frmcnt - Queries fq frame count
  * @fq: the frame queue object to be queried
  * @frm_cnt: number of frames in the queue
  */
-int qman_query_fq_frm_cnt(struct qman_fq *fq, u32 *frm_cnt);
+int __rte_internal qman_query_fq_frm_cnt(struct qman_fq *fq, u32 *frm_cnt);
 
 /**
  * qman_query_wq - Queries work queue lengths
@@ -1721,7 +1721,7 @@ int qman_query_wq(u8 query_dedicated, struct qm_mcr_querywq *wq);
  * callback, or by waiting for the QMAN_FQ_STATE_VDQCR bit to disappear from the
  * "flags" retrieved from qman_fq_state().
  */
-int qman_volatile_dequeue(struct qman_fq *fq, u32 flags, u32 vdqcr);
+int __rte_internal qman_volatile_dequeue(struct qman_fq *fq, u32 flags, u32 vdqcr);
 
 /**
  * qman_enqueue - Enqueue a frame to a frame queue
@@ -1756,9 +1756,9 @@ int qman_volatile_dequeue(struct qman_fq *fq, u32 flags, u32 vdqcr);
  * of an already busy hardware resource by throttling many of the to-be-dropped
  * enqueues "at the source".
  */
-int qman_enqueue(struct qman_fq *fq, const struct qm_fd *fd, u32 flags);
+int __rte_internal qman_enqueue(struct qman_fq *fq, const struct qm_fd *fd, u32 flags);
 
-int qman_enqueue_multi(struct qman_fq *fq, const struct qm_fd *fd, u32 *flags,
+int __rte_internal qman_enqueue_multi(struct qman_fq *fq, const struct qm_fd *fd, u32 *flags,
 		       int frames_to_send);
 
 /**
@@ -1772,7 +1772,7 @@ int qman_enqueue_multi(struct qman_fq *fq, const struct qm_fd *fd, u32 *flags,
  * to be processed by different frame queues.
  */
 int
-qman_enqueue_multi_fq(struct qman_fq *fq[], const struct qm_fd *fd,
+__rte_internal qman_enqueue_multi_fq(struct qman_fq *fq[], const struct qm_fd *fd,
 		      int frames_to_send);
 
 typedef int (*qman_cb_precommit) (void *arg);
@@ -1859,7 +1859,7 @@ int qman_shutdown_fq(u32 fqid);
  * @fqid: the base FQID of the range to deallocate
  * @count: the number of FQIDs in the range
  */
-int qman_reserve_fqid_range(u32 fqid, unsigned int count);
+int __rte_internal qman_reserve_fqid_range(u32 fqid, unsigned int count);
 static inline int qman_reserve_fqid(u32 fqid)
 {
 	return qman_reserve_fqid_range(fqid, 1);
@@ -1878,7 +1878,7 @@ static inline int qman_reserve_fqid(u32 fqid)
  * than requested (though alignment will be as requested). If @partial is zero,
  * the return value will either be 'count' or negative.
  */
-int qman_alloc_pool_range(u32 *result, u32 count, u32 align, int partial);
+int __rte_internal qman_alloc_pool_range(u32 *result, u32 count, u32 align, int partial);
 static inline int qman_alloc_pool(u32 *result)
 {
 	int ret = qman_alloc_pool_range(result, 1, 0, 0);
@@ -1925,7 +1925,7 @@ void qman_seed_pool_range(u32 id, unsigned int count);
  * any unspecified parameters) will be used rather than a modify hw hardware
  * (which only modifies the specified parameters).
  */
-int qman_create_cgr(struct qman_cgr *cgr, u32 flags,
+int __rte_internal qman_create_cgr(struct qman_cgr *cgr, u32 flags,
 		    struct qm_mcc_initcgr *opts);
 
 /**
@@ -1947,7 +1947,7 @@ int qman_create_cgr_to_dcp(struct qman_cgr *cgr, u32 flags, u16 dcp_portal,
  * is executed. This must be excuted on the same affine portal on which it was
  * created.
  */
-int qman_delete_cgr(struct qman_cgr *cgr);
+int __rte_internal qman_delete_cgr(struct qman_cgr *cgr);
 
 /**
  * qman_modify_cgr - Modify CGR fields
@@ -1963,7 +1963,7 @@ int qman_delete_cgr(struct qman_cgr *cgr);
  * unspecified parameters) will be used rather than a modify hw hardware (which
  * only modifies the specified parameters).
  */
-int qman_modify_cgr(struct qman_cgr *cgr, u32 flags,
+int __rte_internal qman_modify_cgr(struct qman_cgr *cgr, u32 flags,
 		    struct qm_mcc_initcgr *opts);
 
 /**
@@ -1991,7 +1991,7 @@ int qman_query_congestion(struct qm_mcr_querycongestion *congestion);
  * than requested (though alignment will be as requested). If @partial is zero,
  * the return value will either be 'count' or negative.
  */
-int qman_alloc_cgrid_range(u32 *result, u32 count, u32 align, int partial);
+int __rte_internal qman_alloc_cgrid_range(u32 *result, u32 count, u32 align, int partial);
 static inline int qman_alloc_cgrid(u32 *result)
 {
 	int ret = qman_alloc_cgrid_range(result, 1, 0, 0);
@@ -2004,7 +2004,7 @@ static inline int qman_alloc_cgrid(u32 *result)
  * @id: the base CGR ID of the range to deallocate
  * @count: the number of CGR IDs in the range
  */
-void qman_release_cgrid_range(u32 id, unsigned int count);
+void __rte_internal qman_release_cgrid_range(u32 id, unsigned int count);
 static inline void qman_release_cgrid(u32 id)
 {
 	qman_release_cgrid_range(id, 1);

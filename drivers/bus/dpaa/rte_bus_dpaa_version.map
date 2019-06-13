@@ -1,4 +1,4 @@
-DPDK_17.11 {
+INTERNAL {
 	global:
 
 	bman_acquire;
@@ -57,17 +57,6 @@ DPDK_17.11 {
 	qman_set_vdq;
 	qman_reserve_fqid_range;
 	qman_volatile_dequeue;
-	rte_dpaa_driver_register;
-	rte_dpaa_driver_unregister;
-	rte_dpaa_mem_ptov;
-	rte_dpaa_portal_init;
-
-	local: *;
-};
-
-DPDK_18.02 {
-	global:
-
 	dpaa_logtype_eventdev;
 	dpaa_svr_family;
 	per_lcore_dpaa_io;
@@ -87,23 +76,10 @@ DPDK_18.02 {
 	qman_release_cgrid_range;
 	qman_retire_fq;
 	qman_static_dequeue_add;
-	rte_dpaa_portal_fq_close;
-	rte_dpaa_portal_fq_init;
-
-	local: *;
-} DPDK_17.11;
-
-DPDK_18.08 {
-	global:
 	fman_if_get_sg_enable;
 	fman_if_set_sg;
 	of_get_mac_address;
 
-	local: *;
-} DPDK_18.02;
-
-DPDK_18.11 {
-	global:
 	bman_thread_irq;
 	fman_if_get_sg_enable;
 	fman_if_set_sg;
@@ -113,13 +89,26 @@ DPDK_18.11 {
 	qman_irqsource_remove;
 	qman_thread_fd;
 	qman_thread_irq;
-
-	local: *;
-} DPDK_18.08;
-
-DPDK_19.05 {
-	global:
 	qman_set_fq_lookup_table;
+};
+
+DPDK_17.11 {
+	global:
+
+	rte_dpaa_driver_register;
+	rte_dpaa_driver_unregister;
+	rte_dpaa_mem_ptov;
+	rte_dpaa_portal_init;
 
 	local: *;
-} DPDK_18.11;
+};
+
+DPDK_18.02 {
+	global:
+
+	rte_dpaa_portal_fq_close;
+	rte_dpaa_portal_fq_init;
+
+	local: *;
+} DPDK_17.11;
+
