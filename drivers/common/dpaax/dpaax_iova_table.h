@@ -59,10 +59,10 @@ extern struct dpaax_iova_table *dpaax_iova_table_p;
 #define DPAAX_MEM_SPLIT_MASK_OFF (DPAAX_MEM_SPLIT - 1) /**< Offset */
 
 /* APIs exposed */
-int dpaax_iova_table_populate(void);
-void dpaax_iova_table_depopulate(void);
-int dpaax_iova_table_update(phys_addr_t paddr, void *vaddr, size_t length);
-void dpaax_iova_table_dump(void);
+int __rte_internal dpaax_iova_table_populate(void);
+void __rte_internal dpaax_iova_table_depopulate(void);
+int __rte_internal dpaax_iova_table_update(phys_addr_t paddr, void *vaddr, size_t length);
+void __rte_internal dpaax_iova_table_dump(void);
 
 static inline void *dpaax_iova_table_get_va(phys_addr_t paddr) __attribute__((hot));
 

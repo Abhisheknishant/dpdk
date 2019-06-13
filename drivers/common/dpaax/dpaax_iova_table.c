@@ -151,7 +151,7 @@ out:
 }
 
 int
-dpaax_iova_table_populate(void)
+__rte_internal dpaax_iova_table_populate(void)
 {
 	int ret;
 	unsigned int i, node_count;
@@ -252,7 +252,7 @@ dpaax_iova_table_populate(void)
 }
 
 void
-dpaax_iova_table_depopulate(void)
+__rte_internal dpaax_iova_table_depopulate(void)
 {
 	if (dpaax_iova_table_p == NULL)
 		return;
@@ -264,7 +264,7 @@ dpaax_iova_table_depopulate(void)
 }
 
 int
-dpaax_iova_table_update(phys_addr_t paddr, void *vaddr, size_t length)
+__rte_internal dpaax_iova_table_update(phys_addr_t paddr, void *vaddr, size_t length)
 {
 	int found = 0;
 	unsigned int i;
@@ -348,7 +348,7 @@ dpaax_iova_table_update(phys_addr_t paddr, void *vaddr, size_t length)
  * Not for weak hearted - the tables can get quite large
  */
 void
-dpaax_iova_table_dump(void)
+__rte_internal dpaax_iova_table_dump(void)
 {
 	unsigned int i, j;
 	struct dpaax_iovat_element *entry;
