@@ -54,6 +54,11 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Added new telemetry mode for l3fwd-power application.**
+
+  Added telemetry mode to l3fwd-power application to report
+  application level busyness, empty and full polls of rte_eth_rx_burst().
+
 
 Removed Items
 -------------
