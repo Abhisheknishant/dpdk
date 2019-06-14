@@ -97,7 +97,7 @@ __rte_stack_lf_pop_elems(struct rte_stack_lf_list *list,
 	return NULL;
 #else
 	struct rte_stack_lf_head old_head;
-	uint64_t len;
+	int64_t len;
 	int success;
 
 	/* Reserve num elements, if available */
