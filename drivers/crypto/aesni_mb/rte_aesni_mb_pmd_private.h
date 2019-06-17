@@ -41,6 +41,14 @@ static const unsigned auth_blocksize[] = {
 		[SHA_512]	= 128,
 		[AES_XCBC]	= 16,
 		[AES_CCM]	= 16,
+		[AES_CMAC]	= 16,
+		[AES_GMAC]	= 16,
+		[AES_GCM]	= 16,
+		[PLAIN_SHA1]	= 64,
+		[PLAIN_SHA_224]	= 64,
+		[PLAIN_SHA_256]	= 64,
+		[PLAIN_SHA_384]	= 128,
+		[PLAIN_SHA_512]	= 128
 };
 
 /**
@@ -65,7 +73,13 @@ static const unsigned auth_truncated_digest_byte_lengths[] = {
 		[AES_XCBC]	= 12,
 		[AES_CMAC]	= 12,
 		[AES_CCM]	= 8,
-		[NULL_HASH]	= 0
+		[NULL_HASH]	= 0,
+		[AES_GMAC]	= 16,
+		[PLAIN_SHA1]	= 20,
+		[PLAIN_SHA_224]	= 28,
+		[PLAIN_SHA_256]	= 32,
+		[PLAIN_SHA_384]	= 48,
+		[PLAIN_SHA_512]	= 64
 };
 
 /**
@@ -90,6 +104,7 @@ static const unsigned auth_digest_byte_lengths[] = {
 		[SHA_512]	= 64,
 		[AES_XCBC]	= 16,
 		[AES_CMAC]	= 16,
+		[AES_CCM]	= 16,
 		[AES_GMAC]	= 12,
 		[NULL_HASH]	= 0,
 		[PLAIN_SHA1]	= 20,
