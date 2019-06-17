@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <poll.h>
 #include <netinet/in.h>
 #include <net/if.h>
 #include <sys/socket.h>
@@ -90,6 +91,7 @@ struct pkt_rx_queue {
 	struct rx_stats stats;
 
 	struct pkt_tx_queue *pair;
+	struct pollfd fds[1];
 	int xsk_queue_idx;
 };
 
@@ -117,6 +119,7 @@ struct pmd_internals {
 	int combined_queue_cnt;
 
 	int pmd_zc;
+	int need_wakeup;
 	struct rte_ether_addr eth_addr;
 
 	struct pkt_rx_queue *rx_queues;
@@ -127,12 +130,14 @@ struct pmd_internals {
 #define ETH_AF_XDP_START_QUEUE_ARG		"start_queue"
 #define ETH_AF_XDP_QUEUE_COUNT_ARG		"queue_count"
 #define ETH_AF_XDP_PMD_ZC_ARG			"pmd_zero_copy"
+#define ETH_AF_XDP_NEED_WAKEUP_ARG		"need_wakeup"
 
 static const char * const valid_arguments[] = {
 	ETH_AF_XDP_IFACE_ARG,
 	ETH_AF_XDP_START_QUEUE_ARG,
 	ETH_AF_XDP_QUEUE_COUNT_ARG,
 	ETH_AF_XDP_PMD_ZC_ARG,
+	ETH_AF_XDP_NEED_WAKEUP_ARG,
 	NULL
 };
 
@@ -206,8 +211,12 @@ eth_af_xdp_rx(void *queue, struct rte_mbuf **bufs, uint16_t nb_pkts)
 		return 0;
 
 	rcvd = xsk_ring_cons__peek(rx, nb_pkts, &idx_rx);
-	if (rcvd == 0)
+	if (rcvd == 0) {
+		if (xsk_ring_prod__needs_wakeup(fq))
+			(void)poll(rxq->fds, 1, 1000);
+
 		goto out;
+	}
 
 	if (xsk_prod_nb_free(fq, free_thresh) >= free_thresh)
 		(void)reserve_fill_queue(umem, ETH_AF_XDP_RX_BATCH_SIZE);
@@ -279,16 +288,17 @@ kick_tx(struct pkt_tx_queue *txq)
 {
 	struct xsk_umem_info *umem = txq->pair->umem;
 
-	while (send(xsk_socket__fd(txq->pair->xsk), NULL,
-		      0, MSG_DONTWAIT) < 0) {
-		/* some thing unexpected */
-		if (errno != EBUSY && errno != EAGAIN && errno != EINTR)
-			break;
+	if (xsk_ring_prod__needs_wakeup(&txq->tx))
+		while (send(xsk_socket__fd(txq->pair->xsk), NULL,
+			    0, MSG_DONTWAIT) < 0) {
+			/* some thing unexpected */
+			if (errno != EBUSY && errno != EAGAIN && errno != EINTR)
+				break;
 
-		/* pull from completion queue to leave more space */
-		if (errno == EAGAIN)
-			pull_umem_cq(umem, ETH_AF_XDP_TX_BATCH_SIZE);
-	}
+			/* pull from completion queue to leave more space */
+			if (errno == EAGAIN)
+				pull_umem_cq(umem, ETH_AF_XDP_TX_BATCH_SIZE);
+		}
 	pull_umem_cq(umem, ETH_AF_XDP_TX_BATCH_SIZE);
 }
 
@@ -621,7 +631,7 @@ xsk_configure(struct pmd_internals *internals, struct pkt_rx_queue *rxq,
 	cfg.tx_size = ring_size;
 	cfg.libbpf_flags = 0;
 	cfg.xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
-	cfg.bind_flags = 0;
+	cfg.bind_flags = internals->need_wakeup ? XDP_USE_NEED_WAKEUP : 0;
 	ret = xsk_socket__create(&rxq->xsk, internals->if_name,
 			rxq->xsk_queue_idx, rxq->umem->umem, &rxq->rx,
 			&txq->tx, &cfg);
@@ -682,6 +692,9 @@ eth_rx_queue_setup(struct rte_eth_dev *dev,
 		ret = -EINVAL;
 		goto err;
 	}
+
+	rxq->fds[0].fd = xsk_socket__fd(rxq->xsk);
+	rxq->fds[0].events = POLLIN;
 
 	rxq->umem->pmd_zc = internals->pmd_zc;
 
@@ -856,7 +869,7 @@ xdp_get_channels_info(const char *if_name, int *max_queues,
 
 static int
 parse_parameters(struct rte_kvargs *kvlist, char *if_name, int *start_queue,
-			int *queue_cnt, int *pmd_zc)
+		 int *queue_cnt, int *pmd_zc, int *need_wakeup)
 {
 	int ret;
 
@@ -881,6 +894,9 @@ parse_parameters(struct rte_kvargs *kvlist, char *if_name, int *start_queue,
 				 &parse_integer_arg, pmd_zc);
 	if (ret < 0)
 		goto free_kvlist;
+
+	ret = rte_kvargs_process(kvlist, ETH_AF_XDP_NEED_WAKEUP_ARG,
+				 &parse_integer_arg, need_wakeup);
 
 free_kvlist:
 	rte_kvargs_free(kvlist);
@@ -919,7 +935,7 @@ error:
 
 static struct rte_eth_dev *
 init_internals(struct rte_vdev_device *dev, const char *if_name,
-			int start_queue_idx, int queue_cnt, int pmd_zc)
+	       int start_queue_idx, int queue_cnt, int pmd_zc, int need_wakeup)
 {
 	const char *name = rte_vdev_device_name(dev);
 	const unsigned int numa_node = dev->device.numa_node;
@@ -935,6 +951,7 @@ init_internals(struct rte_vdev_device *dev, const char *if_name,
 	internals->start_queue_idx = start_queue_idx;
 	internals->queue_cnt = queue_cnt;
 	internals->pmd_zc = pmd_zc;
+	internals->need_wakeup = !!need_wakeup;
 	strlcpy(internals->if_name, if_name, IFNAMSIZ);
 
 	if (xdp_get_channels_info(if_name, &internals->max_queue_cnt,
@@ -993,6 +1010,9 @@ init_internals(struct rte_vdev_device *dev, const char *if_name,
 	if (internals->pmd_zc)
 		AF_XDP_LOG(INFO, "Zero copy between umem and mbuf enabled.\n");
 
+	if (internals->need_wakeup)
+		AF_XDP_LOG(INFO, "need_wakeup feature is explicitly turned on.\n");
+
 	return eth_dev;
 
 err_free_tx:
@@ -1014,6 +1034,7 @@ rte_pmd_af_xdp_probe(struct rte_vdev_device *dev)
 	struct rte_eth_dev *eth_dev = NULL;
 	const char *name;
 	int pmd_zc = 0;
+	int need_wakeup = 0;
 
 	AF_XDP_LOG(INFO, "Initializing pmd_af_xdp for %s\n",
 		rte_vdev_device_name(dev));
@@ -1041,7 +1062,7 @@ rte_pmd_af_xdp_probe(struct rte_vdev_device *dev)
 		dev->device.numa_node = rte_socket_id();
 
 	if (parse_parameters(kvlist, if_name, &xsk_start_queue_idx,
-			     &xsk_queue_cnt, &pmd_zc) < 0) {
+			     &xsk_queue_cnt, &pmd_zc, &need_wakeup) < 0) {
 		AF_XDP_LOG(ERR, "Invalid kvargs value\n");
 		return -EINVAL;
 	}
@@ -1052,7 +1073,7 @@ rte_pmd_af_xdp_probe(struct rte_vdev_device *dev)
 	}
 
 	eth_dev = init_internals(dev, if_name, xsk_start_queue_idx,
-					xsk_queue_cnt, pmd_zc);
+				 xsk_queue_cnt, pmd_zc, need_wakeup);
 	if (eth_dev == NULL) {
 		AF_XDP_LOG(ERR, "Failed to init internals\n");
 		return -1;
