@@ -2345,6 +2345,74 @@ Otherwise, RTE_FLOW_ERROR_TYPE_ACTION error will be returned.
    | ``mac_addr`` | MAC address   |
    +--------------+---------------+
 
+Action: ``INC_TCP_SEQ``
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Increase sequence number in the outermost TCP header.
+
+Using this action on non-matching traffic will result in undefined behavior.
+
+.. _table_rte_flow_action_inc_tcp_seq:
+
+.. table:: INC_TCP_SEQ
+
+   +----------+------------------------------------------+
+   | Field    | Value                                    |
+   +==========+==========================================+
+   | ``be32`` | Value to increase TCP sequence number by |
+   +----------+------------------------------------------+
+
+Action: ``DEC_TCP_SEQ``
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Decrease sequence number in the outermost TCP header.
+
+Using this action on non-matching traffic will result in undefined behavior.
+
+.. _table_rte_flow_action_dec_tcp_seq:
+
+.. table:: DEC_TCP_SEQ
+
+   +----------+------------------------------------------+
+   | Field    | Value                                    |
+   +==========+==========================================+
+   | ``be32`` | Value to decrease TCP sequence number by |
+   +----------+------------------------------------------+
+
+Action: ``INC_TCP_ACK``
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Increase acknowledgment number in the outermost TCP header.
+
+Using this action on non-matching traffic will result in undefined behavior.
+
+.. _table_rte_flow_action_inc_tcp_ack:
+
+.. table:: INC_TCP_ACK
+
+   +----------+------------------------------------------------+
+   | Field    | Value                                          |
+   +==========+================================================+
+   | ``be32`` | Value to increase TCP acknowledgment number by |
+   +----------+------------------------------------------------+
+
+Action: ``DEC_TCP_ACK``
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Decrease acknowledgment number in the outermost TCP header.
+
+Using this action on non-matching traffic will result in undefined behavior.
+
+.. _table_rte_flow_action_dec_tcp_ack:
+
+.. table:: DEC_TCP_ACK
+
+   +----------+------------------------------------------------+
+   | Field    | Value                                          |
+   +==========+================================================+
+   | ``be32`` | Value to decrease TCP acknowledgment number by |
+   +----------+------------------------------------------------+
+
 Negative types
 ~~~~~~~~~~~~~~
 

@@ -1650,6 +1650,46 @@ enum rte_flow_action_type {
 	 * See struct rte_flow_action_set_mac.
 	 */
 	RTE_FLOW_ACTION_TYPE_SET_MAC_DST,
+
+	/**
+	 * Increase sequence number in the outermost TCP header.
+	 *
+	 * Using this action on non-matching traffic will result in
+	 * undefined behavior.
+	 *
+	 * See struct rte_flow_integer_action.
+	 */
+	RTE_FLOW_ACTION_TYPE_INC_TCP_SEQ,
+
+	/**
+	 * Decrease sequence number in the outermost TCP header.
+	 *
+	 * Using this action on non-matching traffic will result in
+	 * undefined behavior.
+	 *
+	 * See struct rte_flow_integer_action.
+	 */
+	RTE_FLOW_ACTION_TYPE_DEC_TCP_SEQ,
+
+	/**
+	 * Increase acknowledgment number in the outermost TCP header.
+	 *
+	 * Using this action on non-matching traffic will result in
+	 * undefined behavior.
+	 *
+	 * See struct rte_flow_integer_action.
+	 */
+	RTE_FLOW_ACTION_TYPE_INC_TCP_ACK,
+
+	/**
+	 * Decrease acknowledgment number in the outermost TCP header.
+	 *
+	 * Using this action on non-matching traffic will result in
+	 * undefined behavior.
+	 *
+	 * See struct rte_flow_integer_action.
+	 */
+	RTE_FLOW_ACTION_TYPE_DEC_TCP_ACK,
 };
 
 /**
@@ -2129,6 +2169,30 @@ struct rte_flow_action_set_ttl {
  */
 struct rte_flow_action_set_mac {
 	uint8_t mac_addr[RTE_ETHER_ADDR_LEN];
+};
+
+/**
+ * @warning
+ * @b EXPERIMENTAL: this structure may change without prior notice
+ *
+ * General structure, containing a union of integers of all types
+ * and sizes, up to 32 bit.
+ * Intended for use by actions that require a single integer value,
+ * instead of using an action-specific structure for each of these actions.
+ */
+struct rte_flow_integer_action {
+	union rte_flow_integer {
+		rte_be32_t	be32;
+		rte_le32_t	le32;
+		uint32_t	u32;
+		int32_t		i32;
+		rte_be16_t	be16;
+		rte_le16_t	le16;
+		uint16_t	u16;
+		int16_t		i16;
+		uint8_t		u8;
+		int8_t		i8;
+	} rte_flow_int;
 };
 
 /*
