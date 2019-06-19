@@ -3116,8 +3116,8 @@ worker_loopback(struct test *t, uint8_t disable_implicit_release)
 	rte_eal_remote_launch(worker_loopback_worker_fn, t, w_lcore);
 
 	print_cycles = cycles = rte_get_timer_cycles();
-	while (rte_eal_get_lcore_state(p_lcore) != FINISHED ||
-			rte_eal_get_lcore_state(w_lcore) != FINISHED) {
+	while (rte_eal_get_lcore_state(p_lcore) != RTE_LCORE_FINISHED ||
+	       rte_eal_get_lcore_state(w_lcore) != RTE_LCORE_FINISHED) {
 
 		rte_service_run_iter_on_app_lcore(t->service_id, 1);
 

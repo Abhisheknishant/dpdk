@@ -113,10 +113,7 @@ thread_is_valid(struct pmd_internals *softnic, uint32_t thread_id)
 static inline int
 thread_is_running(uint32_t thread_id)
 {
-	enum rte_lcore_state_t thread_state;
-
-	thread_state = rte_eal_get_lcore_state(thread_id);
-	return (thread_state == RUNNING)? 1 : 0;
+	return rte_eal_get_lcore_state(thread_id) == RTE_LCORE_RUNNING;
 }
 
 static int32_t

@@ -41,7 +41,7 @@ rte_eal_remote_launch(int (*f)(void *), void *arg, unsigned slave_id)
 	int m2s = lcore_config[slave_id].pipe_master2slave[1];
 	int s2m = lcore_config[slave_id].pipe_slave2master[0];
 
-	if (lcore_config[slave_id].state != WAIT)
+	if (lcore_config[slave_id].state != RTE_LCORE_WAITING)
 		return -EBUSY;
 
 	lcore_config[slave_id].f = f;
@@ -136,7 +136,7 @@ eal_thread_loop(__attribute__((unused)) void *arg)
 		if (n <= 0)
 			rte_panic("cannot read on configuration pipe\n");
 
-		lcore_config[lcore_id].state = RUNNING;
+		lcore_config[lcore_id].state = RTE_LCORE_RUNNING;
 
 		/* send ack */
 		n = 0;
@@ -153,7 +153,7 @@ eal_thread_loop(__attribute__((unused)) void *arg)
 		ret = lcore_config[lcore_id].f(fct_arg);
 		lcore_config[lcore_id].ret = ret;
 		rte_wmb();
-		lcore_config[lcore_id].state = FINISHED;
+		lcore_config[lcore_id].state = RTE_LCORE_FINISHED;
 	}
 
 	/* never reached */

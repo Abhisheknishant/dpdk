@@ -784,7 +784,7 @@ rte_eal_init(int argc, char **argv)
 		if (pipe(lcore_config[i].pipe_slave2master) < 0)
 			rte_panic("Cannot create pipe\n");
 
-		lcore_config[i].state = WAIT;
+		lcore_config[i].state = RTE_LCORE_WAITING;
 
 		/* create a thread for each lcore */
 		ret = pthread_create(&lcore_config[i].thread_id, NULL,

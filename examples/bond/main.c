@@ -533,7 +533,7 @@ static void cmd_start_parsed(__attribute__((unused)) void *parsed_result,
 	rte_spinlock_trylock(&global_flag_stru_p->lock);
 	if (global_flag_stru_p->LcoreMainIsRunning == 0) {
 		if (rte_eal_get_lcore_state(global_flag_stru_p->LcoreMainCore)
-		    != WAIT) {
+		    != RTE_LCORE_WAITING) {
 			rte_spinlock_unlock(&global_flag_stru_p->lock);
 			return;
 		}
@@ -801,7 +801,7 @@ main(int argc, char *argv[])
 
 	/* check state of lcores */
 	RTE_LCORE_FOREACH_SLAVE(slave_core_id) {
-		if (rte_eal_get_lcore_state(slave_core_id) != WAIT)
+		if (rte_eal_get_lcore_state(slave_core_id) != RTE_LCORE_WAITING)
 			return -EBUSY;
 	}
 

@@ -450,7 +450,7 @@ rte_service_runner_func(void *arg)
 		rte_smp_rmb();
 	}
 
-	lcore_config[lcore].state = WAIT;
+	lcore_config[lcore].state = RTE_LCORE_WAITING;
 
 	return 0;
 }

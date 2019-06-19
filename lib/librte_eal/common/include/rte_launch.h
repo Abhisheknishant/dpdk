@@ -19,9 +19,9 @@ extern "C" {
  * State of an lcore.
  */
 enum rte_lcore_state_t {
-	WAIT,       /**< waiting a new command */
-	RUNNING,    /**< executing command */
-	FINISHED,   /**< command executed */
+	RTE_LCORE_WAITING,    /**< waiting a new command */
+	RTE_LCORE_RUNNING,    /**< executing command */
+	RTE_LCORE_FINISHED,   /**< command executed */
 };
 
 /**

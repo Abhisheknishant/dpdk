@@ -21,17 +21,17 @@
 int
 rte_eal_wait_lcore(unsigned slave_id)
 {
-	if (lcore_config[slave_id].state == WAIT)
+	if (lcore_config[slave_id].state == RTE_LCORE_WAITING)
 		return 0;
 
-	while (lcore_config[slave_id].state != WAIT &&
-	       lcore_config[slave_id].state != FINISHED)
+	while (lcore_config[slave_id].state != RTE_LCORE_WAITING &&
+	       lcore_config[slave_id].state != RTE_LCORE_FINISHED)
 		rte_pause();
 
 	rte_rmb();
 
 	/* we are in finished state, go to wait state */
-	lcore_config[slave_id].state = WAIT;
+	lcore_config[slave_id].state = RTE_LCORE_WAITING;
 	return lcore_config[slave_id].ret;
 }
 
@@ -49,7 +49,7 @@ rte_eal_mp_remote_launch(int (*f)(void *), void *arg,
 
 	/* check state of lcores */
 	RTE_LCORE_FOREACH_SLAVE(lcore_id) {
-		if (lcore_config[lcore_id].state != WAIT)
+		if (lcore_config[lcore_id].state != RTE_LCORE_WAITING)
 			return -EBUSY;
 	}
 
@@ -60,7 +60,7 @@ rte_eal_mp_remote_launch(int (*f)(void *), void *arg,
 
 	if (call_master == CALL_MASTER) {
 		lcore_config[master].ret = f(arg);
-		lcore_config[master].state = FINISHED;
+		lcore_config[master].state = RTE_LCORE_FINISHED;
 	}
 
 	return 0;
