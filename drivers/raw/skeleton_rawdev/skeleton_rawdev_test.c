@@ -274,16 +274,13 @@ static int
 test_rawdev_attr_set_get(void)
 {
 	int ret;
-	int *dummy_value;
+	int dummy_value_store;
+	int *dummy_value = &dummy_value_store;
 	uint64_t ret_value;
 
 	/* Set an attribute and fetch it */
 	ret = rte_rawdev_set_attr(TEST_DEV_ID, "Test1", 100);
 	RTE_TEST_ASSERT(!ret, "Unable to set an attribute (Test1)");
-
-	dummy_value = malloc(sizeof(int));
-	if (!dummy_value)
-		RTE_TEST_ASSERT(1, "Unable to allocate memory (dummy_value)");
 
 	*dummy_value = 200;
 	ret = rte_rawdev_set_attr(TEST_DEV_ID, "Test2", (uintptr_t)dummy_value);
@@ -294,7 +291,6 @@ test_rawdev_attr_set_get(void)
 			      "Attribute (Test1) not set correctly (%" PRIu64 ")",
 			      ret_value);
 
-	free(dummy_value);
 
 	ret_value = 0;
 	ret = rte_rawdev_get_attr(TEST_DEV_ID, "Test2", &ret_value);
