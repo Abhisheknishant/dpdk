@@ -81,6 +81,11 @@ The user can specify below arguments in `--vdev` option.
     It is used to disable tso support in vhost library.
     (Default: 1 (enabled))
 
+#.  ``mrg-rxbuf``:
+
+    It is used to disable mrg rxbuf support in vhost library.
+    (Default: 1 (enabled))
+
 Vhost PMD event handling
 ------------------------
 

@@ -32,6 +32,7 @@ enum {VIRTIO_RXQ, VIRTIO_TXQ, VIRTIO_QNUM};
 #define ETH_VHOST_IOMMU_SUPPORT		"iommu-support"
 #define ETH_VHOST_POSTCOPY_SUPPORT	"postcopy-support"
 #define ETH_VHOST_VIRTIO_NET_F_HOST_TSO "tso"
+#define ETH_VHOST_VIRTIO_NET_F_MRG_RXBUF "mrg-rxbuf"
 #define VHOST_MAX_PKT_BURST 32
 
 static const char *valid_arguments[] = {
@@ -42,6 +43,7 @@ static const char *valid_arguments[] = {
 	ETH_VHOST_IOMMU_SUPPORT,
 	ETH_VHOST_POSTCOPY_SUPPORT,
 	ETH_VHOST_VIRTIO_NET_F_HOST_TSO,
+	ETH_VHOST_VIRTIO_NET_F_MRG_RXBUF,
 	NULL
 };
 
@@ -1351,6 +1353,7 @@ rte_pmd_vhost_probe(struct rte_vdev_device *dev)
 	int iommu_support = 0;
 	int postcopy_support = 0;
 	int tso = 1;
+	int mrg_rxbuf = 1;
 	struct rte_eth_dev *eth_dev;
 	const char *name = rte_vdev_device_name(dev);
 
@@ -1445,6 +1448,17 @@ rte_pmd_vhost_probe(struct rte_vdev_device *dev)
 		}
 	}
 
+	if (rte_kvargs_count(kvlist, ETH_VHOST_VIRTIO_NET_F_MRG_RXBUF) == 1) {
+		ret = rte_kvargs_process(kvlist,
+				ETH_VHOST_VIRTIO_NET_F_MRG_RXBUF,
+				&open_int, &mrg_rxbuf);
+		if (ret < 0)
+			goto out_free;
+
+ 		if (mrg_rxbuf == 0)
+			disable_flags |= (1ULL << VIRTIO_NET_F_MRG_RXBUF);
+	}
+
 	if (dev->device.numa_node == SOCKET_ID_ANY)
 		dev->device.numa_node = rte_socket_id();
 
@@ -1494,7 +1508,8 @@ RTE_PMD_REGISTER_PARAM_STRING(net_vhost,
 	"dequeue-zero-copy=<0|1> "
 	"iommu-support=<0|1> "
 	"postcopy-support=<0|1> "
-	"tso=<0|1>");
+	"tso=<0|1> "
+	"mrg-rxbuf=<0|1>");
 
 RTE_INIT(vhost_init_log)
 {
