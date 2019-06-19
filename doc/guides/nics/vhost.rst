@@ -76,6 +76,11 @@ The user can specify below arguments in `--vdev` option.
     It is used to enable postcopy live-migration support in vhost library.
     (Default: 0 (disabled))
 
+#.  ``tso``:
+
+    It is used to disable tso support in vhost library.
+    (Default: 1 (enabled))
+
 Vhost PMD event handling
 ------------------------
 
