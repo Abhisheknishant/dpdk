@@ -44,6 +44,24 @@ int rte_eth_vhost_get_queue_event(uint16_t port_id,
 		struct rte_eth_vhost_queue_event *event);
 
 /**
+ * Get queue status for specific queue in the port.
+ *
+ * @param[in] port_id
+ *  Port id.
+ * @param[in] rx
+ *  True is rx, False if tx
+ * @paran[in] queue_id
+ *  Queue_id
+ * @param[out] queue_status
+ *  Pointer to a boolean, True is enable, False if disable.
+ * @return
+ *  - On success, zero, queue_status is updated.
+ *  - On failure, a negative value, queue_status is not updated.
+ */
+int rte_eth_vhost_get_queue_status(uint16_t port_id, bool rx, uint16_t queue_id,
+		bool *queue_status);
+
+/**
  * Get the 'vid' value associated with the specified port.
  *
  * @return

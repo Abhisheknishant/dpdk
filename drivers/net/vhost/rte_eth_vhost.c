@@ -851,6 +851,7 @@ vring_state_changed(int vid, uint16_t vring, int enable)
 	/* won't be NULL */
 	state = vring_states[eth_dev->data->port_id];
 	rte_spinlock_lock(&state->lock);
+
 	state->cur[vring] = enable;
 	state->max_vring = RTE_MAX(vring, state->max_vring);
 	rte_spinlock_unlock(&state->lock);
@@ -868,6 +869,52 @@ static struct vhost_device_ops vhost_ops = {
 	.destroy_device      = destroy_device,
 	.vring_state_changed = vring_state_changed,
 };
+
+int
+rte_eth_vhost_get_queue_status(uint16_t port_id, bool rx, uint16_t queue_id,
+		bool *queue_status)
+{
+	struct rte_vhost_vring_state *state;
+	struct internal_list *list;
+	struct rte_eth_dev *eth_dev;
+	int found = 0;
+	uint16_t nb_q = 0;
+
+	if (port_id >= RTE_MAX_ETHPORTS) {
+		VHOST_LOG(ERR, "Invalid port id\n");
+		return -1;
+	}
+	TAILQ_FOREACH(list, &internal_list, next) {
+		eth_dev = list->eth_dev;
+		if (eth_dev->data->port_id == port_id) {
+			nb_q = rx ? eth_dev->data->nb_rx_queues :
+					eth_dev->data->nb_tx_queues;
+			found = 1;
+			break;
+		}
+	}
+	if (!found) {
+		VHOST_LOG(ERR, "No device found for port id %u\n", port_id);
+		return -1;
+	}
+	if (queue_id >= nb_q) {
+		VHOST_LOG(ERR, "Invalid queue id\n");
+		return -1;
+	}
+
+	state = vring_states[port_id];
+	if (!state) {
+		VHOST_LOG(ERR, "Unused port\n");
+		return -1;
+	}
+
+	rte_spinlock_lock(&state->lock);
+	*queue_status = rx ? state->cur[queue_id * 2 + 1] :
+			state->cur[queue_id * 2];
+	rte_spinlock_unlock(&state->lock);
+
+	return 0;
+}
 
 int
 rte_eth_vhost_get_queue_event(uint16_t port_id,

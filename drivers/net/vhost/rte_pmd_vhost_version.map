@@ -11,3 +11,9 @@ DPDK_16.11 {
 
 	rte_eth_vhost_get_vid_from_port_id;
 };
+
+DPDK_19.08 {
+	global:
+
+	rte_eth_vhost_get_queue_status;
+};
