@@ -8,6 +8,7 @@ sources = files(
 	'ice_ethdev.c',
 	'ice_rxtx.c',
 	'ice_switch_filter.c'
+	'ice_generic_flow.c'
 	)
 
 deps += ['hash']
