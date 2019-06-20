@@ -292,6 +292,9 @@ DPDK_19.08 {
 
 	rte_lcore_index;
 	rte_lcore_to_socket_id;
+	rte_service_lcore_attr_get;
+	rte_service_lcore_attr_reset_all;
+	rte_service_may_be_active;
 
 } DPDK_19.05;
 
@@ -383,9 +386,6 @@ EXPERIMENTAL {
 	rte_mp_sendmsg;
 	rte_option_register;
 	rte_realloc_socket;
-	rte_service_lcore_attr_get;
-	rte_service_lcore_attr_reset_all;
-	rte_service_may_be_active;
 
 	# added in 19.08
 	rte_lcore_cpuset;
