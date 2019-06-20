@@ -11,7 +11,6 @@ LIB = librte_eventdev.a
 LIBABIVER := 6
 
 # build flags
-CFLAGS += -DALLOW_EXPERIMENTAL_API
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
 ifeq ($(CONFIG_RTE_EXEC_ENV_LINUX),y)

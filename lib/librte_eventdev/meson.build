@@ -2,7 +2,6 @@
 # Copyright(c) 2017 Intel Corporation
 
 version = 6
-allow_experimental_apis = true
 
 if is_linux
 	cflags += '-DLINUX'
