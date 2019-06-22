@@ -23,4 +23,6 @@ ifeq ($(CONFIG_RTE_LIBRTE_COMMON_DPAAX),y)
 DIRS-y += dpaax
 endif
 
+DIRS-y += octeontx2
+
 include $(RTE_SDK)/mk/rte.subdir.mk
