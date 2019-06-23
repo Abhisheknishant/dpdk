@@ -88,6 +88,9 @@ New Features
   * Added multi-queue support to allow one af_xdp vdev with multiple netdev
     queues
 
+* **Added Lock-free Stack for aarch64.**
+
+  The lock-free stack implementation is enabled for aarch64 platforms.
 
 Removed Items
 -------------

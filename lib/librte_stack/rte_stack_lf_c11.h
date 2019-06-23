@@ -36,7 +36,7 @@ __rte_stack_lf_push_elems(struct rte_stack_lf_list *list,
 			  struct rte_stack_lf_elem *last,
 			  unsigned int num)
 {
-#ifndef RTE_ARCH_X86_64
+#if !defined(RTE_ARCH_X86_64) && !defined(RTE_ARCH_ARM64)
 	RTE_SET_USED(first);
 	RTE_SET_USED(last);
 	RTE_SET_USED(list);
@@ -88,7 +88,7 @@ __rte_stack_lf_pop_elems(struct rte_stack_lf_list *list,
 			 void **obj_table,
 			 struct rte_stack_lf_elem **last)
 {
-#ifndef RTE_ARCH_X86_64
+#if !defined(RTE_ARCH_X86_64) && !defined(RTE_ARCH_ARM64)
 	RTE_SET_USED(obj_table);
 	RTE_SET_USED(last);
 	RTE_SET_USED(list);
