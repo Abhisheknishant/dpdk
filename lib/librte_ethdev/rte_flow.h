@@ -290,6 +290,13 @@ enum rte_flow_item_type {
 	RTE_FLOW_ITEM_TYPE_GRE,
 
 	/**
+	 * Matches a GRE optional key field.
+	 *
+	 * See struct rte_flow_item_gre_key.
+	 */
+	RTE_FLOW_ITEM_TYPE_GRE_KEY,
+
+	/**
 	 * [META]
 	 *
 	 * Fuzzy pattern match, expect faster than default.
@@ -853,6 +860,26 @@ struct rte_flow_item_gre {
 #ifndef __cplusplus
 static const struct rte_flow_item_gre rte_flow_item_gre_mask = {
 	.protocol = RTE_BE16(0xffff),
+};
+#endif
+
+/**
+ * RTE_FLOW_ITEM_GRE_KEY.
+ *
+ * Matches the presence of a GRE key.
+ *
+ * Normally preceding by:
+ *
+ * - RTE_FLOW_ITEM_TYPE_GRE
+ */
+struct rte_flow_item_gre_key {
+	rte_be32_t key; /**< Application specific key value (K bit). */
+};
+
+/** Default mask for RTE_FLOW_ITEM_TYPE_GRE_KEY. */
+#ifndef __cplusplus
+static const struct rte_flow_item_gre_key rte_flow_item_gre_key_mask = {
+	.key = RTE_BE32(UINT32_MAX),
 };
 #endif
 
