@@ -148,6 +148,9 @@ enum index {
 	ITEM_MPLS_LABEL,
 	ITEM_GRE,
 	ITEM_GRE_PROTO,
+	ITEM_GRE_CRKSV,
+	ITEM_GRE_KEY,
+	ITEM_GRE_KEY_KEY,
 	ITEM_FUZZY,
 	ITEM_FUZZY_THRESH,
 	ITEM_GTP,
@@ -595,6 +598,7 @@ static const enum index next_item[] = {
 	ITEM_NVGRE,
 	ITEM_MPLS,
 	ITEM_GRE,
+	ITEM_GRE_KEY,
 	ITEM_FUZZY,
 	ITEM_GTP,
 	ITEM_GTPC,
@@ -755,6 +759,13 @@ static const enum index item_mpls[] = {
 
 static const enum index item_gre[] = {
 	ITEM_GRE_PROTO,
+	ITEM_GRE_CRKSV,
+	ITEM_NEXT,
+	ZERO,
+};
+
+static const enum index item_gre_key[] = {
+	ITEM_GRE_KEY_KEY,
 	ITEM_NEXT,
 	ZERO,
 };
@@ -1897,6 +1908,28 @@ static const struct token token_list[] = {
 		.next = NEXT(item_gre, NEXT_ENTRY(UNSIGNED), item_param),
 		.args = ARGS(ARGS_ENTRY_HTON(struct rte_flow_item_gre,
 					     protocol)),
+	},
+	[ITEM_GRE_CRKSV] = {
+		.name = "crksv",
+		.help = "GRE's first word (bit0 - bit15)",
+		.next = NEXT(item_gre, NEXT_ENTRY(UNSIGNED), item_param),
+		.args = ARGS(ARGS_ENTRY_HTON(struct rte_flow_item_gre,
+					     c_rsvd0_ver)),
+	},
+	[ITEM_GRE_KEY] = {
+		.name = "gre_key",
+		.help = "match GRE Key",
+		.priv = PRIV_ITEM(GRE_KEY,
+				  sizeof(struct rte_flow_item_gre_key)),
+		.next = NEXT(item_gre_key),
+		.call = parse_vc,
+	},
+	[ITEM_GRE_KEY_KEY] = {
+		.name = "key",
+		.help = "GRE key",
+		.next = NEXT(item_gre_key, NEXT_ENTRY(UNSIGNED), item_param),
+		.args = ARGS(ARGS_ENTRY_HTON(struct rte_flow_item_gre_key,
+					     key)),
 	},
 	[ITEM_FUZZY] = {
 		.name = "fuzzy",
