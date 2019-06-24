@@ -130,6 +130,10 @@ API Changes
 * The network structures, definitions and functions have
   been prefixed by ``rte_`` to resolve conflicts with libc headers.
 
+* cryptodev: the ``uint8_t *data`` member of ``key`` structure in the xforms
+  structure (``rte_crypto_cipher_xform``, ``rte_crypto_auth_xform``, and
+  ``rte_crypto_aead_xform``) have been changed to ``const uint8_t *data``.
+
 
 ABI Changes
 -----------
