@@ -760,6 +760,12 @@ static void cmd_help_long_parsed(void *parsed_result,
 			" eth-src (eth-src) eth-dst (eth-dst)\n"
 			"       Configure the NVGRE encapsulation for flows.\n\n"
 
+			"raw_encap {flow items}"
+			"	Configure the encapsulation with raw data.\n\n"
+
+			"raw_decap {flow items}"
+			"	Configure the decapsulation with raw data.\n\n"
+
 			, list_pkt_forwarding_modes()
 		);
 	}
@@ -1137,6 +1143,12 @@ static void cmd_help_long_parsed(void *parsed_result,
 			"flow isolate {port_id} {boolean}\n"
 			"    Restrict ingress traffic to the defined"
 			" flow rules\n\n"
+
+			"set raw_encap {flow items}\n"
+			"	Config encap with raw data.\n\n"
+
+			"set raw_decap {flow items}\n"
+			"	Config decap with raw data.\n\n"
 		);
 	}
 
@@ -18979,6 +18991,7 @@ cmdline_parse_ctx_t main_ctx[] = {
 #endif
 	(cmdline_parse_inst_t *)&cmd_config_tx_metadata_specific,
 	(cmdline_parse_inst_t *)&cmd_show_tx_metadata,
+	(cmdline_parse_inst_t *)&cmd_set_raw,
 	NULL,
 };
 
