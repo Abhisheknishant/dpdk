@@ -1188,22 +1188,29 @@ search_one_bucket_lf(const struct rte_hash *h, const void *key, uint16_t sig,
 	struct rte_hash_key *k, *keys = h->key_store;
 
 	for (i = 0; i < RTE_HASH_BUCKET_ENTRIES; i++) {
-		key_idx = __atomic_load_n(&bkt->key_idx[i],
+		/* Signature comparison is done before the acquire-load
+		 * of the key index to achieve better performance.
+		 * Any false positives will be caught in full comparison
+		 * of the key.
+		 */
+		if (bkt->sig_current[i] == sig) {
+			key_idx = __atomic_load_n(&bkt->key_idx[i],
 					  __ATOMIC_ACQUIRE);
-		if (bkt->sig_current[i] == sig && key_idx != EMPTY_SLOT) {
-			k = (struct rte_hash_key *) ((char *)keys +
-					key_idx * h->key_entry_size);
-			pdata = __atomic_load_n(&k->pdata,
-					__ATOMIC_ACQUIRE);
+			if (key_idx != EMPTY_SLOT) {
+				k = (struct rte_hash_key *) ((char *)keys +
+						key_idx * h->key_entry_size);
+				pdata = __atomic_load_n(&k->pdata,
+						__ATOMIC_ACQUIRE);
 
-			if (rte_hash_cmp_eq(key, k->key, h) == 0) {
-				if (data != NULL)
-					*data = pdata;
-				/*
-				 * Return index where key is stored,
-				 * subtracting the first dummy index
-				 */
-				return key_idx - 1;
+				if (rte_hash_cmp_eq(key, k->key, h) == 0) {
+					if (data != NULL)
+						*data = pdata;
+					/*
+					 * Return index where key is stored,
+					 * subtracting the first dummy index
+					 */
+					return key_idx - 1;
+				}
 			}
 		}
 	}
