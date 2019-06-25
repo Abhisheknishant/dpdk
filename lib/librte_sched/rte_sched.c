@@ -348,44 +348,69 @@ pipe_profile_check(struct rte_sched_pipe_params *params,
 	uint32_t i;
 
 	/* Pipe parameters */
-	if (params == NULL)
-		return -11;
+	if (params == NULL) {
+		RTE_LOG(ERR, SCHED,
+			"%s: Incorrect value for parameter params \n", __func__);
+		return -EINVAL;
+	}
 
 	/* TB rate: non-zero, not greater than port rate */
 	if (params->tb_rate == 0 ||
-		params->tb_rate > rate)
-		return -12;
+		params->tb_rate > rate) {
+		RTE_LOG(ERR, SCHED,
+			"%s: Incorrect value for tb rate \n", __func__);
+		return -EINVAL;
+	}
 
 	/* TB size: non-zero */
-	if (params->tb_size == 0)
-		return -13;
+	if (params->tb_size == 0) {
+		RTE_LOG(ERR, SCHED,
+			"%s: Incorrect value for tb size \n", __func__);
+		return -EINVAL;
+	}
 
 	/* TC rate: non-zero, less than pipe rate */
 	for (i = 0; i < RTE_SCHED_TRAFFIC_CLASS_BE; i++) {
 		if ((qsize[i] == 0 && params->tc_rate[i] != 0) ||
 			(qsize[i] != 0 && (params->tc_rate[i] == 0 ||
-			params->tc_rate[i] > params->tb_rate)))
-			return -14;
+			params->tc_rate[i] > params->tb_rate))) {
+			RTE_LOG(ERR, SCHED,
+				"%s: Incorrect value for qsize or tc_rate \n", __func__);
+			return -EINVAL;
+		}
 	}
-	if (params->tc_rate[RTE_SCHED_TRAFFIC_CLASS_BE] == 0)
-		return -15;
+
+	if (params->tc_rate[RTE_SCHED_TRAFFIC_CLASS_BE] == 0) {
+		RTE_LOG(ERR, SCHED,
+			"%s: Incorrect value for be traffic class rate \n", __func__);
+		return -EINVAL;
+	}
 
 	/* TC period: non-zero */
-	if (params->tc_period == 0)
-		return -16;
+	if (params->tc_period == 0) {
+		RTE_LOG(ERR, SCHED,
+			"%s: Incorrect value for tc period \n", __func__);
+		return -EINVAL;
+	}
 
 #ifdef RTE_SCHED_SUBPORT_TC_OV
 	/* TC3 oversubscription weight: non-zero */
-	if (params->tc_ov_weight == 0)
-		return -17;
+	if (params->tc_ov_weight == 0) {
+		RTE_LOG(ERR, SCHED,
+			"%s: Incorrect value for tc ov weight \n", __func__);
+		return -EINVAL;
+	}
 #endif
 
 	/* Queue WRR weights: non-zero */
 	for (i = 0; i < RTE_SCHED_BE_QUEUES_PER_PIPE; i++) {
 		uint32_t qindex = RTE_SCHED_TRAFFIC_CLASS_BE + i;
 		if ((qsize[qindex] != 0 && params->wrr_weights[i] == 0) ||
-			(qsize[qindex] == 0 && params->wrr_weights[i] != 0))
-			return -18;
+			(qsize[qindex] == 0 && params->wrr_weights[i] != 0)) {
+			RTE_LOG(ERR, SCHED,
+				"%s: Incorrect value for qsize or wrr weight \n", __func__);
+			return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -861,6 +886,18 @@ rte_sched_subport_check_params(struct rte_sched_subport_params *params,
 		return -EINVAL;
 	}
 
+	for (i = 0; i < params->n_pipe_profiles; i++) {
+		struct rte_sched_pipe_params *p = params->pipe_profiles + i;
+		int status;
+
+		status = pipe_profile_check(p, rate, &params->qsize[0]);
+		if (status != 0) {
+			RTE_LOG(ERR, SCHED,
+				"%s: Pipe profile check failed(%d) \n", __func__, status);
+			return -EINVAL;
+		}
+	}
+
 	return 0;
 }
 
@@ -1316,31 +1353,46 @@ rte_sched_port_pipe_profile_add(struct rte_sched_port *port,
 	int status;
 
 	/* Port */
-	if (port == NULL)
-		return -1;
+	if (port == NULL) {
+		RTE_LOG(ERR, SCHED,
+			"%s: Incorrect value for parameter port \n", __func__);
+		return -EINVAL;
+	}
 
 	/* Subport id not exceeds the max limit */
-	if (subport_id > port->n_subports_per_port)
-		return -2;
+	if (subport_id > port->n_subports_per_port) {
+		RTE_LOG(ERR, SCHED,
+			"%s: Incorrect value for subport id \n", __func__);
+		return -EINVAL;
+	}
 
 	s = port->subports[subport_id];
 
 	/* Pipe profiles not exceeds the max limit */
-	if (s->n_pipe_profiles >= s->n_max_pipe_profiles)
-		return -3;
+	if (s->n_pipe_profiles >= s->n_max_pipe_profiles) {
+		RTE_LOG(ERR, SCHED,
+			"%s: Number of pipe profiles exceeds the max limit \n", __func__);
+		return -EINVAL;
+	}
 
 	/* Pipe params */
 	status = pipe_profile_check(params, port->rate, &s->qsize[0]);
-	if (status != 0)
-		return status;
+	if (status != 0) {
+		RTE_LOG(ERR, SCHED,
+			"%s: Pipe profile check failed(%d) \n", __func__, status);
+		return -EINVAL;
+	}
 
 	pp = &s->pipe_profiles[s->n_pipe_profiles];
 	rte_sched_pipe_profile_convert(s, params, pp, port->rate);
 
 	/* Pipe profile not exists */
 	for (i = 0; i < s->n_pipe_profiles; i++)
-		if (memcmp(s->pipe_profiles + i, pp, sizeof(*pp)) == 0)
-			return -4;
+		if (memcmp(s->pipe_profiles + i, pp, sizeof(*pp)) == 0) {
+			RTE_LOG(ERR, SCHED,
+				"%s: Pipe profile doesn't exist \n", __func__);
+			return -EINVAL;
+		}
 
 	/* Pipe profile commit */
 	*pipe_profile_id = s->n_pipe_profiles;
