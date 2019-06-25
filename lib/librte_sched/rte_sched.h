@@ -82,7 +82,6 @@ extern "C" {
  */
 #define RTE_SCHED_BE_QUEUES_PER_PIPE    8
 
-#define RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS    4
 /** Number of traffic classes per pipe (as well as subport).
  *
  * @see struct rte_sched_subport_params
@@ -90,13 +89,6 @@ extern "C" {
  */
 #define RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE    \
 (RTE_SCHED_QUEUES_PER_PIPE - RTE_SCHED_BE_QUEUES_PER_PIPE + 1)
-
-/** Maximum number of pipe profiles that can be defined per subport.
- * Compile-time configurable.
- */
-#ifndef RTE_SCHED_PIPE_PROFILES_PER_PORT
-#define RTE_SCHED_PIPE_PROFILES_PER_PORT      256
-#endif
 
 /*
  * Ethernet framing overhead. Overhead fields per Ethernet frame:
@@ -126,6 +118,7 @@ extern "C" {
 struct rte_sched_pipe_params {
 	/** Token bucket rate (measured in bytes per second) */
 	uint32_t tb_rate;
+
 	/** Token bucket size (measured in credits) */
 	uint32_t tb_size;
 
@@ -134,6 +127,7 @@ struct rte_sched_pipe_params {
 
 	/** Enforcement period (measured in milliseconds) */
 	uint32_t tc_period;
+
 #ifdef RTE_SCHED_SUBPORT_TC_OV
 	/** Best-effort traffic class oversubscription weight */
 	uint8_t tc_ov_weight;
@@ -185,11 +179,11 @@ struct rte_sched_subport_params {
 
 	/** Max profiles allowed in the pipe profile table */
 	uint32_t n_max_pipe_profiles;
+
 #ifdef RTE_SCHED_RED
 	/** RED parameters */
 	struct rte_red_params
 		red_params[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE][RTE_COLORS];
-
 #endif
 };
 
@@ -254,19 +248,6 @@ struct rte_sched_port_params {
 
 	/** Number of subports */
 	uint32_t n_subports_per_port;
-	uint32_t n_pipes_per_subport;    /**< Number of pipes per subport */
-	uint16_t qsize[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-	/**< Packet queue size for each traffic class.
-	 * All queues within the same pipe traffic class have the same
-	 * size. Queues from different pipes serving the same traffic
-	 * class have the same size. */
-	struct rte_sched_pipe_params *pipe_profiles;
-	/**< Pipe profile table.
-	 * Every pipe is configured using one of the profiles from this table. */
-	uint32_t n_pipe_profiles;        /**< Profiles in the pipe profile table */
-#ifdef RTE_SCHED_RED
-	struct rte_red_params red_params[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE][RTE_COLORS]; /**< RED parameters */
-#endif
 };
 
 /*
