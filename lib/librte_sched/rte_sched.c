@@ -2487,9 +2487,9 @@ grinder_wrr(struct rte_sched_port *port, uint32_t pos)
 #define grinder_evict(port, pos)
 
 static inline void
-grinder_prefetch_pipe(struct rte_sched_port *port, uint32_t pos)
+grinder_prefetch_pipe(struct rte_sched_subport *subport, uint32_t pos)
 {
-	struct rte_sched_grinder *grinder = port->grinder + pos;
+	struct rte_sched_grinder *grinder = subport->grinder + pos;
 
 	rte_prefetch0(grinder->pipe);
 	rte_prefetch0(grinder->queue[0]);
@@ -2498,23 +2498,32 @@ grinder_prefetch_pipe(struct rte_sched_port *port, uint32_t pos)
 static inline void
 grinder_prefetch_tc_queue_arrays(struct rte_sched_port *port, uint32_t pos)
 {
-	struct rte_sched_grinder *grinder = port->grinder + pos;
-	uint16_t qsize, qr[4];
+	struct rte_sched_grinder *grinder = port->subport->grinder + pos;
+	struct rte_sched_pipe *pipe = grinder->pipe;
+	struct rte_sched_queue *queue;
+	uint32_t i;
+	uint16_t qsize, qr[RTE_SCHED_MAX_QUEUES_PER_TC];
 
-	qsize = grinder->qsize[0];
-	qr[0] = grinder->queue[0]->qr & (qsize - 1);
-	qr[1] = grinder->queue[1]->qr & (qsize - 1);
-	qr[2] = grinder->queue[2]->qr & (qsize - 1);
-	qr[3] = grinder->queue[3]->qr & (qsize - 1);
+	grinder->qpos = 0;
+	if (grinder->tc_index < RTE_SCHED_TRAFFIC_CLASS_BE) {
+		queue = grinder->queue[0];
+		qsize = grinder->qsize[0];
+		qr[0] = queue->qr & (qsize - 1);
 
-	rte_prefetch0(grinder->qbase[0] + qr[0]);
-	rte_prefetch0(grinder->qbase[1] + qr[1]);
+		rte_prefetch0(grinder->qbase[0] + qr[0]);
+		return;
+	}
+
+	for (i = 0; i < pipe->n_be_queues; i++) {
+		queue = grinder->queue[i];
+		qsize = grinder->qsize[i];
+		qr[i] = queue->qr & (qsize - 1);
+
+		rte_prefetch0(grinder->qbase[i] + qr[i]);
+	}
 
 	grinder_wrr_load(port, pos);
 	grinder_wrr(port, pos);
-
-	rte_prefetch0(grinder->qbase[2] + qr[2]);
-	rte_prefetch0(grinder->qbase[3] + qr[3]);
 }
 
 static inline void
@@ -2545,7 +2554,7 @@ grinder_handle(struct rte_sched_port *port, uint32_t pos)
 	case e_GRINDER_PREFETCH_PIPE:
 	{
 		if (grinder_next_pipe(port->subport, pos)) {
-			grinder_prefetch_pipe(port, pos);
+			grinder_prefetch_pipe(port->subport, pos);
 			port->busy_grinders++;
 
 			grinder->state = e_GRINDER_PREFETCH_TC_QUEUE_ARRAYS;
@@ -2606,7 +2615,7 @@ grinder_handle(struct rte_sched_port *port, uint32_t pos)
 
 		/* Look for another active pipe */
 		if (grinder_next_pipe(port->subport, pos)) {
-			grinder_prefetch_pipe(port, pos);
+			grinder_prefetch_pipe(port->subport, pos);
 
 			grinder->state = e_GRINDER_PREFETCH_TC_QUEUE_ARRAYS;
 			return result;
