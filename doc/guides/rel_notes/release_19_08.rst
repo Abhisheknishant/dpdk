@@ -135,6 +135,11 @@ API Changes
 * The network structures, definitions and functions have
   been prefixed by ``rte_`` to resolve conflicts with libc headers.
 
+* sched: To allow more traffic classes, flexible mapping of pipe queues to
+  traffic classes, and subport level configuration of pipes and queues
+  changes are made to public macros, data structures and API functions defined
+  in "rte_sched.h".
+
 
 ABI Changes
 -----------
@@ -222,7 +227,7 @@ The libraries prepended with a plus sign were incremented in this version.
      librte_rcu.so.1
      librte_reorder.so.1
      librte_ring.so.2
-     librte_sched.so.2
+   + librte_sched.so.3
      librte_security.so.2
      librte_stack.so.1
      librte_table.so.3
