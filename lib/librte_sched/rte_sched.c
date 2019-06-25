@@ -1490,11 +1490,31 @@ rte_sched_subport_read_stats(struct rte_sched_port *port,
 	struct rte_sched_subport *s;
 
 	/* Check user parameters */
-	if (port == NULL || subport_id >= port->n_subports_per_port ||
-	    stats == NULL || tc_ov == NULL)
-		return -1;
+	if (port == NULL) {
+		RTE_LOG(ERR, SCHED,
+			"%s: Incorrect value for parameter port \n", __func__);
+		return -EINVAL;
+	}
 
-	s = port->subport + subport_id;
+	if (subport_id >= port->n_subports_per_port) {
+		RTE_LOG(ERR, SCHED,
+			"%s: Incorrect value for subport id \n", __func__);
+		return -EINVAL;
+	}
+
+	if (stats == NULL) {
+		RTE_LOG(ERR, SCHED,
+			"%s: Incorrect value for parameter stats \n", __func__);
+		return -EINVAL;
+	}
+
+	if (tc_ov == NULL) {
+		RTE_LOG(ERR, SCHED,
+			"%s: Incorrect value for tc_ov \n", __func__);
+		return -EINVAL;
+	}
+
+	s = port->subports[subport_id];
 
 	/* Copy subport stats and clear */
 	memcpy(stats, &s->stats, sizeof(struct rte_sched_subport_stats));
@@ -1550,10 +1570,10 @@ rte_sched_port_queue_is_empty(struct rte_sched_port *port, uint32_t qindex)
 #ifdef RTE_SCHED_COLLECT_STATS
 
 static inline void
-rte_sched_port_update_subport_stats(struct rte_sched_port *port, uint32_t qindex, struct rte_mbuf *pkt)
+rte_sched_port_update_subport_stats(struct rte_sched_subport *s,
+	struct rte_mbuf *pkt)
 {
-	struct rte_sched_subport *s = port->subport + (qindex / rte_sched_port_queues_per_subport(port));
-	uint32_t tc_index = (qindex >> 2) & 0x3;
+	uint32_t tc_index = rte_mbuf_sched_traffic_class_get(pkt);
 	uint32_t pkt_len = pkt->pkt_len;
 
 	s->stats.n_pkts_tc[tc_index] += 1;
@@ -1562,31 +1582,31 @@ rte_sched_port_update_subport_stats(struct rte_sched_port *port, uint32_t qindex
 
 #ifdef RTE_SCHED_RED
 static inline void
-rte_sched_port_update_subport_stats_on_drop(struct rte_sched_port *port,
-						uint32_t qindex,
-						struct rte_mbuf *pkt, uint32_t red)
+rte_sched_port_update_subport_stats_on_drop(struct rte_sched_subport *subport,
+						struct rte_mbuf *pkt,
+						uint32_t red)
 #else
 static inline void
-rte_sched_port_update_subport_stats_on_drop(struct rte_sched_port *port,
-						uint32_t qindex,
-						struct rte_mbuf *pkt, __rte_unused uint32_t red)
+rte_sched_port_update_subport_stats_on_drop(struct rte_sched_subport *subport,
+						struct rte_mbuf *pkt,
+						__rte_unused uint32_t red)
 #endif
 {
-	struct rte_sched_subport *s = port->subport + (qindex / rte_sched_port_queues_per_subport(port));
-	uint32_t tc_index = (qindex >> 2) & 0x3;
+	uint32_t tc_index = rte_mbuf_sched_traffic_class_get(pkt);
 	uint32_t pkt_len = pkt->pkt_len;
 
-	s->stats.n_pkts_tc_dropped[tc_index] += 1;
-	s->stats.n_bytes_tc_dropped[tc_index] += pkt_len;
+	subport->stats.n_pkts_tc_dropped[tc_index] += 1;
+	subport->stats.n_bytes_tc_dropped[tc_index] += pkt_len;
 #ifdef RTE_SCHED_RED
-	s->stats.n_pkts_red_dropped[tc_index] += red;
+	subport->stats.n_pkts_red_dropped[tc_index] += red;
 #endif
 }
 
 static inline void
-rte_sched_port_update_queue_stats(struct rte_sched_port *port, uint32_t qindex, struct rte_mbuf *pkt)
+rte_sched_port_update_queue_stats(struct rte_sched_subport *subport,
+	uint32_t qindex, struct rte_mbuf *pkt)
 {
-	struct rte_sched_queue_extra *qe = port->queue_extra + qindex;
+	struct rte_sched_queue_extra *qe = subport->queue_extra + qindex;
 	uint32_t pkt_len = pkt->pkt_len;
 
 	qe->stats.n_pkts += 1;
@@ -1595,17 +1615,19 @@ rte_sched_port_update_queue_stats(struct rte_sched_port *port, uint32_t qindex, 
 
 #ifdef RTE_SCHED_RED
 static inline void
-rte_sched_port_update_queue_stats_on_drop(struct rte_sched_port *port,
+rte_sched_port_update_queue_stats_on_drop(struct rte_sched_subport *subport,
 						uint32_t qindex,
-						struct rte_mbuf *pkt, uint32_t red)
+						struct rte_mbuf *pkt,
+						int32_t red)
 #else
 static inline void
-rte_sched_port_update_queue_stats_on_drop(struct rte_sched_port *port,
+rte_sched_port_update_queue_stats_on_drop(struct rte_sched_subport *subport,
 						uint32_t qindex,
-						struct rte_mbuf *pkt, __rte_unused uint32_t red)
+						struct rte_mbuf *pkt,
+						__rte_unused uint32_t red)
 #endif
 {
-	struct rte_sched_queue_extra *qe = port->queue_extra + qindex;
+	struct rte_sched_queue_extra *qe = subport->queue_extra + qindex;
 	uint32_t pkt_len = pkt->pkt_len;
 
 	qe->stats.n_pkts_dropped += 1;
@@ -1626,7 +1648,7 @@ rte_sched_port_red_drop(struct rte_sched_port *port, struct rte_mbuf *pkt, uint3
 	struct rte_red_config *red_cfg;
 	struct rte_red *red;
 	uint32_t tc_index;
-	enum rte_color color;
+	enum rte_meter_color color;
 
 	tc_index = (qindex >> 2) & 0x3;
 	color = rte_sched_port_pkt_read_color(pkt);

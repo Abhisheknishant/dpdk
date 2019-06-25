@@ -195,36 +195,42 @@ struct rte_sched_subport_params {
 
 /** Subport statistics */
 struct rte_sched_subport_stats {
-	/* Packets */
+	/** Number of packets successfully written */
 	uint32_t n_pkts_tc[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-	/**< Number of packets successfully written */
-	uint32_t n_pkts_tc_dropped[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-	/**< Number of packets dropped */
 
-	/* Bytes */
+	/** Number of packets dropped */
+	uint32_t n_pkts_tc_dropped[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
+
+	/** Number of bytes successfully written for each traffic class */
 	uint32_t n_bytes_tc[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-	/**< Number of bytes successfully written for each traffic class */
+
+	/** Number of bytes dropped for each traffic class */
 	uint32_t n_bytes_tc_dropped[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-	/**< Number of bytes dropped for each traffic class */
 
 #ifdef RTE_SCHED_RED
+	/** Number of packets dropped by red */
 	uint32_t n_pkts_red_dropped[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-	/**< Number of packets dropped by red */
 #endif
 };
 
 /** Queue statistics */
 struct rte_sched_queue_stats {
-	/* Packets */
-	uint32_t n_pkts;                 /**< Packets successfully written */
-	uint32_t n_pkts_dropped;         /**< Packets dropped */
+	/** Packets successfully written */
+	uint32_t n_pkts;
+
+	/** Packets dropped */
+	uint32_t n_pkts_dropped;
+
 #ifdef RTE_SCHED_RED
-	uint32_t n_pkts_red_dropped;	 /**< Packets dropped by RED */
+	/** Packets dropped by RED */
+	uint32_t n_pkts_red_dropped;
 #endif
 
-	/* Bytes */
-	uint32_t n_bytes;                /**< Bytes successfully written */
-	uint32_t n_bytes_dropped;        /**< Bytes dropped */
+	/** Bytes successfully written */
+	uint32_t n_bytes;
+
+	/** Bytes dropped */
+	uint32_t n_bytes_dropped;
 };
 
 /** Port configuration parameters. */
