@@ -566,9 +566,13 @@ queue_node_id(uint32_t n_spp __rte_unused,
 	uint32_t tc_id,
 	uint32_t queue_id)
 {
-	return queue_id +
-		tc_id * RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE +
-		(pipe_id + subport_id * n_pps) * RTE_SCHED_QUEUES_PER_PIPE;
+	if (tc_id < RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE)
+		return queue_id + tc_id +
+			(pipe_id + subport_id * n_pps) * RTE_SCHED_QUEUES_PER_PIPE;
+	else
+		return queue_id +
+			tc_id * RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE +
+			(pipe_id + subport_id * n_pps) * RTE_SCHED_QUEUES_PER_PIPE;
 }
 
 struct tmgr_hierarchy_default_params {
@@ -617,10 +621,19 @@ tmgr_hierarchy_default(struct pmd_internals *softnic,
 		},
 	};
 
+	uint32_t *shared_shaper_id =
+		(uint32_t *) calloc(RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE,
+		sizeof(uint32_t));
+	if (shared_shaper_id == NULL)
+		return -1;
+
+	memcpy(shared_shaper_id, params->shared_shaper_id.tc,
+		sizeof(params->shared_shaper_id.tc));
+
 	struct rte_tm_node_params tc_node_params[] = {
 		[0] = {
 			.shaper_profile_id = params->shaper_profile_id.tc[0],
-			.shared_shaper_id = &params->shared_shaper_id.tc[0],
+			.shared_shaper_id = &shared_shaper_id[0],
 			.n_shared_shapers =
 				(&params->shared_shaper_id.tc_valid[0]) ? 1 : 0,
 			.nonleaf = {
@@ -630,7 +643,7 @@ tmgr_hierarchy_default(struct pmd_internals *softnic,
 
 		[1] = {
 			.shaper_profile_id = params->shaper_profile_id.tc[1],
-			.shared_shaper_id = &params->shared_shaper_id.tc[1],
+			.shared_shaper_id = &shared_shaper_id[1],
 			.n_shared_shapers =
 				(&params->shared_shaper_id.tc_valid[1]) ? 1 : 0,
 			.nonleaf = {
@@ -640,7 +653,7 @@ tmgr_hierarchy_default(struct pmd_internals *softnic,
 
 		[2] = {
 			.shaper_profile_id = params->shaper_profile_id.tc[2],
-			.shared_shaper_id = &params->shared_shaper_id.tc[2],
+			.shared_shaper_id = &shared_shaper_id[2],
 			.n_shared_shapers =
 				(&params->shared_shaper_id.tc_valid[2]) ? 1 : 0,
 			.nonleaf = {
@@ -650,9 +663,59 @@ tmgr_hierarchy_default(struct pmd_internals *softnic,
 
 		[3] = {
 			.shaper_profile_id = params->shaper_profile_id.tc[3],
-			.shared_shaper_id = &params->shared_shaper_id.tc[3],
+			.shared_shaper_id = &shared_shaper_id[3],
 			.n_shared_shapers =
 				(&params->shared_shaper_id.tc_valid[3]) ? 1 : 0,
+			.nonleaf = {
+				.n_sp_priorities = 1,
+			},
+		},
+
+		[4] = {
+			.shaper_profile_id = params->shaper_profile_id.tc[4],
+			.shared_shaper_id = &shared_shaper_id[4],
+			.n_shared_shapers =
+				(&params->shared_shaper_id.tc_valid[4]) ? 1 : 0,
+			.nonleaf = {
+				.n_sp_priorities = 1,
+			},
+		},
+
+		[5] = {
+			.shaper_profile_id = params->shaper_profile_id.tc[5],
+			.shared_shaper_id = &shared_shaper_id[5],
+			.n_shared_shapers =
+				(&params->shared_shaper_id.tc_valid[5]) ? 1 : 0,
+			.nonleaf = {
+				.n_sp_priorities = 1,
+			},
+		},
+
+		[6] = {
+			.shaper_profile_id = params->shaper_profile_id.tc[6],
+			.shared_shaper_id = &shared_shaper_id[6],
+			.n_shared_shapers =
+				(&params->shared_shaper_id.tc_valid[6]) ? 1 : 0,
+			.nonleaf = {
+				.n_sp_priorities = 1,
+			},
+		},
+
+		[7] = {
+			.shaper_profile_id = params->shaper_profile_id.tc[7],
+			.shared_shaper_id = &shared_shaper_id[7],
+			.n_shared_shapers =
+				(&params->shared_shaper_id.tc_valid[7]) ? 1 : 0,
+			.nonleaf = {
+				.n_sp_priorities = 1,
+			},
+		},
+
+		[8] = {
+			.shaper_profile_id = params->shaper_profile_id.tc[8],
+			.shared_shaper_id = &shared_shaper_id[8],
+			.n_shared_shapers =
+				(&params->shared_shaper_id.tc_valid[8]) ? 1 : 0,
 			.nonleaf = {
 				.n_sp_priorities = 1,
 			},
@@ -730,7 +793,21 @@ tmgr_hierarchy_default(struct pmd_internals *softnic,
 					return -1;
 
 				/* Hierarchy level 4: Queue nodes */
-				for (q = 0; q < RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS; q++) {
+				if (t == RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE - 1) { /*BE Traffic Class*/
+					for (q = 0; q < RTE_SCHED_BE_QUEUES_PER_PIPE; q++) {
+						status = rte_tm_node_add(port_id,
+							queue_node_id(n_spp, n_pps, s, p, t, q),
+							tc_node_id(n_spp, n_pps, s, p, t),
+							0,
+							params->weight.queue[q],
+							RTE_TM_NODE_LEVEL_ID_ANY,
+							&queue_node_params,
+							&error);
+						if (status)
+							return -1;
+					} /* Queues (BE Traffic Class) */
+				} else { /* SP Traffic Class */
+					q = 0;
 					status = rte_tm_node_add(port_id,
 						queue_node_id(n_spp, n_pps, s, p, t, q),
 						tc_node_id(n_spp, n_pps, s, p, t),
@@ -741,7 +818,7 @@ tmgr_hierarchy_default(struct pmd_internals *softnic,
 						&error);
 					if (status)
 						return -1;
-				} /* Queue */
+				} /* Queue (SP Traffic Class) */
 			} /* TC */
 		} /* Pipe */
 	} /* Subport */
@@ -762,13 +839,23 @@ tmgr_hierarchy_default(struct pmd_internals *softnic,
  *   tc1 <profile_id>
  *   tc2 <profile_id>
  *   tc3 <profile_id>
+ *   tc4 <profile_id>
+ *   tc5 <profile_id>
+ *   tc6 <profile_id>
+ *   tc7 <profile_id>
+ *   tc8 <profile_id>
  *  shared shaper
  *   tc0 <id | none>
  *   tc1 <id | none>
  *   tc2 <id | none>
  *   tc3 <id | none>
+ *   tc4 <id | none>
+ *   tc5 <id | none>
+ *   tc6 <id | none>
+ *   tc7 <id | none>
+ *   tc8 <id | none>
  *  weight
- *   queue  <q0> ... <q15>
+ *   queue  <q8> ... <q15>
  */
 static void
 cmd_tmgr_hierarchy_default(struct pmd_internals *softnic,
@@ -778,11 +865,11 @@ cmd_tmgr_hierarchy_default(struct pmd_internals *softnic,
 	size_t out_size)
 {
 	struct tmgr_hierarchy_default_params p;
-	int i, status;
+	int i, j, status;
 
 	memset(&p, 0, sizeof(p));
 
-	if (n_tokens != 50) {
+	if (n_tokens != 62) {
 		snprintf(out, out_size, MSG_ARG_MISMATCH, tokens[0]);
 		return;
 	}
@@ -894,27 +981,77 @@ cmd_tmgr_hierarchy_default(struct pmd_internals *softnic,
 		return;
 	}
 
+	if (strcmp(tokens[22], "tc4") != 0) {
+		snprintf(out, out_size, MSG_ARG_NOT_FOUND, "tc4");
+		return;
+	}
+
+	if (softnic_parser_read_uint32(&p.shaper_profile_id.tc[4], tokens[23]) != 0) {
+		snprintf(out, out_size, MSG_ARG_INVALID, "tc4 profile id");
+		return;
+	}
+
+	if (strcmp(tokens[24], "tc5") != 0) {
+		snprintf(out, out_size, MSG_ARG_NOT_FOUND, "tc5");
+		return;
+	}
+
+	if (softnic_parser_read_uint32(&p.shaper_profile_id.tc[5], tokens[25]) != 0) {
+		snprintf(out, out_size, MSG_ARG_INVALID, "tc5 profile id");
+		return;
+	}
+
+	if (strcmp(tokens[26], "tc6") != 0) {
+		snprintf(out, out_size, MSG_ARG_NOT_FOUND, "tc6");
+		return;
+	}
+
+	if (softnic_parser_read_uint32(&p.shaper_profile_id.tc[6], tokens[27]) != 0) {
+		snprintf(out, out_size, MSG_ARG_INVALID, "tc6 profile id");
+		return;
+	}
+
+	if (strcmp(tokens[28], "tc7") != 0) {
+		snprintf(out, out_size, MSG_ARG_NOT_FOUND, "tc7");
+		return;
+	}
+
+	if (softnic_parser_read_uint32(&p.shaper_profile_id.tc[7], tokens[29]) != 0) {
+		snprintf(out, out_size, MSG_ARG_INVALID, "tc7 profile id");
+		return;
+	}
+
+	if (strcmp(tokens[30], "tc8") != 0) {
+		snprintf(out, out_size, MSG_ARG_NOT_FOUND, "tc8");
+		return;
+	}
+
+	if (softnic_parser_read_uint32(&p.shaper_profile_id.tc[8], tokens[31]) != 0) {
+		snprintf(out, out_size, MSG_ARG_INVALID, "tc8 profile id");
+		return;
+	}
+
 	/* Shared shaper */
 
-	if (strcmp(tokens[22], "shared") != 0) {
+	if (strcmp(tokens[32], "shared") != 0) {
 		snprintf(out, out_size, MSG_ARG_NOT_FOUND, "shared");
 		return;
 	}
 
-	if (strcmp(tokens[23], "shaper") != 0) {
+	if (strcmp(tokens[33], "shaper") != 0) {
 		snprintf(out, out_size, MSG_ARG_NOT_FOUND, "shaper");
 		return;
 	}
 
-	if (strcmp(tokens[24], "tc0") != 0) {
+	if (strcmp(tokens[34], "tc0") != 0) {
 		snprintf(out, out_size, MSG_ARG_NOT_FOUND, "tc0");
 		return;
 	}
 
-	if (strcmp(tokens[25], "none") == 0)
+	if (strcmp(tokens[35], "none") == 0)
 		p.shared_shaper_id.tc_valid[0] = 0;
 	else {
-		if (softnic_parser_read_uint32(&p.shared_shaper_id.tc[0], tokens[25]) != 0) {
+		if (softnic_parser_read_uint32(&p.shared_shaper_id.tc[0], tokens[35]) != 0) {
 			snprintf(out, out_size, MSG_ARG_INVALID, "shared shaper tc0");
 			return;
 		}
@@ -922,15 +1059,15 @@ cmd_tmgr_hierarchy_default(struct pmd_internals *softnic,
 		p.shared_shaper_id.tc_valid[0] = 1;
 	}
 
-	if (strcmp(tokens[26], "tc1") != 0) {
+	if (strcmp(tokens[36], "tc1") != 0) {
 		snprintf(out, out_size, MSG_ARG_NOT_FOUND, "tc1");
 		return;
 	}
 
-	if (strcmp(tokens[27], "none") == 0)
+	if (strcmp(tokens[37], "none") == 0)
 		p.shared_shaper_id.tc_valid[1] = 0;
 	else {
-		if (softnic_parser_read_uint32(&p.shared_shaper_id.tc[1], tokens[27]) != 0) {
+		if (softnic_parser_read_uint32(&p.shared_shaper_id.tc[1], tokens[37]) != 0) {
 			snprintf(out, out_size, MSG_ARG_INVALID, "shared shaper tc1");
 			return;
 		}
@@ -938,15 +1075,15 @@ cmd_tmgr_hierarchy_default(struct pmd_internals *softnic,
 		p.shared_shaper_id.tc_valid[1] = 1;
 	}
 
-	if (strcmp(tokens[28], "tc2") != 0) {
+	if (strcmp(tokens[38], "tc2") != 0) {
 		snprintf(out, out_size, MSG_ARG_NOT_FOUND, "tc2");
 		return;
 	}
 
-	if (strcmp(tokens[29], "none") == 0)
+	if (strcmp(tokens[39], "none") == 0)
 		p.shared_shaper_id.tc_valid[2] = 0;
 	else {
-		if (softnic_parser_read_uint32(&p.shared_shaper_id.tc[2], tokens[29]) != 0) {
+		if (softnic_parser_read_uint32(&p.shared_shaper_id.tc[2], tokens[39]) != 0) {
 			snprintf(out, out_size, MSG_ARG_INVALID, "shared shaper tc2");
 			return;
 		}
@@ -954,15 +1091,15 @@ cmd_tmgr_hierarchy_default(struct pmd_internals *softnic,
 		p.shared_shaper_id.tc_valid[2] = 1;
 	}
 
-	if (strcmp(tokens[30], "tc3") != 0) {
+	if (strcmp(tokens[40], "tc3") != 0) {
 		snprintf(out, out_size, MSG_ARG_NOT_FOUND, "tc3");
 		return;
 	}
 
-	if (strcmp(tokens[31], "none") == 0)
+	if (strcmp(tokens[41], "none") == 0)
 		p.shared_shaper_id.tc_valid[3] = 0;
 	else {
-		if (softnic_parser_read_uint32(&p.shared_shaper_id.tc[3], tokens[31]) != 0) {
+		if (softnic_parser_read_uint32(&p.shared_shaper_id.tc[3], tokens[41]) != 0) {
 			snprintf(out, out_size, MSG_ARG_INVALID, "shared shaper tc3");
 			return;
 		}
@@ -970,22 +1107,107 @@ cmd_tmgr_hierarchy_default(struct pmd_internals *softnic,
 		p.shared_shaper_id.tc_valid[3] = 1;
 	}
 
+	if (strcmp(tokens[42], "tc4") != 0) {
+		snprintf(out, out_size, MSG_ARG_NOT_FOUND, "tc4");
+		return;
+	}
+
+	if (strcmp(tokens[43], "none") == 0)
+		p.shared_shaper_id.tc_valid[4] = 0;
+	else {
+		if (softnic_parser_read_uint32(&p.shared_shaper_id.tc[4], tokens[43]) != 0) {
+			snprintf(out, out_size, MSG_ARG_INVALID, "shared shaper tc4");
+			return;
+		}
+
+		p.shared_shaper_id.tc_valid[4] = 1;
+	}
+
+	if (strcmp(tokens[44], "tc5") != 0) {
+		snprintf(out, out_size, MSG_ARG_NOT_FOUND, "tc5");
+		return;
+	}
+
+	if (strcmp(tokens[45], "none") == 0)
+		p.shared_shaper_id.tc_valid[5] = 0;
+	else {
+		if (softnic_parser_read_uint32(&p.shared_shaper_id.tc[5], tokens[45]) != 0) {
+			snprintf(out, out_size, MSG_ARG_INVALID, "shared shaper tc5");
+			return;
+		}
+
+		p.shared_shaper_id.tc_valid[5] = 1;
+	}
+
+	if (strcmp(tokens[46], "tc6") != 0) {
+		snprintf(out, out_size, MSG_ARG_NOT_FOUND, "tc3");
+		return;
+	}
+
+	if (strcmp(tokens[47], "none") == 0)
+		p.shared_shaper_id.tc_valid[6] = 0;
+	else {
+		if (softnic_parser_read_uint32(&p.shared_shaper_id.tc[6], tokens[47]) != 0) {
+			snprintf(out, out_size, MSG_ARG_INVALID, "shared shaper tc6");
+			return;
+		}
+
+		p.shared_shaper_id.tc_valid[6] = 1;
+	}
+
+	if (strcmp(tokens[48], "tc7") != 0) {
+		snprintf(out, out_size, MSG_ARG_NOT_FOUND, "tc7");
+		return;
+	}
+
+	if (strcmp(tokens[49], "none") == 0)
+		p.shared_shaper_id.tc_valid[7] = 0;
+	else {
+		if (softnic_parser_read_uint32(&p.shared_shaper_id.tc[7], tokens[49]) != 0) {
+			snprintf(out, out_size, MSG_ARG_INVALID, "shared shaper tc7");
+			return;
+		}
+
+		p.shared_shaper_id.tc_valid[7] = 1;
+	}
+
+	if (strcmp(tokens[50], "tc8") != 0) {
+		snprintf(out, out_size, MSG_ARG_NOT_FOUND, "tc8");
+		return;
+	}
+
+	if (strcmp(tokens[51], "none") == 0)
+		p.shared_shaper_id.tc_valid[8] = 0;
+	else {
+		if (softnic_parser_read_uint32(&p.shared_shaper_id.tc[8], tokens[51]) != 0) {
+			snprintf(out, out_size, MSG_ARG_INVALID, "shared shaper tc8");
+			return;
+		}
+
+		p.shared_shaper_id.tc_valid[8] = 1;
+	}
+
 	/* Weight */
 
-	if (strcmp(tokens[32], "weight") != 0) {
+	if (strcmp(tokens[52], "weight") != 0) {
 		snprintf(out, out_size, MSG_ARG_NOT_FOUND, "weight");
 		return;
 	}
 
-	if (strcmp(tokens[33], "queue") != 0) {
+	if (strcmp(tokens[53], "queue") != 0) {
 		snprintf(out, out_size, MSG_ARG_NOT_FOUND, "queue");
 		return;
 	}
 
-	for (i = 0; i < 16; i++) {
-		if (softnic_parser_read_uint32(&p.weight.queue[i], tokens[34 + i]) != 0) {
-			snprintf(out, out_size, MSG_ARG_INVALID, "weight queue");
-			return;
+	for (i = 0, j = 0; i < 16; i++) {
+		if (i < RTE_SCHED_BE_QUEUES_PER_PIPE) {
+			p.weight.queue[i] = 1;
+		} else {
+			if (softnic_parser_read_uint32(&p.weight.queue[i], tokens[54 + j]) != 0) {
+				snprintf(out, out_size, MSG_ARG_INVALID, "weight queue");
+				return;
+			}
+			j++;
 		}
 	}
 
