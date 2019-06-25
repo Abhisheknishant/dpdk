@@ -19,6 +19,8 @@ if [ "$1" = '-h' -o "$1" = '--help' ] ; then
 	exit
 fi
 
+ret=0
+
 selfdir=$(dirname $(readlink -f $0))
 range=${1:-origin/master..}
 # convert -N to HEAD~N.. in order to comply with git-log-fixes.sh getopts
@@ -46,7 +48,9 @@ bad=$(echo "$headlines" | grep --color=always \
 	-e ':[^ ]' \
 	-e ' :' \
 	| sed 's,^,\t,')
-[ -z "$bad" ] || printf "Wrong headline format:\n$bad\n"
+if [ ! -z "$bad" ]; then
+	printf "Wrong headline format:\n$bad\n" && ret=$((ret+1))
+fi
 
 # check headline prefix when touching only drivers, e.g. net/<driver name>
 bad=$(for commit in $commits ; do
@@ -64,7 +68,9 @@ bad=$(for commit in $commits ; do
 		echo "$headline" | grep -v "^$drv"
 	fi
 done | sed 's,^,\t,')
-[ -z "$bad" ] || printf "Wrong headline prefix:\n$bad\n"
+if [ ! -z "$bad" ]; then
+	printf "Wrong headline prefix:\n$bad\n" && ret=$((ret+1))
+fi
 
 # check headline label for common typos
 bad=$(echo "$headlines" | grep --color=always \
@@ -74,14 +80,18 @@ bad=$(echo "$headlines" | grep --color=always \
 	-e 'test-pmd' \
 	-e '^bond:' \
 	| sed 's,^,\t,')
-[ -z "$bad" ] || printf "Wrong headline label:\n$bad\n"
+if [ ! -z "$bad" ]; then
+	printf "Wrong headline label:\n$bad\n" && ret=$((ret+1))
+fi
 
 # check headline lowercase for first words
 bad=$(echo "$headlines" | grep --color=always \
 	-e '^.*[[:upper:]].*:' \
 	-e ': *[[:upper:]]' \
 	| sed 's,^,\t,')
-[ -z "$bad" ] || printf "Wrong headline uppercase:\n$bad\n"
+if [ ! -z "$bad" ]; then
+	printf "Wrong headline uppercase:\n$bad\n" && ret=$((ret+1))
+fi
 
 # check headline uppercase (Rx/Tx, VF, L2, MAC, Linux, ARM...)
 bad=$(echo "$headlines" | grep -E --color=always \
@@ -127,46 +137,60 @@ bad=$(echo "$headlines" | grep -E --color=always \
 	| grep \
 	-v ':.*\<OCTEON\ TX\>' \
 	| sed 's,^,\t,')
-[ -z "$bad" ] || printf "Wrong headline lowercase:\n$bad\n"
+if [ ! -z "$bad" ]; then
+	printf "Wrong headline lowercase:\n$bad\n" && ret=$((ret+1))
+fi
 
 # special case check for VMDq to give good error message
 bad=$(echo "$headlines" | grep -E --color=always \
 	-e '\<(vmdq|VMDQ)\>' \
 	| sed 's,^,\t,')
-[ -z "$bad" ] || printf "Wrong headline capitalization, use 'VMDq':\n$bad\n"
+if [ ! -z "$bad" ]; then
+	printf "Wrong headline capitalization, use 'VMDq':\n$bad\n" && ret=$((ret+1))
+fi
 
 # check headline length (60 max)
 bad=$(echo "$headlines" |
 	awk 'length>60 {print}' |
 	sed 's,^,\t,')
-[ -z "$bad" ] || printf "Headline too long:\n$bad\n"
+if [ ! -z "$bad" ]; then
+	printf "Headline too long:\n$bad\n" && ret=$((ret+1))
+fi
 
 # check body lines length (75 max)
 bad=$(echo "$bodylines" | grep -v '^Fixes:' |
 	awk 'length>75 {print}' |
 	sed 's,^,\t,')
-[ -z "$bad" ] || printf "Line too long:\n$bad\n"
+if [ ! -z "$bad" ]; then
+	printf "Line too long:\n$bad\n" && ret=$((ret+1))
+fi
 
 # check starting commit message with "It"
 bad=$(for commit in $commits ; do
 	firstbodyline=$(git log --format='%b' -1 $commit | head -n1)
 	echo "$firstbodyline" | grep --color=always -ie '^It '
 done | sed 's,^,\t,')
-[ -z "$bad" ] || printf "Wrong beginning of commit message:\n$bad\n"
+if [ ! -z "$bad" ]; then
+	printf "Wrong beginning of commit message:\n$bad\n" && ret=$((ret+1))
+fi
 
 # check tags spelling
 bad=$(echo "$tags" |
 	grep -v "^$bytag [^,]* <.*@.*>$" |
 	grep -v '^Fixes: [0-9a-f]\{7\}[0-9a-f]* (".*")$' |
 	sed 's,^.,\t&,')
-[ -z "$bad" ] || printf "Wrong tag:\n$bad\n"
+if [ ! -z "$bad" ]; then
+	printf "Wrong tag:\n$bad\n" && ret=$((ret+1))
+fi
 
 # check missing Fixes: tag
 bad=$(for fix in $fixes ; do
 	git log --format='%b' -1 $fix | grep -q '^Fixes: ' ||
 		git log --format='\t%s' -1 $fix
 done)
-[ -z "$bad" ] || printf "Missing 'Fixes' tag:\n$bad\n"
+if [ ! -z "$bad" ]; then
+	printf "Missing 'Fixes' tag:\n$bad\n" && ret=$((ret+1))
+fi
 
 # check Fixes: reference
 IFS='
@@ -181,11 +205,17 @@ bad=$(for fixtag in $fixtags ; do
 	fi
 	printf "$fixtag" | grep -v "^$good$"
 done | sed 's,^,\t,')
-[ -z "$bad" ] || printf "Wrong 'Fixes' reference:\n$bad\n"
+if [ ! -z "$bad" ]; then
+	printf "Wrong 'Fixes' reference:\n$bad\n" && ret=$((ret+1))
+fi
 
 # check Cc: stable@dpdk.org for fixes
 bad=$(for fix in $stablefixes ; do
 	git log --format='%b' -1 $fix | grep -qi '^Cc: *stable@dpdk.org' ||
 		git log --format='\t%s' -1 $fix
 done)
-[ -z "$bad" ] || printf "Is it candidate for Cc: stable@dpdk.org backport?\n$bad\n"
+if [ ! -z "$bad" ]; then
+	printf "Is it candidate for Cc: stable@dpdk.org backport?\n$bad\n" && ret=$((ret+1))
+fi
+
+exit $ret
