@@ -245,12 +245,8 @@ qede_interrupt_handler_intx(void *param)
 
 	/* Check if our device actually raised an interrupt */
 	status = ecore_int_igu_read_sisr_reg(ECORE_LEADING_HWFN(edev));
-	if (status & 0x1) {
+	if (status & 0x1)
 		qede_interrupt_action(ECORE_LEADING_HWFN(edev));
-
-		if (rte_intr_enable(eth_dev->intr_handle))
-			DP_ERR(edev, "rte_intr_enable failed\n");
-	}
 }
 
 static void
@@ -261,8 +257,6 @@ qede_interrupt_handler(void *param)
 	struct ecore_dev *edev = &qdev->edev;
 
 	qede_interrupt_action(ECORE_LEADING_HWFN(edev));
-	if (rte_intr_enable(eth_dev->intr_handle))
-		DP_ERR(edev, "rte_intr_enable failed\n");
 }
 
 static void
