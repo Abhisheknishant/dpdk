@@ -421,9 +421,9 @@ rte_sched_queue_read_stats(struct rte_sched_port *port,
  * @param pipe
  *   Pipe ID within subport
  * @param traffic_class
- *   Traffic class ID within pipe (0 .. 3)
+ *   Traffic class ID within pipe (0 .. 8)
  * @param queue
- *   Queue ID within pipe traffic class (0 .. 3)
+ *   Queue ID within pipe traffic class (0 .. 15)
  * @param color
  *   Packet color set
  */
@@ -448,9 +448,9 @@ rte_sched_port_pkt_write(struct rte_sched_port *port,
  * @param pipe
  *   Pipe ID within subport
  * @param traffic_class
- *   Traffic class ID within pipe (0 .. 3)
+ *   Traffic class ID within pipe (0 .. 8)
  * @param queue
- *   Queue ID within pipe traffic class (0 .. 3)
+ *   Queue ID within pipe traffic class (0 .. 15)
  *
  */
 void
