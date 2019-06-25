@@ -280,6 +280,41 @@ rte_eal_config_attach(void)
 	rte_config.mem_config = rte_mem_cfg_addr;
 }
 
+/* reattach the shared config at exact memory location primary process has it */
+static void
+rte_eal_config_reattach(void)
+{
+	struct rte_mem_config *mem_config;
+	void *rte_mem_cfg_addr;
+
+	if (internal_config.no_shconf)
+		return;
+
+	/* save the address primary process has mapped shared config to */
+	rte_mem_cfg_addr =
+			(void *)(uintptr_t)rte_config.mem_config->mem_cfg_addr;
+
+	/* unmap original config */
+	munmap(rte_config.mem_config, sizeof(struct rte_mem_config));
+
+	/* remap the config at proper address */
+	mem_config = (struct rte_mem_config *) mmap(rte_mem_cfg_addr,
+			sizeof(*mem_config), PROT_READ | PROT_WRITE, MAP_SHARED,
+			mem_cfg_fd, 0);
+	if (mem_config == MAP_FAILED || mem_config != rte_mem_cfg_addr) {
+		if (mem_config != MAP_FAILED)
+			/* errno is stale, don't use */
+			rte_panic("Cannot mmap memory for rte_config at [%p], got [%p]\n",
+				  rte_mem_cfg_addr, mem_config);
+		else
+			rte_panic("Cannot mmap memory for rte_config! error %i (%s)\n",
+				  errno, strerror(errno));
+	}
+	close(mem_cfg_fd);
+
+	rte_config.mem_config = mem_config;
+}
+
 /* Detect if we are a primary or a secondary process */
 enum rte_proc_type_t
 eal_proc_type_detect(void)
@@ -318,6 +353,7 @@ rte_config_init(void)
 	case RTE_PROC_SECONDARY:
 		rte_eal_config_attach();
 		rte_eal_mcfg_wait_complete(rte_config.mem_config);
+		rte_eal_config_reattach();
 		break;
 	case RTE_PROC_AUTO:
 	case RTE_PROC_INVALID:
