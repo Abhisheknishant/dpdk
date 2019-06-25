@@ -45,11 +45,29 @@ rte_mempool_op_calc_mem_size_default(const struct rte_mempool *mp,
 	return mem_size;
 }
 
+/* Returns -1 if object falls on a page boundary, else returns 0 */
+static inline int
+mempool_check_obj_bounds(void *obj, uint64_t hugepage_sz, size_t elt_sz)
+{
+	uintptr_t page_end, elt_addr = (uintptr_t)obj;
+	uint32_t pg_shift = rte_bsf32(hugepage_sz);
+	uint64_t page_mask;
+
+	page_mask =  ~((1ull << pg_shift) - 1);
+	page_end = (elt_addr & page_mask) + hugepage_sz;
+
+	if (elt_addr + elt_sz > page_end)
+		return -1;
+
+	return 0;
+}
+
 int
 rte_mempool_op_populate_default(struct rte_mempool *mp, unsigned int max_objs,
 		void *vaddr, rte_iova_t iova, size_t len,
 		rte_mempool_populate_obj_cb_t *obj_cb, void *obj_cb_arg)
 {
+	struct rte_memzone *mz;
 	size_t total_elt_sz;
 	size_t off;
 	unsigned int i;
@@ -58,6 +76,18 @@ rte_mempool_op_populate_default(struct rte_mempool *mp, unsigned int max_objs,
 	total_elt_sz = mp->header_size + mp->elt_size + mp->trailer_size;
 
 	for (off = 0, i = 0; off + total_elt_sz <= len && i < max_objs; i++) {
+
+		if (mp->flags & MEMPOOL_F_NO_PAGE_BOUND) {
+			mz = (struct rte_memzone *)obj_cb_arg;
+			if (mempool_check_obj_bounds((char *)vaddr + off,
+						    mz->hugepage_sz,
+						    total_elt_sz) < 0) {
+				i--; /* Decrement count & skip this obj */
+				off += total_elt_sz;
+				continue;
+			}
+		}
+
 		off += mp->header_size;
 		obj = (char *)vaddr + off;
 		obj_cb(mp, obj_cb_arg, obj,
