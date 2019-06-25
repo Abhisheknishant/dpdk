@@ -72,6 +72,10 @@ extern "C" {
 #define VHOST_USER_PROTOCOL_F_HOST_NOTIFIER 11
 #endif
 
+#ifndef VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD
+#define VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD 12
+#endif
+
 /** Indicate whether protocol features negotiation is supported. */
 #ifndef VHOST_USER_F_PROTOCOL_FEATURES
 #define VHOST_USER_F_PROTOCOL_FEATURES	30
@@ -99,11 +103,52 @@ struct rte_vhost_memory {
 	struct rte_vhost_mem_region regions[];
 };
 
+typedef struct VhostUserInflightEntry {
+	/* Indicate whether this descriptor is inflight or not.
+    	 * Only available for head-descriptor. */
+	uint8_t		inflight;
+
+	uint8_t		padding[5];
+
+	/* Maintain a list for the last batch of used descriptors.
+    	 * Only available when batching is used for submitting */
+	uint16_t	next;
+
+	/* Used to preserve the order of fetching available descriptors.
+     	 * Only available for head-descriptor. */
+	uint64_t	counter;
+} VhostUserInflightEntry;
+
+typedef struct VhostInflightInfo {
+	/* The feature flags of this region. Now it's initialized to 0. */
+	uint64_t		feature;
+
+	/* The version of this region. It's 1 currently.
+    	 * Zero value indicates an uninitialized buffer */
+	uint16_t 		version;
+
+	/* The size of DescStateSplit array. It's equal to the virtqueue
+     	 * size. Slave could get it from queue size field of VhostUserInflight. */
+	uint16_t		desc_num;
+
+	/* The head of list that track the last batch of used descriptors. */
+	uint16_t		last_batch_head;
+
+	/* Store the idx value of used ring */
+	uint16_t 		used_idx;
+
+	/* Used to track the state of each descriptor in descriptor table */
+	VhostUserInflightEntry	desc[0];
+} VhostInflightInfo;
+
 struct rte_vhost_vring {
 	struct vring_desc	*desc;
 	struct vring_avail	*avail;
 	struct vring_used	*used;
 	uint64_t		log_guest_addr;
+
+	VhostInflightInfo       *inflight;
+	int                	inflight_flag;
 
 	/** Deprecated, use rte_vhost_vring_call() instead. */
 	int			callfd;
@@ -605,6 +650,22 @@ uint16_t rte_vhost_dequeue_burst(int vid, uint16_t queue_id,
 int rte_vhost_get_mem_table(int vid, struct rte_vhost_memory **mem);
 
 /**
+ * Get guest vring info including the vring address, vring size, inflight, etc.
+ *
+ * @param vid
+ *  vhost device ID
+ * @param vring_idx
+ *  vring index
+ * @param vring
+ *  the structure to hold the requested vring info
+ * @return
+ *  0 on success, -1 on failure
+ */
+int __rte_experimental 
+rte_vhost_get_vhost_vring_with_inflight(int vid, uint16_t vring_idx,
+				struct rte_vhost_vring *vring);
+
+/**
  * Get guest vring info, including the vring address, vring size, etc.
  *
  * @param vid
@@ -631,6 +692,41 @@ int rte_vhost_get_vhost_vring(int vid, uint16_t vring_idx,
  *  0 on success, -1 on failure
  */
 int rte_vhost_vring_call(int vid, uint16_t vring_idx);
+
+/**
+ * set inflight flag for a entry.
+ *
+ * @param vring
+ *  the structure to hold the requested vring info
+ * @param idx
+ *  inflight entry index
+ */
+void __rte_experimental rte_vhost_set_inflight(struct rte_vhost_vring *vring,
+		uint16_t idx);
+
+/**
+ * clear inflight flag for a entry.
+ *
+ * @param vring
+ *  the structure to hold the requested vring info
+ * @param last_used_idx
+ *  next free used_idx
+ * @param idx
+ *  inflight entry index
+ */
+void __rte_experimental rte_vhost_clr_inflight(struct rte_vhost_vring *vring,
+		uint16_t last_used_idx, uint16_t idx);
+
+/**
+ * set last inflight io index.
+ *
+ * @param vring
+ *  the structure to hold the requested vring info
+ * @param idx
+ *  inflight entry index
+ */
+void __rte_experimental rte_vhost_set_last_inflight_io(struct rte_vhost_vring *vring,
+		uint16_t idx);
 
 /**
  * Get vhost RX queue avail count.

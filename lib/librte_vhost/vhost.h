@@ -128,6 +128,10 @@ struct vhost_virtqueue {
 	/* Physical address of used ring, for logging */
 	uint64_t		log_guest_addr;
 
+	/* Inflight share memory info */
+	VhostInflightInfo       *inflight;
+	bool                	inflight_flag;
+
 	uint16_t		nr_zmbuf;
 	uint16_t		zmbuf_size;
 	uint16_t		last_zmbuf_idx;
@@ -286,6 +290,12 @@ struct guest_page {
 	uint64_t size;
 };
 
+typedef struct VuDevInflightInfo {
+	int 		fd;
+	void 		*addr;
+	uint64_t 	size;
+} VuDevInflightInfo;
+
 /**
  * Device structure contains all configuration information relating
  * to the device.
@@ -303,6 +313,7 @@ struct virtio_net {
 	uint32_t		nr_vring;
 	int			dequeue_zero_copy;
 	struct vhost_virtqueue	*virtqueue[VHOST_MAX_QUEUE_PAIRS * 2];
+	VuDevInflightInfo 	inflight_info;
 #define IF_NAME_SZ (PATH_MAX > IFNAMSIZ ? PATH_MAX : IFNAMSIZ)
 	char			ifname[IF_NAME_SZ];
 	uint64_t		log_size;

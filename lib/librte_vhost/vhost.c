@@ -240,6 +240,8 @@ cleanup_vq(struct vhost_virtqueue *vq, int destroy)
 		close(vq->callfd);
 	if (vq->kickfd >= 0)
 		close(vq->kickfd);
+	if (vq->inflight)
+		vq->inflight = NULL;
 }
 
 /*
@@ -726,6 +728,41 @@ rte_vhost_get_mem_table(int vid, struct rte_vhost_memory **mem)
 	return 0;
 }
 
+int __rte_experimental
+rte_vhost_get_vhost_vring_with_inflight(int vid, uint16_t vring_idx,
+			  struct rte_vhost_vring *vring)
+{
+	struct virtio_net *dev;
+	struct vhost_virtqueue *vq;
+
+	dev = get_device(vid);
+	if (dev == NULL || vring == NULL)
+		return -1;
+
+	if (vring_idx >= VHOST_MAX_VRING)
+		return -1;
+
+	vq = dev->virtqueue[vring_idx];
+	if (!vq)
+		return -1;
+
+	vring->desc  = vq->desc;
+	vring->avail = vq->avail;
+	vring->used  = vq->used;
+	vring->log_guest_addr  = vq->log_guest_addr;
+
+	vring->callfd  = vq->callfd;
+	vring->kickfd  = vq->kickfd;
+	vring->size    = vq->size;
+
+	vring->inflight = vq->inflight;
+
+	vring->inflight_flag = vq->inflight_flag;
+	vq->inflight_flag = 0;
+
+	return 0;
+}
+
 int
 rte_vhost_get_vhost_vring(int vid, uint16_t vring_idx,
 			  struct rte_vhost_vring *vring)
@@ -779,6 +816,41 @@ rte_vhost_vring_call(int vid, uint16_t vring_idx)
 		vhost_vring_call_split(dev, vq);
 
 	return 0;
+}
+
+void __rte_experimental
+rte_vhost_set_inflight(struct rte_vhost_vring *vring, uint16_t idx)
+{
+	VhostInflightInfo *inflight = vring->inflight;
+	if (unlikely(!inflight))
+		return;
+	inflight->desc[idx].inflight = 1;
+}
+
+void __rte_experimental
+rte_vhost_clr_inflight(struct rte_vhost_vring *vring,
+	uint16_t last_used_idx, uint16_t idx)
+{
+	VhostInflightInfo *inflight = vring->inflight;
+
+	if (unlikely(!inflight))
+		return;
+
+	rte_compiler_barrier();
+	inflight->desc[idx].inflight = 0;
+	rte_compiler_barrier();
+	inflight->used_idx = last_used_idx;
+}
+
+void __rte_experimental
+rte_vhost_set_last_inflight_io(struct rte_vhost_vring *vring, uint16_t idx)
+{
+	VhostInflightInfo *inflight = vring->inflight;
+
+	if (unlikely(!inflight))
+		return;
+
+	inflight->last_batch_head = idx;
 }
 
 uint16_t
