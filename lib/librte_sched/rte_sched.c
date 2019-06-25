@@ -2416,71 +2416,100 @@ grinder_next_pipe(struct rte_sched_subport *subport, uint32_t pos)
 
 
 static inline void
-grinder_wrr_load(struct rte_sched_port *port, uint32_t pos)
+grinder_wrr_load(struct rte_sched_subport *subport, uint32_t pos)
 {
-	struct rte_sched_grinder *grinder = port->grinder + pos;
+	struct rte_sched_grinder *grinder = subport->grinder + pos;
 	struct rte_sched_pipe *pipe = grinder->pipe;
 	struct rte_sched_pipe_profile *pipe_params = grinder->pipe_params;
-	uint32_t tc_index = grinder->tc_index;
 	uint32_t qmask = grinder->qmask;
-	uint32_t qindex;
+	uint32_t qindex = grinder->qindex[0];
+	uint32_t i;
 
-	qindex = tc_index * 4;
-
-	grinder->wrr_tokens[0] = ((uint16_t) pipe->wrr_tokens[qindex]) << RTE_SCHED_WRR_SHIFT;
-	grinder->wrr_tokens[1] = ((uint16_t) pipe->wrr_tokens[qindex + 1]) << RTE_SCHED_WRR_SHIFT;
-	grinder->wrr_tokens[2] = ((uint16_t) pipe->wrr_tokens[qindex + 2]) << RTE_SCHED_WRR_SHIFT;
-	grinder->wrr_tokens[3] = ((uint16_t) pipe->wrr_tokens[qindex + 3]) << RTE_SCHED_WRR_SHIFT;
-
-	grinder->wrr_mask[0] = (qmask & 0x1) * 0xFFFF;
-	grinder->wrr_mask[1] = ((qmask >> 1) & 0x1) * 0xFFFF;
-	grinder->wrr_mask[2] = ((qmask >> 2) & 0x1) * 0xFFFF;
-	grinder->wrr_mask[3] = ((qmask >> 3) & 0x1) * 0xFFFF;
-
-	grinder->wrr_cost[0] = pipe_params->wrr_cost[qindex];
-	grinder->wrr_cost[1] = pipe_params->wrr_cost[qindex + 1];
-	grinder->wrr_cost[2] = pipe_params->wrr_cost[qindex + 2];
-	grinder->wrr_cost[3] = pipe_params->wrr_cost[qindex + 3];
+	for (i = 0; i < pipe->n_be_queues; i++) {
+		grinder->wrr_tokens[i] =
+			((uint16_t) pipe->wrr_tokens[qindex + i]) << RTE_SCHED_WRR_SHIFT;
+		grinder->wrr_mask[i] = ((qmask >> i) & 0x1) * 0xFFFF;
+		grinder->wrr_cost[i] = pipe_params->wrr_cost[qindex + i];
+	}
 }
 
 static inline void
-grinder_wrr_store(struct rte_sched_port *port, uint32_t pos)
+grinder_wrr_store(struct rte_sched_subport *subport, uint32_t pos)
 {
-	struct rte_sched_grinder *grinder = port->grinder + pos;
+	struct rte_sched_grinder *grinder = subport->grinder + pos;
 	struct rte_sched_pipe *pipe = grinder->pipe;
-	uint32_t tc_index = grinder->tc_index;
-	uint32_t qindex;
+	uint32_t i;
 
-	qindex = tc_index * 4;
-
-	pipe->wrr_tokens[qindex] = (grinder->wrr_tokens[0] & grinder->wrr_mask[0])
-		>> RTE_SCHED_WRR_SHIFT;
-	pipe->wrr_tokens[qindex + 1] = (grinder->wrr_tokens[1] & grinder->wrr_mask[1])
-		>> RTE_SCHED_WRR_SHIFT;
-	pipe->wrr_tokens[qindex + 2] = (grinder->wrr_tokens[2] & grinder->wrr_mask[2])
-		>> RTE_SCHED_WRR_SHIFT;
-	pipe->wrr_tokens[qindex + 3] = (grinder->wrr_tokens[3] & grinder->wrr_mask[3])
-		>> RTE_SCHED_WRR_SHIFT;
+	for (i = 0; i < pipe->n_be_queues; i++)
+		pipe->wrr_tokens[i] =
+			(grinder->wrr_tokens[i] & grinder->wrr_mask[i]) >>
+				RTE_SCHED_WRR_SHIFT;
 }
 
 static inline void
-grinder_wrr(struct rte_sched_port *port, uint32_t pos)
+grinder_wrr(struct rte_sched_subport *subport, uint32_t pos)
 {
-	struct rte_sched_grinder *grinder = port->grinder + pos;
+	struct rte_sched_grinder *grinder = subport->grinder + pos;
+	struct rte_sched_pipe *pipe = grinder->pipe;
+	uint32_t n_be_queues = pipe->n_be_queues;
 	uint16_t wrr_tokens_min;
+
+	if (n_be_queues == 1) {
+		grinder->wrr_tokens[0] |= ~grinder->wrr_mask[0];
+		grinder->qpos = 0;
+		wrr_tokens_min = grinder->wrr_tokens[0];
+		grinder->wrr_tokens[0] -= wrr_tokens_min;
+		return;
+	}
+
+	if (n_be_queues == 2) {
+		grinder->wrr_tokens[0] |= ~grinder->wrr_mask[0];
+		grinder->wrr_tokens[1] |= ~grinder->wrr_mask[1];
+
+		grinder->qpos = rte_min_pos_2_u16(grinder->wrr_tokens);
+		wrr_tokens_min = grinder->wrr_tokens[grinder->qpos];
+
+		grinder->wrr_tokens[0] -= wrr_tokens_min;
+		grinder->wrr_tokens[1] -= wrr_tokens_min;
+		return;
+	}
+
+	if (n_be_queues == 4) {
+		grinder->wrr_tokens[0] |= ~grinder->wrr_mask[0];
+		grinder->wrr_tokens[1] |= ~grinder->wrr_mask[1];
+		grinder->wrr_tokens[2] |= ~grinder->wrr_mask[2];
+		grinder->wrr_tokens[3] |= ~grinder->wrr_mask[3];
+
+		grinder->qpos = rte_min_pos_4_u16(grinder->wrr_tokens);
+		wrr_tokens_min = grinder->wrr_tokens[grinder->qpos];
+
+		grinder->wrr_tokens[0] -= wrr_tokens_min;
+		grinder->wrr_tokens[1] -= wrr_tokens_min;
+		grinder->wrr_tokens[2] -= wrr_tokens_min;
+		grinder->wrr_tokens[3] -= wrr_tokens_min;
+		return;
+	}
 
 	grinder->wrr_tokens[0] |= ~grinder->wrr_mask[0];
 	grinder->wrr_tokens[1] |= ~grinder->wrr_mask[1];
 	grinder->wrr_tokens[2] |= ~grinder->wrr_mask[2];
 	grinder->wrr_tokens[3] |= ~grinder->wrr_mask[3];
+	grinder->wrr_tokens[4] |= ~grinder->wrr_mask[4];
+	grinder->wrr_tokens[5] |= ~grinder->wrr_mask[5];
+	grinder->wrr_tokens[6] |= ~grinder->wrr_mask[6];
+	grinder->wrr_tokens[7] |= ~grinder->wrr_mask[7];
 
-	grinder->qpos = rte_min_pos_4_u16(grinder->wrr_tokens);
+	grinder->qpos = rte_min_pos_8_u16(grinder->wrr_tokens);
 	wrr_tokens_min = grinder->wrr_tokens[grinder->qpos];
 
 	grinder->wrr_tokens[0] -= wrr_tokens_min;
 	grinder->wrr_tokens[1] -= wrr_tokens_min;
 	grinder->wrr_tokens[2] -= wrr_tokens_min;
 	grinder->wrr_tokens[3] -= wrr_tokens_min;
+	grinder->wrr_tokens[4] -= wrr_tokens_min;
+	grinder->wrr_tokens[5] -= wrr_tokens_min;
+	grinder->wrr_tokens[6] -= wrr_tokens_min;
+	grinder->wrr_tokens[7] -= wrr_tokens_min;
 }
 
 
@@ -2522,8 +2551,8 @@ grinder_prefetch_tc_queue_arrays(struct rte_sched_port *port, uint32_t pos)
 		rte_prefetch0(grinder->qbase[i] + qr[i]);
 	}
 
-	grinder_wrr_load(port, pos);
-	grinder_wrr(port, pos);
+	grinder_wrr_load(port->subport, pos);
+	grinder_wrr(port->subport, pos);
 }
 
 static inline void
@@ -2592,12 +2621,12 @@ grinder_handle(struct rte_sched_port *port, uint32_t pos)
 
 		/* Look for next packet within the same TC */
 		if (result && grinder->qmask) {
-			grinder_wrr(port, pos);
+			grinder_wrr(port->subport, pos);
 			grinder_prefetch_mbuf(port, pos);
 
 			return 1;
 		}
-		grinder_wrr_store(port, pos);
+		grinder_wrr_store(port->subport, pos);
 
 		/* Look for another active TC within same pipe */
 		if (grinder_next_tc(port->subport, pos)) {
