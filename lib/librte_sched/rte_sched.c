@@ -295,6 +295,29 @@ rte_sched_port_queues_per_subport(struct rte_sched_port *port)
 #endif
 
 static inline uint32_t
+rte_sched_subport_queues(struct rte_sched_subport *subport)
+{
+	return RTE_SCHED_QUEUES_PER_PIPE * subport->n_subport_pipes;
+}
+
+static inline struct rte_mbuf **
+rte_sched_subport_qbase(struct rte_sched_subport *subport, uint32_t qindex)
+{
+	uint32_t pindex = qindex >> 4;
+	uint32_t qpos = qindex & 0xF;
+
+	return (subport->queue_array + pindex *
+		subport->qsize_sum + subport->qsize_add[qpos]);
+}
+
+static inline uint16_t
+rte_sched_subport_qsize(struct rte_sched_subport *subport, uint32_t qindex)
+{
+	uint32_t qpos = qindex & 0xF;
+	return subport->qsize[qpos];
+}
+
+static inline uint32_t
 rte_sched_port_queues_per_port(struct rte_sched_port *port)
 {
 	return RTE_SCHED_QUEUES_PER_PIPE * port->n_pipes_per_subport * port->n_subports_per_port;
@@ -640,31 +663,47 @@ rte_sched_port_config(struct rte_sched_port_params *params)
 	return port;
 }
 
+static inline void
+rte_sched_subport_free(struct rte_sched_subport *subport)
+{
+	uint32_t n_subport_queues;
+	uint32_t qindex;
+
+	if (subport == NULL)
+		return;
+
+	n_subport_queues = rte_sched_subport_queues(subport);
+
+	/* Free enqueued mbufs */
+	for (qindex = 0; qindex < n_subport_queues; qindex++) {
+		struct rte_mbuf **mbufs =
+			rte_sched_subport_qbase(subport, qindex);
+		uint16_t qsize = rte_sched_subport_qsize(subport, qindex);
+		if (qsize != 0) {
+			struct rte_sched_queue *queue = subport->queue + qindex;
+			uint16_t qr = queue->qr & (qsize - 1);
+			uint16_t qw = queue->qw & (qsize - 1);
+
+			for (; qr != qw; qr = (qr + 1) & (qsize - 1))
+				rte_pktmbuf_free(mbufs[qr]);
+		}
+	}
+
+	rte_bitmap_free(subport->bmp);
+}
+
 void
 rte_sched_port_free(struct rte_sched_port *port)
 {
-	uint32_t qindex;
-	uint32_t n_queues_per_port;
+	uint32_t i;
 
 	/* Check user parameters */
 	if (port == NULL)
 		return;
 
-	n_queues_per_port = rte_sched_port_queues_per_port(port);
+	for (i = 0; i < port->n_subports_per_port; i++)
+		rte_sched_subport_free(port->subports[i]);
 
-	/* Free enqueued mbufs */
-	for (qindex = 0; qindex < n_queues_per_port; qindex++) {
-		struct rte_mbuf **mbufs = rte_sched_port_qbase(port, qindex);
-		uint16_t qsize = rte_sched_port_qsize(port, qindex);
-		struct rte_sched_queue *queue = port->queue + qindex;
-		uint16_t qr = queue->qr & (qsize - 1);
-		uint16_t qw = queue->qw & (qsize - 1);
-
-		for (; qr != qw; qr = (qr + 1) & (qsize - 1))
-			rte_pktmbuf_free(mbufs[qr]);
-	}
-
-	rte_bitmap_free(port->bmp);
 	rte_free(port);
 }
 
