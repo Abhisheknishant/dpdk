@@ -23,6 +23,7 @@
 #include <linux/netdevice.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
+#include <linux/iommu.h>
 
 #include <rte_kni_common.h>
 #define KNI_KTHREAD_RESCHEDULE_INTERVAL 5 /* us */
@@ -39,6 +40,8 @@ struct kni_dev {
 	/* kni list */
 	struct list_head list;
 
+	uint8_t iova_mode;
+	struct iommu_domain *domain;
 	struct net_device_stats stats;
 	int status;
 	uint16_t group_id;           /* Group ID of a group of KNI devices */

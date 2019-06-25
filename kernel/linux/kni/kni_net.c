@@ -35,6 +35,22 @@ static void kni_net_rx_normal(struct kni_dev *kni);
 /* kni rx function pointer, with default to normal rx */
 static kni_net_rx_t kni_net_rx_func = kni_net_rx_normal;
 
+/* iova to kernel virtual address */
+static void *
+iova2kva(struct kni_dev *kni, void *pa)
+{
+	return phys_to_virt(iommu_iova_to_phys(kni->domain,
+				(uintptr_t)pa));
+}
+
+static void *
+iova2data_kva(struct kni_dev *kni, struct rte_kni_mbuf *m)
+{
+	return phys_to_virt((iommu_iova_to_phys(kni->domain,
+					(uintptr_t)m->buf_physaddr) +
+			     m->data_off));
+}
+
 /* physical address to kernel virtual address */
 static void *
 pa2kva(void *pa)
@@ -186,7 +202,10 @@ kni_fifo_trans_pa2va(struct kni_dev *kni,
 			return;
 
 		for (i = 0; i < num_rx; i++) {
-			kva = pa2kva(kni->pa[i]);
+			if (likely(kni->iova_mode == 1))
+				kva = iova2kva(kni, kni->pa[i]);
+			else
+				kva = pa2kva(kni->pa[i]);
 			kni->va[i] = pa2va(kni->pa[i], kva);
 		}
 
@@ -263,8 +282,13 @@ kni_net_tx(struct sk_buff *skb, struct net_device *dev)
 	if (likely(ret == 1)) {
 		void *data_kva;
 
-		pkt_kva = pa2kva(pkt_pa);
-		data_kva = kva2data_kva(pkt_kva);
+		if (likely(kni->iova_mode == 1)) {
+			pkt_kva = iova2kva(kni, pkt_pa);
+			data_kva = iova2data_kva(kni, pkt_kva);
+		} else {
+			pkt_kva = pa2kva(pkt_pa);
+			data_kva = kva2data_kva(pkt_kva);
+		}
 		pkt_va = pa2va(pkt_pa, pkt_kva);
 
 		len = skb->len;
@@ -335,9 +359,14 @@ kni_net_rx_normal(struct kni_dev *kni)
 
 	/* Transfer received packets to netif */
 	for (i = 0; i < num_rx; i++) {
-		kva = pa2kva(kni->pa[i]);
+		if (likely(kni->iova_mode == 1)) {
+			kva = iova2kva(kni, kni->pa[i]);
+			data_kva = iova2data_kva(kni, kva);
+		} else {
+			kva = pa2kva(kni->pa[i]);
+			data_kva = kva2data_kva(kva);
+		}
 		len = kva->pkt_len;
-		data_kva = kva2data_kva(kva);
 		kni->va[i] = pa2va(kni->pa[i], kva);
 
 		skb = dev_alloc_skb(len + 2);
@@ -434,13 +463,21 @@ kni_net_rx_lo_fifo(struct kni_dev *kni)
 		num = ret;
 		/* Copy mbufs */
 		for (i = 0; i < num; i++) {
-			kva = pa2kva(kni->pa[i]);
+
+			if (likely(kni->iova_mode == 1)) {
+				kva = iova2kva(kni, kni->pa[i]);
+				data_kva = iova2data_kva(kni, kva);
+				alloc_kva = iova2kva(kni, kni->alloc_pa[i]);
+				alloc_data_kva = iova2data_kva(kni, alloc_kva);
+			} else {
+				kva = pa2kva(kni->pa[i]);
+				data_kva = kva2data_kva(kva);
+				alloc_kva = pa2kva(kni->alloc_pa[i]);
+				alloc_data_kva = kva2data_kva(alloc_kva);
+			}
 			len = kva->pkt_len;
-			data_kva = kva2data_kva(kva);
 			kni->va[i] = pa2va(kni->pa[i], kva);
 
-			alloc_kva = pa2kva(kni->alloc_pa[i]);
-			alloc_data_kva = kva2data_kva(alloc_kva);
 			kni->alloc_va[i] = pa2va(kni->alloc_pa[i], alloc_kva);
 
 			memcpy(alloc_data_kva, data_kva, len);
@@ -507,9 +544,16 @@ kni_net_rx_lo_fifo_skb(struct kni_dev *kni)
 
 	/* Copy mbufs to sk buffer and then call tx interface */
 	for (i = 0; i < num; i++) {
-		kva = pa2kva(kni->pa[i]);
+
+		if (likely(kni->iova_mode == 1)) {
+			kva = iova2kva(kni, kni->pa[i]);
+			data_kva = iova2data_kva(kni, kva);
+		} else {
+			kva = pa2kva(kni->pa[i]);
+			data_kva = kva2data_kva(kva);
+		}
+
 		len = kva->pkt_len;
-		data_kva = kva2data_kva(kva);
 		kni->va[i] = pa2va(kni->pa[i], kva);
 
 		skb = dev_alloc_skb(len + 2);
@@ -545,8 +589,14 @@ kni_net_rx_lo_fifo_skb(struct kni_dev *kni)
 				if (!kva->next)
 					break;
 
-				kva = pa2kva(va2pa(kva->next, kva));
-				data_kva = kva2data_kva(kva);
+				if (likely(kni->iova_mode == 1)) {
+					kva = iova2kva(kni,
+						       va2pa(kva->next, kva));
+					data_kva = iova2data_kva(kni, kva);
+				} else {
+					kva = pa2kva(va2pa(kva->next, kva));
+					data_kva = kva2data_kva(kva);
+				}
 			}
 		}
 

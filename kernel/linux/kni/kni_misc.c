@@ -294,6 +294,9 @@ kni_ioctl_create(struct net *net, uint32_t ioctl_num,
 	struct rte_kni_device_info dev_info;
 	struct net_device *net_dev = NULL;
 	struct kni_dev *kni, *dev, *n;
+	struct pci_dev *pci = NULL;
+	struct iommu_domain *domain = NULL;
+	phys_addr_t phys_addr;
 
 	pr_info("Creating kni...\n");
 	/* Check the buffer size, to avoid warning */
@@ -351,15 +354,56 @@ kni_ioctl_create(struct net *net, uint32_t ioctl_num,
 	strncpy(kni->name, dev_info.name, RTE_KNI_NAMESIZE);
 
 	/* Translate user space info into kernel space info */
-	kni->tx_q = phys_to_virt(dev_info.tx_phys);
-	kni->rx_q = phys_to_virt(dev_info.rx_phys);
-	kni->alloc_q = phys_to_virt(dev_info.alloc_phys);
-	kni->free_q = phys_to_virt(dev_info.free_phys);
+	if (dev_info.iova_mode) {
+#if KERNEL_VERSION(4, 4, 0) > LINUX_VERSION_CODE
+		(void)pci;
+		pr_err("Kernel version is not supported\n");
+		return -EINVAL;
+#else
+		pci = pci_get_device(dev_info.vendor_id,
+				     dev_info.device_id, NULL);
+		while (pci) {
+			if ((pci->bus->number == dev_info.bus) &&
+			    (PCI_SLOT(pci->devfn) == dev_info.devid) &&
+			    (PCI_FUNC(pci->devfn) == dev_info.function)) {
+				domain = iommu_get_domain_for_dev(&pci->dev);
+				break;
+			}
+			pci = pci_get_device(dev_info.vendor_id,
+					     dev_info.device_id, pci);
+		}
+#endif
+		kni->domain = domain;
+		phys_addr = iommu_iova_to_phys(domain, dev_info.tx_phys);
+		kni->tx_q = phys_to_virt(phys_addr);
+		phys_addr = iommu_iova_to_phys(domain, dev_info.rx_phys);
+		kni->rx_q = phys_to_virt(phys_addr);
+		phys_addr = iommu_iova_to_phys(domain, dev_info.alloc_phys);
+		kni->alloc_q = phys_to_virt(phys_addr);
+		phys_addr = iommu_iova_to_phys(domain, dev_info.free_phys);
+		kni->free_q = phys_to_virt(phys_addr);
+		phys_addr = iommu_iova_to_phys(domain, dev_info.req_phys);
+		kni->req_q = phys_to_virt(phys_addr);
+		phys_addr = iommu_iova_to_phys(domain, dev_info.resp_phys);
+		kni->resp_q = phys_to_virt(phys_addr);
+		kni->sync_va = dev_info.sync_va;
+		phys_addr = iommu_iova_to_phys(domain, dev_info.sync_phys);
+		kni->sync_kva = phys_to_virt(phys_addr);
+		kni->iova_mode = 1;
 
-	kni->req_q = phys_to_virt(dev_info.req_phys);
-	kni->resp_q = phys_to_virt(dev_info.resp_phys);
-	kni->sync_va = dev_info.sync_va;
-	kni->sync_kva = phys_to_virt(dev_info.sync_phys);
+	} else {
+
+		kni->tx_q = phys_to_virt(dev_info.tx_phys);
+		kni->rx_q = phys_to_virt(dev_info.rx_phys);
+		kni->alloc_q = phys_to_virt(dev_info.alloc_phys);
+		kni->free_q = phys_to_virt(dev_info.free_phys);
+
+		kni->req_q = phys_to_virt(dev_info.req_phys);
+		kni->resp_q = phys_to_virt(dev_info.resp_phys);
+		kni->sync_va = dev_info.sync_va;
+		kni->sync_kva = phys_to_virt(dev_info.sync_phys);
+		kni->iova_mode = 0;
+	}
 
 	kni->mbuf_size = dev_info.mbuf_size;
 
