@@ -170,7 +170,9 @@ struct rte_hash {
 
 	/* Fields used in lookup */
 
-	uint32_t key_len __rte_cache_aligned;
+	uint32_t *tbl_chng_cnt __rte_cache_aligned;
+	/**< Indicates if the hash table changed from last read. */
+	uint32_t key_len;
 	/**< Length of hash key. */
 	uint8_t hw_trans_mem_support;
 	/**< If hardware transactional memory is used. */
@@ -218,8 +220,6 @@ struct rte_hash {
 	 * is piggy-backed to freeing of the key index.
 	 */
 	uint32_t *ext_bkt_to_free;
-	uint32_t *tbl_chng_cnt;
-	/**< Indicates if the hash table changed from last read. */
 } __rte_cache_aligned;
 
 struct queue_node {
