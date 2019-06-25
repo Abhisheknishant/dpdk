@@ -1258,40 +1258,59 @@ rte_sched_pipe_config(struct rte_sched_port *port,
 	profile = (uint32_t) pipe_profile;
 	deactivate = (pipe_profile < 0);
 
-	if (port == NULL ||
-	    subport_id >= port->n_subports_per_port ||
-	    pipe_id >= port->n_pipes_per_subport ||
-	    (!deactivate && profile >= port->n_pipe_profiles))
-		return -1;
+	if (port == NULL) {
+		RTE_LOG(ERR, SCHED,
+			"%s: Incorrect value for parameter port \n", __func__);
+		return -EINVAL;
+	}
 
+	if (subport_id >= port->n_subports_per_port) {
+		RTE_LOG(ERR, SCHED,
+			"%s: Incorrect value for subport id \n", __func__);
+		return -EINVAL;
+	}
+
+	if (pipe_id >= port->subports[subport_id]->n_subport_pipes) {
+		RTE_LOG(ERR, SCHED,
+			"%s: Incorrect value for pipe id \n", __func__);
+		return -EINVAL;
+	}
+
+	if (!deactivate &&
+		profile >= port->subports[subport_id]->n_pipe_profiles) {
+		RTE_LOG(ERR, SCHED,
+			"%s: Incorrect value for pipe profile \n", __func__);
+		return -EINVAL;
+	}
 
 	/* Check that subport configuration is valid */
-	s = port->subport + subport_id;
-	if (s->tb_period == 0)
-		return -2;
-
-	p = port->pipe + (subport_id * port->n_pipes_per_subport + pipe_id);
+	s = port->subports[subport_id];
+	p = s->pipe + pipe_id;
 
 	/* Handle the case when pipe already has a valid configuration */
 	if (p->tb_time) {
-		params = port->pipe_profiles + p->profile;
+		params = s->pipe_profiles + p->profile;
 
 #ifdef RTE_SCHED_SUBPORT_TC_OV
-		double subport_tc3_rate = (double) s->tc_credits_per_period[3]
+		double subport_tc_be_rate =
+			(double) s->tc_credits_per_period[
+					RTE_SCHED_TRAFFIC_CLASS_BE]
 			/ (double) s->tc_period;
-		double pipe_tc3_rate = (double) params->tc_credits_per_period[3]
+		double pipe_tc_be_rate =
+			(double) params->tc_credits_per_period[
+					RTE_SCHED_TRAFFIC_CLASS_BE]
 			/ (double) params->tc_period;
-		uint32_t tc3_ov = s->tc_ov;
+		uint32_t tc_be_ov = s->tc_ov;
 
 		/* Unplug pipe from its subport */
 		s->tc_ov_n -= params->tc_ov_weight;
-		s->tc_ov_rate -= pipe_tc3_rate;
-		s->tc_ov = s->tc_ov_rate > subport_tc3_rate;
+		s->tc_ov_rate -= pipe_tc_be_rate;
+		s->tc_ov = s->tc_ov_rate > subport_tc_be_rate;
 
-		if (s->tc_ov != tc3_ov) {
+		if (s->tc_ov != tc_be_ov) {
 			RTE_LOG(DEBUG, SCHED,
-				"Subport %u TC3 oversubscription is OFF (%.4lf >= %.4lf)\n",
-				subport_id, subport_tc3_rate, s->tc_ov_rate);
+				"Subport %u Best effort TC oversubscription is OFF (%.4lf >= %.4lf)\n",
+				subport_id, subport_tc_be_rate, s->tc_ov_rate);
 		}
 #endif
 
@@ -1304,34 +1323,40 @@ rte_sched_pipe_config(struct rte_sched_port *port,
 
 	/* Apply the new pipe configuration */
 	p->profile = profile;
-	params = port->pipe_profiles + p->profile;
+	params = s->pipe_profiles + p->profile;
 
 	/* Token Bucket (TB) */
 	p->tb_time = port->time;
 	p->tb_credits = params->tb_size / 2;
 
 	/* Traffic Classes (TCs) */
+	p->n_be_queues = params->n_be_queues;
 	p->tc_time = port->time + params->tc_period;
 	for (i = 0; i < RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE; i++)
-		p->tc_credits[i] = params->tc_credits_per_period[i];
+		if (s->qsize[i])
+			p->tc_credits[i] = params->tc_credits_per_period[i];
 
 #ifdef RTE_SCHED_SUBPORT_TC_OV
 	{
 		/* Subport TC3 oversubscription */
-		double subport_tc3_rate = (double) s->tc_credits_per_period[3]
+		double subport_tc_be_rate =
+			(double) s->tc_credits_per_period[
+					RTE_SCHED_TRAFFIC_CLASS_BE]
 			/ (double) s->tc_period;
-		double pipe_tc3_rate = (double) params->tc_credits_per_period[3]
+		double pipe_tc_be_rate =
+			(double) params->tc_credits_per_period[
+					RTE_SCHED_TRAFFIC_CLASS_BE]
 			/ (double) params->tc_period;
-		uint32_t tc3_ov = s->tc_ov;
+		uint32_t tc_be_ov = s->tc_ov;
 
 		s->tc_ov_n += params->tc_ov_weight;
-		s->tc_ov_rate += pipe_tc3_rate;
-		s->tc_ov = s->tc_ov_rate > subport_tc3_rate;
+		s->tc_ov_rate += pipe_tc_be_rate;
+		s->tc_ov = s->tc_ov_rate > subport_tc_be_rate;
 
-		if (s->tc_ov != tc3_ov) {
+		if (s->tc_ov != tc_be_ov) {
 			RTE_LOG(DEBUG, SCHED,
-				"Subport %u TC3 oversubscription is ON (%.4lf < %.4lf)\n",
-				subport_id, subport_tc3_rate, s->tc_ov_rate);
+				"Subport %u Best effort TC oversubscription is ON (%.4lf < %.4lf)\n",
+				subport_id, subport_tc_be_rate, s->tc_ov_rate);
 		}
 		p->tc_ov_period_id = s->tc_ov_period_id;
 		p->tc_ov_credits = s->tc_ov_wm;

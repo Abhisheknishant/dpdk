@@ -338,7 +338,7 @@ rte_sched_subport_config(struct rte_sched_port *port,
  * @param pipe_id
  *   Pipe ID within subport
  * @param pipe_profile
- *   ID of port-level pre-configured pipe profile
+ *   ID of subport-level pre-configured pipe profile
  * @return
  *   0 upon success, error code otherwise
  */
