@@ -66,7 +66,7 @@ struct rte_mem_config {
 
 	/* keeps the more restricted dma mask */
 	uint8_t dma_maskbits;
-} __attribute__((packed));
+};
 
 static inline void
 rte_eal_mcfg_wait_complete(struct rte_mem_config *mcfg)
