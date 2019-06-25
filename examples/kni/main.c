@@ -37,6 +37,7 @@
 #include <rte_ethdev.h>
 #include <rte_mempool.h>
 #include <rte_mbuf.h>
+#include <rte_mbuf_pool_ops.h>
 #include <rte_string_fns.h>
 #include <rte_cycles.h>
 #include <rte_malloc.h>
@@ -945,6 +946,56 @@ kni_free_kni(uint16_t port_id)
 	return 0;
 }
 
+static struct rte_mempool *
+kni_packet_pool_create(const char *name, unsigned int n,
+	unsigned int cache_size, uint16_t priv_size, uint16_t data_room_size,
+	int socket_id)
+{
+	struct rte_pktmbuf_pool_private mbp_priv;
+	const char *mp_ops_name;
+	struct rte_mempool *mp;
+	unsigned int elt_size;
+	int ret;
+
+	if (RTE_ALIGN(priv_size, RTE_MBUF_PRIV_ALIGN) != priv_size) {
+		RTE_LOG(ERR, MBUF, "mbuf priv_size=%u is not aligned\n",
+			priv_size);
+		rte_errno = EINVAL;
+		return NULL;
+	}
+	elt_size = sizeof(struct rte_mbuf) + (unsigned int)priv_size +
+		(unsigned int)data_room_size;
+	mbp_priv.mbuf_data_room_size = data_room_size;
+	mbp_priv.mbuf_priv_size = priv_size;
+
+	mp = rte_mempool_create_empty(name, n, elt_size, cache_size,
+		 sizeof(struct rte_pktmbuf_pool_private), socket_id,
+		 MEMPOOL_F_NO_PAGE_BOUND);
+	if (mp == NULL)
+		return NULL;
+
+	mp_ops_name = rte_mbuf_best_mempool_ops();
+	ret = rte_mempool_set_ops_byname(mp, mp_ops_name, NULL);
+	if (ret != 0) {
+		RTE_LOG(ERR, MBUF, "error setting mempool handler\n");
+		rte_mempool_free(mp);
+		rte_errno = -ret;
+		return NULL;
+	}
+	rte_pktmbuf_pool_init(mp, &mbp_priv);
+
+	ret = rte_mempool_populate_default(mp);
+	if (ret < 0) {
+		rte_mempool_free(mp);
+		rte_errno = -ret;
+		return NULL;
+	}
+
+	rte_mempool_obj_iter(mp, rte_pktmbuf_init, NULL);
+
+	return mp;
+}
+
 /* Initialise ports/queues etc. and start main loop on each core */
 int
 main(int argc, char** argv)
@@ -975,7 +1026,7 @@ main(int argc, char** argv)
 		rte_exit(EXIT_FAILURE, "Could not parse input parameters\n");
 
 	/* Create the mbuf pool */
-	pktmbuf_pool = rte_pktmbuf_pool_create("mbuf_pool", NB_MBUF,
+	pktmbuf_pool = kni_packet_pool_create("mbuf_pool", NB_MBUF,
 		MEMPOOL_CACHE_SZ, 0, MBUF_DATA_SZ, rte_socket_id());
 	if (pktmbuf_pool == NULL) {
 		rte_exit(EXIT_FAILURE, "Could not initialise mbuf pool\n");

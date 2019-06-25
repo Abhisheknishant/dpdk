@@ -300,6 +300,8 @@ rte_kni_alloc(struct rte_mempool *pktmbuf_pool,
 	kni->group_id = conf->group_id;
 	kni->mbuf_size = conf->mbuf_size;
 
+	dev_info.iova_mode = (rte_eal_iova_mode() == RTE_IOVA_VA) ? 1 : 0;
+
 	ret = ioctl(kni_fd, RTE_KNI_IOCTL_CREATE, &dev_info);
 	if (ret < 0)
 		goto ioctl_fail;

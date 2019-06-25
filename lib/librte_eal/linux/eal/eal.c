@@ -1041,14 +1041,6 @@ rte_eal_init(int argc, char **argv)
 		rte_eal_get_configuration()->iova_mode =
 			rte_bus_get_iommu_class();
 
-		/* Workaround for KNI which requires physical address to work */
-		if (rte_eal_get_configuration()->iova_mode == RTE_IOVA_VA &&
-				rte_eal_check_module("rte_kni") == 1) {
-			rte_eal_get_configuration()->iova_mode = RTE_IOVA_PA;
-			RTE_LOG(WARNING, EAL,
-				"Some devices want IOVA as VA but PA will be used because.. "
-				"KNI module inserted\n");
-		}
 	} else {
 		rte_eal_get_configuration()->iova_mode =
 			internal_config.iova_mode;
