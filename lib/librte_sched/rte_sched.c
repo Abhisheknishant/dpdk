@@ -1496,9 +1496,10 @@ rte_sched_queue_read_stats(struct rte_sched_port *port,
 #ifdef RTE_SCHED_DEBUG
 
 static inline int
-rte_sched_port_queue_is_empty(struct rte_sched_port *port, uint32_t qindex)
+rte_sched_port_queue_is_empty(struct rte_sched_subport *subport,
+	uint32_t qindex)
 {
-	struct rte_sched_queue *queue = port->queue + qindex;
+	struct rte_sched_queue *queue = subport->queue + qindex;
 
 	return queue->qr == queue->qw;
 }
@@ -1639,7 +1640,7 @@ rte_sched_port_set_queue_empty_timestamp(struct rte_sched_port *port __rte_unuse
 #ifdef RTE_SCHED_DEBUG
 
 static inline void
-debug_check_queue_slab(struct rte_sched_port *port, uint32_t bmp_pos,
+debug_check_queue_slab(struct rte_sched_subport *subport, uint32_t bmp_pos,
 		       uint64_t bmp_slab)
 {
 	uint64_t mask;
@@ -1651,7 +1652,7 @@ debug_check_queue_slab(struct rte_sched_port *port, uint32_t bmp_pos,
 	panic = 0;
 	for (i = 0, mask = 1; i < 64; i++, mask <<= 1) {
 		if (mask & bmp_slab) {
-			if (rte_sched_port_queue_is_empty(port, bmp_pos + i)) {
+			if (rte_sched_port_queue_is_empty(subport, bmp_pos + i)) {
 				printf("Queue %u (slab offset %u) is empty\n", bmp_pos + i, i);
 				panic = 1;
 			}
@@ -2702,6 +2703,7 @@ rte_sched_port_time_resync(struct rte_sched_port *port)
 	uint64_t cycles = rte_get_tsc_cycles();
 	uint64_t cycles_diff = cycles - port->time_cpu_cycles;
 	uint64_t bytes_diff;
+	uint32_t i;
 
 	/* Compute elapsed time in bytes */
 	bytes_diff = rte_reciprocal_divide(cycles_diff << RTE_SCHED_TIME_SHIFT,
@@ -2714,20 +2716,21 @@ rte_sched_port_time_resync(struct rte_sched_port *port)
 		port->time = port->time_cpu_bytes;
 
 	/* Reset pipe loop detection */
-	port->pipe_loop = RTE_SCHED_PIPE_INVALID;
+	for (i = 0; i < port->n_subports_per_port; i++)
+		port->subports[i]->pipe_loop = RTE_SCHED_PIPE_INVALID;
 }
 
 static inline int
-rte_sched_port_exceptions(struct rte_sched_port *port, int second_pass)
+rte_sched_port_exceptions(struct rte_sched_subport *subport, int second_pass)
 {
 	int exceptions;
 
 	/* Check if any exception flag is set */
-	exceptions = (second_pass && port->busy_grinders == 0) ||
-		(port->pipe_exhaustion == 1);
+	exceptions = (second_pass && subport->busy_grinders == 0) ||
+		(subport->pipe_exhaustion == 1);
 
 	/* Clear exception flags */
-	port->pipe_exhaustion = 0;
+	subport->pipe_exhaustion = 0;
 
 	return exceptions;
 }
@@ -2735,7 +2738,9 @@ rte_sched_port_exceptions(struct rte_sched_port *port, int second_pass)
 int
 rte_sched_port_dequeue(struct rte_sched_port *port, struct rte_mbuf **pkts, uint32_t n_pkts)
 {
-	uint32_t i, count;
+	struct rte_sched_subport *subport;
+	uint32_t subport_id = port->subport_id;
+	uint32_t i, n_subports = 0, count;
 
 	port->pkts_out = pkts;
 	port->n_pkts_out = 0;
@@ -2744,10 +2749,31 @@ rte_sched_port_dequeue(struct rte_sched_port *port, struct rte_mbuf **pkts, uint
 
 	/* Take each queue in the grinder one step further */
 	for (i = 0, count = 0; ; i++)  {
-		count += grinder_handle(port, port->subport,
-				i & (RTE_SCHED_PORT_N_GRINDERS - 1));
-		if ((count == n_pkts) ||
-		    rte_sched_port_exceptions(port, i >= RTE_SCHED_PORT_N_GRINDERS)) {
+		subport = port->subports[subport_id];
+
+		count += grinder_handle(port, subport, i &
+				(RTE_SCHED_PORT_N_GRINDERS - 1));
+		if (count == n_pkts) {
+			subport_id++;
+
+			if (subport_id == port->n_subports_per_port)
+				subport_id = 0;
+
+			port->subport_id = subport_id;
+			break;
+		}
+
+		if (rte_sched_port_exceptions(subport, i >= RTE_SCHED_PORT_N_GRINDERS)) {
+			i = 0;
+			subport_id++;
+			n_subports++;
+		}
+
+		if (subport_id == port->n_subports_per_port)
+			subport_id = 0;
+
+		if (n_subports == port->n_subports_per_port) {
+			port->subport_id = subport_id;
 			break;
 		}
 	}
