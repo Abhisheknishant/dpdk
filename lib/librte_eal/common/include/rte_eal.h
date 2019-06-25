@@ -450,16 +450,6 @@ rte_usage_hook_t
 rte_set_application_usage_hook(rte_usage_hook_t usage_func);
 
 /**
- * macro to get the lock of tailq in mem_config
- */
-#define RTE_EAL_TAILQ_RWLOCK         (&rte_eal_get_configuration()->mem_config->qlock)
-
-/**
- * macro to get the multiple lock of mempool shared by multiple-instance
- */
-#define RTE_EAL_MEMPOOL_RWLOCK            (&rte_eal_get_configuration()->mem_config->mplock)
-
-/**
  * Whether EAL is using huge pages (disabled by --no-huge option).
  * The no-huge mode cannot be used with UIO poll-mode drivers like igb/ixgbe.
  * It is useful for NIC drivers (e.g. librte_pmd_mlx4, librte_pmd_vmxnet3) or
