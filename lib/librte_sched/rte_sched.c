@@ -37,6 +37,8 @@
 
 #define RTE_SCHED_TB_RATE_CONFIG_ERR          (1e-7)
 #define RTE_SCHED_WRR_SHIFT                   3
+#define RTE_SCHED_MAX_QUEUES_PER_TC           RTE_SCHED_BE_QUEUES_PER_PIPE
+#define RTE_SCHED_TRAFFIC_CLASS_BE            (RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE - 1)
 #define RTE_SCHED_GRINDER_PCACHE_SIZE         (64 / RTE_SCHED_QUEUES_PER_PIPE)
 #define RTE_SCHED_PIPE_INVALID                UINT32_MAX
 #define RTE_SCHED_BMP_POS_INVALID             UINT32_MAX
@@ -45,6 +47,52 @@
  * Chosen so that minimum rate is 480 bit/sec
  */
 #define RTE_SCHED_TIME_SHIFT		      8
+
+enum grinder_state {
+	e_GRINDER_PREFETCH_PIPE = 0,
+	e_GRINDER_PREFETCH_TC_QUEUE_ARRAYS,
+	e_GRINDER_PREFETCH_MBUF,
+	e_GRINDER_READ_MBUF
+};
+
+struct rte_sched_grinder {
+	/* Pipe cache */
+	uint16_t pcache_qmask[RTE_SCHED_GRINDER_PCACHE_SIZE];
+	uint32_t pcache_qindex[RTE_SCHED_GRINDER_PCACHE_SIZE];
+	uint32_t pcache_w;
+	uint32_t pcache_r;
+
+	/* Current pipe */
+	uint32_t pindex;
+	struct rte_sched_pipe *pipe;
+	struct rte_sched_pipe_profile *pipe_params;
+	struct rte_sched_subport *subport;
+
+	/* Grinder state*/
+	enum grinder_state state;
+	uint32_t productive;
+
+	/* TC cache */
+	uint8_t tccache_qmask[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
+	uint32_t tccache_qindex[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
+	uint32_t tccache_w;
+	uint32_t tccache_r;
+
+	/* Current TC */
+	uint32_t tc_index;
+	uint32_t qpos;
+	struct rte_sched_queue *queue[RTE_SCHED_MAX_QUEUES_PER_TC];
+	struct rte_mbuf **qbase[RTE_SCHED_MAX_QUEUES_PER_TC];
+	uint32_t qindex[RTE_SCHED_MAX_QUEUES_PER_TC];
+	uint16_t qsize;
+	uint32_t qmask;
+	struct rte_mbuf *pkt;
+
+	/* WRR */
+	uint16_t wrr_tokens[RTE_SCHED_BE_QUEUES_PER_PIPE];
+	uint16_t wrr_mask[RTE_SCHED_BE_QUEUES_PER_PIPE];
+	uint8_t wrr_cost[RTE_SCHED_BE_QUEUES_PER_PIPE];
+};
 
 struct rte_sched_subport {
 	/* Token bucket (TB) */
@@ -71,7 +119,42 @@ struct rte_sched_subport {
 
 	/* Statistics */
 	struct rte_sched_subport_stats stats;
-};
+
+	/* Subport Pipes*/
+	uint32_t n_subport_pipes;
+
+	uint16_t qsize[RTE_SCHED_QUEUES_PER_PIPE];
+	uint32_t n_pipe_profiles;
+	uint32_t n_max_pipe_profiles;
+	uint32_t pipe_tc_be_rate_max;
+#ifdef RTE_SCHED_RED
+	struct rte_red_config red_config[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE][RTE_COLORS];
+#endif
+
+	/* Scheduling loop detection */
+	uint32_t pipe_loop;
+	uint32_t pipe_exhaustion;
+
+	/* Bitmap */
+	struct rte_bitmap *bmp;
+	uint32_t grinder_base_bmp_pos[RTE_SCHED_PORT_N_GRINDERS] __rte_aligned_16;
+
+	/* Grinders */
+	struct rte_sched_grinder grinder[RTE_SCHED_PORT_N_GRINDERS];
+	uint32_t busy_grinders;
+
+	/* Queue base calculation */
+	uint32_t qsize_add[RTE_SCHED_QUEUES_PER_PIPE];
+	uint32_t qsize_sum;
+
+	struct rte_sched_pipe *pipe;
+	struct rte_sched_queue *queue;
+	struct rte_sched_queue_extra *queue_extra;
+	struct rte_sched_pipe_profile *pipe_profiles;
+	uint8_t *bmp_array;
+	struct rte_mbuf **queue_array;
+	uint8_t memory[0] __rte_cache_aligned;
+} __rte_cache_aligned;
 
 struct rte_sched_pipe_profile {
 	/* Token bucket (TB) */
@@ -84,8 +167,10 @@ struct rte_sched_pipe_profile {
 	uint32_t tc_credits_per_period[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
 	uint8_t tc_ov_weight;
 
-	/* Pipe queues */
-	uint8_t  wrr_cost[RTE_SCHED_QUEUES_PER_PIPE];
+	/* Pipe best-effort traffic class queues */
+	uint8_t n_be_queues;
+
+	uint8_t  wrr_cost[RTE_SCHED_BE_QUEUES_PER_PIPE];
 };
 
 struct rte_sched_pipe {
@@ -100,8 +185,10 @@ struct rte_sched_pipe {
 	uint64_t tc_time; /* time of next update */
 	uint32_t tc_credits[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
 
+	uint8_t n_be_queues; /* Best effort traffic class queues */
+
 	/* Weighted Round Robin (WRR) */
-	uint8_t wrr_tokens[RTE_SCHED_QUEUES_PER_PIPE];
+	uint8_t wrr_tokens[RTE_SCHED_BE_QUEUES_PER_PIPE];
 
 	/* TC oversubscription */
 	uint32_t tc_ov_credits;
@@ -121,55 +208,12 @@ struct rte_sched_queue_extra {
 #endif
 };
 
-enum grinder_state {
-	e_GRINDER_PREFETCH_PIPE = 0,
-	e_GRINDER_PREFETCH_TC_QUEUE_ARRAYS,
-	e_GRINDER_PREFETCH_MBUF,
-	e_GRINDER_READ_MBUF
-};
-
-struct rte_sched_grinder {
-	/* Pipe cache */
-	uint16_t pcache_qmask[RTE_SCHED_GRINDER_PCACHE_SIZE];
-	uint32_t pcache_qindex[RTE_SCHED_GRINDER_PCACHE_SIZE];
-	uint32_t pcache_w;
-	uint32_t pcache_r;
-
-	/* Current pipe */
-	enum grinder_state state;
-	uint32_t productive;
-	uint32_t pindex;
-	struct rte_sched_subport *subport;
-	struct rte_sched_pipe *pipe;
-	struct rte_sched_pipe_profile *pipe_params;
-
-	/* TC cache */
-	uint8_t tccache_qmask[4];
-	uint32_t tccache_qindex[4];
-	uint32_t tccache_w;
-	uint32_t tccache_r;
-
-	/* Current TC */
-	uint32_t tc_index;
-	struct rte_sched_queue *queue[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-	struct rte_mbuf **qbase[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-	uint32_t qindex[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-	uint16_t qsize;
-	uint32_t qmask;
-	uint32_t qpos;
-	struct rte_mbuf *pkt;
-
-	/* WRR */
-	uint16_t wrr_tokens[RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS];
-	uint16_t wrr_mask[RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS];
-	uint8_t wrr_cost[RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS];
-};
-
 struct rte_sched_port {
 	/* User parameters */
 	uint32_t n_subports_per_port;
 	uint32_t n_pipes_per_subport;
 	uint32_t n_pipes_per_subport_log2;
+	int socket;
 	uint32_t rate;
 	uint32_t mtu;
 	uint32_t frame_overhead;
@@ -199,6 +243,9 @@ struct rte_sched_port {
 	uint32_t busy_grinders;
 	struct rte_mbuf **pkts_out;
 	uint32_t n_pkts_out;
+	uint32_t subport_id;
+
+	uint32_t max_subport_pipes_log2;   /* Max number of subport pipes */
 
 	/* Queue base calculation */
 	uint32_t qsize_add[RTE_SCHED_QUEUES_PER_PIPE];
@@ -212,6 +259,7 @@ struct rte_sched_port {
 	struct rte_sched_pipe_profile *pipe_profiles;
 	uint8_t *bmp_array;
 	struct rte_mbuf **queue_array;
+	struct rte_sched_subport *subports[0];
 	uint8_t memory[0] __rte_cache_aligned;
 } __rte_cache_aligned;
 
@@ -224,6 +272,16 @@ enum rte_sched_port_array {
 	e_RTE_SCHED_PORT_ARRAY_BMP_ARRAY,
 	e_RTE_SCHED_PORT_ARRAY_QUEUE_ARRAY,
 	e_RTE_SCHED_PORT_ARRAY_TOTAL,
+};
+
+enum rte_sched_subport_array {
+	e_RTE_SCHED_SUBPORT_ARRAY_PIPE = 0,
+	e_RTE_SCHED_SUBPORT_ARRAY_QUEUE,
+	e_RTE_SCHED_SUBPORT_ARRAY_QUEUE_EXTRA,
+	e_RTE_SCHED_SUBPORT_ARRAY_PIPE_PROFILES,
+	e_RTE_SCHED_SUBPORT_ARRAY_BMP_ARRAY,
+	e_RTE_SCHED_SUBPORT_ARRAY_QUEUE_ARRAY,
+	e_RTE_SCHED_SUBPORT_ARRAY_TOTAL,
 };
 
 #ifdef RTE_SCHED_COLLECT_STATS
@@ -483,7 +541,7 @@ rte_sched_port_log_pipe_profile(struct rte_sched_port *port, uint32_t i)
 		"    Token bucket: period = %u, credits per period = %u, size = %u\n"
 		"    Traffic classes: period = %u, credits per period = [%u, %u, %u, %u]\n"
 		"    Traffic class 3 oversubscription: weight = %hhu\n"
-		"    WRR cost: [%hhu, %hhu, %hhu, %hhu], [%hhu, %hhu, %hhu, %hhu], [%hhu, %hhu, %hhu, %hhu], [%hhu, %hhu, %hhu, %hhu]\n",
+		"    WRR cost: [%hhu, %hhu, %hhu, %hhu], [%hhu, %hhu, %hhu, %hhu],\n",
 		i,
 
 		/* Token bucket */
@@ -502,10 +560,8 @@ rte_sched_port_log_pipe_profile(struct rte_sched_port *port, uint32_t i)
 		p->tc_ov_weight,
 
 		/* WRR */
-		p->wrr_cost[ 0], p->wrr_cost[ 1], p->wrr_cost[ 2], p->wrr_cost[ 3],
-		p->wrr_cost[ 4], p->wrr_cost[ 5], p->wrr_cost[ 6], p->wrr_cost[ 7],
-		p->wrr_cost[ 8], p->wrr_cost[ 9], p->wrr_cost[10], p->wrr_cost[11],
-		p->wrr_cost[12], p->wrr_cost[13], p->wrr_cost[14], p->wrr_cost[15]);
+		p->wrr_cost[0], p->wrr_cost[1], p->wrr_cost[2], p->wrr_cost[3],
+		p->wrr_cost[4], p->wrr_cost[5], p->wrr_cost[6], p->wrr_cost[7]);
 }
 
 static inline uint64_t
