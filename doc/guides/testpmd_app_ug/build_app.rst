@@ -21,6 +21,23 @@ The basic compilation steps are:
 
         export RTE_TARGET=x86_64-native-linux-gcc
 
+#.  Edit the desired conditional options in $RTE_SDK/config/common_base (optional):
+
+    *  ``CONFIG_RTE_TEST_PMD_RECORD_CORE_TX_CYCLES``
+
+       Enables gathering profiling data for transmit datapath,
+       counts the ticks spent within rte_eth_tx_burst() routine.
+
+    *  ``CONFIG_RTE_TEST_PMD_RECORD_CORE_RX_CYCLES``
+
+       Enables gathering profiling data for receive datapath,
+       counts ticks spent within rte_eth_rx_burst() routine.
+
+    *  ``CONFIG_RTE_TEST_PMD_RECORD_CORE_CYCLES``
+
+       Enables gathering profiling data for forwarding routine
+       in general.
+
 #.  Build the application:
 
     .. code-block:: console

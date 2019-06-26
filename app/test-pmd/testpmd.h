@@ -130,11 +130,51 @@ struct fwd_stream {
 #ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
 	uint64_t     core_cycles; /**< used for RX and TX processing */
 #endif
+#ifdef RTE_TEST_PMD_RECORD_CORE_TX_CYCLES
+	uint64_t     core_tx_cycles; /**< used for tx_burst processing */
+#endif
+#ifdef RTE_TEST_PMD_RECORD_CORE_RX_CYCLES
+	uint64_t     core_rx_cycles; /**< used for rx_burst processing */
+#endif
 #ifdef RTE_TEST_PMD_RECORD_BURST_STATS
 	struct pkt_burst_stats rx_burst_stats;
 	struct pkt_burst_stats tx_burst_stats;
 #endif
 };
+
+#if defined(RTE_TEST_PMD_RECORD_CORE_TX_CYCLES)
+#define TEST_PMD_CORE_CYC_TX_START(a) {a = rte_rdtsc(); }
+#else
+#define TEST_PMD_CORE_CYC_TX_START(a)
+#endif
+
+#if defined(RTE_TEST_PMD_RECORD_CORE_CYCLES) || \
+	defined(RTE_TEST_PMD_RECORD_CORE_RX_CYCLES)
+#define TEST_PMD_CORE_CYC_RX_START(a) {a = rte_rdtsc(); }
+#else
+#define TEST_PMD_CORE_CYC_RX_START(a)
+#endif
+
+#ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
+#define TEST_PMD_CORE_CYC_FWD_ADD(fs, s) \
+{uint64_t end_tsc = rte_rdtsc(); fs->core_cycles += end_tsc - (s); }
+#else
+#define TEST_PMD_CORE_CYC_FWD_ADD(fs, s)
+#endif
+
+#ifdef RTE_TEST_PMD_RECORD_CORE_TX_CYCLES
+#define TEST_PMD_CORE_CYC_TX_ADD(fs, s) \
+{uint64_t end_tsc = rte_rdtsc(); fs->core_tx_cycles += end_tsc - (s); }
+#else
+#define TEST_PMD_CORE_CYC_TX_ADD(fs, s)
+#endif
+
+#ifdef RTE_TEST_PMD_RECORD_CORE_RX_CYCLES
+#define TEST_PMD_CORE_CYC_RX_ADD(fs, s) \
+{uint64_t end_tsc = rte_rdtsc(); fs->core_rx_cycles += end_tsc - (s); }
+#else
+#define TEST_PMD_CORE_CYC_RX_ADD(fs, s)
+#endif
 
 /** Descriptor for a single flow. */
 struct port_flow {

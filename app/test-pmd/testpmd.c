@@ -1506,6 +1506,12 @@ fwd_stats_display(void)
 #ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
 	uint64_t fwd_cycles = 0;
 #endif
+#ifdef RTE_TEST_PMD_RECORD_CORE_RX_CYCLES
+	uint64_t rx_cycles = 0;
+#endif
+#ifdef RTE_TEST_PMD_RECORD_CORE_TX_CYCLES
+	uint64_t tx_cycles = 0;
+#endif
 	uint64_t total_recv = 0;
 	uint64_t total_xmit = 0;
 	struct rte_port *port;
@@ -1535,6 +1541,12 @@ fwd_stats_display(void)
 
 #ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
 		fwd_cycles += fs->core_cycles;
+#endif
+#ifdef RTE_TEST_PMD_RECORD_CORE_RX_CYCLES
+		rx_cycles += fs->core_rx_cycles;
+#endif
+#ifdef RTE_TEST_PMD_RECORD_CORE_TX_CYCLES
+		tx_cycles += fs->core_tx_cycles;
 #endif
 	}
 	for (i = 0; i < cur_fwd_config.nb_fwd_ports; i++) {
@@ -1671,6 +1683,20 @@ fwd_stats_display(void)
 		       (unsigned int)(fwd_cycles / total_recv),
 		       fwd_cycles, total_recv);
 #endif
+#ifdef RTE_TEST_PMD_RECORD_CORE_RX_CYCLES
+	if (total_recv > 0)
+		printf("\n  rx CPU cycles/packet=%u (total cycles="
+		       "%"PRIu64" / total RX packets=%"PRIu64")\n",
+		       (unsigned int)(rx_cycles / total_recv),
+		       rx_cycles, total_recv);
+#endif
+#ifdef RTE_TEST_PMD_RECORD_CORE_TX_CYCLES
+	if (total_xmit > 0)
+		printf("\n  tx CPU cycles/packet=%u (total cycles="
+		       "%"PRIu64" / total TX packets=%"PRIu64")\n",
+		       (unsigned int)(tx_cycles / total_xmit),
+		       tx_cycles, total_xmit);
+#endif
 }
 
 void
@@ -1700,6 +1726,12 @@ fwd_stats_reset(void)
 #endif
 #ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
 		fs->core_cycles = 0;
+#endif
+#ifdef RTE_TEST_PMD_RECORD_CORE_RX_CYCLES
+		fs->core_rx_cycles = 0;
+#endif
+#ifdef RTE_TEST_PMD_RECORD_CORE_TX_CYCLES
+		fs->core_tx_cycles = 0;
 #endif
 	}
 }
