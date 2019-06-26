@@ -526,7 +526,7 @@ rte_malloc_dump_heaps(FILE *f);
  *   - 0: Success.
  *   - (-1): Error.
  */
-int
+int __rte_deprecated
 rte_malloc_set_limit(const char *type, size_t max);
 
 /**
