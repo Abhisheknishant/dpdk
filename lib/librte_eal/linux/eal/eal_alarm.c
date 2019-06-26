@@ -137,9 +137,13 @@ rte_eal_alarm_set(uint64_t us, rte_eal_alarm_callback cb_fn, void *cb_arg)
 
 	rte_spinlock_lock(&alarm_list_lk);
 	if (!handler_registered) {
-		ret |= rte_intr_callback_register(&intr_handle,
+		ret = rte_intr_callback_register(&intr_handle,
 				eal_alarm_callback, NULL);
-		handler_registered = (ret == 0) ? 1 : 0;
+		if (ret == 0)
+			handler_registered = 1;
+		else
+			/* not fatal, callback can be registered later */
+			ret = 0;
 	}
 
 	if (LIST_EMPTY(&alarm_list))
