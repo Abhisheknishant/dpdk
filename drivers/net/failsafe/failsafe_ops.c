@@ -789,6 +789,147 @@ fs_stats_reset(struct rte_eth_dev *dev)
 	fs_unlock(dev, 0);
 }
 
+static int
+fs_xstats_count(struct rte_eth_dev *dev)
+{
+	struct sub_device *sdev;
+	int r, count;
+	uint8_t i;
+
+	count = rte_eth_basic_stats_count(dev);
+
+	fs_lock(dev, 0);
+	FOREACH_SUBDEV(sdev, i, dev) {
+		if (sdev->state < DEV_ACTIVE)
+			continue;
+
+		r = rte_eth_xstats_get_names(PORT_ID(sdev), NULL, 0);
+		if (r < 0) {
+			fs_unlock(dev, 0);
+			return r;
+		}
+
+		count += r;
+	}
+	fs_unlock(dev, 0);
+
+	return count;
+}
+
+static int
+fs_xstats_get_names(struct rte_eth_dev *dev,
+		    struct rte_eth_xstat_name *xstats_names,
+		    unsigned int limit)
+{
+	struct sub_device *sdev;
+	unsigned int count;
+	uint8_t i;
+	char tmp[RTE_ETH_XSTATS_NAME_SIZE];
+	int j,r;
+
+	if (!xstats_names)
+		return fs_xstats_count(dev);
+
+	r = rte_eth_basic_stats_get_names(dev, xstats_names);
+	if (r < 0)
+		return r;
+
+	count = r;
+
+	fs_lock(dev, 0);
+	FOREACH_SUBDEV(sdev, i, dev) {
+		struct rte_eth_xstat_name *sub_names = xstats_names + count;
+
+		if (sdev->state < DEV_ACTIVE)
+			continue;
+
+		if (count >= limit)
+			break;
+
+		r = rte_eth_xstats_get_names(PORT_ID(sdev), sub_names,
+					     count < limit ? limit - count: 0);
+		if (r < 0) {
+			fs_unlock(dev, 0);
+			return r;
+		}
+
+		/* add sub_ prefix to names */
+		for (j = 0; j < r; j++) {
+			snprintf(tmp, sizeof(tmp), "sub%u_%s",
+				 i, sub_names[j].name);
+			memcpy(sub_names[j].name, tmp,
+			       RTE_ETH_XSTATS_NAME_SIZE);
+		}
+
+		count += r;
+	}
+	fs_unlock(dev, 0);
+
+	return count;
+}
+
+static int
+fs_xstats_get(struct rte_eth_dev *dev,
+	      struct rte_eth_xstat *xstats,
+	      unsigned int n)
+{
+	unsigned int nstats, j, count, scount;
+	struct sub_device *sdev;
+	uint8_t i;
+	int ret;
+
+	nstats = fs_xstats_count(dev);
+	if (n < nstats || xstats == NULL)
+		return nstats;
+
+	ret = rte_eth_basic_stats_get(dev->data->port_id, xstats);
+	if (ret < 0)
+		return ret;
+
+	count = ret;
+	for (j = 0; j < count; j++)
+		xstats[j].id = j;
+
+	fs_lock(dev, 0);
+	FOREACH_SUBDEV(sdev, i, dev) {
+		if (sdev->state < DEV_ACTIVE)
+			continue;
+
+		ret = rte_eth_xstats_get(PORT_ID(sdev),
+					 xstats + count,
+					 n > count ? n - count : 0);
+		if (ret < 0) {
+			fs_unlock(dev, 0);
+			return ret;
+		}
+		scount = ret;
+
+		/* add offset to id's from sub-device */
+		for (j = 0; j < scount; j++)
+			xstats[count + j].id += count;
+
+		count += scount;
+	}
+	fs_unlock(dev, 0);
+
+	return count;
+}
+
+static void
+fs_xstats_reset(struct rte_eth_dev *dev)
+{
+	struct sub_device *sdev;
+	uint8_t i;
+
+	rte_eth_stats_reset(dev->data->port_id);
+
+	fs_lock(dev, 0);
+	FOREACH_SUBDEV(sdev, i, dev) {
+		rte_eth_xstats_reset(PORT_ID(sdev));
+	}
+	fs_unlock(dev, 0);
+}
+
 static void
 fs_dev_merge_desc_lim(struct rte_eth_desc_lim *to,
 		      const struct rte_eth_desc_lim *from)
@@ -1233,6 +1374,9 @@ const struct eth_dev_ops failsafe_ops = {
 	.link_update = fs_link_update,
 	.stats_get = fs_stats_get,
 	.stats_reset = fs_stats_reset,
+	.xstats_get = fs_xstats_get,
+	.xstats_get_names = fs_xstats_get_names,
+	.xstats_reset = fs_xstats_reset,
 	.dev_infos_get = fs_dev_infos_get,
 	.dev_supported_ptypes_get = fs_dev_supported_ptypes_get,
 	.mtu_set = fs_mtu_set,
