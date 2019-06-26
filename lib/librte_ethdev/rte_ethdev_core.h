@@ -519,6 +519,20 @@ struct eth_dev_ops {
 
 /**
  * @internal
+ * Get basic stats for ethdev
+ */
+int __rte_experimental
+rte_eth_basic_stats_count(struct rte_eth_dev *dev);
+
+int  __rte_experimental
+rte_eth_basic_stats_get_names(struct rte_eth_dev *dev,
+			      struct rte_eth_xstat_name *xstats_names);
+
+int __rte_experimental
+rte_eth_basic_stats_get(uint16_t port_id, struct rte_eth_xstat *xstats);
+
+/**
+ * @internal
  * Structure used to hold information about the callbacks to be called for a
  * queue on RX and TX.
  */
