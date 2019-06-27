@@ -95,6 +95,11 @@ check_experimental_tags() { # <patch>
 			print "Please only put __rte_experimental tags in headers ("current_file")";
 			ret = 1;
 		}
+		if ($1 != "+__rte_experimental" &&
+		    ($1 != "+" || $2 != "__rte_experimental")) {
+			print "__rte_experimental must be at the start of functions prototype.";
+			ret = 1;
+		}
 	}
 	END {
 		exit ret;

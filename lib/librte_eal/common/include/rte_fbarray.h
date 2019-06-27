@@ -75,7 +75,7 @@ struct rte_fbarray {
  *  - 0 on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_init(struct rte_fbarray *arr, const char *name, unsigned int len,
 		unsigned int elt_sz);
 
@@ -97,7 +97,7 @@ rte_fbarray_init(struct rte_fbarray *arr, const char *name, unsigned int len,
  *  - 0 on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_attach(struct rte_fbarray *arr);
 
 
@@ -118,7 +118,7 @@ rte_fbarray_attach(struct rte_fbarray *arr);
  *  - 0 on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_destroy(struct rte_fbarray *arr);
 
 
@@ -136,7 +136,7 @@ rte_fbarray_destroy(struct rte_fbarray *arr);
  *  - 0 on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_detach(struct rte_fbarray *arr);
 
 
@@ -153,7 +153,7 @@ rte_fbarray_detach(struct rte_fbarray *arr);
  *  - non-NULL pointer on success.
  *  - NULL on failure, with ``rte_errno`` indicating reason for failure.
  */
-void * __rte_experimental
+__rte_experimental void *
 rte_fbarray_get(const struct rte_fbarray *arr, unsigned int idx);
 
 
@@ -170,7 +170,7 @@ rte_fbarray_get(const struct rte_fbarray *arr, unsigned int idx);
  *  - non-negative integer on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_find_idx(const struct rte_fbarray *arr, const void *elt);
 
 
@@ -187,7 +187,7 @@ rte_fbarray_find_idx(const struct rte_fbarray *arr, const void *elt);
  *  - 0 on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_set_used(struct rte_fbarray *arr, unsigned int idx);
 
 
@@ -204,7 +204,7 @@ rte_fbarray_set_used(struct rte_fbarray *arr, unsigned int idx);
  *  - 0 on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_set_free(struct rte_fbarray *arr, unsigned int idx);
 
 
@@ -222,7 +222,7 @@ rte_fbarray_set_free(struct rte_fbarray *arr, unsigned int idx);
  *  - 0 if element is unused.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_is_used(struct rte_fbarray *arr, unsigned int idx);
 
 
@@ -239,7 +239,7 @@ rte_fbarray_is_used(struct rte_fbarray *arr, unsigned int idx);
  *  - non-negative integer on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_find_next_free(struct rte_fbarray *arr, unsigned int start);
 
 
@@ -256,7 +256,7 @@ rte_fbarray_find_next_free(struct rte_fbarray *arr, unsigned int start);
  *  - non-negative integer on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_find_next_used(struct rte_fbarray *arr, unsigned int start);
 
 
@@ -276,7 +276,7 @@ rte_fbarray_find_next_used(struct rte_fbarray *arr, unsigned int start);
  *  - non-negative integer on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_find_next_n_free(struct rte_fbarray *arr, unsigned int start,
 		unsigned int n);
 
@@ -297,7 +297,7 @@ rte_fbarray_find_next_n_free(struct rte_fbarray *arr, unsigned int start,
  *  - non-negative integer on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_find_next_n_used(struct rte_fbarray *arr, unsigned int start,
 		unsigned int n);
 
@@ -315,7 +315,7 @@ rte_fbarray_find_next_n_used(struct rte_fbarray *arr, unsigned int start,
  *  - non-negative integer on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_find_contig_free(struct rte_fbarray *arr,
 		unsigned int start);
 
@@ -333,7 +333,7 @@ rte_fbarray_find_contig_free(struct rte_fbarray *arr,
  *  - non-negative integer on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_find_contig_used(struct rte_fbarray *arr, unsigned int start);
 
 /**
@@ -349,7 +349,7 @@ rte_fbarray_find_contig_used(struct rte_fbarray *arr, unsigned int start);
  *  - non-negative integer on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_find_prev_free(struct rte_fbarray *arr, unsigned int start);
 
 
@@ -366,7 +366,7 @@ rte_fbarray_find_prev_free(struct rte_fbarray *arr, unsigned int start);
  *  - non-negative integer on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_find_prev_used(struct rte_fbarray *arr, unsigned int start);
 
 
@@ -387,7 +387,7 @@ rte_fbarray_find_prev_used(struct rte_fbarray *arr, unsigned int start);
  *  - non-negative integer on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_find_prev_n_free(struct rte_fbarray *arr, unsigned int start,
 		unsigned int n);
 
@@ -409,7 +409,7 @@ rte_fbarray_find_prev_n_free(struct rte_fbarray *arr, unsigned int start,
  *  - non-negative integer on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_find_prev_n_used(struct rte_fbarray *arr, unsigned int start,
 		unsigned int n);
 
@@ -428,7 +428,7 @@ rte_fbarray_find_prev_n_used(struct rte_fbarray *arr, unsigned int start,
  *  - non-negative integer on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_find_rev_contig_free(struct rte_fbarray *arr,
 		unsigned int start);
 
@@ -447,7 +447,7 @@ rte_fbarray_find_rev_contig_free(struct rte_fbarray *arr,
  *  - non-negative integer on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_find_rev_contig_used(struct rte_fbarray *arr, unsigned int start);
 
 
@@ -464,7 +464,7 @@ rte_fbarray_find_rev_contig_used(struct rte_fbarray *arr, unsigned int start);
  *  - non-negative integer on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_find_biggest_free(struct rte_fbarray *arr, unsigned int start);
 
 
@@ -481,7 +481,7 @@ rte_fbarray_find_biggest_free(struct rte_fbarray *arr, unsigned int start);
  *  - non-negative integer on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_find_biggest_used(struct rte_fbarray *arr, unsigned int start);
 
 
@@ -499,7 +499,7 @@ rte_fbarray_find_biggest_used(struct rte_fbarray *arr, unsigned int start);
  *  - non-negative integer on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_find_rev_biggest_free(struct rte_fbarray *arr, unsigned int start);
 
 
@@ -517,7 +517,7 @@ rte_fbarray_find_rev_biggest_free(struct rte_fbarray *arr, unsigned int start);
  *  - non-negative integer on success.
  *  - -1 on failure, with ``rte_errno`` indicating reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_fbarray_find_rev_biggest_used(struct rte_fbarray *arr, unsigned int start);
 
 
@@ -530,7 +530,7 @@ rte_fbarray_find_rev_biggest_used(struct rte_fbarray *arr, unsigned int start);
  * @param f
  *   File object to dump information into.
  */
-void __rte_experimental
+__rte_experimental void
 rte_fbarray_dump_metadata(struct rte_fbarray *arr, FILE *f);
 
 #ifdef __cplusplus

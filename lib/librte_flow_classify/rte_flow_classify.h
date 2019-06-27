@@ -155,7 +155,7 @@ struct rte_flow_classify_ipv4_5tuple_stats {
  * @return
  *   Handle to flow classifier instance on success or NULL otherwise
  */
-struct rte_flow_classifier * __rte_experimental
+__rte_experimental struct rte_flow_classifier *
 rte_flow_classifier_create(struct rte_flow_classifier_params *params);
 
 /**
@@ -166,7 +166,7 @@ rte_flow_classifier_create(struct rte_flow_classifier_params *params);
  * @return
  *   0 on success, error code otherwise
  */
-int __rte_experimental
+__rte_experimental int
 rte_flow_classifier_free(struct rte_flow_classifier *cls);
 
 /**
@@ -179,7 +179,7 @@ rte_flow_classifier_free(struct rte_flow_classifier *cls);
  * @return
  *   0 on success, error code otherwise
  */
-int __rte_experimental
+__rte_experimental int
 rte_flow_classify_table_create(struct rte_flow_classifier *cls,
 		struct rte_flow_classify_table_params *params);
 
@@ -200,7 +200,7 @@ rte_flow_classify_table_create(struct rte_flow_classifier *cls,
  * @return
  *   0 on success, error code otherwise
  */
-int __rte_experimental
+__rte_experimental int
 rte_flow_classify_validate(struct rte_flow_classifier *cls,
 		const struct rte_flow_attr *attr,
 		const struct rte_flow_item pattern[],
@@ -226,7 +226,7 @@ rte_flow_classify_validate(struct rte_flow_classifier *cls,
  * @return
  *   A valid handle in case of success, NULL otherwise.
  */
-struct rte_flow_classify_rule * __rte_experimental
+__rte_experimental struct rte_flow_classify_rule *
 rte_flow_classify_table_entry_add(struct rte_flow_classifier *cls,
 		const struct rte_flow_attr *attr,
 		const struct rte_flow_item pattern[],
@@ -244,7 +244,7 @@ rte_flow_classify_table_entry_add(struct rte_flow_classifier *cls,
  * @return
  *   0 on success, error code otherwise.
  */
-int __rte_experimental
+__rte_experimental int
 rte_flow_classify_table_entry_delete(struct rte_flow_classifier *cls,
 		struct rte_flow_classify_rule *rule);
 
@@ -265,7 +265,7 @@ rte_flow_classify_table_entry_delete(struct rte_flow_classifier *cls,
  * @return
  *   0 on success, error code otherwise.
  */
-int __rte_experimental
+__rte_experimental int
 rte_flow_classifier_query(struct rte_flow_classifier *cls,
 		struct rte_mbuf **pkts,
 		const uint16_t nb_pkts,

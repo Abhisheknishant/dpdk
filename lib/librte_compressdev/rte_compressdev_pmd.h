@@ -59,7 +59,7 @@ struct rte_compressdev_global {
  * @return
  *   - The rte_compressdev structure pointer for the given device identifier.
  */
-struct rte_compressdev * __rte_experimental
+__rte_experimental struct rte_compressdev *
 rte_compressdev_pmd_get_named_dev(const char *name);
 
 /**
@@ -299,7 +299,7 @@ struct rte_compressdev_ops {
  * @return
  *   - Slot in the rte_dev_devices array for a new device;
  */
-struct rte_compressdev * __rte_experimental
+__rte_experimental struct rte_compressdev *
 rte_compressdev_pmd_allocate(const char *name, int socket_id);
 
 /**
@@ -314,7 +314,7 @@ rte_compressdev_pmd_allocate(const char *name, int socket_id);
  * @return
  *   - 0 on success, negative on error
  */
-int __rte_experimental
+__rte_experimental int
 rte_compressdev_pmd_release_device(struct rte_compressdev *dev);
 
 
@@ -336,7 +336,7 @@ rte_compressdev_pmd_release_device(struct rte_compressdev *dev);
  *  - 0 on success
  *  - errno on failure
  */
-int __rte_experimental
+__rte_experimental int
 rte_compressdev_pmd_parse_input_args(
 		struct rte_compressdev_pmd_init_params *params,
 		const char *args);
@@ -357,7 +357,7 @@ rte_compressdev_pmd_parse_input_args(
  *  - comp device instance on success
  *  - NULL on creation failure
  */
-struct rte_compressdev * __rte_experimental
+__rte_experimental struct rte_compressdev *
 rte_compressdev_pmd_create(const char *name,
 		struct rte_device *device,
 		size_t private_data_size,
@@ -375,7 +375,7 @@ rte_compressdev_pmd_create(const char *name,
  *  - 0 on success
  *  - errno on failure
  */
-int __rte_experimental
+__rte_experimental int
 rte_compressdev_pmd_destroy(struct rte_compressdev *dev);
 
 #ifdef __cplusplus

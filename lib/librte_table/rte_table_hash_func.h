@@ -14,7 +14,7 @@ extern "C" {
 #include <rte_compat.h>
 #include <rte_common.h>
 
-static inline uint64_t __rte_experimental
+__rte_experimental static inline uint64_t
 rte_crc32_u64_generic(uint64_t crc, uint64_t value)
 {
 	int i;
@@ -52,7 +52,7 @@ rte_crc32_u64(uint64_t crc, uint64_t v)
 
 #endif
 
-static inline uint64_t __rte_experimental
+__rte_experimental static inline uint64_t
 rte_table_hash_crc_key8(void *key, void *mask, __rte_unused uint32_t key_size,
 	uint64_t seed)
 {
@@ -65,7 +65,7 @@ rte_table_hash_crc_key8(void *key, void *mask, __rte_unused uint32_t key_size,
 	return crc0;
 }
 
-static inline uint64_t __rte_experimental
+__rte_experimental static inline uint64_t
 rte_table_hash_crc_key16(void *key, void *mask, __rte_unused uint32_t key_size,
 	uint64_t seed)
 {
@@ -83,7 +83,7 @@ rte_table_hash_crc_key16(void *key, void *mask, __rte_unused uint32_t key_size,
 	return crc0;
 }
 
-static inline uint64_t __rte_experimental
+__rte_experimental static inline uint64_t
 rte_table_hash_crc_key24(void *key, void *mask, __rte_unused uint32_t key_size,
 	uint64_t seed)
 {
@@ -104,7 +104,7 @@ rte_table_hash_crc_key24(void *key, void *mask, __rte_unused uint32_t key_size,
 	return crc0;
 }
 
-static inline uint64_t __rte_experimental
+__rte_experimental static inline uint64_t
 rte_table_hash_crc_key32(void *key, void *mask, __rte_unused uint32_t key_size,
 	uint64_t seed)
 {
@@ -129,7 +129,7 @@ rte_table_hash_crc_key32(void *key, void *mask, __rte_unused uint32_t key_size,
 	return crc0;
 }
 
-static inline uint64_t __rte_experimental
+__rte_experimental static inline uint64_t
 rte_table_hash_crc_key40(void *key, void *mask, __rte_unused uint32_t key_size,
 	uint64_t seed)
 {
@@ -154,7 +154,7 @@ rte_table_hash_crc_key40(void *key, void *mask, __rte_unused uint32_t key_size,
 	return crc0;
 }
 
-static inline uint64_t __rte_experimental
+__rte_experimental static inline uint64_t
 rte_table_hash_crc_key48(void *key, void *mask, __rte_unused uint32_t key_size,
 	uint64_t seed)
 {
@@ -180,7 +180,7 @@ rte_table_hash_crc_key48(void *key, void *mask, __rte_unused uint32_t key_size,
 	return crc0;
 }
 
-static inline uint64_t __rte_experimental
+__rte_experimental static inline uint64_t
 rte_table_hash_crc_key56(void *key, void *mask, __rte_unused uint32_t key_size,
 	uint64_t seed)
 {
@@ -209,7 +209,7 @@ rte_table_hash_crc_key56(void *key, void *mask, __rte_unused uint32_t key_size,
 	return crc0;
 }
 
-static inline uint64_t __rte_experimental
+__rte_experimental static inline uint64_t
 rte_table_hash_crc_key64(void *key, void *mask, __rte_unused uint32_t key_size,
 	uint64_t seed)
 {

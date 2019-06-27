@@ -31,7 +31,7 @@
  * @return
  *  -EALREADY if Telemetry is already initialised.
  */
-int32_t __rte_experimental
+__rte_experimental int32_t
 rte_telemetry_init(void);
 
 /**
@@ -45,7 +45,7 @@ rte_telemetry_init(void);
  * @return
  *  -EPERM on failure
  */
-int32_t __rte_experimental
+__rte_experimental int32_t
 rte_telemetry_cleanup(void);
 
 /**
@@ -60,7 +60,7 @@ rte_telemetry_cleanup(void);
  * @return
  *  -1 on failure when the test has failed
  */
-int32_t __rte_experimental
+__rte_experimental int32_t
 rte_telemetry_selftest(void);
 
 #endif

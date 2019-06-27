@@ -227,7 +227,7 @@ typedef int (*rte_memseg_list_walk_t)(const struct rte_memseg_list *msl,
  *   1 if stopped by the user
  *   -1 if user function reported error
  */
-int __rte_experimental
+__rte_experimental int
 rte_memseg_walk(rte_memseg_walk_t func, void *arg);
 
 /**
@@ -248,7 +248,7 @@ rte_memseg_walk(rte_memseg_walk_t func, void *arg);
  *   1 if stopped by the user
  *   -1 if user function reported error
  */
-int __rte_experimental
+__rte_experimental int
 rte_memseg_contig_walk(rte_memseg_contig_walk_t func, void *arg);
 
 /**
@@ -269,7 +269,7 @@ rte_memseg_contig_walk(rte_memseg_contig_walk_t func, void *arg);
  *   1 if stopped by the user
  *   -1 if user function reported error
  */
-int __rte_experimental
+__rte_experimental int
 rte_memseg_list_walk(rte_memseg_list_walk_t func, void *arg);
 
 /**
@@ -287,7 +287,7 @@ rte_memseg_list_walk(rte_memseg_list_walk_t func, void *arg);
  *   1 if stopped by the user
  *   -1 if user function reported error
  */
-int __rte_experimental
+__rte_experimental int
 rte_memseg_walk_thread_unsafe(rte_memseg_walk_t func, void *arg);
 
 /**
@@ -305,7 +305,7 @@ rte_memseg_walk_thread_unsafe(rte_memseg_walk_t func, void *arg);
  *   1 if stopped by the user
  *   -1 if user function reported error
  */
-int __rte_experimental
+__rte_experimental int
 rte_memseg_contig_walk_thread_unsafe(rte_memseg_contig_walk_t func, void *arg);
 
 /**
@@ -323,7 +323,7 @@ rte_memseg_contig_walk_thread_unsafe(rte_memseg_contig_walk_t func, void *arg);
  *   1 if stopped by the user
  *   -1 if user function reported error
  */
-int __rte_experimental
+__rte_experimental int
 rte_memseg_list_walk_thread_unsafe(rte_memseg_list_walk_t func, void *arg);
 
 /**
@@ -347,7 +347,7 @@ rte_memseg_list_walk_thread_unsafe(rte_memseg_list_walk_t func, void *arg);
  *     - ENOENT  - ``ms`` is an unused segment
  *     - ENOTSUP - segment fd's are not supported
  */
-int __rte_experimental
+__rte_experimental int
 rte_memseg_get_fd(const struct rte_memseg *ms);
 
 /**
@@ -371,7 +371,7 @@ rte_memseg_get_fd(const struct rte_memseg *ms);
  *     - ENOENT  - ``ms`` is an unused segment
  *     - ENOTSUP - segment fd's are not supported
  */
-int __rte_experimental
+__rte_experimental int
 rte_memseg_get_fd_thread_unsafe(const struct rte_memseg *ms);
 
 /**
@@ -395,7 +395,7 @@ rte_memseg_get_fd_thread_unsafe(const struct rte_memseg *ms);
  *     - ENOENT  - ``ms`` is an unused segment
  *     - ENOTSUP - segment fd's are not supported
  */
-int __rte_experimental
+__rte_experimental int
 rte_memseg_get_fd_offset(const struct rte_memseg *ms, size_t *offset);
 
 /**
@@ -419,7 +419,7 @@ rte_memseg_get_fd_offset(const struct rte_memseg *ms, size_t *offset);
  *     - ENOENT  - ``ms`` is an unused segment
  *     - ENOTSUP - segment fd's are not supported
  */
-int __rte_experimental
+__rte_experimental int
 rte_memseg_get_fd_offset_thread_unsafe(const struct rte_memseg *ms,
 		size_t *offset);
 
@@ -460,7 +460,7 @@ rte_memseg_get_fd_offset_thread_unsafe(const struct rte_memseg *ms,
  *     EEXIST - memory chunk is already registered
  *     ENOSPC - no more space in internal config to store a new memory chunk
  */
-int __rte_experimental
+__rte_experimental int
 rte_extmem_register(void *va_addr, size_t len, rte_iova_t iova_addrs[],
 		unsigned int n_pages, size_t page_sz);
 
@@ -490,7 +490,7 @@ rte_extmem_register(void *va_addr, size_t len, rte_iova_t iova_addrs[],
  *     EINVAL - one of the parameters was invalid
  *     ENOENT - memory chunk was not found
  */
-int __rte_experimental
+__rte_experimental int
 rte_extmem_unregister(void *va_addr, size_t len);
 
 /**
@@ -516,7 +516,7 @@ rte_extmem_unregister(void *va_addr, size_t len);
  *     EINVAL - one of the parameters was invalid
  *     ENOENT - memory chunk was not found
  */
-int __rte_experimental
+__rte_experimental int
 rte_extmem_attach(void *va_addr, size_t len);
 
 /**
@@ -542,7 +542,7 @@ rte_extmem_attach(void *va_addr, size_t len);
  *     EINVAL - one of the parameters was invalid
  *     ENOENT - memory chunk was not found
  */
-int __rte_experimental
+__rte_experimental int
 rte_extmem_detach(void *va_addr, size_t len);
 
 /**
@@ -595,7 +595,7 @@ unsigned rte_memory_get_nrank(void);
  *  @param maskbits
  *    Address width to check against.
  */
-int __rte_experimental rte_mem_check_dma_mask(uint8_t maskbits);
+__rte_experimental int rte_mem_check_dma_mask(uint8_t maskbits);
 
 /**
  * @warning
@@ -613,7 +613,7 @@ int __rte_experimental rte_mem_check_dma_mask(uint8_t maskbits);
  *  @param maskbits
  *    Address width to check against.
  */
-int __rte_experimental rte_mem_check_dma_mask_thread_unsafe(uint8_t maskbits);
+__rte_experimental int rte_mem_check_dma_mask_thread_unsafe(uint8_t maskbits);
 
 /**
  * @warning
@@ -623,7 +623,7 @@ int __rte_experimental rte_mem_check_dma_mask_thread_unsafe(uint8_t maskbits);
  *  rte_mem_check_dma_mask and rte_mem_check_dma_mask_thread_unsafe can not be
  *  used safely until memory has been initialized.
  */
-void __rte_experimental rte_mem_set_dma_mask(uint8_t maskbits);
+__rte_experimental void rte_mem_set_dma_mask(uint8_t maskbits);
 
 /**
  * Drivers based on uio will not load unless physical
@@ -679,7 +679,7 @@ typedef void (*rte_mem_event_callback_t)(enum rte_mem_event event_type,
  *   -1 on unsuccessful callback register, with rte_errno value indicating
  *   reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_mem_event_callback_register(const char *name, rte_mem_event_callback_t clb,
 		void *arg);
 
@@ -697,7 +697,7 @@ rte_mem_event_callback_register(const char *name, rte_mem_event_callback_t clb,
  *   -1 on unsuccessful callback unregister, with rte_errno value indicating
  *   reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_mem_event_callback_unregister(const char *name, void *arg);
 
 
@@ -746,7 +746,7 @@ typedef int (*rte_mem_alloc_validator_t)(int socket_id,
  *   -1 on unsuccessful callback register, with rte_errno value indicating
  *   reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_mem_alloc_validator_register(const char *name,
 		rte_mem_alloc_validator_t clb, int socket_id, size_t limit);
 
@@ -764,7 +764,7 @@ rte_mem_alloc_validator_register(const char *name,
  *   -1 on unsuccessful callback unregister, with rte_errno value indicating
  *   reason for failure.
  */
-int __rte_experimental
+__rte_experimental int
 rte_mem_alloc_validator_unregister(const char *name, int socket_id);
 
 #ifdef __cplusplus
