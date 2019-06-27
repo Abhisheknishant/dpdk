@@ -36,7 +36,7 @@ test_rawdev_selftest_ioat(void)
 		struct rte_rawdev_info info = { .dev_private = NULL };
 		if (rte_rawdev_info_get(i, &info) == 0 &&
 				strstr(info.driver_name, "ioat") != NULL)
-			return 0;
+			return rte_rawdev_selftest(i);
 	}
 
 	printf("No IOAT rawdev found, skipping tests\n");

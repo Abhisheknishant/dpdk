@@ -14,6 +14,7 @@
  * @b EXPERIMENTAL: these structures and APIs may change without prior notice
  */
 
+#include <x86intrin.h>
 #include <rte_memory.h>
 #include <rte_ioat_spec.h>
 
@@ -46,7 +47,8 @@ struct rte_ioat_rawdev {
 	phys_addr_t ring_addr;
 
 	unsigned short ring_size;
-	struct rte_ioat_desc *desc_ring;
+	struct rte_ioat_generic_hw_desc *desc_ring;
+	__m128i *hdls; /* completion handles for returning to user */
 
 	/* to report completions, the device will write status back here */
 	volatile uint64_t status __rte_cache_aligned;
