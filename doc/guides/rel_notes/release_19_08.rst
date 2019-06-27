@@ -99,6 +99,12 @@ New Features
   Updated ``librte_telemetry`` to fetch the global metrics from the
   ``librte_metrics`` library.
 
+* **Added hinic PMD.**
+
+  Added the new ``hinic`` net driver for Huawei Intelligent PCIE Network
+  Adapters based on the Huawei Ethernet Controller Hi1822.
+  See the :doc:`../nics/hinic` guide for more details on this new driver.
+
 
 Removed Items
 -------------
