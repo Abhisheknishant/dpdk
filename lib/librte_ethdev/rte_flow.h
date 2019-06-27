@@ -1650,6 +1650,46 @@ enum rte_flow_action_type {
 	 * See struct rte_flow_action_set_mac.
 	 */
 	RTE_FLOW_ACTION_TYPE_SET_MAC_DST,
+
+	/**
+	 * Increase sequence number in the outermost TCP header.
+	 *
+	 * Using this action on non-matching traffic will result in
+	 * undefined behavior.
+	 *
+	 * See struct rte_flow_integer_action.
+	 */
+	RTE_FLOW_ACTION_TYPE_INC_TCP_SEQ,
+
+	/**
+	 * Decrease sequence number in the outermost TCP header.
+	 *
+	 * Using this action on non-matching traffic will result in
+	 * undefined behavior.
+	 *
+	 * See struct rte_flow_integer_action.
+	 */
+	RTE_FLOW_ACTION_TYPE_DEC_TCP_SEQ,
+
+	/**
+	 * Increase acknowledgment number in the outermost TCP header.
+	 *
+	 * Using this action on non-matching traffic will result in
+	 * undefined behavior.
+	 *
+	 * See struct rte_flow_integer_action.
+	 */
+	RTE_FLOW_ACTION_TYPE_INC_TCP_ACK,
+
+	/**
+	 * Decrease acknowledgment number in the outermost TCP header.
+	 *
+	 * Using this action on non-matching traffic will result in
+	 * undefined behavior.
+	 *
+	 * See struct rte_flow_integer_action.
+	 */
+	RTE_FLOW_ACTION_TYPE_DEC_TCP_ACK,
 };
 
 /**
@@ -2140,7 +2180,7 @@ struct rte_flow_action_set_mac {
  */
 struct rte_flow_action {
 	enum rte_flow_action_type type; /**< Action type. */
-	const void *conf; /**< Pointer to action configuration structure. */
+	const void *conf; /**< Pointer to action configuration. */
 };
 
 /**
