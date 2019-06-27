@@ -709,7 +709,7 @@ tbl8_free_v1604(struct rte_lpm_tbl_entry *tbl8, uint32_t tbl8_group_start)
 	tbl8[tbl8_group_start].valid_group = INVALID;
 }
 
-static inline int32_t
+static __rte_noinline int32_t
 add_depth_small_v20(struct rte_lpm_v20 *lpm, uint32_t ip, uint8_t depth,
 		uint8_t next_hop)
 {
@@ -777,7 +777,7 @@ add_depth_small_v20(struct rte_lpm_v20 *lpm, uint32_t ip, uint8_t depth,
 	return 0;
 }
 
-static inline int32_t
+static __rte_noinline int32_t
 add_depth_small_v1604(struct rte_lpm *lpm, uint32_t ip, uint8_t depth,
 		uint32_t next_hop)
 {
@@ -846,7 +846,7 @@ add_depth_small_v1604(struct rte_lpm *lpm, uint32_t ip, uint8_t depth,
 	return 0;
 }
 
-static inline int32_t
+static __rte_noinline int32_t
 add_depth_big_v20(struct rte_lpm_v20 *lpm, uint32_t ip_masked, uint8_t depth,
 		uint8_t next_hop)
 {
@@ -971,7 +971,7 @@ add_depth_big_v20(struct rte_lpm_v20 *lpm, uint32_t ip_masked, uint8_t depth,
 	return 0;
 }
 
-static inline int32_t
+static __rte_noinline int32_t
 add_depth_big_v1604(struct rte_lpm *lpm, uint32_t ip_masked, uint8_t depth,
 		uint32_t next_hop)
 {
