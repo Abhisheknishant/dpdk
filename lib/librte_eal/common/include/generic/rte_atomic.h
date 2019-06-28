@@ -1081,6 +1081,20 @@ static inline void rte_atomic64_clear(rte_atomic64_t *v)
 
 /*------------------------ 128 bit atomic operations -------------------------*/
 
+#if defined(RTE_ARCH_X86_64) || defined(RTE_ARCH_ARM64)
+/**
+ * 128-bit integer structure.
+ */
+RTE_STD_C11
+typedef struct {
+	RTE_STD_C11
+	union {
+		uint64_t val[2];
+		__extension__ __int128 int128;
+	};
+} __rte_aligned(16) rte_int128_t;
+#endif
+
 #ifdef __DOXYGEN__
 
 /**
@@ -1093,7 +1107,8 @@ static inline void rte_atomic64_clear(rte_atomic64_t *v)
  *     *exp = *dst
  * @endcode
  *
- * @note This function is currently only available for the x86-64 platform.
+ * @note This function is currently available for the x86-64 and aarch64
+ * platforms.
  *
  * @note The success and failure arguments must be one of the __ATOMIC_* values
  * defined in the C++11 standard. For details on their behavior, refer to the
