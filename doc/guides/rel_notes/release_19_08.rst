@@ -99,6 +99,9 @@ New Features
   Updated ``librte_telemetry`` to fetch the global metrics from the
   ``librte_metrics`` library.
 
+* **Added Lock-free Stack for aarch64.**
+
+  The lock-free stack implementation is enabled for aarch64 platforms.
 
 Removed Items
 -------------
