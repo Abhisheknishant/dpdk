@@ -17,7 +17,7 @@
 
 /* Check condition and return an error if true. */
 static uint16_t enabled_core_ids[RTE_MAX_LCORE];
-static uint8_t num_cores;
+static uint16_t num_cores;
 
 static uint32_t *keys;
 #define TOTAL_ENTRY (1024 * 8)

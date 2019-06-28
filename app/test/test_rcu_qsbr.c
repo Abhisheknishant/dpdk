@@ -27,7 +27,7 @@
 #define TEST_RCU_QSBR_CNT_INIT 1
 
 uint16_t enabled_core_ids[RTE_MAX_LCORE];
-uint8_t num_cores;
+uint16_t num_cores;
 
 static uint32_t *keys;
 #define TOTAL_ENTRY (1024 * 8)
@@ -891,7 +891,7 @@ static int
 test_rcu_qsbr_mw_mv_mqs(void)
 {
 	int i, j;
-	uint8_t test_cores;
+	uint16_t test_cores;
 
 	writer_done = 0;
 	test_cores = num_cores / 4;
