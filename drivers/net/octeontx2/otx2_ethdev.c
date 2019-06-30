@@ -1034,6 +1034,7 @@ otx2_nix_configure(struct rte_eth_dev *eth_dev)
 		rc = nix_store_queue_cfg_and_then_release(eth_dev);
 		if (rc)
 			goto fail;
+		otx2_nix_tm_fini(eth_dev);
 		nix_lf_free(dev);
 	}
 
@@ -1064,6 +1065,13 @@ otx2_nix_configure(struct rte_eth_dev *eth_dev)
 	rc = otx2_nix_rss_config(eth_dev);
 	if (rc) {
 		otx2_err("Failed to configure rss rc=%d", rc);
+		goto free_nix_lf;
+	}
+
+	/* Init the default TM scheduler hierarchy */
+	rc = otx2_nix_tm_init_default(eth_dev);
+	if (rc) {
+		otx2_err("Failed to init traffic manager rc=%d", rc);
 		goto free_nix_lf;
 	}
 
@@ -1369,6 +1377,9 @@ otx2_eth_dev_init(struct rte_eth_dev *eth_dev)
 	/* Also sync same MAC address to CGX table */
 	otx2_cgx_mac_addr_set(eth_dev, &eth_dev->data->mac_addrs[0]);
 
+	/* Initialize the tm data structures */
+	otx2_nix_tm_conf_init(eth_dev);
+
 	dev->tx_offload_capa = nix_get_tx_offload_capa(dev);
 	dev->rx_offload_capa = nix_get_rx_offload_capa(dev);
 
@@ -1423,6 +1434,11 @@ otx2_eth_dev_uninit(struct rte_eth_dev *eth_dev, bool mbox_close)
 		eth_dev->data->rx_queues[i] = NULL;
 	}
 	eth_dev->data->nb_rx_queues = 0;
+
+	/* Free tm resources */
+	rc = otx2_nix_tm_fini(eth_dev);
+	if (rc)
+		otx2_err("Failed to cleanup tm, rc=%d", rc);
 
 	/* Unregister queue irqs */
 	oxt2_nix_unregister_queue_irqs(eth_dev);
