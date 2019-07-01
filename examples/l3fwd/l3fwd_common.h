@@ -51,7 +51,7 @@ rfc1812_process(struct rte_ipv4_hdr *ipv4_hdr, uint16_t *dp, uint32_t ptype)
 #endif /* DO_RFC_1812_CHECKS */
 
 /*
- * We group consecutive packets with the same destionation port into one burst.
+ * We group consecutive packets with the same destination port into one burst.
  * To avoid extra latency this is done together with some other packet
  * processing, but after we made a final decision about packet's destination.
  * To do this we maintain:
