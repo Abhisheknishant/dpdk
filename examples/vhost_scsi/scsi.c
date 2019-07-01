@@ -70,7 +70,7 @@ vhost_bdev_scsi_set_naa_ieee_extended(const char *name, uint8_t *buf)
 	local_value = *(uint64_t *)buf;
 	/*
 	 * see spc3r23 7.6.3.6.2,
-	 *  NAA IEEE Extended identifer format
+	 *  NAA IEEE Extended identiifier format
 	 */
 	local_value &= 0x0fff000000ffffffull;
 	/* NAA 02, and 00 03 47 for IEEE Intel */

@@ -191,7 +191,7 @@ vhost_scsi_bdev_construct(const char *bdev_name, const char *bdev_serial,
 	/* use memory as disk storage space */
 	bdev->data = rte_zmalloc(NULL, blk_cnt * blk_size, 0);
 	if (!bdev->data) {
-		fprintf(stderr, "no enough reseverd huge memory for disk\n");
+		fprintf(stderr, "no enough reserved huge memory for disk\n");
 		return NULL;
 	}
 
