@@ -461,7 +461,7 @@ try_rwlock_test_rda(void)
 {
 	try_test_reset();
 
-	/* start read test on all avaialble lcores */
+	/* start read test on all available lcores */
 	rte_eal_mp_remote_launch(try_read_lcore, NULL, CALL_MASTER);
 	rte_eal_mp_wait_lcore();
 

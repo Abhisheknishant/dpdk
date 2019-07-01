@@ -650,7 +650,7 @@ create_crypto_session(struct ipsec_unitest_params *ut,
 	if (s == NULL)
 		return -ENOMEM;
 
-	/* initiliaze SA crypto session for device */
+	/* initialaze SA crypto session for device */
 	rc = rte_cryptodev_sym_session_init(dev_id, s,
 			ut->crypto_xforms, qp->mp_session_private);
 	if (rc == 0) {

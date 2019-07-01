@@ -556,7 +556,7 @@ test_kni(void)
 	}
 	closedir(dir);
 
-	/* Initialize KNI subsytem */
+	/* Initialize KNI subsystem */
 	rte_kni_init(KNI_TEST_MAX_PORTS);
 
 	if (test_kni_allocate_lcores() < 0) {

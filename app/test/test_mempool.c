@@ -561,7 +561,7 @@ test_mempool(void)
 	if (test_mempool_basic_ex(mp_nocache) < 0)
 		goto err;
 
-	/* mempool operation test based on single producer and single comsumer */
+	/* mempool operation test based on single producer and single consumer */
 	if (test_mempool_sp_sc() < 0)
 		goto err;
 

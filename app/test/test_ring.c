@@ -655,7 +655,7 @@ test_lookup_null(void)
 	struct rte_ring *rlp = rte_ring_lookup("ring_not_found");
 	if (rlp ==NULL)
 	if (rte_errno != ENOENT){
-		printf( "test failed to returnn error on null pointer\n");
+		printf("test failed to return error on null pointer\n");
 		return -1;
 	}
 	return 0;
