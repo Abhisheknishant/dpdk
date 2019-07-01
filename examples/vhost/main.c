@@ -105,7 +105,7 @@ static uint32_t burst_rx_retry_num = BURST_RX_RETRIES;
 static char *socket_files;
 static int nb_sockets;
 
-/* empty vmdq configuration structure. Filled in programatically */
+/* empty vmdq configuration structure. Filled in programmatically */
 static struct rte_eth_conf vmdq_conf_default = {
 	.rxmode = {
 		.mq_mode        = ETH_MQ_RX_VMDQ_ONLY,
@@ -1109,7 +1109,7 @@ switch_worker(void *arg __rte_unused)
 	struct vhost_dev *vdev;
 	struct mbuf_table *tx_q;
 
-	RTE_LOG(INFO, VHOST_DATA, "Procesing on Core %u started\n", lcore_id);
+	RTE_LOG(INFO, VHOST_DATA, "Processing on Core %u started\n", lcore_id);
 
 	tx_q = &lcore_tx_queue[lcore_id];
 	for (i = 0; i < rte_lcore_count(); i++) {
@@ -1153,7 +1153,7 @@ switch_worker(void *arg __rte_unused)
 
 /*
  * Remove a device from the specific data core linked list and from the
- * main linked list. Synchonization  occurs through the use of the
+ * main linked list. Synchronization  occurs through the use of the
  * lcore dev_removal_flag. Device is made volatile here to avoid re-ordering
  * of dev->remove=1 which can cause an infinite loop in the rte_pause loop.
  */
