@@ -376,7 +376,7 @@ rte_ethtool_net_set_rx_mode(uint16_t port_id)
 	rte_eth_dev_info_get(port_id, &dev_info);
 	num_vfs = dev_info.max_vfs;
 
-	/* Set VF vf_rx_mode, VF unsupport status is discard */
+	/* Set VF vf_rx_mode, VF unsupported status is discard */
 	for (vf = 0; vf < num_vfs; vf++) {
 #ifdef RTE_LIBRTE_IXGBE_PMD
 		rte_pmd_ixgbe_set_vf_rxmode(port_id, vf,
