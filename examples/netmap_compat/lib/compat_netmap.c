@@ -700,7 +700,7 @@ rte_netmap_init_port(uint16_t portid, const struct rte_netmap_port_conf *conf)
 
 	if (ret < 0) {
 		RTE_LOG(ERR, USER1,
-			"Couldn't ot adjust number of descriptors for port %u\n",
+			"Couldn't adjust number of descriptors for port %u\n",
 			portid);
 		return ret;
 	}
