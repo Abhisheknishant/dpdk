@@ -66,7 +66,7 @@ static uint16_t num_queues, num_vmdq_queues;
 static uint16_t vmdq_pool_base, vmdq_queue_base;
 static uint8_t rss_enable;
 
-/* empty vmdq+dcb configuration structure. Filled in programatically */
+/* empty vmdq+dcb configuration structure. Filled in programmatically */
 static const struct rte_eth_conf vmdq_dcb_conf_default = {
 	.rxmode = {
 		.mq_mode        = ETH_MQ_RX_VMDQ_DCB,
