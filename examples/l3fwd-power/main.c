@@ -469,7 +469,7 @@ signal_exit_now(int sigtype)
 		rte_exit(EXIT_SUCCESS, "User forced exit\n");
 }
 
-/*  Freqency scale down timer callback */
+/*  Frequency scale down timer callback */
 static void
 power_timer_cb(__attribute__((unused)) struct rte_timer *tim,
 			  __attribute__((unused)) void *arg)
