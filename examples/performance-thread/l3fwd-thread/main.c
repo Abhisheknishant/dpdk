@@ -1523,7 +1523,7 @@ processx4_step3(struct rte_mbuf *pkt[FWDSTEP], uint16_t dst_port[FWDSTEP])
 }
 
 /*
- * We group consecutive packets with the same destionation port into one burst.
+ * We group consecutive packets with the same destination port into one burst.
  * To avoid extra latency this is done together with some other packet
  * processing, but after we made a final decision about packet's destination.
  * To do this we maintain:
@@ -1548,7 +1548,7 @@ processx4_step3(struct rte_mbuf *pkt[FWDSTEP], uint16_t dst_port[FWDSTEP])
 
 /*
  * Group consecutive packets with the same destination port in bursts of 4.
- * Suppose we have array of destionation ports:
+ * Suppose we have array of destination ports:
  * dst_port[] = {a, b, c, d,, e, ... }
  * dp1 should contain: <a, b, c, d>, dp2: <b, c, d, e>.
  * We doing 4 comparisons at once and the result is 4 bit mask.
