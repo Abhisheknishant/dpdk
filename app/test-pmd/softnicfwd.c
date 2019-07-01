@@ -277,7 +277,7 @@ softport_tm_subport_node_add(portid_t port_id,
 		snp.nonleaf.n_sp_priorities = 1;
 		snp.stats_mask = STATS_MASK_DEFAULT;
 
-		/* Add Node to TM Hiearchy */
+		/* Add Node to TM Hierarchy */
 		if (rte_tm_node_add(port_id,
 				h->subport_node_id[i],
 				subport_parent_node_id,

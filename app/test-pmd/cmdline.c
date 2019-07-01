@@ -100,7 +100,7 @@ static void cmd_help_brief_parsed(__attribute__((unused)) void *parsed_result,
 		"    help ports                      : Configuring ports.\n"
 		"    help registers                  : Reading and setting port registers.\n"
 		"    help filters                    : Filters configuration help.\n"
-		"    help traffic_management         : Traffic Management commmands.\n"
+		"    help traffic_management         : Traffic Management commands.\n"
 		"    help all                        : All of the above sections.\n\n"
 	);
 
@@ -3503,7 +3503,7 @@ parse_item_list(char* str, const char* item_name, unsigned int max_items,
 		return nb_item;
 
 	/*
-	 * Then, check that all values in the list are differents.
+	 * Then, check that all values in the list are different.
 	 * No optimization here...
 	 */
 	for (i = 0; i < nb_item; i++) {
@@ -5010,7 +5010,7 @@ cmd_gso_size_parsed(void *parsed_result,
 
 	if (test_done == 0) {
 		printf("Before setting GSO segsz, please first"
-				" stop fowarding\n");
+				" stop forwarding\n");
 		return;
 	}
 
@@ -6942,7 +6942,7 @@ cmd_link_flow_ctrl_set_parsed(void *parsed_result,
 
 	ret = rte_eth_dev_flow_ctrl_set(res->port_id, &fc_conf);
 	if (ret != 0)
-		printf("bad flow contrl parameter, return code = %d \n", ret);
+		printf("bad flow control parameter, return code = %d\n", ret);
 }
 
 /* *** SETUP ETHERNET PRIORITY FLOW CONTROL *** */
@@ -6990,7 +6990,8 @@ cmd_priority_flow_ctrl_set_parsed(void *parsed_result,
 
 	ret = rte_eth_dev_priority_flow_ctrl_set(res->port_id, &pfc_conf);
 	if (ret != 0)
-		printf("bad priority flow contrl parameter, return code = %d \n", ret);
+		printf("bad priority flow control parameter, return code = %d\n",
+		       ret);
 }
 
 cmdline_parse_token_string_t cmd_pfc_set_set =
