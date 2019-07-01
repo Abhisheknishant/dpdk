@@ -68,7 +68,7 @@ comp_perf_check_capabilities(struct comp_test_data *test_data)
 
 	uint64_t comp_flags = cap->comp_feature_flags;
 
-	/* Huffman enconding */
+	/* Huffman encoding */
 	if (test_data->huffman_enc == RTE_COMP_HUFFMAN_FIXED &&
 			(comp_flags & RTE_COMP_FF_HUFFMAN_FIXED) == 0) {
 		RTE_LOG(ERR, USER1,
@@ -124,7 +124,7 @@ find_buf_size(uint32_t input_size)
 	 * power of 2 but also should be enough to store incompressible data
 	 */
 
-	/* We're looking for nearest power of 2 buffer size, which is greather
+	/* We're looking for nearest power of 2 buffer size, which is greater
 	 * than input_size
 	 */
 	uint32_t size =
