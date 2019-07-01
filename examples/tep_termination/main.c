@@ -596,7 +596,7 @@ switch_worker(__rte_unused void *arg)
 	uint16_t tx_count;
 	uint32_t retry = 0;
 
-	RTE_LOG(INFO, VHOST_DATA, "Procesing on Core %u started\n", lcore_id);
+	RTE_LOG(INFO, VHOST_DATA, "Processing on Core %u started\n", lcore_id);
 	lcore_ll = lcore_info[lcore_id].lcore_ll;
 	prev_tsc = 0;
 
@@ -872,7 +872,7 @@ init_data_ll(void)
 
 /**
  * Remove a device from the specific data core linked list and
- * from the main linked list. Synchonization occurs through the use
+ * from the main linked list. Synchronization occurs through the use
  * of the lcore dev_removal_flag.
  */
 static void
@@ -1150,7 +1150,7 @@ main(int argc, char *argv[])
 		if (rte_lcore_is_enabled(lcore_id))
 			lcore_ids[core_id++] = lcore_id;
 
-	/* set the number of swithcing cores available */
+	/* set the number of switching cores available */
 	nb_switching_cores = rte_lcore_count()-1;
 
 	/* Get the number of physical ports. */
