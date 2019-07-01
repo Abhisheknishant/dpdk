@@ -368,7 +368,7 @@ get_pcpu_to_control(struct policy *pol)
 
 	/*
 	 * So now that we're handling virtual and physical cores, we need to
-	 * differenciate between them when adding them to the branch monitor.
+	 * differentiate between them when adding them to the branch monitor.
 	 * Virtual cores need to be converted to physical cores.
 	 */
 	if (pol->pkt.core_type == CORE_TYPE_VIRTUAL) {
