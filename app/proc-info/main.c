@@ -714,7 +714,7 @@ show_port(void)
 			}
 		}
 
-		printf("  - cyrpto context\n");
+		printf("  - crypto context\n");
 		void *p_ctx = rte_eth_dev_get_sec_ctx(i);
 		printf("\t  -- security context - %p\n", p_ctx);
 
