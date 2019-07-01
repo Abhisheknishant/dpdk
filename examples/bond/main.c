@@ -375,7 +375,7 @@ static int lcore_main(__attribute__((unused)) void *arg1)
 						struct rte_ether_hdr *);
 			ether_type = eth_hdr->ether_type;
 			if (ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_VLAN))
-				printf("VLAN taged frame, offset:");
+				printf("VLAN tagged frame, offset:");
 			offset = get_vlan_offset(eth_hdr, &ether_type);
 			if (offset > 0)
 				printf("%d\n", offset);
