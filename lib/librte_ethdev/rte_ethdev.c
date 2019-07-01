@@ -3903,7 +3903,7 @@ rte_eth_add_first_rx_callback(uint16_t port_id, uint16_t queue_id,
 	cb->param = user_param;
 
 	rte_spinlock_lock(&rte_eth_rx_cb_lock);
-	/* Add the callbacks at fisrt position*/
+	/* Add the callbacks at first position*/
 	cb->next = rte_eth_devices[port_id].post_rx_burst_cbs[queue_id];
 	rte_smp_wmb();
 	rte_eth_devices[port_id].post_rx_burst_cbs[queue_id] = cb;
