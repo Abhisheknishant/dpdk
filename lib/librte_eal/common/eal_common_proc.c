@@ -1071,7 +1071,7 @@ rte_mp_request_async(struct rte_mp_msg *req, const struct timespec *ts,
 	}
 
 	if (gettimeofday(&now, NULL) < 0) {
-		RTE_LOG(ERR, EAL, "Faile to get current time\n");
+		RTE_LOG(ERR, EAL, "Failed to get current time\n");
 		rte_errno = errno;
 		return -1;
 	}

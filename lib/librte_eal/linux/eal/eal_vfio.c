@@ -1272,7 +1272,7 @@ vfio_type1_dma_mem_map(int vfio_container_fd, uint64_t vaddr, uint64_t iova,
 			 */
 			if (errno == EEXIST) {
 				RTE_LOG(DEBUG, EAL,
-					" Memory segment is allready mapped,"
+					" Memory segment is already mapped,"
 					" skipping");
 			} else {
 				RTE_LOG(ERR, EAL,
@@ -1345,7 +1345,7 @@ vfio_spapr_dma_do_map(int vfio_container_fd, uint64_t vaddr, uint64_t iova,
 			 */
 			if (errno == EBUSY) {
 				RTE_LOG(DEBUG, EAL,
-					" Memory segment is allready mapped,"
+					" Memory segment is already mapped,"
 					" skipping");
 			} else {
 				RTE_LOG(ERR, EAL,
@@ -1632,7 +1632,7 @@ vfio_dma_mem_map(struct vfio_config *vfio_cfg, uint64_t vaddr, uint64_t iova,
 
 	if (!t->dma_user_map_func) {
 		RTE_LOG(ERR, EAL,
-			"  VFIO custom DMA region maping not supported by IOMMU %s\n",
+			"  VFIO custom DMA region mapping not supported by IOMMU %s\n",
 			t->name);
 		rte_errno = ENOTSUP;
 		return -1;
