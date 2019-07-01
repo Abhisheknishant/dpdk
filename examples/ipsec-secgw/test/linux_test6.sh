@@ -5,7 +5,7 @@
 # ipsec-secgw (IPv6 mode) functional test script.
 #
 # Note that for most of them you required appropriate crypto PMD/device
-# to be avaialble.
+# to be available.
 # Also user has to setup properly the following environment variables:
 #  SGW_PATH - path to the ipsec-secgw binary to test
 #  REMOTE_HOST - ip/hostname of the DUT
@@ -34,7 +34,7 @@
 # I.E:
 # DUT OS(NIC1)--(ipsec)-->(NIC1)ipsec-secgw(TAP)--(plain)-->(TAP)SUT OS
 # SUT OS(TAP)--(plain)-->(TAP)psec-secgw(NIC1)--(ipsec)-->(NIC1)DUT OS
-# Then tries to perorm some data transfer using the scheme decribed above.
+# Then tries to perform some data transfer using the scheme described above.
 #
 
 DIR=`dirname $0`
