@@ -1901,7 +1901,7 @@ validate(struct bpf_verifier *bvf)
 
 		/*
 		 * construct CFG, jcc nodes have to outgoing edges,
-		 * 'exit' nodes - none, all others nodes have exaclty one
+		 * 'exit' nodes - none, all others nodes have exactly one
 		 * outgoing edge.
 		 */
 		switch (ins->code) {
