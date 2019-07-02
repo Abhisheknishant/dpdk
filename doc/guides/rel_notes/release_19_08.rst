@@ -94,6 +94,13 @@ New Features
 
   * Enabled Tx outer/inner L3/L4 checksum offload.
 
+* **Updated Mellanox mlx5 driver.**
+
+  Updated Mellanox mlx5 driver with new features and improvements, including:
+
+  * Updated the packet header modification feature. Added support of TCP header
+    sequence number and acknowledgment number modification.
+
 * **Updated Solarflare network PMD.**
 
   Updated the Solarflare ``sfc_efx`` driver with changes including:
