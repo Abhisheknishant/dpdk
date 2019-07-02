@@ -23,9 +23,14 @@
 #include <rte_kvargs.h>
 #include <rte_bus_vdev.h>
 #include <rte_string_fns.h>
+#include <rte_errno.h>
+#include <rte_memory.h>
+#include <rte_memzone.h>
+#include <rte_eal_memconfig.h>
 
 #include "rte_eth_memif.h"
 #include "memif_socket.h"
+#include "memif_rxtx.h"
 
 #define ETH_MEMIF_ID_ARG		"id"
 #define ETH_MEMIF_ROLE_ARG		"role"
@@ -56,459 +61,43 @@ memif_version(void)
 	return ("memif-" RTE_STR(MEMIF_VERSION_MAJOR) "." RTE_STR(MEMIF_VERSION_MINOR));
 }
 
-/* Message header to synchronize regions */
-struct mp_region_msg {
-	char port_name[RTE_DEV_NAME_MAX_LEN];
-	memif_region_index_t idx;
-	memif_region_size_t size;
-};
-
 static int
-memif_mp_send_region(const struct rte_mp_msg *msg, const void *peer)
+memif_region_init_zc(const struct rte_memseg_list *msl, const struct rte_memseg *ms,
+		     void *arg)
 {
-	struct rte_eth_dev *dev;
-	struct pmd_process_private *proc_private;
-	const struct mp_region_msg *msg_param = (const struct mp_region_msg *)msg->param;
-	struct rte_mp_msg reply;
-	struct mp_region_msg *reply_param = (struct mp_region_msg *)reply.param;
-	uint16_t port_id;
-	int ret;
-
-	/* Get requested port */
-	ret = rte_eth_dev_get_port_by_name(msg_param->port_name, &port_id);
-	if (ret) {
-		MIF_LOG(ERR, "Failed to get port id for %s",
-			msg_param->port_name);
-		return -1;
-	}
-	dev = &rte_eth_devices[port_id];
-	proc_private = dev->process_private;
-
-	memset(&reply, 0, sizeof(reply));
-	strlcpy(reply.name, msg->name, sizeof(reply.name));
-	reply_param->idx = msg_param->idx;
-	if (proc_private->regions[msg_param->idx] != NULL) {
-		reply_param->size = proc_private->regions[msg_param->idx]->region_size;
-		reply.fds[0] = proc_private->regions[msg_param->idx]->fd;
-		reply.num_fds = 1;
-	}
-	reply.len_param = sizeof(*reply_param);
-	if (rte_mp_reply(&reply, peer) < 0) {
-		MIF_LOG(ERR, "Failed to reply to an add region request");
-		return -1;
-	}
-
-	return 0;
-}
-
-/*
- * Request regions
- * Called by secondary process, when ports link status goes up.
- */
-static int
-memif_mp_request_regions(struct rte_eth_dev *dev)
-{
-	int ret, i;
-	struct timespec timeout = {.tv_sec = 5, .tv_nsec = 0};
-	struct rte_mp_msg msg, *reply;
-	struct rte_mp_reply replies;
-	struct mp_region_msg *msg_param = (struct mp_region_msg *)msg.param;
-	struct mp_region_msg *reply_param;
+	struct pmd_process_private *proc_private = (struct pmd_process_private *)arg;
 	struct memif_region *r;
-	struct pmd_process_private *proc_private = dev->process_private;
 
-	MIF_LOG(DEBUG, "Requesting memory regions");
+	if (proc_private->regions_num < 1) {
+		MIF_LOG(ERR, "Missing descriptor region");
+		return -1;
+	}
 
-	for (i = 0; i < ETH_MEMIF_MAX_REGION_NUM; i++) {
-		/* Prepare the message */
-		memset(&msg, 0, sizeof(msg));
-		strlcpy(msg.name, MEMIF_MP_SEND_REGION, sizeof(msg.name));
-		strlcpy(msg_param->port_name, dev->data->name,
-			sizeof(msg_param->port_name));
-		msg_param->idx = i;
-		msg.len_param = sizeof(*msg_param);
+	r = proc_private->regions[proc_private->regions_num - 1];
 
-		/* Send message */
-		ret = rte_mp_request_sync(&msg, &replies, &timeout);
-		if (ret < 0 || replies.nb_received != 1) {
-			MIF_LOG(ERR, "Failed to send mp msg: %d",
-				rte_errno);
+	if (r->addr != msl->base_va)
+		r = proc_private->regions[++proc_private->regions_num - 1];
+
+	if (r == NULL) {
+		r = rte_zmalloc("region", sizeof(struct memif_region), 0);
+		if (r == NULL) {
+			MIF_LOG(ERR, "Failed to alloc memif region.");
+			return -ENOMEM;
+		}
+
+		r->addr = msl->base_va;
+		r->region_size = ms->len;
+		r->fd = rte_memseg_get_fd(ms);
+		if (r->fd < 0)
 			return -1;
-		}
+		r->pkt_buffer_offset = 0;
 
-		reply = &replies.msgs[0];
-		reply_param = (struct mp_region_msg *)reply->param;
-
-		if (reply_param->size > 0) {
-			r = rte_zmalloc("region", sizeof(struct memif_region), 0);
-			if (r == NULL) {
-				MIF_LOG(ERR, "Failed to alloc memif region.");
-				free(reply);
-				return -ENOMEM;
-			}
-			r->region_size = reply_param->size;
-			if (reply->num_fds < 1) {
-				MIF_LOG(ERR, "Missing file descriptor.");
-				free(reply);
-				return -1;
-			}
-			r->fd = reply->fds[0];
-			r->addr = NULL;
-
-			proc_private->regions[reply_param->idx] = r;
-			proc_private->regions_num++;
-		}
-		free(reply);
+		proc_private->regions[proc_private->regions_num - 1] = r;
+	} else {
+		r->region_size += ms->len;
 	}
-
-	return memif_connect(dev);
-}
-
-static void
-memif_dev_info(struct rte_eth_dev *dev __rte_unused, struct rte_eth_dev_info *dev_info)
-{
-	dev_info->max_mac_addrs = 1;
-	dev_info->max_rx_pktlen = (uint32_t)ETH_FRAME_LEN;
-	dev_info->max_rx_queues = ETH_MEMIF_MAX_NUM_Q_PAIRS;
-	dev_info->max_tx_queues = ETH_MEMIF_MAX_NUM_Q_PAIRS;
-	dev_info->min_rx_bufsize = 0;
-}
-
-static memif_ring_t *
-memif_get_ring(struct pmd_internals *pmd, struct pmd_process_private *proc_private,
-	       memif_ring_type_t type, uint16_t ring_num)
-{
-	/* rings only in region 0 */
-	void *p = proc_private->regions[0]->addr;
-	int ring_size = sizeof(memif_ring_t) + sizeof(memif_desc_t) *
-	    (1 << pmd->run.log2_ring_size);
-
-	p = (uint8_t *)p + (ring_num + type * pmd->run.num_s2m_rings) * ring_size;
-
-	return (memif_ring_t *)p;
-}
-
-static memif_region_offset_t
-memif_get_ring_offset(struct rte_eth_dev *dev, struct memif_queue *mq,
-		      memif_ring_type_t type, uint16_t num)
-{
-	struct pmd_internals *pmd = dev->data->dev_private;
-	struct pmd_process_private *proc_private = dev->process_private;
-
-	return ((uint8_t *)memif_get_ring(pmd, proc_private, type, num) -
-		(uint8_t *)proc_private->regions[mq->region]->addr);
-}
-
-static memif_ring_t *
-memif_get_ring_from_queue(struct pmd_process_private *proc_private,
-			  struct memif_queue *mq)
-{
-	struct memif_region *r;
-
-	r = proc_private->regions[mq->region];
-	if (r == NULL)
-		return NULL;
-
-	return (memif_ring_t *)((uint8_t *)r->addr + mq->ring_offset);
-}
-
-static void *
-memif_get_buffer(struct pmd_process_private *proc_private, memif_desc_t *d)
-{
-	return ((uint8_t *)proc_private->regions[d->region]->addr + d->offset);
-}
-
-static int
-memif_pktmbuf_chain(struct rte_mbuf *head, struct rte_mbuf *cur_tail,
-		    struct rte_mbuf *tail)
-{
-	/* Check for number-of-segments-overflow */
-	if (unlikely(head->nb_segs + tail->nb_segs > RTE_MBUF_MAX_NB_SEGS))
-		return -EOVERFLOW;
-
-	/* Chain 'tail' onto the old tail */
-	cur_tail->next = tail;
-
-	/* accumulate number of segments and total length. */
-	head->nb_segs = (uint16_t)(head->nb_segs + tail->nb_segs);
-
-	tail->pkt_len = tail->data_len;
-	head->pkt_len += tail->pkt_len;
 
 	return 0;
-}
-
-static uint16_t
-eth_memif_rx(void *queue, struct rte_mbuf **bufs, uint16_t nb_pkts)
-{
-	struct memif_queue *mq = queue;
-	struct pmd_internals *pmd = rte_eth_devices[mq->in_port].data->dev_private;
-	struct pmd_process_private *proc_private =
-		rte_eth_devices[mq->in_port].process_private;
-	memif_ring_t *ring = memif_get_ring_from_queue(proc_private, mq);
-	uint16_t cur_slot, last_slot, n_slots, ring_size, mask, s0;
-	uint16_t n_rx_pkts = 0;
-	uint16_t mbuf_size = rte_pktmbuf_data_room_size(mq->mempool) -
-		RTE_PKTMBUF_HEADROOM;
-	uint16_t src_len, src_off, dst_len, dst_off, cp_len;
-	memif_ring_type_t type = mq->type;
-	memif_desc_t *d0;
-	struct rte_mbuf *mbuf, *mbuf_head, *mbuf_tail;
-	uint64_t b;
-	ssize_t size __rte_unused;
-	uint16_t head;
-	int ret;
-	struct rte_eth_link link;
-
-	if (unlikely((pmd->flags & ETH_MEMIF_FLAG_CONNECTED) == 0))
-		return 0;
-	if (unlikely(ring == NULL)) {
-		/* Secondary process will attempt to request regions. */
-		rte_eth_link_get(mq->in_port, &link);
-		return 0;
-	}
-
-	/* consume interrupt */
-	if ((ring->flags & MEMIF_RING_FLAG_MASK_INT) == 0)
-		size = read(mq->intr_handle.fd, &b, sizeof(b));
-
-	ring_size = 1 << mq->log2_ring_size;
-	mask = ring_size - 1;
-
-	cur_slot = (type == MEMIF_RING_S2M) ? mq->last_head : mq->last_tail;
-	last_slot = (type == MEMIF_RING_S2M) ? ring->head : ring->tail;
-	if (cur_slot == last_slot)
-		goto refill;
-	n_slots = last_slot - cur_slot;
-
-	while (n_slots && n_rx_pkts < nb_pkts) {
-		mbuf_head = rte_pktmbuf_alloc(mq->mempool);
-		if (unlikely(mbuf_head == NULL))
-			goto no_free_bufs;
-		mbuf = mbuf_head;
-		mbuf->port = mq->in_port;
-
-next_slot:
-		s0 = cur_slot & mask;
-		d0 = &ring->desc[s0];
-
-		src_len = d0->length;
-		dst_off = 0;
-		src_off = 0;
-
-		do {
-			dst_len = mbuf_size - dst_off;
-			if (dst_len == 0) {
-				dst_off = 0;
-				dst_len = mbuf_size;
-
-				/* store pointer to tail */
-				mbuf_tail = mbuf;
-				mbuf = rte_pktmbuf_alloc(mq->mempool);
-				if (unlikely(mbuf == NULL))
-					goto no_free_bufs;
-				mbuf->port = mq->in_port;
-				ret = memif_pktmbuf_chain(mbuf_head, mbuf_tail, mbuf);
-				if (unlikely(ret < 0)) {
-					MIF_LOG(ERR, "number-of-segments-overflow");
-					rte_pktmbuf_free(mbuf);
-					goto no_free_bufs;
-				}
-			}
-			cp_len = RTE_MIN(dst_len, src_len);
-
-			rte_pktmbuf_data_len(mbuf) += cp_len;
-			rte_pktmbuf_pkt_len(mbuf) = rte_pktmbuf_data_len(mbuf);
-			if (mbuf != mbuf_head)
-				rte_pktmbuf_pkt_len(mbuf_head) += cp_len;
-
-			memcpy(rte_pktmbuf_mtod_offset(mbuf, void *, dst_off),
-			       (uint8_t *)memif_get_buffer(proc_private, d0) +
-			       src_off, cp_len);
-
-			src_off += cp_len;
-			dst_off += cp_len;
-			src_len -= cp_len;
-		} while (src_len);
-
-		cur_slot++;
-		n_slots--;
-
-		if (d0->flags & MEMIF_DESC_FLAG_NEXT)
-			goto next_slot;
-
-		mq->n_bytes += rte_pktmbuf_pkt_len(mbuf_head);
-		*bufs++ = mbuf_head;
-		n_rx_pkts++;
-	}
-
-no_free_bufs:
-	if (type == MEMIF_RING_S2M) {
-		rte_mb();
-		ring->tail = cur_slot;
-		mq->last_head = cur_slot;
-	} else {
-		mq->last_tail = cur_slot;
-	}
-
-refill:
-	if (type == MEMIF_RING_M2S) {
-		head = ring->head;
-		n_slots = ring_size - head + mq->last_tail;
-
-		while (n_slots--) {
-			s0 = head++ & mask;
-			d0 = &ring->desc[s0];
-			d0->length = pmd->run.pkt_buffer_size;
-		}
-		rte_mb();
-		ring->head = head;
-	}
-
-	mq->n_pkts += n_rx_pkts;
-	return n_rx_pkts;
-}
-
-static uint16_t
-eth_memif_tx(void *queue, struct rte_mbuf **bufs, uint16_t nb_pkts)
-{
-	struct memif_queue *mq = queue;
-	struct pmd_internals *pmd = rte_eth_devices[mq->in_port].data->dev_private;
-	struct pmd_process_private *proc_private =
-		rte_eth_devices[mq->in_port].process_private;
-	memif_ring_t *ring = memif_get_ring_from_queue(proc_private, mq);
-	uint16_t slot, saved_slot, n_free, ring_size, mask, n_tx_pkts = 0;
-	uint16_t src_len, src_off, dst_len, dst_off, cp_len;
-	memif_ring_type_t type = mq->type;
-	memif_desc_t *d0;
-	struct rte_mbuf *mbuf;
-	struct rte_mbuf *mbuf_head;
-	uint64_t a;
-	ssize_t size;
-	struct rte_eth_link link;
-
-	if (unlikely((pmd->flags & ETH_MEMIF_FLAG_CONNECTED) == 0))
-		return 0;
-	if (unlikely(ring == NULL)) {
-		/* Secondary process will attempt to request regions. */
-		rte_eth_link_get(mq->in_port, &link);
-		return 0;
-	}
-
-	ring_size = 1 << mq->log2_ring_size;
-	mask = ring_size - 1;
-
-	n_free = ring->tail - mq->last_tail;
-	mq->last_tail += n_free;
-	slot = (type == MEMIF_RING_S2M) ? ring->head : ring->tail;
-
-	if (type == MEMIF_RING_S2M)
-		n_free = ring_size - ring->head + mq->last_tail;
-	else
-		n_free = ring->head - ring->tail;
-
-	while (n_tx_pkts < nb_pkts && n_free) {
-		mbuf_head = *bufs++;
-		mbuf = mbuf_head;
-
-		saved_slot = slot;
-		d0 = &ring->desc[slot & mask];
-		dst_off = 0;
-		dst_len = (type == MEMIF_RING_S2M) ?
-			pmd->run.pkt_buffer_size : d0->length;
-
-next_in_chain:
-		src_off = 0;
-		src_len = rte_pktmbuf_data_len(mbuf);
-
-		while (src_len) {
-			if (dst_len == 0) {
-				if (n_free) {
-					slot++;
-					n_free--;
-					d0->flags |= MEMIF_DESC_FLAG_NEXT;
-					d0 = &ring->desc[slot & mask];
-					dst_off = 0;
-					dst_len = (type == MEMIF_RING_S2M) ?
-					    pmd->run.pkt_buffer_size : d0->length;
-					d0->flags = 0;
-				} else {
-					slot = saved_slot;
-					goto no_free_slots;
-				}
-			}
-			cp_len = RTE_MIN(dst_len, src_len);
-
-			memcpy((uint8_t *)memif_get_buffer(proc_private, d0) + dst_off,
-			       rte_pktmbuf_mtod_offset(mbuf, void *, src_off),
-			       cp_len);
-
-			mq->n_bytes += cp_len;
-			src_off += cp_len;
-			dst_off += cp_len;
-			src_len -= cp_len;
-			dst_len -= cp_len;
-
-			d0->length = dst_off;
-		}
-
-		if (rte_pktmbuf_is_contiguous(mbuf) == 0) {
-			mbuf = mbuf->next;
-			goto next_in_chain;
-		}
-
-		n_tx_pkts++;
-		slot++;
-		n_free--;
-		rte_pktmbuf_free(mbuf_head);
-	}
-
-no_free_slots:
-	rte_mb();
-	if (type == MEMIF_RING_S2M)
-		ring->head = slot;
-	else
-		ring->tail = slot;
-
-	if ((ring->flags & MEMIF_RING_FLAG_MASK_INT) == 0) {
-		a = 1;
-		size = write(mq->intr_handle.fd, &a, sizeof(a));
-		if (unlikely(size < 0)) {
-			MIF_LOG(WARNING,
-				"Failed to send interrupt. %s", strerror(errno));
-		}
-	}
-
-	mq->n_err += nb_pkts - n_tx_pkts;
-	mq->n_pkts += n_tx_pkts;
-	return n_tx_pkts;
-}
-
-void
-memif_free_regions(struct pmd_process_private *proc_private)
-{
-	int i;
-	struct memif_region *r;
-
-	MIF_LOG(DEBUG, "Free memory regions");
-	/* regions are allocated contiguously, so it's
-	 * enough to loop until 'proc_private->regions_num'
-	 */
-	for (i = 0; i < proc_private->regions_num; i++) {
-		r = proc_private->regions[i];
-		if (r != NULL) {
-			if (r->addr != NULL) {
-				munmap(r->addr, r->region_size);
-				if (r->fd > 0) {
-					close(r->fd);
-					r->fd = -1;
-				}
-			}
-			rte_free(r);
-			proc_private->regions[i] = NULL;
-		}
-	}
-	proc_private->regions_num = 0;
 }
 
 static int
@@ -588,15 +177,232 @@ error:
 	return ret;
 }
 
+/* Message header to synchronize regions */
+struct mp_region_msg {
+	char port_name[RTE_DEV_NAME_MAX_LEN];
+	memif_region_index_t idx;
+	memif_region_size_t size;
+};
+
+static int
+memif_mp_send_region(const struct rte_mp_msg *msg, const void *peer)
+{
+	struct rte_eth_dev *dev;
+	struct pmd_process_private *proc_private;
+	const struct mp_region_msg *msg_param = (const struct mp_region_msg *)msg->param;
+	struct rte_mp_msg reply;
+	struct mp_region_msg *reply_param = (struct mp_region_msg *)reply.param;
+	uint16_t port_id;
+	int ret;
+
+	/* Get requested port */
+	ret = rte_eth_dev_get_port_by_name(msg_param->port_name, &port_id);
+	if (ret) {
+		MIF_LOG(ERR, "Failed to get port id for %s",
+			msg_param->port_name);
+		return -1;
+	}
+	dev = &rte_eth_devices[port_id];
+	proc_private = dev->process_private;
+
+	memset(&reply, 0, sizeof(reply));
+	strlcpy(reply.name, msg->name, sizeof(reply.name));
+	reply_param->idx = msg_param->idx;
+	if (proc_private->regions[msg_param->idx] != NULL) {
+		reply_param->size = proc_private->regions[msg_param->idx]->region_size;
+		reply.fds[0] = proc_private->regions[msg_param->idx]->fd;
+		reply.num_fds = 1;
+	}
+	reply.len_param = sizeof(*reply_param);
+	if (rte_mp_reply(&reply, peer) < 0) {
+		MIF_LOG(ERR, "Failed to reply to an add region request");
+		return -1;
+	}
+
+	return 0;
+}
+
+/*
+ * Request regions
+ * Called by secondary process, when ports link status goes up.
+ */
+static int
+memif_mp_request_regions(struct rte_eth_dev *dev)
+{
+	int ret, i;
+	struct timespec timeout = {.tv_sec = 5, .tv_nsec = 0};
+	struct rte_mp_msg msg, *reply;
+	struct rte_mp_reply replies;
+	struct mp_region_msg *msg_param = (struct mp_region_msg *)msg.param;
+	struct mp_region_msg *reply_param;
+	struct memif_region *r;
+	struct pmd_process_private *proc_private = dev->process_private;
+	struct pmd_internals *pmd = dev->data->dev_private;
+	/* in case of zero-copy slave, only request region 0 */
+	uint16_t max_region_num = (pmd->flags & ETH_MEMIF_FLAG_ZERO_COPY) ?
+				   1 : ETH_MEMIF_MAX_REGION_NUM;
+
+	MIF_LOG(DEBUG, "Requesting memory regions");
+
+	for (i = 0; i < max_region_num; i++) {
+		/* Prepare the message */
+		memset(&msg, 0, sizeof(msg));
+		strlcpy(msg.name, MEMIF_MP_SEND_REGION, sizeof(msg.name));
+		strlcpy(msg_param->port_name, dev->data->name,
+			sizeof(msg_param->port_name));
+		msg_param->idx = i;
+		msg.len_param = sizeof(*msg_param);
+
+		/* Send message */
+		ret = rte_mp_request_sync(&msg, &replies, &timeout);
+		if (ret < 0 || replies.nb_received != 1) {
+			MIF_LOG(ERR, "Failed to send mp msg: %d",
+				rte_errno);
+			return -1;
+		}
+
+		reply = &replies.msgs[0];
+		reply_param = (struct mp_region_msg *)reply->param;
+
+		if (reply_param->size > 0) {
+			r = rte_zmalloc("region", sizeof(struct memif_region), 0);
+			if (r == NULL) {
+				MIF_LOG(ERR, "Failed to alloc memif region.");
+				free(reply);
+				return -ENOMEM;
+			}
+			r->region_size = reply_param->size;
+			if (reply->num_fds < 1) {
+				MIF_LOG(ERR, "Missing file descriptor.");
+				free(reply);
+				return -1;
+			}
+			r->fd = reply->fds[0];
+			r->addr = NULL;
+
+			proc_private->regions[reply_param->idx] = r;
+			proc_private->regions_num++;
+		}
+		free(reply);
+	}
+
+	if (pmd->flags & ETH_MEMIF_FLAG_ZERO_COPY) {
+		ret = rte_memseg_walk(memif_region_init_zc, (void *)proc_private);
+		if (ret < 0)
+			return ret;
+	}
+
+	return memif_connect(dev);
+}
+
+static void
+memif_dev_info(struct rte_eth_dev *dev __rte_unused, struct rte_eth_dev_info *dev_info)
+{
+	dev_info->max_mac_addrs = 1;
+	dev_info->max_rx_pktlen = (uint32_t)ETH_FRAME_LEN;
+	dev_info->max_rx_queues = ETH_MEMIF_MAX_NUM_Q_PAIRS;
+	dev_info->max_tx_queues = ETH_MEMIF_MAX_NUM_Q_PAIRS;
+	dev_info->min_rx_bufsize = 0;
+}
+
+static memif_ring_t *
+memif_get_ring(struct pmd_internals *pmd, struct pmd_process_private *proc_private,
+	       memif_ring_type_t type, uint16_t ring_num)
+{
+	/* rings only in region 0 */
+	void *p = proc_private->regions[0]->addr;
+	int ring_size = sizeof(memif_ring_t) + sizeof(memif_desc_t) *
+	    (1 << pmd->run.log2_ring_size);
+
+	p = (uint8_t *)p + (ring_num + type * pmd->run.num_s2m_rings) * ring_size;
+
+	return (memif_ring_t *)p;
+}
+
+static memif_region_offset_t
+memif_get_ring_offset(struct rte_eth_dev *dev, struct memif_queue *mq,
+		      memif_ring_type_t type, uint16_t num)
+{
+	struct pmd_internals *pmd = dev->data->dev_private;
+	struct pmd_process_private *proc_private = dev->process_private;
+
+	return ((uint8_t *)memif_get_ring(pmd, proc_private, type, num) -
+		(uint8_t *)proc_private->regions[mq->region]->addr);
+}
+
+memif_ring_t *
+memif_get_ring_from_queue(struct pmd_process_private *proc_private,
+			  struct memif_queue *mq)
+{
+	struct memif_region *r;
+
+	r = proc_private->regions[mq->region];
+	if (r == NULL)
+		return NULL;
+
+	return (memif_ring_t *)((uint8_t *)r->addr + mq->ring_offset);
+}
+
+void
+memif_free_regions(struct rte_eth_dev *dev)
+{
+	struct pmd_process_private *proc_private = dev->process_private;
+	struct pmd_internals *pmd = dev->data->dev_private;
+	int i;
+	struct memif_region *r;
+
+	/* regions are allocated contiguously, so it's
+	 * enough to loop until 'proc_private->regions_num'
+	 */
+	for (i = 0; i < proc_private->regions_num; i++) {
+		r = proc_private->regions[i];
+		if (r != NULL) {
+			/* This is memzone */
+			if (i > 0 && (pmd->flags & ETH_MEMIF_FLAG_ZERO_COPY)) {
+				r->addr = NULL;
+				if (r->fd > 0)
+					close(r->fd);
+			}
+			if (r->addr != NULL) {
+				munmap(r->addr, r->region_size);
+				if (r->fd > 0) {
+					close(r->fd);
+					r->fd = -1;
+				}
+			}
+			rte_free(r);
+			proc_private->regions[i] = NULL;
+		}
+	}
+	proc_private->regions_num = 0;
+}
+
 static int
 memif_regions_init(struct rte_eth_dev *dev)
 {
+	struct pmd_internals *pmd = dev->data->dev_private;
 	int ret;
 
-	/* create one buffer region */
-	ret = memif_region_init_shm(dev, /* has buffer */ 1);
-	if (ret < 0)
-		return ret;
+	/*
+	 * Zero-copy exposes dpdk memory.
+	 * Each memseg list will be represented by memif region.
+	 * Zero-copy regions indexing: memseg list idx + 1,
+	 * as we already have region 0 reserved for descriptors.
+	 */
+	if (pmd->flags & ETH_MEMIF_FLAG_ZERO_COPY) {
+		/* create region idx 0 containing descriptors */
+		ret = memif_region_init_shm(dev, 0);
+		if (ret < 0)
+			return ret;
+		ret = rte_memseg_walk(memif_region_init_zc, (void *)dev->process_private);
+		if (ret < 0)
+			return ret;
+	} else {
+		/* create one memory region contaning rings and buffers */
+		ret = memif_region_init_shm(dev, /* has buffers */ 1);
+		if (ret < 0)
+			return ret;
+	}
 
 	return 0;
 }
@@ -616,6 +422,10 @@ memif_init_rings(struct rte_eth_dev *dev)
 		ring->tail = 0;
 		ring->cookie = MEMIF_COOKIE;
 		ring->flags = 0;
+
+		if (pmd->flags & ETH_MEMIF_FLAG_ZERO_COPY)
+			continue;
+
 		for (j = 0; j < (1 << pmd->run.log2_ring_size); j++) {
 			slot = i * (1 << pmd->run.log2_ring_size) + j;
 			ring->desc[j].region = 0;
@@ -632,6 +442,10 @@ memif_init_rings(struct rte_eth_dev *dev)
 		ring->tail = 0;
 		ring->cookie = MEMIF_COOKIE;
 		ring->flags = 0;
+
+		if (pmd->flags & ETH_MEMIF_FLAG_ZERO_COPY)
+			continue;
+
 		for (j = 0; j < (1 << pmd->run.log2_ring_size); j++) {
 			slot = (i + pmd->run.num_s2m_rings) *
 			    (1 << pmd->run.log2_ring_size) + j;
@@ -645,7 +459,7 @@ memif_init_rings(struct rte_eth_dev *dev)
 }
 
 /* called only by slave */
-static void
+static int
 memif_init_queues(struct rte_eth_dev *dev)
 {
 	struct pmd_internals *pmd = dev->data->dev_private;
@@ -666,6 +480,13 @@ memif_init_queues(struct rte_eth_dev *dev)
 				"Failed to create eventfd for tx queue %d: %s.", i,
 				strerror(errno));
 		}
+		mq->buffers = NULL;
+		if (pmd->flags & ETH_MEMIF_FLAG_ZERO_COPY) {
+			mq->buffers = rte_zmalloc("bufs", sizeof(struct rte_mbuf *) *
+						  (1 << mq->log2_ring_size), 0);
+			if (mq->buffers == NULL)
+				return -ENOMEM;
+		}
 	}
 
 	for (i = 0; i < pmd->run.num_m2s_rings; i++) {
@@ -682,7 +503,15 @@ memif_init_queues(struct rte_eth_dev *dev)
 				"Failed to create eventfd for rx queue %d: %s.", i,
 				strerror(errno));
 		}
+		mq->buffers = NULL;
+		if (pmd->flags & ETH_MEMIF_FLAG_ZERO_COPY) {
+			mq->buffers = rte_zmalloc("bufs", sizeof(struct rte_mbuf *) *
+						  (1 << mq->log2_ring_size), 0);
+			if (mq->buffers == NULL)
+				return -ENOMEM;
+		}
 	}
+	return 0;
 }
 
 int
@@ -696,7 +525,9 @@ memif_init_regions_and_queues(struct rte_eth_dev *dev)
 
 	memif_init_rings(dev);
 
-	memif_init_queues(dev);
+	ret = memif_init_queues(dev);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
@@ -720,8 +551,16 @@ memif_connect(struct rte_eth_dev *dev)
 				mr->addr = mmap(NULL, mr->region_size,
 						PROT_READ | PROT_WRITE,
 						MAP_SHARED, mr->fd, 0);
-				if (mr->addr == NULL)
+				if (mr->addr == MAP_FAILED) {
+					MIF_LOG(ERR, "mmap failed: %s\n",
+						strerror(errno));
 					return -1;
+				}
+			}
+			if (i > 0 && (pmd->flags & ETH_MEMIF_FLAG_ZERO_COPY)) {
+				/* close memseg file */
+				close(mr->fd);
+				mr->fd = -1;
 			}
 		}
 	}
@@ -782,8 +621,7 @@ memif_dev_start(struct rte_eth_dev *dev)
 		ret = memif_connect_master(dev);
 		break;
 	default:
-		MIF_LOG(ERR, "%s: Unknown role: %d.",
-			rte_vdev_device_name(pmd->vdev), pmd->role);
+		MIF_LOG(ERR, "Unknown role: %d.", pmd->role);
 		ret = -1;
 		break;
 	}
@@ -848,8 +686,7 @@ memif_tx_queue_setup(struct rte_eth_dev *dev,
 
 	mq = rte_zmalloc("tx-queue", sizeof(struct memif_queue), 0);
 	if (mq == NULL) {
-		MIF_LOG(ERR, "%s: Failed to allocate tx queue id: %u",
-			rte_vdev_device_name(pmd->vdev), qid);
+		MIF_LOG(ERR, "Failed to allocate tx queue id: %u", qid);
 		return -ENOMEM;
 	}
 
@@ -878,8 +715,7 @@ memif_rx_queue_setup(struct rte_eth_dev *dev,
 
 	mq = rte_zmalloc("rx-queue", sizeof(struct memif_queue), 0);
 	if (mq == NULL) {
-		MIF_LOG(ERR, "%s: Failed to allocate rx queue id: %u",
-			rte_vdev_device_name(pmd->vdev), qid);
+		MIF_LOG(ERR, "Failed to allocate rx queue id: %u", qid);
 		return -ENOMEM;
 	}
 
@@ -920,7 +756,7 @@ memif_link_update(struct rte_eth_dev *dev,
 			memif_mp_request_regions(dev);
 		} else if (dev->data->dev_link.link_status == ETH_LINK_DOWN &&
 				proc_private->regions_num > 0) {
-			memif_free_regions(proc_private);
+			memif_free_regions(dev);
 		}
 	}
 	return 0;
@@ -964,6 +800,7 @@ memif_stats_get(struct rte_eth_dev *dev, struct rte_eth_stats *stats)
 		mq = dev->data->tx_queues[i];
 		stats->q_opackets[i] = mq->n_pkts;
 		stats->q_obytes[i] = mq->n_bytes;
+		stats->q_errors[i] = mq->n_err;
 		stats->opackets += mq->n_pkts;
 		stats->obytes += mq->n_bytes;
 		stats->oerrors += mq->n_err;
@@ -1043,11 +880,6 @@ memif_create(struct rte_vdev_device *vdev, enum memif_role_t role,
 	const unsigned int numa_node = vdev->device.numa_node;
 	const char *name = rte_vdev_device_name(vdev);
 
-	if (flags & ETH_MEMIF_FLAG_ZERO_COPY) {
-		MIF_LOG(ERR, "Zero-copy slave not supported.");
-		return -1;
-	}
-
 	eth_dev = rte_eth_vdev_allocate(vdev, sizeof(*pmd));
 	if (eth_dev == NULL) {
 		MIF_LOG(ERR, "%s: Unable to allocate device struct.", name);
@@ -1071,6 +903,9 @@ memif_create(struct rte_vdev_device *vdev, enum memif_role_t role,
 	pmd->flags = flags;
 	pmd->flags |= ETH_MEMIF_FLAG_DISABLED;
 	pmd->role = role;
+	/* Zero-copy flag irelevant to master. */
+	if (pmd->role == MEMIF_ROLE_MASTER)
+		pmd->flags &= ~ETH_MEMIF_FLAG_ZERO_COPY;
 
 	ret = memif_socket_init(eth_dev, socket_filename);
 	if (ret < 0)
@@ -1094,8 +929,14 @@ memif_create(struct rte_vdev_device *vdev, enum memif_role_t role,
 
 	eth_dev->dev_ops = &ops;
 	eth_dev->device = &vdev->device;
-	eth_dev->rx_pkt_burst = eth_memif_rx;
-	eth_dev->tx_pkt_burst = eth_memif_tx;
+	if (pmd->flags & ETH_MEMIF_FLAG_ZERO_COPY) {
+		eth_dev->rx_pkt_burst = eth_memif_rx_zc;
+		eth_dev->tx_pkt_burst = eth_memif_tx_zc;
+	} else {
+		eth_dev->rx_pkt_burst = eth_memif_rx;
+		eth_dev->tx_pkt_burst = eth_memif_tx;
+	}
+
 
 	eth_dev->data->dev_flags &= RTE_ETH_DEV_CLOSE_REMOVE;
 
@@ -1124,9 +965,14 @@ memif_set_role(const char *key __rte_unused, const char *value,
 static int
 memif_set_zc(const char *key __rte_unused, const char *value, void *extra_args)
 {
+	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
 	uint32_t *flags = (uint32_t *)extra_args;
 
 	if (strstr(value, "yes") != NULL) {
+		if (!mcfg->single_file_segments) {
+			MIF_LOG(ERR, "Zero-copy doesn't support multi-file segments.");
+			return -ENOTSUP;
+		}
 		*flags |= ETH_MEMIF_FLAG_ZERO_COPY;
 	} else if (strstr(value, "no") != NULL) {
 		*flags &= ~ETH_MEMIF_FLAG_ZERO_COPY;
