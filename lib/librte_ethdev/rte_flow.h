@@ -290,6 +290,13 @@ enum rte_flow_item_type {
 	RTE_FLOW_ITEM_TYPE_GRE,
 
 	/**
+	 * Matches a GRE optional key field.
+	 *
+	 * The value should a big-endian 32bit integer.
+	 */
+	RTE_FLOW_ITEM_TYPE_GRE_KEY,
+
+	/**
 	 * [META]
 	 *
 	 * Fuzzy pattern match, expect faster than default.
