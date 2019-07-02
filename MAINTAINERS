@@ -1094,6 +1094,11 @@ M: Nipun Gupta <nipun.gupta@nxp.com>
 F: drivers/raw/dpaa2_cmdif/
 F: doc/guides/rawdevs/dpaa2_cmdif.rst
 
+NTB Rawdev
+M: Xiaoyun Li <xiaoyun.li@intel.com>
+M: Jingjing Wu <jingjing.wu@intel.com>
+F: drivers/raw/ntb_rawdev/
+F: doc/guides/rawdevs/ntb_rawdev.rst
 
 Packet processing
 -----------------
