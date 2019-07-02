@@ -58,7 +58,8 @@ extern "C" {
  * See http://standards.ieee.org/regauth/groupmac/tutorial.html
  */
 struct rte_ether_addr {
-	uint8_t addr_bytes[RTE_ETHER_ADDR_LEN]; /**< Addr bytes in tx order */
+	uint8_t addr_bytes[RTE_ETHER_ADDR_LEN] __rte_aligned(2);
+	/**< Addr bytes in tx order */
 } __attribute__((__packed__));
 
 #define RTE_ETHER_LOCAL_ADMIN_ADDR 0x02 /**< Locally assigned Eth. address. */
@@ -81,8 +82,8 @@ struct rte_ether_addr {
 static inline int rte_is_same_ether_addr(const struct rte_ether_addr *ea1,
 				     const struct rte_ether_addr *ea2)
 {
-	const unaligned_uint16_t *w1 = (const uint16_t *)ea1;
-	const unaligned_uint16_t *w2 = (const uint16_t *)ea2;
+	const uint16_t *w1 = (const uint16_t *)ea1;
+	const uint16_t *w2 = (const uint16_t *)ea2;
 
 	return ((w1[0] ^ w2[0]) | (w1[1] ^ w2[1]) | (w1[2] ^ w2[2])) == 0;
 }
@@ -99,7 +100,7 @@ static inline int rte_is_same_ether_addr(const struct rte_ether_addr *ea1,
  */
 static inline int rte_is_zero_ether_addr(const struct rte_ether_addr *ea)
 {
-	const unaligned_uint16_t *w = (const uint16_t *)ea;
+	const uint16_t *w = (const uint16_t *)ea;
 
 	return (w[0] | w[1] | w[2]) == 0;
 }
@@ -146,7 +147,7 @@ static inline int rte_is_multicast_ether_addr(const struct rte_ether_addr *ea)
  */
 static inline int rte_is_broadcast_ether_addr(const struct rte_ether_addr *ea)
 {
-	const unaligned_uint16_t *ea_words = (const unaligned_uint16_t *)ea;
+	const uint16_t *ea_words = (const uint16_t *)ea;
 
 	return (ea_words[0] == 0xFFFF && ea_words[1] == 0xFFFF &&
 		ea_words[2] == 0xFFFF);
