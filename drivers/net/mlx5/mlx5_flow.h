@@ -45,10 +45,12 @@
 #define MLX5_FLOW_LAYER_VXLAN_GPE (1u << 13)
 #define MLX5_FLOW_LAYER_GRE (1u << 14)
 #define MLX5_FLOW_LAYER_MPLS (1u << 15)
+#define MLX5_FLOW_LAYER_IPIP (1u << 16)
+#define MLX5_FLOW_LAYER_IPV6_ENCAP (1u << 17)
 
 /* General pattern items bits. */
-#define MLX5_FLOW_ITEM_METADATA (1u << 16)
-#define MLX5_FLOW_ITEM_PORT_ID (1u << 17)
+#define MLX5_FLOW_ITEM_METADATA (1u << 18)
+#define MLX5_FLOW_ITEM_PORT_ID (1u << 19)
 
 /* Outer Masks. */
 #define MLX5_FLOW_LAYER_OUTER_L3 \
@@ -62,7 +64,8 @@
 /* Tunnel Masks. */
 #define MLX5_FLOW_LAYER_TUNNEL \
 	(MLX5_FLOW_LAYER_VXLAN | MLX5_FLOW_LAYER_VXLAN_GPE | \
-	 MLX5_FLOW_LAYER_GRE | MLX5_FLOW_LAYER_MPLS)
+	 MLX5_FLOW_LAYER_GRE | MLX5_FLOW_LAYER_MPLS | \
+	 MLX5_FLOW_LAYER_IPIP | MLX5_FLOW_LAYER_IPV6_ENCAP)
 
 /* Inner Masks. */
 #define MLX5_FLOW_LAYER_INNER_L3 \
