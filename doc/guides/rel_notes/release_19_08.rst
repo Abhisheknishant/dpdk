@@ -126,6 +126,11 @@ New Features
   Added telemetry mode to l3fwd-power application to report
   application level busyness, empty and full polls of rte_eth_rx_burst().
 
+* **Introduced NTB PMD.**
+
+  Added a PMD for Intel NTB (Non-transparent Bridge). This PMD implemented
+  handshake between two seperate hosts and can share local memory for peer
+  host to directly access.
 
 Removed Items
 -------------
