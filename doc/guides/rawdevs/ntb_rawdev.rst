@@ -16,6 +16,14 @@ Build Options
 
    Toggle compilation of the ``ntb_rawdev`` driver.
 
+Device Setup
+------------
+
+The Intel NTB devices need to be bound to a DPDK-supported kernel driver
+to use, i.e. igb_uio, vfio. The ``dpdk-devbind.py`` script can be used to
+show devices status and to bind them to a suitable kernel driver. They will
+appear under the category of "Misc (rawdev) devices".
+
 Limitation
 ----------
 
