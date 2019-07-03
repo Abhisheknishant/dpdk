@@ -2047,6 +2047,7 @@ cmd_config_rx_mode_flag_parsed(void *parsed_result,
 {
 	struct cmd_config_rx_mode_flag *res = parsed_result;
 	portid_t pid;
+	int k;
 
 	if (!all_ports_stopped()) {
 		printf("Please stop all ports first\n");
@@ -2147,6 +2148,10 @@ cmd_config_rx_mode_flag_parsed(void *parsed_result,
 			return;
 		}
 		port->dev_conf.rxmode.offloads = rx_offloads;
+		/* Apply Rx offloads configuration */
+		for (k = 0; k < port->dev_info.max_rx_queues; k++)
+			port->rx_conf[k].offloads =
+				port->dev_conf.rxmode.offloads;
 	}
 
 	init_port_config();
@@ -4368,6 +4373,7 @@ cmd_csum_parsed(void *parsed_result,
 	int hw = 0;
 	uint64_t csum_offloads = 0;
 	struct rte_eth_dev_info dev_info;
+	int k;
 
 	if (port_id_is_invalid(res->port_id, ENABLED_WARN)) {
 		printf("invalid port %d\n", res->port_id);
@@ -4443,6 +4449,10 @@ cmd_csum_parsed(void *parsed_result,
 			ports[res->port_id].dev_conf.txmode.offloads &=
 							(~csum_offloads);
 		}
+		/* Apply Tx offloads configuration */
+		for (k = 0; k < ports[res->port_id].dev_info.max_tx_queues; k++)
+			ports[res->port_id].tx_conf[k].offloads =
+				ports[res->port_id].dev_conf.txmode.offloads;
 	}
 	csum_show(res->port_id);
 
@@ -4565,6 +4575,7 @@ cmd_tso_set_parsed(void *parsed_result,
 {
 	struct cmd_tso_set_result *res = parsed_result;
 	struct rte_eth_dev_info dev_info;
+	int k;
 
 	if (port_id_is_invalid(res->port_id, ENABLED_WARN))
 		return;
@@ -4594,6 +4605,10 @@ cmd_tso_set_parsed(void *parsed_result,
 		printf("TSO segment size for non-tunneled packets is %d\n",
 			ports[res->port_id].tso_segsz);
 	}
+	/* Apply Tx offloads configuration */
+	for (k = 0; k < ports[res->port_id].dev_info.max_tx_queues; k++)
+		ports[res->port_id].tx_conf[k].offloads =
+			ports[res->port_id].dev_conf.txmode.offloads;
 
 	/* display warnings if configuration is not supported by the NIC */
 	rte_eth_dev_info_get(res->port_id, &dev_info);
@@ -4694,6 +4709,7 @@ cmd_tunnel_tso_set_parsed(void *parsed_result,
 {
 	struct cmd_tunnel_tso_set_result *res = parsed_result;
 	struct rte_eth_dev_info dev_info;
+	int k;
 
 	if (port_id_is_invalid(res->port_id, ENABLED_WARN))
 		return;
@@ -4747,6 +4763,10 @@ cmd_tunnel_tso_set_parsed(void *parsed_result,
 		      DEV_TX_OFFLOAD_OUTER_IPV4_CKSUM))
 			printf("Warning: csum set outer-ip must be set to hw "
 				"if outer L3 is IPv4; not necessary for IPv6\n");
+		/* Apply Tx offloads configuration */
+		for (k = 0; k < ports[res->port_id].dev_info.max_tx_queues; k++)
+			ports[res->port_id].tx_conf[k].offloads =
+				ports[res->port_id].dev_conf.txmode.offloads;
 	}
 
 	cmd_reconfig_device_queue(res->port_id, 1, 1);
