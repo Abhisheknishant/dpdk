@@ -6,7 +6,8 @@ if host_machine.system() != 'linux'
 endif
 
 sources = files('rte_eth_memif.c',
-		'memif_socket.c')
+		'memif_socket.c',
+		'memif_rxtx.c')
 
 allow_experimental_apis = true
 # Experimantal APIs:

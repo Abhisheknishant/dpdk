@@ -30,5 +30,6 @@ LDLIBS += -lrte_bus_vdev
 #
 SRCS-$(CONFIG_RTE_LIBRTE_PMD_MEMIF) += rte_eth_memif.c
 SRCS-$(CONFIG_RTE_LIBRTE_PMD_MEMIF) += memif_socket.c
+SRCS-$(CONFIG_RTE_LIBRTE_PMD_MEMIF) += memif_rxtx.c
 
 include $(RTE_SDK)/mk/rte.lib.mk
