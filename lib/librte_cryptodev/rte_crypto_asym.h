@@ -111,23 +111,21 @@ enum rte_crypto_asym_op_type {
  */
 enum rte_crypto_rsa_padding_type {
 	RTE_CRYPTO_RSA_PADDING_NONE = 0,
-	/**< RSA no padding scheme */
-	RTE_CRYPTO_RSA_PKCS1_V1_5_BT0,
-	/**< RSA PKCS#1 V1.5 Block Type 0 padding scheme
-	 * as described in rfc2313
+	/**< RSA no padding scheme.
+	 * In this case user is responsible for provision and verification
+	 * of padding.
 	 */
-	RTE_CRYPTO_RSA_PKCS1_V1_5_BT1,
-	/**< RSA PKCS#1 V1.5 Block Type 01 padding scheme
-	 * as described in rfc2313
-	 */
-	RTE_CRYPTO_RSA_PKCS1_V1_5_BT2,
-	/**< RSA PKCS#1 V1.5 Block Type 02 padding scheme
-	 * as described in rfc2313
+	RTE_CRYPTO_RSA_PADDING_PKCS1,
+	/**< RSA PKCS#1 PKCS1-v1_5 padding scheme. For signatures block type 01,
+	 * for encryption block type 02 are used.
 	 */
 	RTE_CRYPTO_RSA_PADDING_OAEP,
-	/**< RSA PKCS#1 OAEP padding scheme */
+	/**< RSA PKCS#1 OAEP padding scheme, can be used only for encryption/
+	 * decryption.
+	 */
 	RTE_CRYPTO_RSA_PADDING_PSS,
-	/**< RSA PKCS#1 PSS padding scheme */
+	/**< RSA PKCS#1 PSS padding scheme, can be used only for signatures.
+	 */
 	RTE_CRYPTO_RSA_PADDING_TYPE_LIST_END
 };
 
@@ -199,8 +197,8 @@ struct rte_crypto_rsa_priv_key_qt {
  */
 struct rte_crypto_rsa_xform {
 	rte_crypto_param n;
-	/**< n - Prime modulus
-	 * Prime modulus data of RSA operation in Octet-string network
+	/**< n - Modulus
+	 * Modulus data of RSA operation in Octet-string network
 	 * byte order format.
 	 */
 
@@ -397,9 +395,36 @@ struct rte_crypto_rsa_op_param {
 	/**<
 	 * Pointer to data
 	 * - to be encrypted for RSA public encrypt.
-	 * - to be decrypted for RSA private decrypt.
 	 * - to be signed for RSA sign generation.
 	 * - to be authenticated for RSA sign verification.
+	 *
+	 * Octet-string network byte order format.
+	 *
+	 * This field is an input to RTE_CRYPTO_ASYM_OP_ENCRYPT
+	 * operation, and output to RTE_CRYPTO_ASYM_OP_DECRYPT operation.
+	 *
+	 * When RTE_CRYPTO_ASYM_OP_DECRYPT op_type used length in bytes
+	 * of this field needs to be greater or equal to the length of
+	 * corresponding RSA key in bytes.
+	 *
+	 * When padding field is set to RTE_CRYPTO_RSA_PADDING_NONE
+	 * returned data size will be equal to the size of RSA key
+	 * in bytes. All leading zeroes will be preserved.
+	 */
+
+	rte_crypto_param cipher;
+	/**<
+	 * Pointer to data
+	 * - to be decrypted for RSA private decrypt.
+	 *
+	 * Octet-string network byte order format.
+	 *
+	 * This field is an input to RTE_CRYPTO_ASYM_OP_DECRYPT
+	 * operation, and output to RTE_CRYPTO_ASYM_OP_ENCRYPT operation.
+	 *
+	 * When RTE_CRYPTO_ASYM_OP_ENCRYPT op_type used length in bytes
+	 * of this field needs to be greater or equal to the length of
+	 * corresponding RSA key in bytes.
 	 */
 
 	rte_crypto_param sign;
@@ -408,27 +433,88 @@ struct rte_crypto_rsa_op_param {
 	 * sign @ref RTE_CRYPTO_ASYM_OP_SIGN, buffer will be
 	 * over-written with generated signature.
 	 *
-	 * Length of the signature data will be equal to the
-	 * RSA prime modulus length.
+	 * Octet-string network byte order format.
+	 *
+	 * When RTE_CRYPTO_ASYM_OP_SIGN op_type used length in bytes
+	 * of this field needs to be greater or equal to the length of
+	 * corresponding RSA key in bytes.
 	 */
 
-	enum rte_crypto_rsa_padding_type pad;
-	/**< RSA padding scheme to be used for transform */
-
-	enum rte_crypto_auth_algorithm md;
-	/**< Hash algorithm to be used for data hash if padding
-	 * scheme is either OAEP or PSS. Valid hash algorithms
-	 * are:
-	 * MD5, SHA1, SHA224, SHA256, SHA384, SHA512
-	 */
-
-	enum rte_crypto_auth_algorithm mgf1md;
+	rte_crypto_param message_to_verify;
 	/**<
-	 * Hash algorithm to be used for mask generation if
-	 * padding scheme is either OAEP or PSS. If padding
-	 * scheme is unspecified data hash algorithm is used
-	 * for mask generation. Valid hash algorithms are:
-	 * MD5, SHA1, SHA224, SHA256, SHA384, SHA512
+	 * Pointer to the message 'm' that was signed with
+	 * RSASP1 in RFC8017. It is the result of operation RSAVP1
+	 * defined in RFC8017, where field `sign` is the input
+	 * parameter `s`.
+	 *
+	 * Used only when padding type is set to RTE_CRYPTO_RSA_PADDING_NONE
+	 * and `op_type` is set to RTE_CRYPTO_ASYM_OP_VERIFY.
+	 *
+	 * Returned data size will be equal to the size of RSA key
+	 * in bytes. All leading zeroes will be preserved.
+	 *
+	 * When RTE_CRYPTO_ASYM_OP_VERIFY op_type used length in bytes
+	 * of this field needs to be greater or equal to the length of
+	 * corresponding RSA key in bytes.
+	 */
+
+	enum rte_crypto_rsa_padding_type padding;
+	/**<
+	 * In case RTE_CRYPTO_RSA_PADDING_PKCS1 is selected,
+	 * driver will distinguish between block type basing
+	 * on rte_crypto_asym_op_type of the operation.
+	 *
+	 * Which padding type is supported by the driver can be
+	 * found in in specific driver guide.
+	 */
+	enum rte_crypto_auth_algorithm padding_hash;
+	/**<
+	 * -	For PKCS1-v1_5 signature (Block type 01) this field
+	 * represents hash function that will be used to create
+	 * message hash.
+	 *
+	 * -	For OAEP this field represents hash function that will
+	 * be used to produce hash of the optional label.
+	 *
+	 * -	For PSS this field represents hash function that will be used
+	 * to produce hash (mHash) of message M and of M' (padding1 | mHash | salt)
+	 *
+	 * If not set driver will use default value.
+	 */
+	union {
+		struct {
+			enum rte_crypto_auth_algorithm mgf;
+			/**<
+			 * Mask genereation function hash algorithm.
+			 *
+			 * If not set driver will use default value.
+			 */
+			rte_crypto_param label;
+			/**<
+			 * Optional label, if driver does not support
+			 * this option, optional label is just an empty string.
+			 */
+		} OAEP;
+		struct {
+			enum rte_crypto_auth_algorithm mgf;
+			/**<
+			 * Mask genereation function hash algorithm.
+			 *
+			 * If not set driver will use default value.
+			 */
+			int seed_len;
+			/**<
+			 * Intended seed length. Nagative number has special
+			 * value as follows:
+			 * -1 : seed len = length of output ot used hash function
+			 * -2 : seed len is maximized
+			 */
+		} PSS;
+	};
+	/**<
+	 * Padding type of RSA crypto operation.
+	 * What are random number generator requirements and prequisites
+	 * can be found specific driver guide.
 	 */
 };
 
