@@ -1996,8 +1996,8 @@ rte_eth_stats_reset(uint16_t port_id)
 	return 0;
 }
 
-static inline int
-get_xstats_basic_count(struct rte_eth_dev *dev)
+int
+rte_eth_basic_stats_count(struct rte_eth_dev *dev)
 {
 	uint16_t nb_rxqs, nb_txqs;
 	int count;
@@ -2034,7 +2034,7 @@ get_xstats_count(uint16_t port_id)
 		count = 0;
 
 
-	count += get_xstats_basic_count(dev);
+	count += rte_eth_basic_stats_count(dev);
 
 	return count;
 }
@@ -2084,7 +2084,7 @@ rte_eth_xstats_get_id_by_name(uint16_t port_id, const char *xstat_name,
 }
 
 /* retrieve basic stats names */
-static int
+int
 rte_eth_basic_stats_get_names(struct rte_eth_dev *dev,
 	struct rte_eth_xstat_name *xstats_names)
 {
@@ -2140,7 +2140,7 @@ rte_eth_xstats_get_names_by_id(uint16_t port_id,
 	RTE_ETH_VALID_PORTID_OR_ERR_RET(port_id, -ENODEV);
 	dev = &rte_eth_devices[port_id];
 
-	basic_count = get_xstats_basic_count(dev);
+	basic_count = rte_eth_basic_stats_count(dev);
 	ret = get_xstats_count(port_id);
 	if (ret < 0)
 		return ret;
@@ -2268,8 +2268,7 @@ rte_eth_xstats_get_names(uint16_t port_id,
 	return cnt_used_entries;
 }
 
-
-static int
+int
 rte_eth_basic_stats_get(uint16_t port_id, struct rte_eth_xstat *xstats)
 {
 	struct rte_eth_dev *dev;
@@ -2341,7 +2340,7 @@ rte_eth_xstats_get_by_id(uint16_t port_id, const uint64_t *ids,
 	expected_entries = (uint16_t)ret;
 	struct rte_eth_xstat xstats[expected_entries];
 	dev = &rte_eth_devices[port_id];
-	basic_count = get_xstats_basic_count(dev);
+	basic_count = rte_eth_basic_stats_count(dev);
 
 	/* Return max number of stats if no ids given */
 	if (!ids) {
@@ -2355,7 +2354,7 @@ rte_eth_xstats_get_by_id(uint16_t port_id, const uint64_t *ids,
 		return -EINVAL;
 
 	if (ids && dev->dev_ops->xstats_get_by_id != NULL && size) {
-		unsigned int basic_count = get_xstats_basic_count(dev);
+		unsigned int basic_count = rte_eth_basic_stats_count(dev);
 		uint64_t ids_copy[size];
 
 		for (i = 0; i < size; i++) {

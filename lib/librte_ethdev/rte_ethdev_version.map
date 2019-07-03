@@ -239,6 +239,9 @@ DPDK_19.05 {
 EXPERIMENTAL {
 	global:
 
+	rte_eth_basic_stats_count;
+	rte_eth_basic_stats_get;
+	rte_eth_basic_stats_get_names;
 	rte_eth_devargs_parse;
 	rte_eth_dev_create;
 	rte_eth_dev_destroy;

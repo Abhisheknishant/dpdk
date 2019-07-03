@@ -209,6 +209,71 @@ rte_eth_linkstatus_get(const struct rte_eth_dev *dev,
 }
 
 /**
+ * @internal
+ * Get basic stats part of xstats for an ethernet device.
+ *
+ * @param dev
+ *  Pointer to struct rte_eth_dev.
+ */
+__rte_experimental
+int
+rte_eth_basic_stats_count(struct rte_eth_dev *dev);
+
+/**
+ * @internal
+ * @b EXPERIMENTAL: this API may change without prior notice.
+ *
+ * Retrieve the names for the basic part of extended statistics.
+ *
+ * @param dev
+ *  Pointer to struct rte_eth_dev.
+ * @param xstats_names
+ *   An rte_eth_xstat_name array of at least *size* elements to
+ *   be filled. If set to NULL, the function returns the required number
+ *   of elements.
+ * @return
+ *   - A positive value lower or equal to size: success. The return value
+ *     is the number of entries filled in the stats table.
+ *   - A positive value higher than size: error, the given statistics table
+ *     is too small. The return value corresponds to the size that should
+ *     be given to succeed. The entries in the table are not valid and
+ *     shall not be used by the caller.
+ *   - A negative value on error (invalid port id).
+ */
+__rte_experimental
+int
+rte_eth_basic_stats_get_names(struct rte_eth_dev *dev,
+			      struct rte_eth_xstat_name *xstats_names);
+
+/**
+ * @internal
+ * @b EXPERIMENTAL: this API may change without prior notice.
+ *
+ * Retrieve the basic part of the extended statistics.
+ *
+ * @param dev
+ *  Pointer to struct rte_eth_dev.
+ * @param xstats
+ *   A pointer to a table of structure of type *rte_eth_xstat*
+ *   to be filled with device statistics ids and values.
+ *   This parameter can be set to NULL if n is 0.
+ * @param n
+ *   The size of the xstats array (number of elements).
+ * @return
+ *   - A positive value lower or equal to n: success. The return value
+ *     is the number of entries filled in the stats table.
+ *   - A positive value higher than n: error, the given statistics table
+ *     is too small. The return value corresponds to the size that should
+ *     be given to succeed. The entries in the table are not valid and
+ *     shall not be used by the caller.
+ *   - A negative value on error (invalid port id).
+ */
+__rte_experimental
+int
+rte_eth_basic_stats_get(uint16_t port_id, struct rte_eth_xstat *xstats);
+
+
+/**
  * @warning
  * @b EXPERIMENTAL: this API may change without prior notice.
  *
