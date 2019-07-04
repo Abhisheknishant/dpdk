@@ -13,7 +13,9 @@
 #include <rte_malloc.h>
 #include <rte_kvargs.h>
 #include <rte_bus_vdev.h>
+#include <rte_errno.h>
 
+#include <errno.h>
 #include <linux/if_ether.h>
 #include <linux/if_packet.h>
 #include <arpa/inet.h>
@@ -605,8 +607,8 @@ rte_pmd_init_internals(struct rte_vdev_device *dev,
 	}
 	if (ioctl(sockfd, SIOCGIFINDEX, &ifr) == -1) {
 		PMD_LOG(ERR,
-			"%s: ioctl failed (SIOCGIFINDEX)",
-		        name);
+			"%s: ioctl failed (SIOCGIFINDEX):%s",
+			name, rte_strerror(errno));
 		return -1;
 	}
 	(*internals)->if_name = strdup(pair->value);
@@ -616,8 +618,8 @@ rte_pmd_init_internals(struct rte_vdev_device *dev,
 
 	if (ioctl(sockfd, SIOCGIFHWADDR, &ifr) == -1) {
 		PMD_LOG(ERR,
-			"%s: ioctl failed (SIOCGIFHWADDR)",
-		        name);
+			"%s: ioctl failed (SIOCGIFHWADDR):%s",
+			name, rte_strerror(errno));
 		return -1;
 	}
 	memcpy(&(*internals)->eth_addr, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
@@ -640,8 +642,8 @@ rte_pmd_init_internals(struct rte_vdev_device *dev,
 		qsockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 		if (qsockfd == -1) {
 			PMD_LOG(ERR,
-				"%s: could not open AF_PACKET socket",
-			        name);
+				"%s: could not open AF_PACKET socket: %s",
+				name, rte_strerror(errno));
 			return -1;
 		}
 
@@ -650,8 +652,8 @@ rte_pmd_init_internals(struct rte_vdev_device *dev,
 				&tpver, sizeof(tpver));
 		if (rc == -1) {
 			PMD_LOG(ERR,
-				"%s: could not set PACKET_VERSION on AF_PACKET socket for %s",
-				name, pair->value);
+				"%s: could not set PACKET_VERSION on AF_PACKET socket for %s:%s",
+				name, pair->value, rte_strerror(errno));
 			goto error;
 		}
 
@@ -660,8 +662,8 @@ rte_pmd_init_internals(struct rte_vdev_device *dev,
 				&discard, sizeof(discard));
 		if (rc == -1) {
 			PMD_LOG(ERR,
-				"%s: could not set PACKET_LOSS on AF_PACKET socket for %s",
-				name, pair->value);
+				"%s: could not set PACKET_LOSS on AF_PACKET socket for %s:%s",
+				name, pair->value, rte_strerror(errno));
 			goto error;
 		}
 
@@ -670,8 +672,8 @@ rte_pmd_init_internals(struct rte_vdev_device *dev,
 				&qdisc_bypass, sizeof(qdisc_bypass));
 		if (rc == -1) {
 			PMD_LOG(ERR,
-				"%s: could not set PACKET_QDISC_BYPASS on AF_PACKET socket for %s",
-				name, pair->value);
+				"%s: could not set PACKET_QDISC_BYPASS on AF_PACKET socket for %s:%s",
+				name, pair->value, rte_strerror(errno));
 			goto error;
 		}
 #else
@@ -681,8 +683,8 @@ rte_pmd_init_internals(struct rte_vdev_device *dev,
 		rc = setsockopt(qsockfd, SOL_PACKET, PACKET_RX_RING, req, sizeof(*req));
 		if (rc == -1) {
 			PMD_LOG(ERR,
-				"%s: could not set PACKET_RX_RING on AF_PACKET socket for %s",
-				name, pair->value);
+				"%s: could not set PACKET_RX_RING on AF_PACKE socket for %s:%s",
+				name, pair->value, rte_strerror(errno));
 			goto error;
 		}
 
@@ -690,7 +692,8 @@ rte_pmd_init_internals(struct rte_vdev_device *dev,
 		if (rc == -1) {
 			PMD_LOG(ERR,
 				"%s: could not set PACKET_TX_RING on AF_PACKET "
-				"socket for %s", name, pair->value);
+				"socket for %s:%s", name, pair->value,
+				rte_strerror(errno));
 			goto error;
 		}
 
@@ -702,8 +705,8 @@ rte_pmd_init_internals(struct rte_vdev_device *dev,
 				    qsockfd, 0);
 		if (rx_queue->map == MAP_FAILED) {
 			PMD_LOG(ERR,
-				"%s: call to mmap failed on AF_PACKET socket for %s",
-				name, pair->value);
+				"%s: call to mmap failed on AF_PACKET socket for %s:%s",
+				name, pair->value, rte_strerror(errno));
 			goto error;
 		}
 
@@ -738,9 +741,8 @@ rte_pmd_init_internals(struct rte_vdev_device *dev,
 
 		rc = bind(qsockfd, (const struct sockaddr*)&sockaddr, sizeof(sockaddr));
 		if (rc == -1) {
-			PMD_LOG(ERR,
-				"%s: could not bind AF_PACKET socket to %s",
-			        name, pair->value);
+			PMD_LOG(ERR, "%s: could not bind AF_PACKET socket to %s:%s",
+				name, pair->value, rte_strerror(errno));
 			goto error;
 		}
 
@@ -748,9 +750,8 @@ rte_pmd_init_internals(struct rte_vdev_device *dev,
 		rc = setsockopt(qsockfd, SOL_PACKET, PACKET_FANOUT,
 				&fanout_arg, sizeof(fanout_arg));
 		if (rc == -1) {
-			PMD_LOG(ERR,
-				"%s: could not set PACKET_FANOUT on AF_PACKET socket "
-				"for %s", name, pair->value);
+			PMD_LOG(ERR, "%s: could not set PACKET_FANOUT on AF_PACKET socket for %s:%s",
+				name, pair->value, rte_strerror(errno));
 			goto error;
 		}
 #endif
