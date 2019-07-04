@@ -99,3 +99,6 @@ Deprecation Notices
   to set new power environment if power environment was already initialized.
   In this case the function will return -1 unless the environment is unset first
   (using ``rte_power_unset_env``). Other function usage scenarios will not change.
+
+* ethdev: New member in ``rte_flow_action_rss`` to support input set change
+  by rte_flow RSS action. It ignores spec and focuses on mask only.
