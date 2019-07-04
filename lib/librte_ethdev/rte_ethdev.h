@@ -1011,6 +1011,11 @@ struct rte_eth_conf {
 #define DEV_RX_OFFLOAD_KEEP_CRC		0x00010000
 #define DEV_RX_OFFLOAD_SCTP_CKSUM	0x00020000
 #define DEV_RX_OFFLOAD_OUTER_UDP_CKSUM  0x00040000
+/**
+ * Device supports match on metadata Rx offload.
+ * Driver sets PKT_RX_METADATA and mbuf metadata field.
+ */
+#define DEV_RX_OFFLOAD_MATCH_METADATA   0x00080000
 
 #define DEV_RX_OFFLOAD_CHECKSUM (DEV_RX_OFFLOAD_IPV4_CKSUM | \
 				 DEV_RX_OFFLOAD_UDP_CKSUM | \

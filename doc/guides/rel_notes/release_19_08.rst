@@ -70,6 +70,16 @@ New Features
   rte_rand_max() which supplies unbiased, bounded pseudo-random
   numbers.
 
+* **Extended metadata support in rte_flow.**
+
+  Flow metadata is extended to both Rx and Tx.
+
+  * ``tx_metadata`` field of ``rte_mbuf`` has been moved to an independent
+    field and renamed as ``metadata``.
+  * Tx metadata can also be set by SET_META action of rte_flow.
+  * Rx metadata is delivered to host via ``metadata`` field of ``rte_mbuf``
+    with PKT_RX_METADATA.
+
 * **Updated the bnxt PMD.**
 
   Updated the bnxt PMD. The major enhancements include:

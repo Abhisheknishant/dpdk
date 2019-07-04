@@ -182,7 +182,7 @@ tx_pkt_set_md(uint16_t port_id, __rte_unused uint16_t queue,
 	 * and set ol_flags accordingly.
 	 */
 	for (i = 0; i < nb_pkts; i++) {
-		pkts[i]->tx_metadata = ports[port_id].tx_metadata;
+		pkts[i]->metadata = ports[port_id].tx_metadata;
 		pkts[i]->ol_flags |= PKT_TX_METADATA;
 	}
 	return nb_pkts;

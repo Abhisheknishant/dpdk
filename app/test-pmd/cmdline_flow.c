@@ -272,6 +272,9 @@ enum index {
 	ACTION_SET_MAC_SRC_MAC_SRC,
 	ACTION_SET_MAC_DST,
 	ACTION_SET_MAC_DST_MAC_DST,
+	ACTION_SET_META,
+	ACTION_SET_META_DATA,
+	ACTION_SET_META_MASK,
 };
 
 /** Maximum size for pattern in struct rte_flow_item_raw. */
@@ -885,6 +888,7 @@ static const enum index next_action[] = {
 	ACTION_SET_TTL,
 	ACTION_SET_MAC_SRC,
 	ACTION_SET_MAC_DST,
+	ACTION_SET_META,
 	ZERO,
 };
 
@@ -1043,6 +1047,13 @@ static const enum index action_jump[] = {
 
 static const enum index action_set_mac_dst[] = {
 	ACTION_SET_MAC_DST_MAC_DST,
+	ACTION_NEXT,
+	ZERO,
+};
+
+static const enum index action_set_meta[] = {
+	ACTION_SET_META_DATA,
+	ACTION_SET_META_MASK,
 	ACTION_NEXT,
 	ZERO,
 };
@@ -2852,6 +2863,30 @@ static const struct token token_list[] = {
 		.next = NEXT(action_set_mac_dst, NEXT_ENTRY(MAC_ADDR)),
 		.args = ARGS(ARGS_ENTRY_HTON
 			     (struct rte_flow_action_set_mac, mac_addr)),
+		.call = parse_vc_conf,
+	},
+	[ACTION_SET_META] = {
+		.name = "set_meta",
+		.help = "set metadata",
+		.priv = PRIV_ACTION(SET_META,
+			sizeof(struct rte_flow_action_set_meta)),
+		.next = NEXT(action_set_meta),
+		.call = parse_vc,
+	},
+	[ACTION_SET_META_DATA] = {
+		.name = "data",
+		.help = "metadata value",
+		.next = NEXT(action_set_meta, NEXT_ENTRY(UNSIGNED)),
+		.args = ARGS(ARGS_ENTRY_HTON
+			     (struct rte_flow_action_set_meta, data)),
+		.call = parse_vc_conf,
+	},
+	[ACTION_SET_META_MASK] = {
+		.name = "mask",
+		.help = "mask for metadata value",
+		.next = NEXT(action_set_meta, NEXT_ENTRY(UNSIGNED)),
+		.args = ARGS(ARGS_ENTRY_HTON
+			     (struct rte_flow_action_set_meta, mask)),
 		.call = parse_vc_conf,
 	},
 };

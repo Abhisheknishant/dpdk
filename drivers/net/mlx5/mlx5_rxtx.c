@@ -784,8 +784,7 @@ mlx5_tx_burst(void *dpdk_txq, struct rte_mbuf **pkts, uint16_t pkts_n)
 		txq_mbuf_to_swp(txq, buf, (uint8_t *)&swp_offsets, &swp_types);
 		raw = ((uint8_t *)(uintptr_t)wqe) + 2 * MLX5_WQE_DWORD_SIZE;
 		/* Copy metadata from mbuf if valid */
-		metadata = buf->ol_flags & PKT_TX_METADATA ? buf->tx_metadata :
-							     0;
+		metadata = buf->ol_flags & PKT_TX_METADATA ? buf->metadata : 0;
 		/* Replace the Ethernet type by the VLAN if necessary. */
 		if (buf->ol_flags & PKT_TX_VLAN_PKT) {
 			uint32_t vlan = rte_cpu_to_be_32(0x81000000 |
@@ -1193,8 +1192,7 @@ mlx5_tx_burst_mpw(void *dpdk_txq, struct rte_mbuf **pkts, uint16_t pkts_n)
 		--pkts_n;
 		cs_flags = txq_ol_cksum_to_cs(buf);
 		/* Copy metadata from mbuf if valid */
-		metadata = buf->ol_flags & PKT_TX_METADATA ? buf->tx_metadata :
-							     0;
+		metadata = buf->ol_flags & PKT_TX_METADATA ? buf->metadata : 0;
 		/* Retrieve packet information. */
 		length = PKT_LEN(buf);
 		assert(length);
@@ -1430,8 +1428,7 @@ mlx5_tx_burst_mpw_inline(void *dpdk_txq, struct rte_mbuf **pkts,
 		max_wqe = (1u << txq->wqe_n) - (txq->wqe_ci - txq->wqe_pi);
 		cs_flags = txq_ol_cksum_to_cs(buf);
 		/* Copy metadata from mbuf if valid */
-		metadata = buf->ol_flags & PKT_TX_METADATA ? buf->tx_metadata :
-							     0;
+		metadata = buf->ol_flags & PKT_TX_METADATA ? buf->metadata : 0;
 		/* Retrieve packet information. */
 		length = PKT_LEN(buf);
 		/* Start new session if packet differs. */
@@ -1715,8 +1712,7 @@ txq_burst_empw(struct mlx5_txq_data *txq, struct rte_mbuf **pkts,
 			break;
 		cs_flags = txq_ol_cksum_to_cs(buf);
 		/* Copy metadata from mbuf if valid */
-		metadata = buf->ol_flags & PKT_TX_METADATA ? buf->tx_metadata :
-							     0;
+		metadata = buf->ol_flags & PKT_TX_METADATA ? buf->metadata : 0;
 		/* Retrieve packet information. */
 		length = PKT_LEN(buf);
 		/* Start new session if:

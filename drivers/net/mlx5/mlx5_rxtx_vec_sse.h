@@ -129,7 +129,7 @@ txq_scatter_v(struct mlx5_txq_data *txq, struct rte_mbuf **pkts,
 		__m128i ctrl;
 		rte_be32_t metadata =
 			metadata_ol && (buf->ol_flags & PKT_TX_METADATA) ?
-			buf->tx_metadata : 0;
+			buf->metadata : 0;
 
 		assert(segs_n);
 		max_elts = elts_n - (elts_head - txq->elts_tail);

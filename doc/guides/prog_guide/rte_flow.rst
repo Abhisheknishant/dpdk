@@ -658,6 +658,32 @@ the physical device, with virtual groups in the PMD or not at all.
    | ``mask`` | ``id``   | zeroed to match any value |
    +----------+----------+---------------------------+
 
+Item: ``META``
+^^^^^^^^^^^^^^^^^
+
+Matches 32 bit metadata item set.
+
+On egress, metadata can be set either by mbuf metadata field with
+PKT_TX_METADATA flag or ``SET_META`` action. On ingress, ``SET_META``
+action sets metadata for a packet and the metadata will be reported via
+``metadata`` field of ``rte_mbuf`` field with PKT_RX_METADATA flag.
+
+- Default ``mask`` matches the specified Rx metadata value.
+
+.. _table_rte_flow_item_meta:
+
+.. table:: META
+
+   +----------+----------+---------------------------------------+
+   | Field    | Subfield | Value                                 |
+   +==========+==========+=======================================+
+   | ``spec`` | ``data`` | 32 bit metadata value                 |
+   +----------+----------+---------------------------------------+
+   | ``last`` | ``data`` | upper range value                     |
+   +----------+----------+---------------------------------------+
+   | ``mask`` | ``data`` | bit-mask applies to "spec" and "last" |
+   +----------+----------+---------------------------------------+
+
 Data matching item types
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1188,27 +1214,6 @@ Normally preceded by any of:
 
 - `Item: ICMP6_ND_NS`_
 - `Item: ICMP6_ND_OPT`_
-
-Item: ``META``
-^^^^^^^^^^^^^^
-
-Matches an application specific 32 bit metadata item.
-
-- Default ``mask`` matches the specified metadata value.
-
-.. _table_rte_flow_item_meta:
-
-.. table:: META
-
-   +----------+----------+---------------------------------------+
-   | Field    | Subfield | Value                                 |
-   +==========+==========+=======================================+
-   | ``spec`` | ``data`` | 32 bit metadata value                 |
-   +----------+--------------------------------------------------+
-   | ``last`` | ``data`` | upper range value                     |
-   +----------+----------+---------------------------------------+
-   | ``mask`` | ``data`` | bit-mask applies to "spec" and "last" |
-   +----------+----------+---------------------------------------+
 
 Actions
 ~~~~~~~
@@ -2344,6 +2349,32 @@ Otherwise, RTE_FLOW_ERROR_TYPE_ACTION error will be returned.
    +==============+===============+
    | ``mac_addr`` | MAC address   |
    +--------------+---------------+
+
+Action: ``SET_META``
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Set metadata. Item ``META`` matches metadata.
+
+Metadata set by mbuf metadata field with PKT_TX_METADATA flag on egress will be
+overridden by this action. On ingress, the metadata will be carried by mbuf
+metadata field with PKT_RX_METADATA flag if set.
+
+Altering partial bits is supported with ``mask``. For bits which have never been
+set, unpredictable value will be seen depending on driver implementation. For
+loopback/hairpin packet, metadata set on Rx/Tx may or may not be propagated to
+the other path depending on HW capability.
+
+.. _table_rte_flow_action_set_meta:
+
+.. table:: SET_META
+
+   +----------+----------------------------+
+   | Field    | Value                      |
+   +==========+============================+
+   | ``data`` | 32 bit metadata value      |
+   +----------+----------------------------+
+   | ``mask`` | bit-mask applies to "data" |
+   +----------+----------------------------+
 
 Negative types
 ~~~~~~~~~~~~~~

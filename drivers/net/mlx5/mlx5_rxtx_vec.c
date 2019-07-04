@@ -71,7 +71,7 @@ txq_calc_offload(struct rte_mbuf **pkts, uint16_t pkts_n, uint8_t *cs_flags,
 	if (!pkts_n)
 		return 0;
 	p0_metadata = pkts[0]->ol_flags & PKT_TX_METADATA ?
-			pkts[0]->tx_metadata : 0;
+		      pkts[0]->metadata : 0;
 	/* Count the number of packets having same offload parameters. */
 	for (pos = 1; pos < pkts_n; ++pos) {
 		/* Check if packet has same checksum flags. */
@@ -81,7 +81,7 @@ txq_calc_offload(struct rte_mbuf **pkts, uint16_t pkts_n, uint8_t *cs_flags,
 		/* Check if packet has same metadata. */
 		if (txq_offloads & DEV_TX_OFFLOAD_MATCH_METADATA) {
 			pn_metadata = pkts[pos]->ol_flags & PKT_TX_METADATA ?
-					pkts[pos]->tx_metadata : 0;
+				      pkts[pos]->metadata : 0;
 			if (pn_metadata != p0_metadata)
 				break;
 		}

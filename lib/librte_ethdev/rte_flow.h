@@ -417,7 +417,8 @@ enum rte_flow_item_type {
 	/**
 	 * [META]
 	 *
-	 * Matches a metadata value specified in mbuf metadata field.
+	 * Matches a metadata value.
+	 *
 	 * See struct rte_flow_item_meta.
 	 */
 	RTE_FLOW_ITEM_TYPE_META,
@@ -1164,9 +1165,16 @@ rte_flow_item_icmp6_nd_opt_tla_eth_mask = {
 #endif
 
 /**
- * RTE_FLOW_ITEM_TYPE_META.
+ * @warning
+ * @b EXPERIMENTAL: this structure may change without prior notice
  *
- * Matches a specified metadata value.
+ * RTE_FLOW_ITEM_TYPE_META
+ *
+ * Matches a specified metadata value. On egress, metadata can be set either by
+ * mbuf metadata field with PKT_TX_METADATA flag or
+ * RTE_FLOW_ACTION_TYPE_SET_META. On ingress, RTE_FLOW_ACTION_TYPE_SET_META sets
+ * metadata for a packet and the metadata will be reported via mbuf metadata
+ * field with PKT_RX_METADATA flag.
  */
 struct rte_flow_item_meta {
 	rte_be32_t data;
@@ -1650,6 +1658,13 @@ enum rte_flow_action_type {
 	 * See struct rte_flow_action_set_mac.
 	 */
 	RTE_FLOW_ACTION_TYPE_SET_MAC_DST,
+
+	/**
+	 * Set metadata on ingress or egress path.
+	 *
+	 * See struct rte_flow_action_set_meta.
+	 */
+	RTE_FLOW_ACTION_TYPE_SET_META,
 };
 
 /**
@@ -2129,6 +2144,28 @@ struct rte_flow_action_set_ttl {
  */
 struct rte_flow_action_set_mac {
 	uint8_t mac_addr[RTE_ETHER_ADDR_LEN];
+};
+
+/**
+ * @warning
+ * @b EXPERIMENTAL: this structure may change without prior notice
+ *
+ * RTE_FLOW_ACTION_TYPE_SET_META
+ *
+ * Set metadata. Metadata set by mbuf metadata field with PKT_TX_METADATA flag
+ * on egress will be overridden by this action. On ingress, the metadata will be
+ * carried by mbuf metadata field with PKT_RX_METADATA flag if set.
+ *
+ * Altering partial bits is supported with mask. For bits which have never been
+ * set, unpredictable value will be seen depending on driver implementation. For
+ * loopback/hairpin packet, metadata set on Rx/Tx may or may not be propagated
+ * to the other path depending on HW capability.
+ *
+ * RTE_FLOW_ITEM_TYPE_META matches metadata.
+ */
+struct rte_flow_action_set_meta {
+	rte_be32_t data;
+	rte_be32_t mask;
 };
 
 /*

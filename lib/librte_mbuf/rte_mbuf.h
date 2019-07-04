@@ -200,6 +200,11 @@ extern "C" {
 
 /* add new RX flags here */
 
+/**
+ * Indicate that mbuf has metadata from device.
+ */
+#define PKT_RX_METADATA	(1ULL << 23)
+
 /* add new TX flags here */
 
 /**
@@ -648,17 +653,6 @@ struct rte_mbuf {
 			/**< User defined tags. See rte_distributor_process() */
 			uint32_t usr;
 		} hash;                   /**< hash information */
-		struct {
-			/**
-			 * Application specific metadata value
-			 * for egress flow rule match.
-			 * Valid if PKT_TX_METADATA is set.
-			 * Located here to allow conjunct use
-			 * with hash.sched.hi.
-			 */
-			uint32_t tx_metadata;
-			uint32_t reserved;
-		};
 	};
 
 	/** Outer VLAN TCI (CPU order), valid if PKT_RX_QINQ is set. */
@@ -737,6 +731,11 @@ struct rte_mbuf {
 	 * rte_pktmbuf_attach_extbuf().
 	 */
 	struct rte_mbuf_ext_shared_info *shinfo;
+
+	/** Application specific metadata value for flow rule match.
+	 * Valid if PKT_RX_METADATA or PKT_TX_METADATA is set.
+	 */
+	uint32_t metadata;
 
 } __rte_cache_aligned;
 
