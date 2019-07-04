@@ -2962,3 +2962,92 @@ igb_config_rss_filter(struct rte_eth_dev *dev,
 
 	return 0;
 }
+
+static void e1000_flush_tx_ring(struct rte_eth_dev *dev)
+{
+	struct e1000_hw *hw = E1000_DEV_PRIVATE_TO_HW(dev->data->dev_private);
+	volatile union e1000_adv_tx_desc *tx_desc;
+	uint32_t tdt, tctl, txd_lower = E1000_TXD_CMD_IFCS;
+	uint16_t size = 512;
+	struct igb_tx_queue *txq;
+
+	if (dev->data->tx_queues == NULL)
+		return;
+	txq = dev->data->tx_queues[0];
+
+	tctl = E1000_READ_REG(hw, E1000_TCTL);
+	E1000_WRITE_REG(hw, E1000_TCTL, tctl | E1000_TCTL_EN);
+	tdt = E1000_READ_REG(hw, E1000_TDT(0));
+	if(tdt != txq->tx_tail)
+		return;
+	tx_desc = txq->tx_ring;
+	tx_desc->read.buffer_addr = txq->tx_ring_phys_addr;
+	tx_desc->read.cmd_type_len = rte_cpu_to_le_32(txd_lower | size);
+	tx_desc->read.olinfo_status = 0;
+
+	rte_wmb();
+	txq->tx_tail++;
+	if (txq->tx_tail== txq->nb_tx_desc)
+		txq->tx_tail= 0;
+	rte_io_wmb();
+	E1000_WRITE_REG(hw, E1000_TDT(0), txq->tx_tail);
+	usec_delay(250);
+}
+
+static void e1000_flush_rx_ring(struct rte_eth_dev *dev)
+{
+	uint32_t rctl, rxdctl;
+	struct e1000_hw *hw = E1000_DEV_PRIVATE_TO_HW(dev->data->dev_private);
+
+	rctl = E1000_READ_REG(hw, E1000_RCTL);
+	E1000_WRITE_REG(hw, E1000_TCTL, rctl & ~E1000_RCTL_EN);
+	E1000_WRITE_FLUSH(hw);
+	usec_delay(150);
+
+	rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(0));
+	/* zero the lower 14 bits (prefetch and host thresholds) */
+	rxdctl &= 0xffffc000;
+
+	/* update thresholds: prefetch threshold to 31, host threshold to 1
+	 * and make sure the granularity is "descriptors" and not "cache lines"
+	 */
+	rxdctl |= (0x1F | (1UL << 8) | E1000_RXDCTL_THRESH_UNIT_DESC);
+
+	E1000_WRITE_REG(hw, E1000_RXDCTL(0), rxdctl);
+	/* momentarily enable the RX ring for the changes to take effect */
+	E1000_WRITE_REG(hw, E1000_RCTL, rctl | E1000_RCTL_EN);
+	E1000_WRITE_FLUSH(hw);
+	usec_delay(150);
+	E1000_WRITE_REG(hw, E1000_RCTL, rctl & ~E1000_RCTL_EN);
+}
+
+/**
+ * igb_flush_desc_rings - remove all descriptors from the descriptor rings
+ *
+ * In i219, the descriptor rings must be emptied before resetting/closing the
+ * HW. Failure to do this will cause the HW to enter a unit hang state which
+ * can only be released by PCI reset on the device
+ *
+ */
+
+void igb_flush_desc_rings(struct rte_eth_dev *dev)
+{
+	uint32_t fextnvm11, fextnvm7, tdlen;
+	struct e1000_hw *hw = E1000_DEV_PRIVATE_TO_HW(dev->data->dev_private);
+
+	fextnvm11 = E1000_READ_REG(hw, E1000_FEXTNVM11);
+	E1000_WRITE_REG(hw, E1000_FEXTNVM11,
+			fextnvm11 | E1000_FEXTNVM11_DISABLE_MULR_FIX);
+	fextnvm7 = E1000_READ_REG(hw, E1000_FEXTNVM7);
+	tdlen = E1000_READ_REG(hw, E1000_TDLEN(0));
+
+	/* do nothing if we're not in faulty state, or if the queue is empty */
+	if ((fextnvm7 & E1000_FEXTNVM7_NEED_DESCRING_FLUSH) && tdlen) {
+		/* flush desc ring */
+		e1000_flush_tx_ring(dev);
+		fextnvm7 = E1000_READ_REG(hw, E1000_FEXTNVM7);
+		if (fextnvm7 & E1000_FEXTNVM7_NEED_DESCRING_FLUSH) {
+			e1000_flush_rx_ring(dev);
+		}
+	}
+}
