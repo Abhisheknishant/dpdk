@@ -145,6 +145,12 @@ New Features
   Added telemetry mode to l3fwd-power application to report
   application level busyness, empty and full polls of rte_eth_rx_burst().
 
+* **Added MCS lock library.**
+
+  Added MCS lock library. It provides scalability by spinning on a
+  CPU/thread local variable which avoids expensive cache bouncings.
+  It provides fairness by maintaining a list of acquirers and passing
+  the lock to each CPU/thread in the order they acquired the lock.
 
 Removed Items
 -------------
