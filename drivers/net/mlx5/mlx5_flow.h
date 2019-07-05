@@ -50,6 +50,8 @@
 #define MLX5_FLOW_ITEM_METADATA (1u << 16)
 #define MLX5_FLOW_ITEM_PORT_ID (1u << 17)
 
+#define MLX5_FLOW_LAYER_GRE_KEY (1u << 18)
+
 /* Outer Masks. */
 #define MLX5_FLOW_LAYER_OUTER_L3 \
 	(MLX5_FLOW_LAYER_OUTER_L3_IPV4 | MLX5_FLOW_LAYER_OUTER_L3_IPV6)
@@ -480,6 +482,10 @@ int mlx5_flow_validate_item_gre(const struct rte_flow_item *item,
 				uint64_t item_flags,
 				uint8_t target_protocol,
 				struct rte_flow_error *error);
+int mlx5_flow_validate_item_gre_key(const struct rte_flow_item *item,
+				    uint64_t item_flags,
+				    const struct rte_flow_item *gre_item,
+				    struct rte_flow_error *error);
 int mlx5_flow_validate_item_ipv4(const struct rte_flow_item *item,
 				 uint64_t item_flags,
 				 const struct rte_flow_item_ipv4 *acc_mask,
