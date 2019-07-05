@@ -134,6 +134,13 @@ test_table(void)
 {
 	int status, ret;
 	unsigned i;
+	void *p;
+
+	/* empirical value, please refine when updating this test */
+	p = rte_malloc("enough_memory_for_test", (size_t)3300 << 20, 0);
+	if (!p)
+		return TEST_SKIPPED;
+	rte_free(p);
 
 	ret = TEST_SUCCESS;
 
