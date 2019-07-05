@@ -148,6 +148,10 @@ enum index {
 	ITEM_MPLS_LABEL,
 	ITEM_GRE,
 	ITEM_GRE_PROTO,
+	ITEM_GRE_C_RSVD0_VER,
+	ITEM_GRE_C_BIT,
+	ITEM_GRE_K_BIT,
+	ITEM_GRE_S_BIT,
 	ITEM_FUZZY,
 	ITEM_FUZZY_THRESH,
 	ITEM_GTP,
@@ -181,6 +185,8 @@ enum index {
 	ITEM_ICMP6_ND_OPT_TLA_ETH_TLA,
 	ITEM_META,
 	ITEM_META_DATA,
+	ITEM_GRE_KEY,
+	ITEM_GRE_KEY_VALUE,
 
 	/* Validate/create actions. */
 	ACTIONS,
@@ -610,6 +616,7 @@ static const enum index next_item[] = {
 	ITEM_ICMP6_ND_OPT_SLA_ETH,
 	ITEM_ICMP6_ND_OPT_TLA_ETH,
 	ITEM_META,
+	ITEM_GRE_KEY,
 	ZERO,
 };
 
@@ -755,6 +762,16 @@ static const enum index item_mpls[] = {
 
 static const enum index item_gre[] = {
 	ITEM_GRE_PROTO,
+	ITEM_GRE_C_RSVD0_VER,
+	ITEM_GRE_C_BIT,
+	ITEM_GRE_K_BIT,
+	ITEM_GRE_S_BIT,
+	ITEM_NEXT,
+	ZERO,
+};
+
+static const enum index item_gre_key[] = {
+	ITEM_GRE_KEY_VALUE,
 	ITEM_NEXT,
 	ZERO,
 };
@@ -1897,6 +1914,50 @@ static const struct token token_list[] = {
 		.next = NEXT(item_gre, NEXT_ENTRY(UNSIGNED), item_param),
 		.args = ARGS(ARGS_ENTRY_HTON(struct rte_flow_item_gre,
 					     protocol)),
+	},
+	[ITEM_GRE_C_RSVD0_VER] = {
+		.name = "c_rsvd0_ver",
+		.help = "GRE's first word (bit0 - bit15)",
+		.next = NEXT(item_gre, NEXT_ENTRY(UNSIGNED), item_param),
+		.args = ARGS(ARGS_ENTRY_HTON(struct rte_flow_item_gre,
+					     c_rsvd0_ver)),
+	},
+	[ITEM_GRE_C_BIT] = {
+		.name = "c_bit",
+		.help = "GRE's C present bit",
+		.next = NEXT(item_gre, NEXT_ENTRY(BOOLEAN), item_param),
+		.args = ARGS(ARGS_ENTRY_MASK_HTON(struct rte_flow_item_gre,
+						  c_rsvd0_ver,
+						  "\x80\x00\x00\x00")),
+	},
+	[ITEM_GRE_S_BIT] = {
+		.name = "s_bit",
+		.help = "GRE's S present bit",
+		.next = NEXT(item_gre, NEXT_ENTRY(BOOLEAN), item_param),
+		.args = ARGS(ARGS_ENTRY_MASK_HTON(struct rte_flow_item_gre,
+						  c_rsvd0_ver,
+						  "\x10\x00\x00\x00")),
+	},
+	[ITEM_GRE_K_BIT] = {
+		.name = "k_bit",
+		.help = "GRE's K present bit",
+		.next = NEXT(item_gre, NEXT_ENTRY(BOOLEAN), item_param),
+		.args = ARGS(ARGS_ENTRY_MASK_HTON(struct rte_flow_item_gre,
+						  c_rsvd0_ver,
+						  "\x20\x00\x00\x00")),
+	},
+	[ITEM_GRE_KEY] = {
+		.name = "gre_key",
+		.help = "match GRE Key",
+		.priv = PRIV_ITEM(GRE_KEY, sizeof(rte_be32_t)),
+		.next = NEXT(item_gre_key),
+		.call = parse_vc,
+	},
+	[ITEM_GRE_KEY_VALUE] = {
+		.name = "value",
+		.help = "GRE key value",
+		.next = NEXT(item_gre_key, NEXT_ENTRY(UNSIGNED), item_param),
+		.args = ARGS(ARG_ENTRY_HTON(rte_be32_t)),
 	},
 	[ITEM_FUZZY] = {
 		.name = "fuzzy",
