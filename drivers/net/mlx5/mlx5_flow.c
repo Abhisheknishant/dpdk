@@ -1612,6 +1612,7 @@ mlx5_flow_validate_item_gre(const struct rte_flow_item *item,
 		 sizeof(struct rte_flow_item_gre), error);
 	if (ret < 0)
 		return ret;
+#ifndef HAVE_MLX5DV_DR
 #ifndef HAVE_IBV_DEVICE_MPLS_SUPPORT
 	if (spec && (spec->protocol & mask->protocol))
 		return rte_flow_error_set(error, ENOTSUP,
@@ -1619,6 +1620,7 @@ mlx5_flow_validate_item_gre(const struct rte_flow_item *item,
 					  "without MPLS support the"
 					  " specification cannot be used for"
 					  " filtering");
+#endif
 #endif
 	return 0;
 }
