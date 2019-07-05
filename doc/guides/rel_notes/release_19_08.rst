@@ -139,6 +139,11 @@ New Features
   Added telemetry mode to l3fwd-power application to report
   application level busyness, empty and full polls of rte_eth_rx_burst().
 
+* **Updated Mellanox mlx5 driver.**
+
+   Updated Mellanox mlx5 driver with new features and improvements, including:
+
+   * Added support for matching on GRE's key and C,K,S present bits.
 
 Removed Items
 -------------
