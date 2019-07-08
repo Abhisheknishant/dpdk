@@ -635,6 +635,10 @@ struct rte_eth_dev_data {
 			/**< Switch-specific identifier.
 			 *   Valid if RTE_ETH_DEV_REPRESENTOR in dev_flags.
 			 */
+	struct rte_eth_dev *switch_ethdev;
+			/* point to switch_ethdev specific by "switch_mode" in
+			 * devargs
+			 */
 } __rte_cache_aligned;
 
 /**

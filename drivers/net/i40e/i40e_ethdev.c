@@ -44,6 +44,7 @@
 #define ETH_I40E_SUPPORT_MULTI_DRIVER	"support-multi-driver"
 #define ETH_I40E_QUEUE_NUM_PER_VF_ARG	"queue-num-per-vf"
 #define ETH_I40E_USE_LATEST_VEC	"use-latest-supported-vec"
+#define ETH_I40E_SWITCH_MODE_ARG	"switch_mode"
 
 #define I40E_CLEAR_PXE_WAIT_MS     200
 
@@ -406,6 +407,7 @@ static const char *const valid_keys[] = {
 	ETH_I40E_SUPPORT_MULTI_DRIVER,
 	ETH_I40E_QUEUE_NUM_PER_VF_ARG,
 	ETH_I40E_USE_LATEST_VEC,
+	ETH_I40E_SWITCH_MODE_ARG,
 	NULL};
 
 static const struct rte_pci_id pci_id_i40e_map[] = {
@@ -625,14 +627,118 @@ static const struct rte_i40e_xstats_name_off rte_i40e_txq_prio_strings[] = {
 		sizeof(rte_i40e_txq_prio_strings[0]))
 
 static int
+i40e_pf_parse_switch_mode(const char *key __rte_unused,
+	const char *value, void *extra_args)
+{
+	if (!value || !extra_args)
+		return -EINVAL;
+
+	if (RTE_ETH_NAME_MAX_LEN > strlen(value)) {
+		rte_memcpy(extra_args, value, strlen(value) + 1);
+		return 0;
+	} else {
+		PMD_DRV_LOG(ERR,
+			"switch_mode args should be less than %d characters",
+			RTE_ETH_NAME_MAX_LEN);
+		return -EINVAL;
+	}
+}
+
+static struct rte_eth_dev *
+i40e_eth_dev_get_by_switch_mode_name(const char *cfg_str)
+{
+	char switch_name[RTE_ETH_NAME_MAX_LEN];
+	char port_name[RTE_ETH_NAME_MAX_LEN];
+	char switch_ethdev_name[RTE_ETH_NAME_MAX_LEN];
+	uint16_t port_id;
+	const char *p_src;
+	char *p_dst;
+	int ret;
+
+	/* An example of cfg_str is "IPN3KE_0@b3:00.0_0" */
+	if (!strncmp(cfg_str, "IPN3KE", strlen("IPN3KE"))) {
+		p_src = cfg_str;
+		PMD_DRV_LOG(DEBUG, "cfg_str is %s", cfg_str);
+
+		/* move over "IPN3KE" */
+		while ((*p_src != '_') && (*p_src))
+			p_src++;
+
+		/* move over the first underline */
+		p_src++;
+
+		p_dst = switch_name;
+		while ((*p_src != '_') && (*p_src)) {
+			if (*p_src == '@') {
+				*p_dst++ = '|';
+				p_src++;
+			} else {
+				*p_dst++ = *p_src++;
+			}
+		}
+		*p_dst = 0;
+		PMD_DRV_LOG(DEBUG, "switch_name is %s", switch_name);
+
+		/* move over the second underline */
+		p_src++;
+
+		p_dst = port_name;
+		while (*p_src)
+			*p_dst++ = *p_src++;
+		*p_dst = 0;
+		PMD_DRV_LOG(DEBUG, "port_name is %s", port_name);
+
+		snprintf(switch_ethdev_name, sizeof(switch_ethdev_name),
+			"net_%s_representor_%s", switch_name, port_name);
+		PMD_DRV_LOG(DEBUG, "switch_ethdev_name is %s",
+			switch_ethdev_name);
+
+		ret = rte_eth_dev_get_port_by_name(switch_ethdev_name,
+			&port_id);
+		if (ret)
+			return NULL;
+		else
+			return &rte_eth_devices[port_id];
+	} else {
+		return NULL;
+	}
+}
+
+static struct rte_eth_dev *
+i40e_get_switch_ethdev_from_devargs(struct rte_devargs *devargs)
+{
+	struct rte_kvargs *kvlist = NULL;
+	struct rte_eth_dev *switch_ethdev = NULL;
+	char switch_cfg_str[RTE_ETH_NAME_MAX_LEN];
+
+	kvlist = rte_kvargs_parse(devargs->args, valid_keys);
+	if (kvlist) {
+		if (rte_kvargs_count(kvlist, ETH_I40E_SWITCH_MODE_ARG) == 1) {
+			if (!rte_kvargs_process(kvlist,
+				ETH_I40E_SWITCH_MODE_ARG,
+				&i40e_pf_parse_switch_mode, switch_cfg_str)) {
+				switch_ethdev =
+					i40e_eth_dev_get_by_switch_mode_name(
+					switch_cfg_str);
+			}
+		}
+		rte_kvargs_free(kvlist);
+	}
+	return switch_ethdev;
+}
+
+static int
 eth_i40e_pci_probe(struct rte_pci_driver *pci_drv __rte_unused,
 	struct rte_pci_device *pci_dev)
 {
 	char name[RTE_ETH_NAME_MAX_LEN];
 	struct rte_eth_devargs eth_da = { .nb_representor_ports = 0 };
+	struct rte_eth_dev *switch_ethdev = NULL;
 	int i, retval;
 
 	if (pci_dev->device.devargs) {
+		switch_ethdev = i40e_get_switch_ethdev_from_devargs(
+			pci_dev->device.devargs);
 		retval = rte_eth_devargs_parse(pci_dev->device.devargs->args,
 				&eth_da);
 		if (retval)
@@ -653,6 +759,8 @@ eth_i40e_pci_probe(struct rte_pci_driver *pci_drv __rte_unused,
 
 	if (pf_ethdev == NULL)
 		return -ENODEV;
+
+	pf_ethdev->data->switch_ethdev = switch_ethdev;
 
 	for (i = 0; i < eth_da.nb_representor_ports; i++) {
 		struct i40e_vf_representor representor = {
@@ -687,7 +795,7 @@ static int eth_i40e_pci_remove(struct rte_pci_device *pci_dev)
 	if (!ethdev)
 		return -ENODEV;
 
-
+	ethdev->data->switch_ethdev = NULL;
 	if (ethdev->data->dev_flags & RTE_ETH_DEV_REPRESENTOR)
 		return rte_eth_dev_destroy(ethdev, i40e_vf_representor_uninit);
 	else
@@ -2779,6 +2887,20 @@ update_link_aq(struct i40e_hw *hw, struct rte_eth_link *link,
 	}
 }
 
+static void
+i40e_pf_linkstatus_get_from_switch_ethdev
+(struct rte_eth_dev *switch_ethdev, struct rte_eth_link *link)
+{
+	if (switch_ethdev) {
+		rte_eth_linkstatus_get(switch_ethdev, link);
+	} else {
+		link->link_autoneg = ETH_LINK_SPEED_FIXED;
+		link->link_duplex  = ETH_LINK_FULL_DUPLEX;
+		link->link_speed   = ETH_SPEED_NUM_25G;
+		link->link_status  = 0;
+	}
+}
+
 int
 i40e_dev_link_update(struct rte_eth_dev *dev,
 		     int wait_to_complete)
@@ -2786,6 +2908,8 @@ i40e_dev_link_update(struct rte_eth_dev *dev,
 	struct i40e_hw *hw = I40E_DEV_PRIVATE_TO_HW(dev->data->dev_private);
 	struct rte_eth_link link;
 	bool enable_lse = dev->data->dev_conf.intr_conf.lsc ? true : false;
+	struct rte_pci_device *pci_dev = RTE_ETH_DEV_TO_PCI(dev);
+	struct rte_devargs *devargs;
 	int ret;
 
 	memset(&link, 0, sizeof(link));
@@ -2799,6 +2923,16 @@ i40e_dev_link_update(struct rte_eth_dev *dev,
 		update_link_reg(hw, &link);
 	else
 		update_link_aq(hw, &link, enable_lse, wait_to_complete);
+
+	if (!dev->data->switch_ethdev) {
+		devargs = pci_dev->device.devargs;
+		if (devargs)
+			dev->data->switch_ethdev =
+				i40e_get_switch_ethdev_from_devargs(
+					pci_dev->device.devargs);
+	}
+	i40e_pf_linkstatus_get_from_switch_ethdev(dev->data->switch_ethdev,
+		&link);
 
 	ret = rte_eth_linkstatus_set(dev, &link);
 	i40e_notify_all_vfs_link_status(dev);
@@ -12773,4 +12907,5 @@ RTE_PMD_REGISTER_PARAM_STRING(net_i40e,
 			      ETH_I40E_FLOATING_VEB_LIST_ARG "=<string>"
 			      ETH_I40E_QUEUE_NUM_PER_VF_ARG "=1|2|4|8|16"
 			      ETH_I40E_SUPPORT_MULTI_DRIVER "=1"
-			      ETH_I40E_USE_LATEST_VEC "=0|1");
+			      ETH_I40E_USE_LATEST_VEC "=0|1"
+			      ETH_I40E_SWITCH_MODE_ARG "=IPN3KE");
