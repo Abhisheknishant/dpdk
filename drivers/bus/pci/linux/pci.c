@@ -567,7 +567,7 @@ enum rte_iova_mode
 pci_device_iova_mode(const struct rte_pci_driver *pdrv,
 		     const struct rte_pci_device *pdev)
 {
-	enum rte_iova_mode iova_mode = RTE_IOVA_DC;
+	enum rte_iova_mode iova_mode = RTE_IOVA_PA;
 	static int iommu_no_va = -1;
 
 	switch (pdev->kdrv) {
@@ -581,8 +581,8 @@ pci_device_iova_mode(const struct rte_pci_driver *pdrv,
 			else
 				is_vfio_noiommu_enabled = 0;
 		}
-		if ((pdrv->drv_flags & RTE_PCI_DRV_IOVA_AS_VA) == 0) {
-			iova_mode = RTE_IOVA_PA;
+		if (pdrv->drv_flags & RTE_PCI_DRV_IOVA_AS_VA) {
+			iova_mode = RTE_IOVA_VA;
 		} else if (is_vfio_noiommu_enabled != 0) {
 			RTE_LOG(DEBUG, EAL, "Forcing to 'PA', vfio-noiommu mode configured\n");
 			iova_mode = RTE_IOVA_PA;
@@ -592,8 +592,8 @@ pci_device_iova_mode(const struct rte_pci_driver *pdrv,
 	}
 
 	case RTE_KDRV_NIC_MLX:
-		if ((pdrv->drv_flags & RTE_PCI_DRV_IOVA_AS_VA) == 0)
-			iova_mode = RTE_IOVA_PA;
+		if (pdrv->drv_flags & RTE_PCI_DRV_IOVA_AS_VA)
+			iova_mode = RTE_IOVA_VA;
 		break;
 
 	case RTE_KDRV_IGB_UIO:
