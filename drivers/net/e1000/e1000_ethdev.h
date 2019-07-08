@@ -522,5 +522,6 @@ int igb_action_rss_same(const struct rte_flow_action_rss *comp,
 int igb_config_rss_filter(struct rte_eth_dev *dev,
 			struct igb_rte_flow_rss_conf *conf,
 			bool add);
+void igb_flush_desc_rings(struct rte_eth_dev *dev);
 
 #endif /* _E1000_ETHDEV_H_ */

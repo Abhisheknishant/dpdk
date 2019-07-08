@@ -18,6 +18,7 @@
 #include <rte_log.h>
 #include <rte_debug.h>
 #include <rte_pci.h>
+#include <rte_bus_pci.h>
 #include <rte_memory.h>
 #include <rte_memcpy.h>
 #include <rte_memzone.h>
@@ -62,6 +63,9 @@
 
 #define IGB_TX_OFFLOAD_NOTSUP_MASK \
 		(PKT_TX_OFFLOAD_MASK ^ IGB_TX_OFFLOAD_MASK)
+
+/* PCI offset for querying descriptor ring status*/
+#define PCICFG_DESC_RING_STATUS           0xE4
 
 /**
  * Structure associated with each descriptor of the RX ring of a RX queue.
@@ -2961,4 +2965,96 @@ igb_config_rss_filter(struct rte_eth_dev *dev,
 		return -EINVAL;
 
 	return 0;
+}
+
+static void e1000_flush_tx_ring(struct rte_eth_dev *dev)
+{
+	struct e1000_hw *hw = E1000_DEV_PRIVATE_TO_HW(dev->data->dev_private);
+	volatile union e1000_adv_tx_desc *tx_desc;
+	uint32_t tdt, tctl, txd_lower = E1000_TXD_CMD_IFCS;
+	uint16_t size = 512;
+	struct igb_tx_queue *txq;
+
+	if (dev->data->tx_queues == NULL)
+		return;
+	txq = dev->data->tx_queues[0];
+
+	tctl = E1000_READ_REG(hw, E1000_TCTL);
+	E1000_WRITE_REG(hw, E1000_TCTL, tctl | E1000_TCTL_EN);
+	tdt = E1000_READ_REG(hw, E1000_TDT(0));
+	if (tdt != txq->tx_tail)
+		return;
+	tx_desc = txq->tx_ring;
+	tx_desc->read.buffer_addr = txq->tx_ring_phys_addr;
+	tx_desc->read.cmd_type_len = rte_cpu_to_le_32(txd_lower | size);
+	tx_desc->read.olinfo_status = 0;
+
+	rte_wmb();
+	txq->tx_tail++;
+	if (txq->tx_tail == txq->nb_tx_desc)
+		txq->tx_tail = 0;
+	rte_io_wmb();
+	E1000_WRITE_REG(hw, E1000_TDT(0), txq->tx_tail);
+	usec_delay(250);
+}
+
+static void e1000_flush_rx_ring(struct rte_eth_dev *dev)
+{
+	uint32_t rctl, rxdctl;
+	struct e1000_hw *hw = E1000_DEV_PRIVATE_TO_HW(dev->data->dev_private);
+
+	rctl = E1000_READ_REG(hw, E1000_RCTL);
+	E1000_WRITE_REG(hw, E1000_TCTL, rctl & ~E1000_RCTL_EN);
+	E1000_WRITE_FLUSH(hw);
+	usec_delay(150);
+
+	rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(0));
+	/* zero the lower 14 bits (prefetch and host thresholds) */
+	rxdctl &= 0xffffc000;
+
+	/* update thresholds: prefetch threshold to 31, host threshold to 1
+	 * and make sure the granularity is "descriptors" and not "cache lines"
+	 */
+	rxdctl |= (0x1F | (1UL << 8) | E1000_RXDCTL_THRESH_UNIT_DESC);
+
+	E1000_WRITE_REG(hw, E1000_RXDCTL(0), rxdctl);
+	/* momentarily enable the RX ring for the changes to take effect */
+	E1000_WRITE_REG(hw, E1000_RCTL, rctl | E1000_RCTL_EN);
+	E1000_WRITE_FLUSH(hw);
+	usec_delay(150);
+	E1000_WRITE_REG(hw, E1000_RCTL, rctl & ~E1000_RCTL_EN);
+}
+
+/**
+ * igb_flush_desc_rings - remove all descriptors from the descriptor rings
+ *
+ * In i219, the descriptor rings must be emptied before resetting/closing the
+ * HW. Failure to do this will cause the HW to enter a unit hang state which
+ * can only be released by PCI reset on the device
+ *
+ */
+
+void igb_flush_desc_rings(struct rte_eth_dev *dev)
+{
+	uint32_t fextnvm11, tdlen;
+	struct e1000_hw *hw = E1000_DEV_PRIVATE_TO_HW(dev->data->dev_private);
+	struct rte_pci_device *pci_dev = RTE_ETH_DEV_TO_PCI(dev);
+	uint32_t hang_state = 0;
+
+	fextnvm11 = E1000_READ_REG(hw, E1000_FEXTNVM11);
+	E1000_WRITE_REG(hw, E1000_FEXTNVM11,
+			fextnvm11 | E1000_FEXTNVM11_DISABLE_MULR_FIX);
+	tdlen = E1000_READ_REG(hw, E1000_TDLEN(0));
+	rte_pci_read_config(pci_dev, &hang_state, sizeof(hang_state),
+				PCICFG_DESC_RING_STATUS);
+
+	/* do nothing if we're not in faulty state, or if the queue is empty */
+	if ((hang_state & E1000_FEXTNVM7_NEED_DESCRING_FLUSH) && tdlen) {
+		/* flush desc ring */
+		e1000_flush_tx_ring(dev);
+		rte_pci_read_config(pci_dev, &hang_state, sizeof(hang_state),
+					PCICFG_DESC_RING_STATUS);
+		if (hang_state & E1000_FEXTNVM7_NEED_DESCRING_FLUSH)
+			e1000_flush_rx_ring(dev);
+	}
 }
