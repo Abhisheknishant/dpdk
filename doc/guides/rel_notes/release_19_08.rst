@@ -190,6 +190,29 @@ New Features
   Added telemetry mode to l3fwd-power application to report
   application level busyness, empty and full polls of rte_eth_rx_burst().
 
+* **Updated the QuickAssist Technology (QAT) symmetric crypto PMD.**
+
+  Added support for digest-encrypted cases where digest is appended
+  to the data.
+
+* **Added a FPGA_LTE_FEC bbdev PMD.**
+
+  Added the new ``fpga_lte_fec`` bbdev driver for the Intel® FPGA PAC
+  (Programmable  Acceleration Card) N3000.  See the
+  :doc:`../bbdevs/fpga_lte_fec` BBDEV guide for more details on this new driver.
+
+* **Updated TURBO_SW bbdev PMD.**
+
+  Updated the ``turbo_sw`` bbdev driver with changes including:
+
+  * Added option to build the driver with or without dependency of external
+    SDK libraries.
+  * Added support for 5GNR encode/decode operations.
+
+* **Updated test-compress-perf tool application.**
+
+  Added multiple cores feature to compression perf tool application.
+
 
 Removed Items
 -------------
@@ -254,6 +277,10 @@ API Changes
   offload irrespective of the platform capability. Cleared IP checksum H/W
   offload flag from the library. The application must set this flag if it is
   supported by the platform and application wishes to use it.
+
+* cryptodev: the ``uint8_t *data`` member of ``key`` structure in the xforms
+  structure (``rte_crypto_cipher_xform``, ``rte_crypto_auth_xform``, and
+  ``rte_crypto_aead_xform``) have been changed to ``const uint8_t *data``.
 
 
 ABI Changes
