@@ -191,6 +191,22 @@ New Features
   Added telemetry mode to l3fwd-power application to report
   application level busyness, empty and full polls of rte_eth_rx_burst().
 
+* **Added Marvell OCTEON TX2 drivers.**
+
+  Added the new ``ethdev``, ``eventdev``, ``mempool``, ``eventdev Rx adapter``,
+  ``eventdev Tx adapter``, ``eventdev Timer adapter`` and ``rawdev DMA``
+  drivers for various HW coprocessors available in ``OCTEON TX2`` SoC.
+
+  See :doc:`../platform/octeontx2` for OCTEON TX2 platform information.
+
+  See :doc:`../nics/octeontx2` for NIX ethdev driver information.
+
+  See :doc:`../mempool/octeontx2` for NPA mempool driver information.
+
+  See :doc:`../eventdevs/octeontx2` for SSO event device driver information.
+
+  See :doc:`../rawdevs/octeontx2_dma` for DMA driver information.
+
 
 Removed Items
 -------------
