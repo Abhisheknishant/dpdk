@@ -975,6 +975,10 @@ struct i40e_pf {
 	struct i40e_customized_pctype customized_pctype[I40E_CUSTOMIZED_MAX];
 	/* Switch Domain Id */
 	uint16_t switch_domain_id;
+	bool switch_ethdev_support_flag;
+	/* flag indicating if switch mode is required like other devargs */
+	struct rte_eth_dev *switch_ethdev;
+	/* point to switch_ethdev specific by "switch_mode" in devargs */
 };
 
 enum pending_msg {
