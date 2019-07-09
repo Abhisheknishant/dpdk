@@ -1589,6 +1589,10 @@ eth_igb_close(struct rte_eth_dev *dev)
 	eth_igb_stop(dev);
 	adapter->stopped = 1;
 
+	/* Flush desc rings for i219 */
+	if (hw->mac.type >= e1000_pch_spt)
+		igb_flush_desc_rings(dev);
+
 	e1000_phy_hw_reset(hw);
 	igb_release_manageability(hw);
 	igb_hw_control_release(hw);
