@@ -109,6 +109,16 @@ __rte_experimental
 void
 rte_mcfg_timer_unlock(void);
 
+/**
+ * @warning
+ * @b EXPERIMENTAL: this API may change without prior notice
+ *
+ * Get the single_file_segments parameter value from memory configuration.
+ */
+__rte_experimental
+uint32_t
+rte_mcfg_get_single_file_segments(void);
+
 #ifdef __cplusplus
 }
 #endif

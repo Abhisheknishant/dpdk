@@ -171,6 +171,35 @@ Files
 - net/memif/memif.h *- descriptor and ring definitions*
 - net/memif/rte_eth_memif.c *- eth_memif_rx() eth_memif_tx()*
 
+Zero-copy slave
+~~~~~~~~~~~~~~~
+
+**Shared memory format**
+
+Region 0 is created by memif driver and contains rings. Slave interface exposes DPDK memory (memseg).
+Instead of using memfd_create() to create new shared file, existing memsegs are used.
+Master interface functions the same as with zero-copy disabled.
+
+region 0:
+
++-----------------------+
+| Rings                 |
++-----------+-----------+
+| S2M rings | M2S rings |
++-----------+-----------+
+
+region n:
+
++-----------------+
+| Buffers         |
++-----------------+
+|memseg           |
++-----------------+
+
+Buffers are dequeued and enqueued as needed. Offset descriptor field is calculated at tx.
+Only single file segments mode (EAL option --single-file-segments) is supported, as calculating
+offset from multiple segments is too expensive.
+
 Example: testpmd
 ----------------------------
 In this example we run two instances of testpmd application and transmit packets over memif.

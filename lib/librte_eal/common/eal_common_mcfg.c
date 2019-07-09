@@ -161,3 +161,10 @@ rte_mcfg_timer_unlock(void)
 	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
 	rte_spinlock_unlock(&mcfg->tlock);
 }
+
+uint32_t
+rte_mcfg_get_single_file_segments(void)
+{
+	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
+	return mcfg->single_file_segments;
+}
