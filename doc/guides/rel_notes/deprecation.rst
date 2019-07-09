@@ -11,6 +11,11 @@ API and ABI deprecation notices are to be posted here.
 Deprecation Notices
 -------------------
 
+* net: The alignment of the ethernet address structure in DPDK,
+  ``rte_ether_addr`` will be increased to two, i.e. 16-bit aligned, in the
+  19.11 release. This will only affect any data structures where an ethernet
+  address is currently aligned on a single byte boundary.
+
 * meson: The minimum supported version of meson for configuring and building
   DPDK will be increased to v0.47.1 (from 0.41) from DPDK 19.05 onwards. For
   those users with a version earlier than 0.47.1, an updated copy of meson
