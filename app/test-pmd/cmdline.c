@@ -760,6 +760,12 @@ static void cmd_help_long_parsed(void *parsed_result,
 			" eth-src (eth-src) eth-dst (eth-dst)\n"
 			"       Configure the NVGRE encapsulation for flows.\n\n"
 
+			"raw_encap {flow items}"
+			"	Configure the encapsulation with raw data.\n\n"
+
+			"raw_decap {flow items}"
+			"	Configure the decapsulation with raw data.\n\n"
+
 			, list_pkt_forwarding_modes()
 		);
 	}
@@ -18998,6 +19004,7 @@ cmdline_parse_ctx_t main_ctx[] = {
 #endif
 	(cmdline_parse_inst_t *)&cmd_config_tx_metadata_specific,
 	(cmdline_parse_inst_t *)&cmd_show_tx_metadata,
+	(cmdline_parse_inst_t *)&cmd_set_raw,
 	NULL,
 };
 
