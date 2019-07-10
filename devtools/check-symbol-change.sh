@@ -11,19 +11,32 @@ build_map_changes()
 		# Initialize our variables
 		BEGIN {map="";sym="";ar="";sec=""; in_sec=0; in_map=0}
 
-		# Anything that starts with + or -, followed by an a
+		# Anything that starts with + or -, followed by an a or b
 		# and ends in the string .map is the name of our map file
 		# This may appear multiple times in a patch if multiple
 		# map files are altered, and all section/symbol names
 		# appearing between a triggering of this rule and the
 		# next trigger of this rule are associated with this file
-		/[-+] a\/.*\.map/ {map=$2; in_map=1}
 
 		# Same pattern as above, only it matches on anything that
-		# does not end in 'map', indicating we have left the map chunk.
+		# does not end in "map", indicating we have left the map chunk.
 		# When we hit this, turn off the in_map variable, which
 		# supresses the subordonate rules below
-		/[-+] a\/.*\.[^map]/ {in_map=0}
+		# Currently, using the same pattern for all the files matching,
+		# and a second RE matching is used to distinguish map files from
+		# other types of files
+		/[-+] [ab]\/.*\.[[:alnum:]]+$/ {
+			if ($2 ~ /\.map$/) {
+				if (in_map == 0) {in_map = 1}
+			} else {
+				if (in_map == 1) {in_map = 0}
+			}
+		}
+
+		# Indeed, this RE matching has no use. The only purpose here
+		# is to remind that the git will have a third file pattern
+		# "-+ /dev/null" besides "-a /" and "+b /"
+		/[-+] \/dev\/null$/ {next}
 
 		# Triggering this rule, which starts a line and ends it
 		# with a { identifies a versioned section.  The section name is
