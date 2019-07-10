@@ -1641,6 +1641,7 @@ otx2_sso_init(struct rte_eventdev *event_dev)
 	struct free_rsrcs_rsp *rsrc_cnt;
 	struct rte_pci_device *pci_dev;
 	struct otx2_sso_evdev *dev;
+	uint8_t rev_id;
 	int rc;
 
 	event_dev->dev_ops = &otx2_sso_ops;
@@ -1653,9 +1654,14 @@ otx2_sso_init(struct rte_eventdev *event_dev)
 	dev = sso_pmd_priv(event_dev);
 
 	pci_dev = container_of(event_dev->dev, struct rte_pci_device, device);
+	rc = rte_pci_read_config(pci_dev, &rev_id, 1, RVU_PCI_REVISION_ID);
+	if (rc != 1) {
+		otx2_err("Failed to read pci revision id, rc=%d", rc);
+		goto error;
+	}
 
 	/* Initialize the base otx2_dev object */
-	rc = otx2_dev_init(pci_dev, dev);
+	rc = otx2_dev_init(pci_dev, dev, rev_id);
 	if (rc < 0) {
 		otx2_err("Failed to initialize otx2_dev rc=%d", rc);
 		goto error;

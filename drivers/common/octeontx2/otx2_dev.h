@@ -13,14 +13,18 @@
 #include "otx2_mempool.h"
 
 /* Common HWCAP flags. Use from LSB bits */
-#define OTX2_HWCAP_F_VF		BIT_ULL(0) /* VF device */
+#define OTX2_HWCAP_F_VF		BIT_ULL(8) /* VF device */
 #define otx2_dev_is_vf(dev)	(dev->hwcap & OTX2_HWCAP_F_VF)
 #define otx2_dev_is_pf(dev)	(!(dev->hwcap & OTX2_HWCAP_F_VF))
 #define otx2_dev_is_lbk(dev)	((dev->hwcap & OTX2_HWCAP_F_VF) && \
 				 (dev->tx_chan_base < 0x700))
+#define otx2_dev_revid(dev)	(dev->hwcap & 0xFF)
 
-#define OTX2_HWCAP_F_A0		BIT_ULL(1) /* A0 device */
-#define otx2_dev_is_A0(dev)	(dev->hwcap & OTX2_HWCAP_F_A0)
+#define otx2_dev_is_A0(dev)					\
+	((RVU_PCI_REV_MAJOR(otx2_dev_revid(dev)) == 0x0) &&	\
+	 (RVU_PCI_REV_MINOR(otx2_dev_revid(dev)) == 0x0))
+#define otx2_dev_is_Ax(dev)					\
+	((RVU_PCI_REV_MAJOR(otx2_dev_revid(dev)) == 0x0))
 
 struct otx2_dev;
 
@@ -61,7 +65,8 @@ struct otx2_dev {
 	OTX2_DEV;
 };
 
-int otx2_dev_init(struct rte_pci_device *pci_dev, void *otx2_dev);
+int otx2_dev_init(struct rte_pci_device *pci_dev,
+		  void *otx2_dev, uint8_t rev_id);
 void otx2_dev_fini(struct rte_pci_device *pci_dev, void *otx2_dev);
 int otx2_dev_active_vfs(void *otx2_dev);
 

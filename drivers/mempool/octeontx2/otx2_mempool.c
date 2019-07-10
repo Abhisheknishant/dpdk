@@ -344,6 +344,7 @@ otx2_npa_init(struct rte_pci_device *pci_dev)
 	const struct rte_memzone *mz;
 	struct otx2_dev *dev;
 	int rc = -ENOMEM;
+	uint8_t rev_id;
 
 	mz = rte_memzone_reserve_aligned(otx2_npa_dev_to_name(pci_dev, name),
 					 sizeof(*dev), SOCKET_ID_ANY,
@@ -353,8 +354,14 @@ otx2_npa_init(struct rte_pci_device *pci_dev)
 
 	dev = mz->addr;
 
+	rc = rte_pci_read_config(pci_dev, &rev_id, 1, RVU_PCI_REVISION_ID);
+	if (rc != 1) {
+		otx2_err("Failed to read pci revision id, rc=%d", rc);
+		goto malloc_fail;
+	}
+
 	/* Initialize the base otx2_dev object */
-	rc = otx2_dev_init(pci_dev, dev);
+	rc = otx2_dev_init(pci_dev, dev, rev_id);
 	if (rc)
 		goto malloc_fail;
 

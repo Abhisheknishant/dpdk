@@ -1235,7 +1235,7 @@ otx2_nix_configure(struct rte_eth_dev *eth_dev)
 		nix_lf_free(dev);
 	}
 
-	if (otx2_dev_is_A0(dev) &&
+	if (otx2_dev_is_Ax(dev) &&
 	    (txmode->offloads & DEV_TX_OFFLOAD_SCTP_CKSUM) &&
 	    ((txmode->offloads & DEV_TX_OFFLOAD_OUTER_IPV4_CKSUM) ||
 	    (txmode->offloads & DEV_TX_OFFLOAD_OUTER_UDP_CKSUM))) {
@@ -1681,6 +1681,7 @@ otx2_eth_dev_init(struct rte_eth_dev *eth_dev)
 	struct otx2_eth_dev *dev = otx2_eth_pmd_priv(eth_dev);
 	struct rte_pci_device *pci_dev;
 	int rc, max_entries;
+	uint8_t rev_id;
 
 	eth_dev->dev_ops = &otx2_eth_dev_ops;
 
@@ -1709,10 +1710,17 @@ otx2_eth_dev_init(struct rte_eth_dev *eth_dev)
 	}
 
 	if (!dev->mbox_active) {
+		rc = rte_pci_read_config(pci_dev, &rev_id,
+					 1, RVU_PCI_REVISION_ID);
+		if (rc != 1) {
+			otx2_err("Failed to read pci revision id, rc=%d", rc);
+			goto error;
+		}
+
 		/* Initialize the base otx2_dev object
 		 * only if already present
 		 */
-		rc = otx2_dev_init(pci_dev, dev);
+		rc = otx2_dev_init(pci_dev, dev, rev_id);
 		if (rc) {
 			otx2_err("Failed to initialize otx2_dev rc=%d", rc);
 			goto error;
@@ -1787,7 +1795,7 @@ otx2_eth_dev_init(struct rte_eth_dev *eth_dev)
 	dev->tx_offload_capa = nix_get_tx_offload_capa(dev);
 	dev->rx_offload_capa = nix_get_rx_offload_capa(dev);
 
-	if (otx2_dev_is_A0(dev)) {
+	if (otx2_dev_is_Ax(dev)) {
 		dev->hwcap |= OTX2_FIXUP_F_MIN_4K_Q;
 		dev->hwcap |= OTX2_FIXUP_F_LIMIT_CQ_FULL;
 	}

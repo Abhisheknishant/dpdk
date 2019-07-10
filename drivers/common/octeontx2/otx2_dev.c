@@ -876,12 +876,14 @@ otx2_dev_active_vfs(void *otx2_dev)
 }
 
 static void
-otx2_update_pass_hwcap(struct rte_pci_device *pci_dev, struct otx2_dev *dev)
+otx2_update_pass_hwcap(struct rte_pci_device *pci_dev,
+		       struct otx2_dev *dev, uint8_t rev_id)
 {
-	RTE_SET_USED(pci_dev);
+	if (pci_dev->id.subsystem_device_id != PCI_SUBSYS_DEVID_96XX_95XX)
+		return;
 
-	/* Update this logic when we have A1 */
-	dev->hwcap |= OTX2_HWCAP_F_A0;
+	/* LSB contains rev_id */
+	dev->hwcap |= (uint64_t)rev_id;
 }
 
 static void
@@ -907,7 +909,8 @@ otx2_update_vf_hwcap(struct rte_pci_device *pci_dev, struct otx2_dev *dev)
  * Initialize the otx2 device
  */
 int
-otx2_dev_init(struct rte_pci_device *pci_dev, void *otx2_dev)
+otx2_dev_init(struct rte_pci_device *pci_dev,
+	      void *otx2_dev, uint8_t rev_id)
 {
 	int up_direction = MBOX_DIR_PFAF_UP;
 	int rc, direction = MBOX_DIR_PFAF;
@@ -931,7 +934,7 @@ otx2_dev_init(struct rte_pci_device *pci_dev, void *otx2_dev)
 	dev->bar4 = bar4;
 
 	otx2_update_vf_hwcap(pci_dev, dev);
-	otx2_update_pass_hwcap(pci_dev, dev);
+	otx2_update_pass_hwcap(pci_dev, dev, rev_id);
 
 	if (otx2_dev_is_vf(dev)) {
 		direction = MBOX_DIR_VFPF;
