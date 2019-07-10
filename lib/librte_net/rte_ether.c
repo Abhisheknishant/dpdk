@@ -45,7 +45,8 @@ rte_ether_unformat_addr(const char *s, struct rte_ether_addr *ea)
 	if (n == 6) {
 		/* Standard format XX:XX:XX:XX:XX:XX */
 		if (o0 > UINT8_MAX || o1 > UINT8_MAX || o2 > UINT8_MAX ||
-		    o3 > UINT8_MAX || o4 > UINT8_MAX || o5 > UINT8_MAX) {
+		    o3 > UINT8_MAX || o4 > UINT8_MAX || o5 > UINT8_MAX ||
+		    strlen(s) != RTE_ETHER_ADDR_FMT_SIZE - 1) {
 			rte_errno = ERANGE;
 			return -1;
 		}
@@ -58,7 +59,8 @@ rte_ether_unformat_addr(const char *s, struct rte_ether_addr *ea)
 		ea->addr_bytes[5] = o5;
 	} else if (n == 3) {
 		/* Support the format XXXX:XXXX:XXXX */
-		if (o0 > UINT16_MAX || o1 > UINT16_MAX || o2 > UINT16_MAX) {
+		if (o0 > UINT16_MAX || o1 > UINT16_MAX || o2 > UINT16_MAX ||
+		    strlen(s) != RTE_ETHER_ADDR_FMT_SIZE - 4) {
 			rte_errno = ERANGE;
 			return -1;
 		}
