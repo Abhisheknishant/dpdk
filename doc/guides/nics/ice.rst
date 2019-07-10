@@ -49,6 +49,16 @@ Please note that enabling debugging options may affect system performance.
 Runtime Config Options
 ~~~~~~~~~~~~~~~~~~~~~~
 
+- ``Safe Mode Support`` (default ``0``)
+
+  If driver failed to load OS package, by default driver's initialization failed.
+  But if user intend to use the device in safe mode, user can use ``devargs``
+  parameter ``safe-mode-support``. For example::
+
+    -w 80:00.0,safe-mode-support=1
+
+  NOTE: In Safe mode, only very limited features are available, features like RSS,
+  checksum, fdir, tunneling ... are all disabled.
 
 Driver compilation and testing
 ------------------------------
