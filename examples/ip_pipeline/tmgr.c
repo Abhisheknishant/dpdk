@@ -105,7 +105,7 @@ tmgr_port_create(const char *name, struct tmgr_port_params *params)
 	p.n_subports_per_port = params->n_subports_per_port;
 	p.n_pipes_per_subport = params->n_pipes_per_subport;
 
-	for (i = 0; i < RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE; i++)
+	for (i = 0; i < RTE_SCHED_QUEUES_PER_PIPE; i++)
 		p.qsize[i] = params->qsize[i];
 
 	p.pipe_profiles = pipe_profile;
