@@ -513,6 +513,17 @@ details please refer to :doc:`../testpmd_app_ug/index`.
    testpmd> set port (port_id) queue-region flush (on|off)
    testpmd> show port (port_id) queue-region
 
+Switch Mode
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The Intel® Ethernet 700 Series can be component of IPN3KE device, in which the
+Intel® Ethernet 700 Series is connected to other pci device. This pci device
+works as switch device via which the Intel® Ethernet 700 Series get link status
+from. For example: the Intel® Ethernet 700 Series 0000:b1:00.0 is connected to
+an IPN3KE device whose BDF is b3:00.0. In this case 0000:b1:00.0 use representor
+0 on b3:00.0.
+
+   ./x86_64-native-linuxapp-gcc/app/testpmd -c 0x3 -n 4 -w 0000:b1:00.0,switch_mode=IPN3KE_0@b3:00.0_0
+
 Limitations or Known issues
 ---------------------------
 
