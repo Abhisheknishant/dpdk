@@ -1555,7 +1555,6 @@ fwd_stats_display(void)
 		total_recv += stats.ipackets;
 		total_xmit += stats.opackets;
 		total_rx_dropped += stats.imissed;
-		total_tx_dropped += ports_stats[pt_id].tx_dropped;
 		total_tx_dropped += stats.oerrors;
 		total_rx_nombuf  += stats.rx_nombuf;
 
