@@ -1250,12 +1250,46 @@ test_file_prefix(void)
 	return 0;
 }
 
+static void
+populate_socket_mem_param(int num_sockets, const char *mem,
+			 char *buf, size_t buf_size)
+{
+	char tmp[SOCKET_MEM_STRLEN];
+	int i;
+
+	snprintf(buf, SOCKET_MEM_STRLEN, "--socket-mem=");
+
+	for (i = 0; i < num_sockets ; i++) {
+		snprintf(tmp, sizeof(tmp), "%s%s", buf, mem);
+		strlcpy(buf, tmp, buf_size);
+
+		if (num_sockets + 1 - i > 1) {
+			snprintf(tmp, sizeof(tmp), "%s,", buf);
+			strlcpy(buf, tmp, buf_size);
+		}
+	}
+}
+
 /*
  * Tests for correct handling of -m and --socket-mem flags
  */
 static int
 test_memory_flags(void)
 {
+	char buf[SOCKET_MEM_STRLEN]; /* to avoid copying string onto itself */
+
+#ifdef RTE_EXEC_ENV_FREEBSD
+	int num_sockets = 1;
+#else
+	int num_sockets = RTE_MIN(get_number_of_sockets(),
+			RTE_MAX_NUMA_NODES);
+#endif
+
+	if (num_sockets <= 0) {
+		printf("Error - cannot get number of sockets!\n");
+		return -1;
+	}
+
 #ifdef RTE_EXEC_ENV_FREEBSD
 	/* BSD target doesn't support prefixes at this point */
 	const char * prefix = "";
@@ -1277,84 +1311,71 @@ test_memory_flags(void)
 			"--file-prefix=" memtest, "-m", DEFAULT_MEM_SIZE};
 
 	/* valid (zero) --socket-mem flag */
+	char arg2_socket_mem[SOCKET_MEM_STRLEN];
+	populate_socket_mem_param(num_sockets - 1, "0", buf, sizeof(buf));
+	snprintf(arg2_socket_mem, sizeof(arg2_socket_mem), "%s%s", buf, "0");
 	const char *argv2[] = {prgname,
-			"--file-prefix=" memtest, "--socket-mem=0,0,0,0"};
+			"--file-prefix=" memtest, arg2_socket_mem};
 
 	/* invalid (incomplete) --socket-mem flag */
+	char arg3_socket_mem[SOCKET_MEM_STRLEN];
+	populate_socket_mem_param(num_sockets - 1, "2", buf, sizeof(buf));
+	snprintf(arg3_socket_mem, sizeof(arg3_socket_mem), "%s%s", buf, "2,");
 	const char *argv3[] = {prgname,
-			"--file-prefix=" memtest, "--socket-mem=2,2,"};
+			"--file-prefix=" memtest, arg3_socket_mem};
 
 	/* invalid (mixed with invalid data) --socket-mem flag */
+	char arg4_socket_mem[SOCKET_MEM_STRLEN];
+	populate_socket_mem_param(num_sockets - 1, "2", buf, sizeof(buf));
+	snprintf(arg4_socket_mem, sizeof(arg4_socket_mem), "%s%s", buf, "Fred");
 	const char *argv4[] = {prgname,
-			"--file-prefix=" memtest, "--socket-mem=2,2,Fred"};
+			"--file-prefix=" memtest, arg4_socket_mem};
 
 	/* invalid (with numeric value as last character) --socket-mem flag */
+	char arg5_socket_mem[SOCKET_MEM_STRLEN];
+	populate_socket_mem_param(num_sockets - 1, "2", buf, sizeof(buf));
+	snprintf(arg5_socket_mem, sizeof(arg5_socket_mem),
+		"%s%s", buf, "Fred0");
 	const char *argv5[] = {prgname,
-			"--file-prefix=" memtest, "--socket-mem=2,2,Fred0"};
+			"--file-prefix=" memtest, arg5_socket_mem};
 
 	/* invalid (with empty socket) --socket-mem flag */
+	char arg6_socket_mem[SOCKET_MEM_STRLEN];
+	populate_socket_mem_param(num_sockets - 1, "2", buf, sizeof(buf));
+	snprintf(arg6_socket_mem, sizeof(arg6_socket_mem), "%s%s", buf, ",,");
 	const char *argv6[] = {prgname,
-			"--file-prefix=" memtest, "--socket-mem=2,,2"};
+			"--file-prefix=" memtest, arg6_socket_mem};
 
 	/* invalid (null) --socket-mem flag */
 	const char *argv7[] = {prgname,
 			"--file-prefix=" memtest, "--socket-mem="};
 
 	/* valid --socket-mem specified together with -m flag */
+	char arg8_socket_mem[SOCKET_MEM_STRLEN];
+	populate_socket_mem_param(num_sockets - 1, "2", buf, sizeof(buf));
+	snprintf(arg8_socket_mem, sizeof(arg8_socket_mem), "%s%s", buf, "2");
 	const char *argv8[] = {prgname,
-			"--file-prefix=" memtest, "-m", DEFAULT_MEM_SIZE, "--socket-mem=2,2"};
+			"--file-prefix=" memtest, "-m",
+			DEFAULT_MEM_SIZE, arg8_socket_mem};
 
 	/* construct an invalid socket mask with 2 megs on each socket plus
 	 * extra 2 megs on socket that doesn't exist on current system */
 	char invalid_socket_mem[SOCKET_MEM_STRLEN];
-	char buf[SOCKET_MEM_STRLEN];	/* to avoid copying string onto itself */
-
-#ifdef RTE_EXEC_ENV_FREEBSD
-	int i, num_sockets = 1;
-#else
-	int i, num_sockets = RTE_MIN(get_number_of_sockets(),
-			RTE_MAX_NUMA_NODES);
-#endif
-
-	if (num_sockets <= 0) {
-		printf("Error - cannot get number of sockets!\n");
-		return -1;
-	}
-
-	snprintf(invalid_socket_mem, sizeof(invalid_socket_mem), "--socket-mem=");
-
-	/* add one extra socket */
-	for (i = 0; i < num_sockets + 1; i++) {
-		snprintf(buf, sizeof(buf), "%s%s", invalid_socket_mem, DEFAULT_MEM_SIZE);
-		strlcpy(invalid_socket_mem, buf, sizeof(invalid_socket_mem));
-
-		if (num_sockets + 1 - i > 1) {
-			snprintf(buf, sizeof(buf), "%s,", invalid_socket_mem);
-			strlcpy(invalid_socket_mem, buf,
-				sizeof(invalid_socket_mem));
-		}
-	}
-
-	/* construct a valid socket mask with 2 megs on each existing socket */
-	char valid_socket_mem[SOCKET_MEM_STRLEN];
-
-	snprintf(valid_socket_mem, sizeof(valid_socket_mem), "--socket-mem=");
-
-	/* add one extra socket */
-	for (i = 0; i < num_sockets; i++) {
-		snprintf(buf, sizeof(buf), "%s%s", valid_socket_mem, DEFAULT_MEM_SIZE);
-		strlcpy(valid_socket_mem, buf, sizeof(valid_socket_mem));
-
-		if (num_sockets - i > 1) {
-			snprintf(buf, sizeof(buf), "%s,", valid_socket_mem);
-			strlcpy(valid_socket_mem, buf,
-				sizeof(valid_socket_mem));
-		}
-	}
+	populate_socket_mem_param(num_sockets, DEFAULT_MEM_SIZE,
+				 buf, sizeof(buf));
+	snprintf(invalid_socket_mem, sizeof(invalid_socket_mem),
+		"%s%s", buf, DEFAULT_MEM_SIZE);
 
 	/* invalid --socket-mem flag (with extra socket) */
 	const char *argv9[] = {prgname,
 			"--file-prefix=" memtest, invalid_socket_mem};
+
+	/* construct a valid socket mask with 2 megs on each existing socket */
+	char valid_socket_mem[SOCKET_MEM_STRLEN];
+	populate_socket_mem_param(num_sockets - 1, DEFAULT_MEM_SIZE,
+				 buf, sizeof(buf));
+	snprintf(valid_socket_mem, sizeof(valid_socket_mem),
+		"%s%s", buf, DEFAULT_MEM_SIZE);
 
 	/* valid --socket-mem flag */
 	const char *argv10[] = {prgname,
