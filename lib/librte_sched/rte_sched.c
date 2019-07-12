@@ -37,6 +37,8 @@
 
 #define RTE_SCHED_TB_RATE_CONFIG_ERR          (1e-7)
 #define RTE_SCHED_WRR_SHIFT                   3
+#define RTE_SCHED_TRAFFIC_CLASS_BE            (RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE - 1)
+#define RTE_SCHED_MAX_QUEUES_PER_TC           RTE_SCHED_BE_QUEUES_PER_PIPE
 #define RTE_SCHED_GRINDER_PCACHE_SIZE         (64 / RTE_SCHED_QUEUES_PER_PIPE)
 #define RTE_SCHED_PIPE_INVALID                UINT32_MAX
 #define RTE_SCHED_BMP_POS_INVALID             UINT32_MAX
@@ -84,8 +86,9 @@ struct rte_sched_pipe_profile {
 	uint32_t tc_credits_per_period[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
 	uint8_t tc_ov_weight;
 
-	/* Pipe queues */
-	uint8_t  wrr_cost[RTE_SCHED_QUEUES_PER_PIPE];
+	/* Pipe best-effort traffic class queues */
+	uint8_t n_be_queues;
+	uint8_t  wrr_cost[RTE_SCHED_BE_QUEUES_PER_PIPE];
 };
 
 struct rte_sched_pipe {
@@ -100,8 +103,10 @@ struct rte_sched_pipe {
 	uint64_t tc_time; /* time of next update */
 	uint32_t tc_credits[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
 
+	uint8_t n_be_queues; /* Best effort traffic class queues */
+
 	/* Weighted Round Robin (WRR) */
-	uint8_t wrr_tokens[RTE_SCHED_QUEUES_PER_PIPE];
+	uint8_t wrr_tokens[RTE_SCHED_BE_QUEUES_PER_PIPE];
 
 	/* TC oversubscription */
 	uint32_t tc_ov_credits;
@@ -153,16 +158,16 @@ struct rte_sched_grinder {
 	uint32_t tc_index;
 	struct rte_sched_queue *queue[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
 	struct rte_mbuf **qbase[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-	uint32_t qindex[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-	uint16_t qsize;
+	uint32_t qindex[RTE_SCHED_MAX_QUEUES_PER_TC];
+	uint16_t qsize[RTE_SCHED_MAX_QUEUES_PER_TC];
 	uint32_t qmask;
 	uint32_t qpos;
 	struct rte_mbuf *pkt;
 
 	/* WRR */
-	uint16_t wrr_tokens[RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS];
-	uint16_t wrr_mask[RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS];
-	uint8_t wrr_cost[RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS];
+	uint16_t wrr_tokens[RTE_SCHED_BE_QUEUES_PER_PIPE];
+	uint16_t wrr_mask[RTE_SCHED_BE_QUEUES_PER_PIPE];
+	uint8_t wrr_cost[RTE_SCHED_BE_QUEUES_PER_PIPE];
 };
 
 struct rte_sched_port {
@@ -301,7 +306,6 @@ pipe_profile_check(struct rte_sched_pipe_params *params,
 		if (params->wrr_weights[i] == 0)
 			return -16;
 	}
-
 	return 0;
 }
 
@@ -483,7 +487,7 @@ rte_sched_port_log_pipe_profile(struct rte_sched_port *port, uint32_t i)
 		"    Token bucket: period = %u, credits per period = %u, size = %u\n"
 		"    Traffic classes: period = %u, credits per period = [%u, %u, %u, %u]\n"
 		"    Traffic class 3 oversubscription: weight = %hhu\n"
-		"    WRR cost: [%hhu, %hhu, %hhu, %hhu], [%hhu, %hhu, %hhu, %hhu], [%hhu, %hhu, %hhu, %hhu], [%hhu, %hhu, %hhu, %hhu]\n",
+		"    WRR cost: [%hhu, %hhu, %hhu, %hhu]\n",
 		i,
 
 		/* Token bucket */
@@ -502,10 +506,7 @@ rte_sched_port_log_pipe_profile(struct rte_sched_port *port, uint32_t i)
 		p->tc_ov_weight,
 
 		/* WRR */
-		p->wrr_cost[ 0], p->wrr_cost[ 1], p->wrr_cost[ 2], p->wrr_cost[ 3],
-		p->wrr_cost[ 4], p->wrr_cost[ 5], p->wrr_cost[ 6], p->wrr_cost[ 7],
-		p->wrr_cost[ 8], p->wrr_cost[ 9], p->wrr_cost[10], p->wrr_cost[11],
-		p->wrr_cost[12], p->wrr_cost[13], p->wrr_cost[14], p->wrr_cost[15]);
+		p->wrr_cost[0], p->wrr_cost[1], p->wrr_cost[2], p->wrr_cost[3]);
 }
 
 static inline uint64_t
@@ -519,10 +520,12 @@ rte_sched_time_ms_to_bytes(uint32_t time_ms, uint32_t rate)
 }
 
 static void
-rte_sched_pipe_profile_convert(struct rte_sched_pipe_params *src,
+rte_sched_pipe_profile_convert(struct rte_sched_port *port,
+	struct rte_sched_pipe_params *src,
 	struct rte_sched_pipe_profile *dst,
 	uint32_t rate)
 {
+	uint32_t wrr_cost[RTE_SCHED_BE_QUEUES_PER_PIPE];
 	uint32_t i;
 
 	/* Token Bucket */
@@ -553,18 +556,36 @@ rte_sched_pipe_profile_convert(struct rte_sched_pipe_params *src,
 	dst->tc_ov_weight = src->tc_ov_weight;
 #endif
 
-	/* WRR */
-	for (i = 0; i < RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE; i++) {
-		uint32_t wrr_cost[RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS];
-		uint32_t lcd, lcd1, lcd2;
-		uint32_t qindex;
+	/* WRR queues */
+	for (i = 0; i < RTE_SCHED_BE_QUEUES_PER_PIPE; i++)
+		if (port->qsize[i])
+			dst->n_be_queues++;
 
-		qindex = i * RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS;
+	if (dst->n_be_queues == 1)
+		dst->wrr_cost[0] = src->wrr_weights[0];
 
-		wrr_cost[0] = src->wrr_weights[qindex];
-		wrr_cost[1] = src->wrr_weights[qindex + 1];
-		wrr_cost[2] = src->wrr_weights[qindex + 2];
-		wrr_cost[3] = src->wrr_weights[qindex + 3];
+	if (dst->n_be_queues == 2) {
+		uint32_t lcd;
+
+		wrr_cost[0] = src->wrr_weights[0];
+		wrr_cost[1] = src->wrr_weights[1];
+
+		lcd = rte_get_lcd(wrr_cost[0], wrr_cost[1]);
+
+		wrr_cost[0] = lcd / wrr_cost[0];
+		wrr_cost[1] = lcd / wrr_cost[1];
+
+		dst->wrr_cost[0] = (uint8_t) wrr_cost[0];
+		dst->wrr_cost[1] = (uint8_t) wrr_cost[1];
+	}
+
+	if (dst->n_be_queues == 4) {
+		uint32_t lcd1, lcd2, lcd;
+
+		wrr_cost[0] = src->wrr_weights[0];
+		wrr_cost[1] = src->wrr_weights[1];
+		wrr_cost[2] = src->wrr_weights[2];
+		wrr_cost[3] = src->wrr_weights[3];
 
 		lcd1 = rte_get_lcd(wrr_cost[0], wrr_cost[1]);
 		lcd2 = rte_get_lcd(wrr_cost[2], wrr_cost[3]);
@@ -575,10 +596,10 @@ rte_sched_pipe_profile_convert(struct rte_sched_pipe_params *src,
 		wrr_cost[2] = lcd / wrr_cost[2];
 		wrr_cost[3] = lcd / wrr_cost[3];
 
-		dst->wrr_cost[qindex] = (uint8_t) wrr_cost[0];
-		dst->wrr_cost[qindex + 1] = (uint8_t) wrr_cost[1];
-		dst->wrr_cost[qindex + 2] = (uint8_t) wrr_cost[2];
-		dst->wrr_cost[qindex + 3] = (uint8_t) wrr_cost[3];
+		dst->wrr_cost[0] = (uint8_t) wrr_cost[0];
+		dst->wrr_cost[1] = (uint8_t) wrr_cost[1];
+		dst->wrr_cost[2] = (uint8_t) wrr_cost[2];
+		dst->wrr_cost[3] = (uint8_t) wrr_cost[3];
 	}
 }
 
@@ -592,7 +613,7 @@ rte_sched_port_config_pipe_profile_table(struct rte_sched_port *port,
 		struct rte_sched_pipe_params *src = params->pipe_profiles + i;
 		struct rte_sched_pipe_profile *dst = port->pipe_profiles + i;
 
-		rte_sched_pipe_profile_convert(src, dst, params->rate);
+		rte_sched_pipe_profile_convert(port, src, dst, params->rate);
 		rte_sched_port_log_pipe_profile(port, i);
 	}
 
@@ -976,7 +997,7 @@ rte_sched_port_pipe_profile_add(struct rte_sched_port *port,
 		return status;
 
 	pp = &port->pipe_profiles[port->n_pipe_profiles];
-	rte_sched_pipe_profile_convert(params, pp, port->rate);
+	rte_sched_pipe_profile_convert(port, params, pp, port->rate);
 
 	/* Pipe profile not exists */
 	for (i = 0; i < port->n_pipe_profiles; i++)
@@ -1715,6 +1736,7 @@ grinder_schedule(struct rte_sched_port *port, uint32_t pos)
 	struct rte_sched_queue *queue = grinder->queue[grinder->qpos];
 	struct rte_mbuf *pkt = grinder->pkt;
 	uint32_t pkt_len = pkt->pkt_len + port->frame_overhead;
+	int be_tc_active;
 
 	if (!grinder_credits_check(port, pos))
 		return 0;
@@ -1725,13 +1747,18 @@ grinder_schedule(struct rte_sched_port *port, uint32_t pos)
 	/* Send packet */
 	port->pkts_out[port->n_pkts_out++] = pkt;
 	queue->qr++;
-	grinder->wrr_tokens[grinder->qpos] += pkt_len * grinder->wrr_cost[grinder->qpos];
+
+	be_tc_active = (grinder->tc_index == RTE_SCHED_TRAFFIC_CLASS_BE);
+	grinder->wrr_tokens[grinder->qpos] +=
+		pkt_len * grinder->wrr_cost[grinder->qpos] * be_tc_active;
+
 	if (queue->qr == queue->qw) {
 		uint32_t qindex = grinder->qindex[grinder->qpos];
 
 		rte_bitmap_clear(port->bmp, qindex);
 		grinder->qmask &= ~(1 << grinder->qpos);
-		grinder->wrr_mask[grinder->qpos] = 0;
+		if (be_tc_active)
+			grinder->wrr_mask[grinder->qpos] = 0;
 		rte_sched_port_set_queue_empty_timestamp(port, qindex);
 	}
 
@@ -1877,7 +1904,7 @@ grinder_next_tc(struct rte_sched_port *port, uint32_t pos)
 
 	grinder->tc_index = (qindex >> 2) & 0x3;
 	grinder->qmask = grinder->tccache_qmask[grinder->tccache_r];
-	grinder->qsize = qsize;
+	grinder->qsize[grinder->tc_index] = qsize;
 
 	grinder->qindex[0] = qindex;
 	grinder->qindex[1] = qindex + 1;
@@ -1962,26 +1989,15 @@ grinder_wrr_load(struct rte_sched_port *port, uint32_t pos)
 	struct rte_sched_grinder *grinder = port->grinder + pos;
 	struct rte_sched_pipe *pipe = grinder->pipe;
 	struct rte_sched_pipe_profile *pipe_params = grinder->pipe_params;
-	uint32_t tc_index = grinder->tc_index;
 	uint32_t qmask = grinder->qmask;
-	uint32_t qindex;
+	uint32_t i;
 
-	qindex = tc_index * 4;
-
-	grinder->wrr_tokens[0] = ((uint16_t) pipe->wrr_tokens[qindex]) << RTE_SCHED_WRR_SHIFT;
-	grinder->wrr_tokens[1] = ((uint16_t) pipe->wrr_tokens[qindex + 1]) << RTE_SCHED_WRR_SHIFT;
-	grinder->wrr_tokens[2] = ((uint16_t) pipe->wrr_tokens[qindex + 2]) << RTE_SCHED_WRR_SHIFT;
-	grinder->wrr_tokens[3] = ((uint16_t) pipe->wrr_tokens[qindex + 3]) << RTE_SCHED_WRR_SHIFT;
-
-	grinder->wrr_mask[0] = (qmask & 0x1) * 0xFFFF;
-	grinder->wrr_mask[1] = ((qmask >> 1) & 0x1) * 0xFFFF;
-	grinder->wrr_mask[2] = ((qmask >> 2) & 0x1) * 0xFFFF;
-	grinder->wrr_mask[3] = ((qmask >> 3) & 0x1) * 0xFFFF;
-
-	grinder->wrr_cost[0] = pipe_params->wrr_cost[qindex];
-	grinder->wrr_cost[1] = pipe_params->wrr_cost[qindex + 1];
-	grinder->wrr_cost[2] = pipe_params->wrr_cost[qindex + 2];
-	grinder->wrr_cost[3] = pipe_params->wrr_cost[qindex + 3];
+	for (i = 0; i < pipe->n_be_queues; i++) {
+		grinder->wrr_tokens[i] =
+			((uint16_t) pipe->wrr_tokens[i]) << RTE_SCHED_WRR_SHIFT;
+		grinder->wrr_mask[i] = ((qmask >> i) & 0x1) * 0xFFFF;
+		grinder->wrr_cost[i] = pipe_params->wrr_cost[i];
+	}
 }
 
 static inline void
@@ -1989,19 +2005,12 @@ grinder_wrr_store(struct rte_sched_port *port, uint32_t pos)
 {
 	struct rte_sched_grinder *grinder = port->grinder + pos;
 	struct rte_sched_pipe *pipe = grinder->pipe;
-	uint32_t tc_index = grinder->tc_index;
-	uint32_t qindex;
+	uint32_t i;
 
-	qindex = tc_index * 4;
-
-	pipe->wrr_tokens[qindex] = (grinder->wrr_tokens[0] & grinder->wrr_mask[0])
-		>> RTE_SCHED_WRR_SHIFT;
-	pipe->wrr_tokens[qindex + 1] = (grinder->wrr_tokens[1] & grinder->wrr_mask[1])
-		>> RTE_SCHED_WRR_SHIFT;
-	pipe->wrr_tokens[qindex + 2] = (grinder->wrr_tokens[2] & grinder->wrr_mask[2])
-		>> RTE_SCHED_WRR_SHIFT;
-	pipe->wrr_tokens[qindex + 3] = (grinder->wrr_tokens[3] & grinder->wrr_mask[3])
-		>> RTE_SCHED_WRR_SHIFT;
+	for (i = 0; i < pipe->n_be_queues; i++)
+		pipe->wrr_tokens[i] =
+			(grinder->wrr_tokens[i] & grinder->wrr_mask[i]) >>
+				RTE_SCHED_WRR_SHIFT;
 }
 
 static inline void
@@ -2040,22 +2049,31 @@ static inline void
 grinder_prefetch_tc_queue_arrays(struct rte_sched_port *port, uint32_t pos)
 {
 	struct rte_sched_grinder *grinder = port->grinder + pos;
-	uint16_t qsize, qr[4];
+	struct rte_sched_pipe *pipe = grinder->pipe;
+	struct rte_sched_queue *queue;
+	uint32_t i;
+	uint16_t qsize, qr[RTE_SCHED_MAX_QUEUES_PER_TC];
 
-	qsize = grinder->qsize;
-	qr[0] = grinder->queue[0]->qr & (qsize - 1);
-	qr[1] = grinder->queue[1]->qr & (qsize - 1);
-	qr[2] = grinder->queue[2]->qr & (qsize - 1);
-	qr[3] = grinder->queue[3]->qr & (qsize - 1);
+	grinder->qpos = 0;
+	if (grinder->tc_index < RTE_SCHED_TRAFFIC_CLASS_BE) {
+		queue = grinder->queue[0];
+		qsize = grinder->qsize[0];
+		qr[0] = queue->qr & (qsize - 1);
 
-	rte_prefetch0(grinder->qbase[0] + qr[0]);
-	rte_prefetch0(grinder->qbase[1] + qr[1]);
+		rte_prefetch0(grinder->qbase[0] + qr[0]);
+		return;
+	}
+
+	for (i = 0; i < pipe->n_be_queues; i++) {
+		queue = grinder->queue[i];
+		qsize = grinder->qsize[i];
+		qr[i] = queue->qr & (qsize - 1);
+
+		rte_prefetch0(grinder->qbase[i] + qr[i]);
+	}
 
 	grinder_wrr_load(port, pos);
 	grinder_wrr(port, pos);
-
-	rte_prefetch0(grinder->qbase[2] + qr[2]);
-	rte_prefetch0(grinder->qbase[3] + qr[3]);
 }
 
 static inline void
@@ -2064,7 +2082,7 @@ grinder_prefetch_mbuf(struct rte_sched_port *port, uint32_t pos)
 	struct rte_sched_grinder *grinder = port->grinder + pos;
 	uint32_t qpos = grinder->qpos;
 	struct rte_mbuf **qbase = grinder->qbase[qpos];
-	uint16_t qsize = grinder->qsize;
+	uint16_t qsize = grinder->qsize[qpos];
 	uint16_t qr = grinder->queue[qpos]->qr & (qsize - 1);
 
 	grinder->pkt = qbase[qr];
@@ -2118,18 +2136,24 @@ grinder_handle(struct rte_sched_port *port, uint32_t pos)
 
 	case e_GRINDER_READ_MBUF:
 	{
-		uint32_t result = 0;
+		uint32_t wrr_active, result = 0;
 
 		result = grinder_schedule(port, pos);
 
+		wrr_active = (grinder->tc_index == RTE_SCHED_TRAFFIC_CLASS_BE);
+
 		/* Look for next packet within the same TC */
 		if (result && grinder->qmask) {
-			grinder_wrr(port, pos);
+			if (wrr_active)
+				grinder_wrr(port, pos);
+
 			grinder_prefetch_mbuf(port, pos);
 
 			return 1;
 		}
-		grinder_wrr_store(port, pos);
+
+		if (wrr_active)
+			grinder_wrr_store(port, pos);
 
 		/* Look for another active TC within same pipe */
 		if (grinder_next_tc(port, pos)) {
