@@ -83,9 +83,9 @@ extern "C" {
 #define RTE_SCHED_BE_QUEUES_PER_PIPE    4
 
 /** Number of traffic classes per pipe (as well as subport).
- * Cannot be changed.
  */
-#define RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE    4
+#define RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE    \
+(RTE_SCHED_QUEUES_PER_PIPE - RTE_SCHED_BE_QUEUES_PER_PIPE + 1)
 
 /** Number of queues per pipe traffic class. Cannot be changed. */
 #define RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS    4
@@ -171,9 +171,7 @@ struct rte_sched_pipe_params {
 	/**< Traffic class rates (measured in bytes per second) */
 	uint32_t tc_period;
 	/**< Enforcement period (measured in milliseconds) */
-#ifdef RTE_SCHED_SUBPORT_TC_OV
 	uint8_t tc_ov_weight;		 /**< Weight Traffic class 3 oversubscription */
-#endif
 
 	/* Pipe queues */
 	uint8_t  wrr_weights[RTE_SCHED_BE_QUEUES_PER_PIPE]; /**< WRR weights */
@@ -206,11 +204,9 @@ struct rte_sched_port_params {
 					  * (measured in bytes) */
 	uint32_t n_subports_per_port;    /**< Number of subports */
 	uint32_t n_pipes_per_subport;    /**< Number of pipes per subport */
-	uint16_t qsize[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
+	uint16_t qsize[RTE_SCHED_QUEUES_PER_PIPE];
 	/**< Packet queue size for each traffic class.
-	 * All queues within the same pipe traffic class have the same
-	 * size. Queues from different pipes serving the same traffic
-	 * class have the same size. */
+	 * Queues which are not needed are allowed to have zero size. */
 	struct rte_sched_pipe_params *pipe_profiles;
 	/**< Pipe profile table.
 	 * Every pipe is configured using one of the profiles from this table. */
