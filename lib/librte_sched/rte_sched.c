@@ -181,7 +181,7 @@ struct rte_sched_port {
 	uint16_t qsize[RTE_SCHED_QUEUES_PER_PIPE];
 	uint32_t n_pipe_profiles;
 	uint32_t n_max_pipe_profiles;
-	uint32_t pipe_tc3_rate_max;
+	uint32_t pipe_tc_be_rate_max;
 #ifdef RTE_SCHED_RED
 	struct rte_red_config red_config[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE][RTE_COLORS];
 #endif
@@ -616,13 +616,13 @@ rte_sched_port_config_pipe_profile_table(struct rte_sched_port *port,
 		rte_sched_port_log_pipe_profile(port, i);
 	}
 
-	port->pipe_tc3_rate_max = 0;
+	port->pipe_tc_be_rate_max = 0;
 	for (i = 0; i < port->n_pipe_profiles; i++) {
 		struct rte_sched_pipe_params *src = params->pipe_profiles + i;
-		uint32_t pipe_tc3_rate = src->tc_rate[RTE_SCHED_TRAFFIC_CLASS_BE];
+		uint32_t pipe_tc_be_rate = src->tc_rate[RTE_SCHED_TRAFFIC_CLASS_BE];
 
-		if (port->pipe_tc3_rate_max < pipe_tc3_rate)
-			port->pipe_tc3_rate_max = pipe_tc3_rate;
+		if (port->pipe_tc_be_rate_max < pipe_tc_be_rate)
+			port->pipe_tc_be_rate_max = pipe_tc_be_rate;
 	}
 }
 
@@ -890,7 +890,7 @@ rte_sched_subport_config(struct rte_sched_port *port,
 	/* TC oversubscription */
 	s->tc_ov_wm_min = port->mtu;
 	s->tc_ov_wm_max = rte_sched_time_ms_to_bytes(params->tc_period,
-						     port->pipe_tc3_rate_max);
+						     port->pipe_tc_be_rate_max);
 	s->tc_ov_wm = s->tc_ov_wm_max;
 	s->tc_ov_period_id = 0;
 	s->tc_ov = 0;
@@ -937,21 +937,21 @@ rte_sched_pipe_config(struct rte_sched_port *port,
 		params = port->pipe_profiles + p->profile;
 
 #ifdef RTE_SCHED_SUBPORT_TC_OV
-		double subport_tc3_rate = (double) s->tc_credits_per_period[RTE_SCHED_TRAFFIC_CLASS_BE]
+		double subport_tc_be_rate = (double) s->tc_credits_per_period[RTE_SCHED_TRAFFIC_CLASS_BE]
 			/ (double) s->tc_period;
-		double pipe_tc3_rate = (double) params->tc_credits_per_period[RTE_SCHED_TRAFFIC_CLASS_BE]
+		double pipe_tc_be_rate = (double) params->tc_credits_per_period[RTE_SCHED_TRAFFIC_CLASS_BE]
 			/ (double) params->tc_period;
-		uint32_t tc3_ov = s->tc_ov;
+		uint32_t tc_be_ov = s->tc_ov;
 
 		/* Unplug pipe from its subport */
 		s->tc_ov_n -= params->tc_ov_weight;
-		s->tc_ov_rate -= pipe_tc3_rate;
-		s->tc_ov = s->tc_ov_rate > subport_tc3_rate;
+		s->tc_ov_rate -= pipe_tc_be_rate;
+		s->tc_ov = s->tc_ov_rate > subport_tc_be_rate;
 
-		if (s->tc_ov != tc3_ov) {
+		if (s->tc_ov != tc_be_ov) {
 			RTE_LOG(DEBUG, SCHED,
-				"Subport %u TC3 oversubscription is OFF (%.4lf >= %.4lf)\n",
-				subport_id, subport_tc3_rate, s->tc_ov_rate);
+				"Subport %u Best effort TC oversubscription is OFF (%.4lf >= %.4lf)\n",
+				subport_id, subport_tc_be_rate, s->tc_ov_rate);
 		}
 #endif
 
@@ -980,22 +980,22 @@ rte_sched_pipe_config(struct rte_sched_port *port,
 #ifdef RTE_SCHED_SUBPORT_TC_OV
 	{
 		/* Subport TC3 oversubscription */
-		double subport_tc3_rate =
+		double subport_tc_be_rate =
 			(double) s->tc_credits_per_period[RTE_SCHED_TRAFFIC_CLASS_BE]
 			/ (double) s->tc_period;
-		double pipe_tc3_rate =
+		double pipe_tc_be_rate =
 			(double) params->tc_credits_per_period[RTE_SCHED_TRAFFIC_CLASS_BE]
 			/ (double) params->tc_period;
-		uint32_t tc3_ov = s->tc_ov;
+		uint32_t tc_be_ov = s->tc_ov;
 
 		s->tc_ov_n += params->tc_ov_weight;
-		s->tc_ov_rate += pipe_tc3_rate;
-		s->tc_ov = s->tc_ov_rate > subport_tc3_rate;
+		s->tc_ov_rate += pipe_tc_be_rate;
+		s->tc_ov = s->tc_ov_rate > subport_tc_be_rate;
 
-		if (s->tc_ov != tc3_ov) {
+		if (s->tc_ov != tc_be_ov) {
 			RTE_LOG(DEBUG, SCHED,
-				"Subport %u TC3 oversubscription is ON (%.4lf < %.4lf)\n",
-				subport_id, subport_tc3_rate, s->tc_ov_rate);
+				"Subport %u Best effort TC oversubscription is ON (%.4lf < %.4lf)\n",
+				subport_id, subport_tc_be_rate, s->tc_ov_rate);
 		}
 		p->tc_ov_period_id = s->tc_ov_period_id;
 		p->tc_ov_credits = s->tc_ov_wm;
@@ -1039,8 +1039,8 @@ rte_sched_port_pipe_profile_add(struct rte_sched_port *port,
 	*pipe_profile_id = port->n_pipe_profiles;
 	port->n_pipe_profiles++;
 
-	if (port->pipe_tc3_rate_max < params->tc_rate[RTE_SCHED_TRAFFIC_CLASS_BE])
-		port->pipe_tc3_rate_max = params->tc_rate[RTE_SCHED_TRAFFIC_CLASS_BE];
+	if (port->pipe_tc_be_rate_max < params->tc_rate[RTE_SCHED_TRAFFIC_CLASS_BE])
+		port->pipe_tc_be_rate_max = params->tc_rate[RTE_SCHED_TRAFFIC_CLASS_BE];
 
 	rte_sched_port_log_pipe_profile(port, *pipe_profile_id);
 
