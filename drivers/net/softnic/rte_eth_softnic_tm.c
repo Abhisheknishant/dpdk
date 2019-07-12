@@ -367,7 +367,8 @@ tm_level_get_max_nodes(struct rte_eth_dev *dev, enum tm_node_level level)
 {
 	struct pmd_internals *p = dev->data->dev_private;
 	uint32_t n_queues_max = p->params.tm.n_queues;
-	uint32_t n_tc_max = n_queues_max / RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS;
+	uint32_t n_tc_max =
+		(n_queues_max * RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE) / RTE_SCHED_QUEUES_PER_PIPE;
 	uint32_t n_pipes_max = n_tc_max / RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE;
 	uint32_t n_subports_max = n_pipes_max;
 	uint32_t n_root_max = 1;
@@ -625,10 +626,10 @@ static const struct rte_tm_level_capabilities tm_level_cap[] = {
 			.shaper_shared_n_max = 1,
 
 			.sched_n_children_max =
-				RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS,
+				RTE_SCHED_BE_QUEUES_PER_PIPE,
 			.sched_sp_n_priorities_max = 1,
 			.sched_wfq_n_children_per_group_max =
-				RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS,
+				RTE_SCHED_BE_QUEUES_PER_PIPE,
 			.sched_wfq_n_groups_max = 1,
 			.sched_wfq_weight_max = UINT32_MAX,
 
@@ -793,10 +794,10 @@ static const struct rte_tm_node_capabilities tm_node_cap[] = {
 
 		{.nonleaf = {
 			.sched_n_children_max =
-				RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS,
+				RTE_SCHED_BE_QUEUES_PER_PIPE,
 			.sched_sp_n_priorities_max = 1,
 			.sched_wfq_n_children_per_group_max =
-				RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS,
+				RTE_SCHED_BE_QUEUES_PER_PIPE,
 			.sched_wfq_n_groups_max = 1,
 			.sched_wfq_weight_max = UINT32_MAX,
 		} },
@@ -2043,15 +2044,13 @@ pipe_profile_build(struct rte_eth_dev *dev,
 
 		/* Queue */
 		TAILQ_FOREACH(nq, nl, node) {
-			uint32_t pipe_queue_id;
 
 			if (nq->level != TM_NODE_LEVEL_QUEUE ||
 				nq->parent_node_id != nt->node_id)
 				continue;
 
-			pipe_queue_id = nt->priority *
-				RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS + queue_id;
-			pp->wrr_weights[pipe_queue_id] = nq->weight;
+			if (nt->priority == RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE - 1)
+				pp->wrr_weights[queue_id] = nq->weight;
 
 			queue_id++;
 		}
@@ -2065,7 +2064,7 @@ pipe_profile_free_exists(struct rte_eth_dev *dev,
 	struct pmd_internals *p = dev->data->dev_private;
 	struct tm_params *t = &p->soft.tm.params;
 
-	if (t->n_pipe_profiles < RTE_SCHED_PIPE_PROFILES_PER_PORT) {
+	if (t->n_pipe_profiles < TM_MAX_PIPE_PROFILE) {
 		*pipe_profile_id = t->n_pipe_profiles;
 		return 1;
 	}
@@ -2217,6 +2216,7 @@ wred_profiles_set(struct rte_eth_dev *dev)
 {
 	struct pmd_internals *p = dev->data->dev_private;
 	struct rte_sched_port_params *pp = &p->soft.tm.params.port_params;
+
 	uint32_t tc_id;
 	enum rte_color color;
 
@@ -2332,7 +2332,7 @@ hierarchy_commit_check(struct rte_eth_dev *dev, struct rte_tm_error *error)
 				rte_strerror(EINVAL));
 	}
 
-	/* Each pipe has exactly 4 TCs, with exactly one TC for each priority */
+	/* Each pipe has exactly 13 TCs, with exactly one TC for each priority */
 	TAILQ_FOREACH(np, nl, node) {
 		uint32_t mask = 0, mask_expected =
 			RTE_LEN2MASK(RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE,
@@ -2364,12 +2364,14 @@ hierarchy_commit_check(struct rte_eth_dev *dev, struct rte_tm_error *error)
 				rte_strerror(EINVAL));
 	}
 
-	/* Each TC has exactly 4 packet queues. */
+	/** Each Strict priority TC has exactly 1 packet queues while
+	 *	lowest priority TC (Best-effort) has 4 queues.
+	 */
 	TAILQ_FOREACH(nt, nl, node) {
 		if (nt->level != TM_NODE_LEVEL_TC)
 			continue;
 
-		if (nt->n_children != RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS)
+		if (nt->n_children != 1 && nt->n_children != RTE_SCHED_BE_QUEUES_PER_PIPE)
 			return -rte_tm_error_set(error,
 				EINVAL,
 				RTE_TM_ERROR_TYPE_UNSPECIFIED,
@@ -2531,9 +2533,22 @@ hierarchy_blueprints_create(struct rte_eth_dev *dev)
 			p->params.tm.qsize[1],
 			p->params.tm.qsize[2],
 			p->params.tm.qsize[3],
+			p->params.tm.qsize[4],
+			p->params.tm.qsize[5],
+			p->params.tm.qsize[6],
+			p->params.tm.qsize[7],
+			p->params.tm.qsize[8],
+			p->params.tm.qsize[9],
+			p->params.tm.qsize[10],
+			p->params.tm.qsize[11],
+			p->params.tm.qsize[12],
+			p->params.tm.qsize[13],
+			p->params.tm.qsize[14],
+			p->params.tm.qsize[15],
 		},
 		.pipe_profiles = t->pipe_profiles,
 		.n_pipe_profiles = t->n_pipe_profiles,
+		.n_max_pipe_profiles = TM_MAX_PIPE_PROFILE,
 	};
 
 	wred_profiles_set(dev);
@@ -2566,8 +2581,17 @@ hierarchy_blueprints_create(struct rte_eth_dev *dev)
 					tc_rate[1],
 					tc_rate[2],
 					tc_rate[3],
-			},
-			.tc_period = SUBPORT_TC_PERIOD,
+					tc_rate[4],
+					tc_rate[5],
+					tc_rate[6],
+					tc_rate[7],
+					tc_rate[8],
+					tc_rate[9],
+					tc_rate[10],
+					tc_rate[11],
+					tc_rate[12],
+				},
+				.tc_period = SUBPORT_TC_PERIOD,
 		};
 
 		subport_id++;
@@ -2666,7 +2690,7 @@ update_queue_weight(struct rte_eth_dev *dev,
 	uint32_t subport_id = tm_node_subport_id(dev, ns);
 
 	uint32_t pipe_queue_id =
-		tc_id * RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS + queue_id;
+		tc_id * RTE_SCHED_QUEUES_PER_PIPE + queue_id;
 
 	struct rte_sched_pipe_params *profile0 = pipe_profile_get(dev, np);
 	struct rte_sched_pipe_params profile1;
@@ -3023,7 +3047,7 @@ tm_port_queue_id(struct rte_eth_dev *dev,
 	uint32_t port_tc_id =
 		port_pipe_id * RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE + pipe_tc_id;
 	uint32_t port_queue_id =
-		port_tc_id * RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS + tc_queue_id;
+		port_tc_id * RTE_SCHED_QUEUES_PER_PIPE + tc_queue_id;
 
 	return port_queue_id;
 }
@@ -3149,8 +3173,8 @@ read_pipe_stats(struct rte_eth_dev *dev,
 		uint32_t qid = tm_port_queue_id(dev,
 			subport_id,
 			pipe_id,
-			i / RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS,
-			i % RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS);
+			i / RTE_SCHED_QUEUES_PER_PIPE,
+			i % RTE_SCHED_QUEUES_PER_PIPE);
 
 		int status = rte_sched_queue_read_stats(SCHED(p),
 			qid,
@@ -3202,7 +3226,7 @@ read_tc_stats(struct rte_eth_dev *dev,
 	uint32_t i;
 
 	/* Stats read */
-	for (i = 0; i < RTE_SCHED_QUEUES_PER_TRAFFIC_CLASS; i++) {
+	for (i = 0; i < RTE_SCHED_QUEUES_PER_PIPE; i++) {
 		struct rte_sched_queue_stats s;
 		uint16_t qlen;
 
