@@ -1105,6 +1105,7 @@ mlx5_dev_spawn(struct rte_device *dpdk_dev,
 	int own_domain_id = 0;
 	uint16_t port_id;
 	unsigned int i;
+	char ifname[IF_NAMESIZE];
 
 	/* Determine if this port representor is supposed to be spawned. */
 	if (switch_info->representor && dpdk_dev->devargs) {
@@ -1479,18 +1480,16 @@ mlx5_dev_spawn(struct rte_device *dpdk_dev,
 		mac.addr_bytes[0], mac.addr_bytes[1],
 		mac.addr_bytes[2], mac.addr_bytes[3],
 		mac.addr_bytes[4], mac.addr_bytes[5]);
-#ifndef NDEBUG
-	{
-		char ifname[IF_NAMESIZE];
 
-		if (mlx5_get_ifname(eth_dev, &ifname) == 0)
-			DRV_LOG(DEBUG, "port %u ifname is \"%s\"",
+	if (mlx5_get_ifname(eth_dev, &ifname) == 0) {
+		priv->if_index = if_nametoindex(ifname);
+		DRV_LOG(DEBUG, "port %u ifname is \"%s\"",
 				eth_dev->data->port_id, ifname);
-		else
-			DRV_LOG(DEBUG, "port %u ifname is unknown",
-				eth_dev->data->port_id);
+	} else {
+		DRV_LOG(DEBUG, "port %u ifname is unknown",
+			eth_dev->data->port_id);
 	}
-#endif
+
 	/* Get actual MTU if possible. */
 	err = mlx5_get_mtu(eth_dev, &priv->mtu);
 	if (err) {

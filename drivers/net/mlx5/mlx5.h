@@ -342,6 +342,7 @@ struct mlx5_priv {
 	uint16_t vlan_filter[MLX5_MAX_VLAN_IDS]; /* VLAN filters table. */
 	unsigned int vlan_filter_n; /* Number of configured VLAN filters. */
 	/* Device properties. */
+	unsigned int if_index; /* Associated kernel network device index. */
 	uint16_t mtu; /* Configured MTU. */
 	unsigned int isolated:1; /* Whether isolated mode is enabled. */
 	unsigned int representor:1; /* Device is a port representor. */
