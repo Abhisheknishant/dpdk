@@ -1036,9 +1036,14 @@ add_depth_big_v1604(struct rte_lpm *lpm, uint32_t ip_masked, uint8_t depth,
 
 		/* Set tbl8 entry. */
 		for (i = tbl8_index; i < (tbl8_index + tbl8_range); i++) {
-			lpm->tbl8[i].depth = depth;
-			lpm->tbl8[i].next_hop = next_hop;
-			lpm->tbl8[i].valid = VALID;
+			struct rte_lpm_tbl_entry new_tbl8_entry = {
+				.valid = VALID,
+				.depth = depth,
+				.valid_group = lpm->tbl8[i].valid_group,
+				.next_hop = next_hop,
+			};
+			__atomic_store(&lpm->tbl8[i], &new_tbl8_entry,
+					__ATOMIC_RELAXED);
 		}
 
 		/*
@@ -1076,19 +1081,28 @@ add_depth_big_v1604(struct rte_lpm *lpm, uint32_t ip_masked, uint8_t depth,
 
 		/* Populate new tbl8 with tbl24 value. */
 		for (i = tbl8_group_start; i < tbl8_group_end; i++) {
-			lpm->tbl8[i].valid = VALID;
-			lpm->tbl8[i].depth = lpm->tbl24[tbl24_index].depth;
-			lpm->tbl8[i].next_hop =
-					lpm->tbl24[tbl24_index].next_hop;
+			struct rte_lpm_tbl_entry new_tbl8_entry = {
+				.valid = VALID,
+				.depth = lpm->tbl24[tbl24_index].depth,
+				.valid_group = lpm->tbl8[i].valid_group,
+				.next_hop = lpm->tbl24[tbl24_index].next_hop,
+			};
+			__atomic_store(&lpm->tbl8[i], &new_tbl8_entry,
+					__ATOMIC_RELAXED);
 		}
 
 		tbl8_index = tbl8_group_start + (ip_masked & 0xFF);
 
 		/* Insert new rule into the tbl8 entry. */
 		for (i = tbl8_index; i < tbl8_index + tbl8_range; i++) {
-			lpm->tbl8[i].valid = VALID;
-			lpm->tbl8[i].depth = depth;
-			lpm->tbl8[i].next_hop = next_hop;
+			struct rte_lpm_tbl_entry new_tbl8_entry = {
+				.valid = VALID,
+				.depth = depth,
+				.valid_group = lpm->tbl8[i].valid_group,
+				.next_hop = next_hop,
+			};
+			__atomic_store(&lpm->tbl8[i], &new_tbl8_entry,
+					__ATOMIC_RELAXED);
 		}
 
 		/*
