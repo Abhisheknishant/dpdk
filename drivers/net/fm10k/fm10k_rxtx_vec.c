@@ -602,6 +602,9 @@ fm10k_reassemble_packets(struct fm10k_rx_queue *rxq,
 	struct rte_mbuf *end =  rxq->pkt_last_seg;
 	unsigned pkt_idx, buf_idx;
 
+	if (!start)
+		return 0;
+
 	for (buf_idx = 0, pkt_idx = 0; buf_idx < nb_bufs; buf_idx++) {
 		if (end != NULL) {
 			/* processing a split packet */
