@@ -242,6 +242,30 @@ cleanup_vq(struct vhost_virtqueue *vq, int destroy)
 		close(vq->kickfd);
 }
 
+void
+cleanup_vq_inflight_split(struct virtio_net *dev, struct vhost_virtqueue *vq)
+{
+	if (!(dev->protocol_features &
+		(1ULL << VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD)))
+		return;
+
+	if (vq_is_packed(dev)) {
+		/* TODO */
+		RTE_LOG(ERR, VHOST_CONFIG, "function only be used for split inflight.\n");
+	} else {
+		if (vq->inflight_split)
+			vq->inflight_split = NULL;
+		if (vq->resubmit_inflight_split) {
+			if (vq->resubmit_inflight_split->resubmit_list) {
+				free(vq->resubmit_inflight_split->resubmit_list);
+				vq->resubmit_inflight_split->resubmit_list = NULL;
+			}
+			free(vq->resubmit_inflight_split);
+			vq->resubmit_inflight_split = NULL;
+		}
+	}
+}
+
 /*
  * Unmap any memory, close any file descriptors and
  * free any memory owned by a device.
@@ -253,8 +277,10 @@ cleanup_device(struct virtio_net *dev, int destroy)
 
 	vhost_backend_cleanup(dev);
 
-	for (i = 0; i < dev->nr_vring; i++)
+	for (i = 0; i < dev->nr_vring; i++) {
 		cleanup_vq(dev->virtqueue[i], destroy);
+		cleanup_vq_inflight_split(dev, dev->virtqueue[i]);
+	}
 }
 
 void
@@ -727,6 +753,40 @@ rte_vhost_get_mem_table(int vid, struct rte_vhost_memory **mem)
 }
 
 int
+rte_vhost_get_vhost_ring_inflight_split(int vid, uint16_t vring_idx,
+			  struct rte_vhost_ring_inflight_split *vring)
+{
+	struct virtio_net *dev;
+	struct vhost_virtqueue *vq;
+	struct inflight_info_split *inflight_vring;
+
+	dev = get_device(vid);
+	if (dev == NULL || vring == NULL)
+		return -1;
+
+	if (vring_idx >= VHOST_MAX_VRING)
+		return -1;
+
+	vq = dev->virtqueue[vring_idx];
+	if (!vq)
+		return -1;
+
+	inflight_vring = vq->inflight_split;
+	if (!inflight_vring)
+		return -1;
+
+	if (vq_is_packed(dev)) {
+		/* TODO */
+		RTE_LOG(ERR, VHOST_CONFIG, "Can't be packed inflight ring.\n");
+	} else {
+		vring->inflight_split = inflight_vring;
+		vring->resubmit_inflight_split = vq->resubmit_inflight_split;
+	}
+
+	return 0;
+}
+
+int
 rte_vhost_get_vhost_vring(int vid, uint16_t vring_idx,
 			  struct rte_vhost_vring *vring)
 {
@@ -778,6 +838,107 @@ rte_vhost_vring_call(int vid, uint16_t vring_idx)
 	else
 		vhost_vring_call_split(dev, vq);
 
+	return 0;
+}
+
+int
+rte_vhost_set_inflight_desc_split(int vid, uint16_t vring_idx, uint16_t idx)
+{
+	struct virtio_net *dev;
+	struct vhost_virtqueue *vq;
+
+	dev = get_device(vid);
+	if (unlikely(!dev))
+		return -1;
+
+	if (unlikely(!(dev->protocol_features &
+		(1ULL << VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD))))
+		return 0;
+
+	if (unlikely(vq_is_packed(dev)))
+		return -1;
+
+	if (unlikely(vring_idx >= VHOST_MAX_VRING))
+		return -1;
+
+	vq = dev->virtqueue[vring_idx];
+	if (unlikely(!vq))
+		return -1;
+
+	if (unlikely(!vq->inflight_split))
+		return -1;
+
+	vq->inflight_split->desc[idx].counter = vq->global_counter++;
+	vq->inflight_split->desc[idx].inflight = 1;
+	return 0;
+}
+
+int
+rte_vhost_clr_inflight_desc_split(int vid, uint16_t vring_idx,
+	uint16_t last_used_idx, uint16_t idx)
+{
+	struct virtio_net *dev;
+	struct vhost_virtqueue *vq;
+
+	dev = get_device(vid);
+	if (unlikely(!dev))
+		return -1;
+
+	if (unlikely(!(dev->protocol_features &
+		(1ULL << VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD))))
+		return 0;
+
+	if (unlikely(vq_is_packed(dev)))
+		return -1;
+
+	if (unlikely(vring_idx >= VHOST_MAX_VRING))
+		return -1;
+
+	vq = dev->virtqueue[vring_idx];
+	if (unlikely(!vq))
+		return -1;
+
+	if (unlikely(!vq->inflight_split))
+		return -1;
+
+	rte_compiler_barrier();
+
+	vq->inflight_split->desc[idx].inflight = 0;
+
+	rte_compiler_barrier();
+
+	vq->inflight_split->used_idx = last_used_idx;
+	return 0;
+}
+
+int
+rte_vhost_set_last_inflight_io_split(int vid, uint16_t vring_idx, uint16_t idx)
+{
+	struct virtio_net *dev;
+	struct vhost_virtqueue *vq;
+
+	dev = get_device(vid);
+	if (unlikely(!dev))
+		return -1;
+
+	if (unlikely(!(dev->protocol_features &
+		(1ULL << VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD))))
+		return 0;
+
+	if (unlikely(vq_is_packed(dev)))
+		return -1;
+
+	if (unlikely(vring_idx >= VHOST_MAX_VRING))
+		return -1;
+
+	vq = dev->virtqueue[vring_idx];
+	if (!vq)
+		return -1;
+
+	if (unlikely(!vq->inflight_split))
+		return -1;
+
+	vq->inflight_split->last_inflight_io = idx;
 	return 0;
 }
 

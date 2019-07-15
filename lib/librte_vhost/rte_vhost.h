@@ -72,6 +72,10 @@ extern "C" {
 #define VHOST_USER_PROTOCOL_F_HOST_NOTIFIER 11
 #endif
 
+#ifndef VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD
+#define VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD 12
+#endif
+
 /** Indicate whether protocol features negotiation is supported. */
 #ifndef VHOST_USER_F_PROTOCOL_FEATURES
 #define VHOST_USER_F_PROTOCOL_FEATURES	30
@@ -97,6 +101,25 @@ struct rte_vhost_mem_region {
 struct rte_vhost_memory {
 	uint32_t nregions;
 	struct rte_vhost_mem_region regions[];
+};
+
+struct rte_vhost_resubmit_desc {
+	uint16_t index;
+	uint64_t counter;
+};
+
+struct rte_vhost_resubmit_info {
+	struct rte_vhost_resubmit_desc	*resubmit_list;
+	uint16_t		resubmit_num;
+};
+
+struct rte_vhost_ring_inflight_split {
+	union {
+		struct inflight_info_split *inflight_split;
+		/* TODO */
+	};
+
+	struct rte_vhost_resubmit_info *resubmit_inflight_split;
 };
 
 struct rte_vhost_vring {
@@ -611,6 +634,22 @@ uint16_t rte_vhost_dequeue_burst(int vid, uint16_t queue_id,
 int rte_vhost_get_mem_table(int vid, struct rte_vhost_memory **mem);
 
 /**
+ * Get guest inflight vring info, including inflight ring and resubmit list.
+ *
+ * @param vid
+ *  vhost device ID
+ * @param vring_idx
+ *  vring index
+ * @param vring
+ *  the structure to hold the requested inflight vring info
+ * @return
+ *  0 on success, -1 on failure
+ */
+int __rte_experimental
+rte_vhost_get_vhost_ring_inflight_split(int vid, uint16_t vring_idx,
+			      struct rte_vhost_ring_inflight_split *vring);
+
+/**
  * Get guest vring info, including the vring address, vring size, etc.
  *
  * @param vid
@@ -637,6 +676,56 @@ int rte_vhost_get_vhost_vring(int vid, uint16_t vring_idx,
  *  0 on success, -1 on failure
  */
 int rte_vhost_vring_call(int vid, uint16_t vring_idx);
+
+/**
+ * set inflight flag for a desc.
+ *
+ * @param vid
+ *  vhost device ID
+ * @param vring_idx
+ *  vring index
+ * @param idx
+ *  inflight entry index
+ * @return
+ *  0 on success, -1 on failure
+ */
+int __rte_experimental
+rte_vhost_set_inflight_desc_split(int vid, uint16_t vring_idx,
+		uint16_t idx);
+
+/**
+ * clear inflight flag for a desc.
+ *
+ * @param vid
+ *  vhost device ID
+ * @param vring_idx
+ *  vring index
+ * @param last_used_idx
+ *  next free used_idx
+ * @param idx
+ *  inflight entry index
+ * @return
+ *  0 on success, -1 on failure
+ */
+int __rte_experimental
+rte_vhost_clr_inflight_desc_split(int vid, uint16_t vring_idx,
+		uint16_t last_used_idx, uint16_t idx);
+
+/**
+ * set last inflight io index.
+ *
+ * @param vid
+ *  vhost device ID
+ * @param vring_idx
+ *  vring index
+ * @param idx
+ *  inflight entry index
+ * @return
+ *  0 on success, -1 on failure
+ */
+int __rte_experimental
+rte_vhost_set_last_inflight_io_split(int vid, uint16_t vring_idx,
+		uint16_t idx);
 
 /**
  * Get vhost RX queue avail count.
