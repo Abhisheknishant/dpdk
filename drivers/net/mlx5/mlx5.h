@@ -161,6 +161,10 @@ struct mlx5_devx_counter_set {
 /* HCA attributes. */
 struct mlx5_hca_attr {
 	uint32_t eswitch_manager:1;
+	uint32_t eth_net_offloads:1;
+	uint32_t eth_virt:1;
+	uint32_t wqe_inline_mode:2;
+	uint32_t vport_inline_mode:3;
 };
 
 /* Flow list . */
