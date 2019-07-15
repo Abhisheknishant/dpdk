@@ -68,6 +68,15 @@
 /* Device parameter to set the minimum number of Rx queues to enable MPRQ. */
 #define MLX5_RXQS_MIN_MPRQ "rxqs_min_mprq"
 
+/* Device parameter to limit packet size to inline with ordinary SEND. */
+#define MLX5_TXQ_INLINE_MAX "txq_inline_max"
+
+/* Device parameter to configure minimal data size to inline. */
+#define MLX5_TXQ_INLINE_MIN "txq_inline_min"
+
+/* Device parameter to limit packet size to inline with Enhanced MPW. */
+#define MLX5_TXQ_INLINE_MPW "txq_inline_mpw"
+
 /*
  * Device parameter to configure the number of TX queues threshold for
  * enabling inline send.
@@ -884,6 +893,12 @@ mlx5_args_check(const char *key, const char *val, void *opaque)
 		config->mprq.max_memcpy_len = tmp;
 	} else if (strcmp(MLX5_RXQS_MIN_MPRQ, key) == 0) {
 		config->mprq.min_rxqs_num = tmp;
+	} else if (strcmp(MLX5_TXQ_INLINE_MAX, key) == 0) {
+		config->txq_inline_max = tmp;
+	} else if (strcmp(MLX5_TXQ_INLINE_MIN, key) == 0) {
+		config->txq_inline_min = tmp;
+	} else if (strcmp(MLX5_TXQ_INLINE_MPW, key) == 0) {
+		config->txq_inline_mpw = tmp;
 	} else if (strcmp(MLX5_TXQS_MIN_INLINE, key) == 0) {
 		config->txqs_inline = tmp;
 	} else if (strcmp(MLX5_TXQ_MPW_EN, key) == 0) {
@@ -932,6 +947,9 @@ mlx5_args(struct mlx5_dev_config *config, struct rte_devargs *devargs)
 		MLX5_RX_MPRQ_LOG_STRIDE_NUM,
 		MLX5_RX_MPRQ_MAX_MEMCPY_LEN,
 		MLX5_RXQS_MIN_MPRQ,
+		MLX5_TXQ_INLINE_MIN,
+		MLX5_TXQ_INLINE_MAX,
+		MLX5_TXQ_INLINE_MPW,
 		MLX5_TXQS_MIN_INLINE,
 		MLX5_TXQ_MPW_EN,
 		MLX5_RX_VEC_EN,
@@ -1882,6 +1900,9 @@ mlx5_pci_probe(struct rte_pci_driver *pci_drv __rte_unused,
 		.hw_padding = 0,
 		.mps = MLX5_ARG_UNSET,
 		.rx_vec_en = 1,
+		.txq_inline_max = MLX5_ARG_UNSET,
+		.txq_inline_min = MLX5_ARG_UNSET,
+		.txq_inline_mpw = MLX5_ARG_UNSET,
 		.txqs_inline = MLX5_ARG_UNSET,
 		.vf_nl_en = 1,
 		.mr_ext_memseg_en = 1,
