@@ -2329,7 +2329,7 @@ flow_dv_validate(struct rte_eth_dev *dev, const struct rte_flow_attr *attr,
 			break;
 		case RTE_FLOW_ITEM_TYPE_VLAN:
 			ret = mlx5_flow_validate_item_vlan(items, item_flags,
-							   error);
+							   dev, error);
 			if (ret < 0)
 				return ret;
 			last_item = tunnel ? MLX5_FLOW_LAYER_INNER_VLAN :
@@ -2870,6 +2870,8 @@ flow_dv_translate_item_eth(void *matcher, void *key,
 /**
  * Add VLAN item to matcher and to the value.
  *
+ * @param[in, out] dev_flow
+ *   Flow descriptor.
  * @param[in, out] matcher
  *   Flow matcher.
  * @param[in, out] key
@@ -2880,7 +2882,8 @@ flow_dv_translate_item_eth(void *matcher, void *key,
  *   Item is inner pattern.
  */
 static void
-flow_dv_translate_item_vlan(void *matcher, void *key,
+flow_dv_translate_item_vlan(struct mlx5_flow *dev_flow,
+			    void *matcher, void *key,
 			    const struct rte_flow_item *item,
 			    int inner)
 {
@@ -2907,6 +2910,12 @@ flow_dv_translate_item_vlan(void *matcher, void *key,
 		headers_m = MLX5_ADDR_OF(fte_match_param, matcher,
 					 outer_headers);
 		headers_v = MLX5_ADDR_OF(fte_match_param, key, outer_headers);
+		/*
+		 * This is workaround, masks are not supported,
+		 * and pre-validated.
+		 */
+		dev_flow->dv.vf_vlan.tag =
+			rte_be_to_cpu_16(vlan_v->tci) & 0x0fff;
 	}
 	tci_m = rte_be_to_cpu_16(vlan_m->tci);
 	tci_v = rte_be_to_cpu_16(vlan_m->tci & vlan_v->tci);
@@ -4329,7 +4338,8 @@ cnt_err:
 					     MLX5_FLOW_LAYER_OUTER_L2;
 			break;
 		case RTE_FLOW_ITEM_TYPE_VLAN:
-			flow_dv_translate_item_vlan(match_mask, match_value,
+			flow_dv_translate_item_vlan(dev_flow,
+						    match_mask, match_value,
 						    items, tunnel);
 			matcher.priority = MLX5_PRIORITY_MAP_L2;
 			last_item = tunnel ? (MLX5_FLOW_LAYER_INNER_L2 |
@@ -4537,6 +4547,17 @@ flow_dv_apply(struct rte_eth_dev *dev, struct rte_flow *flow,
 					   "hardware refuses to create flow");
 			goto error;
 		}
+		if (priv->esxi_context &&
+		    dev_flow->dv.vf_vlan.tag &&
+		    !dev_flow->dv.vf_vlan.created) {
+			/*
+			 * The rule contains the VLAN pattern.
+			 * For VF we are going to create VLAN
+			 * interface to make ESXi set correct
+			 * e-Switch vport context.
+			 */
+			mlx5_vlan_esxi_acquire(dev, &dev_flow->dv.vf_vlan);
+		}
 	}
 	return 0;
 error:
@@ -4550,6 +4571,9 @@ error:
 				mlx5_hrxq_release(dev, dv->hrxq);
 			dv->hrxq = NULL;
 		}
+		if (dev_flow->dv.vf_vlan.tag &&
+		    dev_flow->dv.vf_vlan.created)
+			mlx5_vlan_esxi_release(dev, &dev_flow->dv.vf_vlan);
 	}
 	rte_errno = err; /* Restore rte_errno. */
 	return -rte_errno;
@@ -4750,6 +4774,9 @@ flow_dv_remove(struct rte_eth_dev *dev, struct rte_flow *flow)
 				mlx5_hrxq_release(dev, dv->hrxq);
 			dv->hrxq = NULL;
 		}
+		if (dev_flow->dv.vf_vlan.tag &&
+		    dev_flow->dv.vf_vlan.created)
+			mlx5_vlan_esxi_release(dev, &dev_flow->dv.vf_vlan);
 	}
 }
 

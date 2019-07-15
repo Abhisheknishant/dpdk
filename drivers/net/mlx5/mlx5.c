@@ -690,6 +690,8 @@ mlx5_dev_close(struct rte_eth_dev *dev)
 		close(priv->nl_socket_route);
 	if (priv->nl_socket_rdma >= 0)
 		close(priv->nl_socket_rdma);
+	if (priv->esxi_context)
+		mlx5_vlan_esxi_exit(priv->esxi_context);
 	if (priv->sh) {
 		/*
 		 * Free the shared context in last turn, because the cleanup
@@ -1546,6 +1548,8 @@ mlx5_dev_spawn(struct rte_device *dpdk_dev,
 #endif
 	/* Store device configuration on private structure. */
 	priv->config = config;
+	/* Create context for virtual machine VLAN workaround. */
+	priv->esxi_context = mlx5_vlan_esxi_init(eth_dev, spawn->ifindex);
 	if (config.dv_flow_en) {
 		err = mlx5_alloc_shared_dr(priv);
 		if (err)
@@ -1572,6 +1576,8 @@ error:
 			close(priv->nl_socket_route);
 		if (priv->nl_socket_rdma >= 0)
 			close(priv->nl_socket_rdma);
+		if (priv->esxi_context)
+			mlx5_vlan_esxi_exit(priv->esxi_context);
 		if (own_domain_id)
 			claim_zero(rte_eth_switch_domain_free(priv->domain_id));
 		rte_free(priv);
