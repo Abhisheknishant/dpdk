@@ -826,6 +826,14 @@ port_offload_cap_display(portid_t port_id)
 			printf("off\n");
 	}
 
+	if (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_MATCH_METADATA) {
+		printf("TX match Flow metafata:        ");
+		if (ports[port_id].dev_conf.txmode.offloads &
+		    DEV_TX_OFFLOAD_MATCH_METADATA)
+			printf("on\n");
+		else
+			printf("off\n");
+	}
 }
 
 int
