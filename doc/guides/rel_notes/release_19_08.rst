@@ -56,6 +56,11 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **FreeBSD now supports `--base-virtaddr` EAL option.**
+
+  FreeBSD version now also supports setting base virtual address for mapping
+  pages and resources into its address space.
+
 * **Added MCS lock.**
 
   MCS lock provides scalability by spinning on a CPU/thread local variable

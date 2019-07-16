@@ -20,6 +20,7 @@
 #include <rte_eal.h>
 #include <rte_log.h>
 #include <rte_lcore.h>
+#include <rte_memory.h>
 #include <rte_tailq.h>
 #include <rte_version.h>
 #include <rte_devargs.h>
@@ -1095,6 +1096,36 @@ eal_parse_iova_mode(const char *name)
 	return 0;
 }
 
+static int
+eal_parse_base_virtaddr(const char *arg)
+{
+	char *end;
+	uint64_t addr;
+
+	errno = 0;
+	addr = strtoull(arg, &end, 16);
+
+	/* check for errors */
+	if ((errno != 0) || (arg[0] == '\0') || end == NULL || (*end != '\0'))
+		return -1;
+
+	/* make sure we don't exceed 32-bit boundary on 32-bit target */
+#ifndef RTE_ARCH_64
+	if (addr >= UINTPTR_MAX)
+		return -1;
+#endif
+
+	/* align the addr on 16M boundary, 16MB is the minimum huge page
+	 * size on IBM Power architecture. If the addr is aligned to 16MB,
+	 * it can align to 2MB for x86. So this alignment can also be used
+	 * on x86 and other architectures.
+	 */
+	internal_config.base_virtaddr =
+		RTE_PTR_ALIGN_CEIL((uintptr_t)addr, (size_t)RTE_PGSIZE_16M);
+
+	return 0;
+}
+
 /* caller is responsible for freeing the returned string */
 static char *
 available_cores(void)
@@ -1405,6 +1436,13 @@ eal_parse_common_option(int opt, const char *optarg,
 		if (eal_parse_iova_mode(optarg) < 0) {
 			RTE_LOG(ERR, EAL, "invalid parameters for --"
 				OPT_IOVA_MODE "\n");
+			return -1;
+		}
+		break;
+	case OPT_BASE_VIRTADDR_NUM:
+		if (eal_parse_base_virtaddr(optarg) < 0) {
+			RTE_LOG(ERR, EAL, "invalid parameter for --"
+					OPT_BASE_VIRTADDR "\n");
 			return -1;
 		}
 		break;
