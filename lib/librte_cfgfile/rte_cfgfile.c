@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <rte_string_fns.h>
 #include <rte_common.h>
+#include <rte_log.h>
 
 #include "rte_cfgfile.h"
 
@@ -128,7 +129,7 @@ rte_cfgfile_check_params(const struct rte_cfgfile_parameters *params)
 	unsigned int i;
 
 	if (!params) {
-		printf("Error - missing cfgfile parameters\n");
+		RTE_LOG(ERR, CFGFILE, "missing cfgfile parameters\n");
 		return -EINVAL;
 	}
 
@@ -141,7 +142,7 @@ rte_cfgfile_check_params(const struct rte_cfgfile_parameters *params)
 	}
 
 	if (valid_comment == 0)	{
-		printf("Error - invalid comment characters %c\n",
+		RTE_LOG(ERR, CFGFILE, "invalid comment characters %c\n",
 		       params->comment_character);
 		return -ENOTSUP;
 	}
@@ -178,7 +179,7 @@ rte_cfgfile_load_with_params(const char *filename, int flags,
 		size_t len = strnlen(buffer, sizeof(buffer));
 		lineno++;
 		if ((len >= sizeof(buffer) - 1) && (buffer[len-1] != '\n')) {
-			printf("Error line %d - no \\n found on string. "
+			RTE_LOG(ERR, CFGFILE, " line %d - no \\n found on string. "
 					"Check if line too long\n", lineno);
 			goto error1;
 		}
@@ -198,8 +199,9 @@ rte_cfgfile_load_with_params(const char *filename, int flags,
 			/* section heading line */
 			char *end = memchr(buffer, ']', len);
 			if (end == NULL) {
-				printf("Error line %d - no terminating ']'"
-					"character found\n", lineno);
+				RTE_LOG(ERR, CFGFILE,
+					"line %d - no terminating ']' character found\n",
+					lineno);
 				goto error1;
 			}
 			*end = '\0';
@@ -213,8 +215,9 @@ rte_cfgfile_load_with_params(const char *filename, int flags,
 			split[0] = buffer;
 			split[1] = memchr(buffer, '=', len);
 			if (split[1] == NULL) {
-				printf("Error line %d - no '='"
-					"character found\n", lineno);
+				RTE_LOG(ERR, CFGFILE,
+					"line %d - no '=' character found\n",
+					lineno);
 				goto error1;
 			}
 			*split[1] = '\0';
@@ -236,8 +239,9 @@ rte_cfgfile_load_with_params(const char *filename, int flags,
 
 			if (!(flags & CFG_FLAG_EMPTY_VALUES) &&
 					(*split[1] == '\0')) {
-				printf("Error at line %d - cannot use empty "
-							"values\n", lineno);
+				RTE_LOG(ERR, CFGFILE,
+					"line %d - cannot use empty values\n",
+					lineno);
 				goto error1;
 			}
 
@@ -397,7 +401,8 @@ int rte_cfgfile_set_entry(struct rte_cfgfile *cfg, const char *sectionname,
 				sizeof(curr_section->entries[i].value));
 			return 0;
 		}
-	printf("Error - entry name doesn't exist\n");
+
+	RTE_LOG(ERR, CFGFILE, "entry name doesn't exist\n");
 	return -EINVAL;
 }
 
