@@ -1008,22 +1008,6 @@ The LDPC decode parameters are set out in the table below.
 +----------------+--------------------------------------------------------------------+
 |op_flags        |bitmask of all active operation capabilities                        |
 +----------------+--------------------------------------------------------------------+
-|**cb_params**   |code block specific parameters (code block mode only)               |
-+----------------+------------+-------------------------------------------------------+
-|                |e           |E, length of the rate matched output sequence in bits  |
-+----------------+------------+-------------------------------------------------------+
-|**tb_params**   | transport block specific parameters (transport block mode only)    |
-+----------------+------------+-------------------------------------------------------+
-|                |c           |number of CBs in the TB or partial TB                  |
-+----------------+------------+-------------------------------------------------------+
-|                |r           |index of the first CB in the inbound mbuf data         |
-+----------------+------------+-------------------------------------------------------+
-|                |c_ab        |number of CBs that use Ea before switching to Eb       |
-+----------------+------------+-------------------------------------------------------+
-|                |ea          |Ea, length of the RM output sequence in bits, r < cab  |
-+----------------+------------+-------------------------------------------------------+
-|                |eb          |Eb, length of the RM output sequence in bits  r >= cab |
-+----------------+------------+-------------------------------------------------------+
 
 The mbuf input ``input`` encoded CB data is mandatory for all BBDEV PMDs
 and is the Virtual Circular Buffer data stream with null padding.
