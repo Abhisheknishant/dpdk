@@ -8,10 +8,16 @@
 #include <rte_bus_pci.h>
 #include <rte_cryptodev.h>
 
+#define NITROX_DEV_NAME_MAX_LEN RTE_CRYPTODEV_NAME_MAX_LEN
+
+struct nitrox_sym_device;
+
 struct nitrox_device {
 	TAILQ_ENTRY(nitrox_device) next;
 	struct rte_pci_device *pdev;
 	uint8_t *bar_addr;
+	struct nitrox_sym_device *sym_dev;
+	struct rte_device rte_sym_dev;
 	uint16_t nr_queues;
 };
 
