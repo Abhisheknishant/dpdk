@@ -14,3 +14,4 @@ if arch_subdir == 'x86'
 endif
 
 includes += include_directories('base')
+cflags += '-DALLOW_EXPERIMENTAL_API'

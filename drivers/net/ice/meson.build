@@ -13,6 +13,7 @@ sources = files(
 
 deps += ['hash']
 includes += include_directories('base')
+cflags += '-DALLOW_EXPERIMENTAL_API'
 
 if arch_subdir == 'x86'
 	sources += files('ice_rxtx_vec_sse.c')
