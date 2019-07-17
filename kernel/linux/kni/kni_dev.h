@@ -25,6 +25,7 @@
 #include <linux/netdevice.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
+#include <linux/iommu.h>
 
 #include <rte_kni_common.h>
 #define KNI_KTHREAD_RESCHEDULE_INTERVAL 5 /* us */
@@ -40,6 +41,9 @@ extern uint32_t dflt_carrier;
 struct kni_dev {
 	/* kni list */
 	struct list_head list;
+
+	uint8_t iova_mode;
+	struct iommu_domain *domain;
 
 	uint32_t core_id;            /* Core ID to bind */
 	char name[RTE_KNI_NAMESIZE]; /* Network device name */
