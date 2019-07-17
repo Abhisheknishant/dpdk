@@ -397,9 +397,33 @@ struct rte_crypto_rsa_op_param {
 	/**<
 	 * Pointer to data
 	 * - to be encrypted for RSA public encrypt.
-	 * - to be decrypted for RSA private decrypt.
 	 * - to be signed for RSA sign generation.
 	 * - to be authenticated for RSA sign verification.
+	 *
+	 * Octet-string network byte order format.
+	 *
+	 * This field is an input to RTE_CRYPTO_ASYM_OP_ENCRYPT
+	 * operation, and output to RTE_CRYPTO_ASYM_OP_DECRYPT operation.
+	 *
+	 * When RTE_CRYPTO_ASYM_OP_DECRYPT op_type used underlying array
+	 * should have been allocated with enough memory to hold plaintext
+	 * output (bigger or equal to RSA key size).
+	 */
+
+
+	rte_crypto_param cipher;
+	/**<
+	 * Pointer to data
+	 * - to be decrypted for RSA private decrypt.
+	 *
+	 * Octet-string network byte order format.
+	 *
+	 * This field is an input to RTE_CRYPTO_ASYM_OP_DECRYPT
+	 * operation, and output to RTE_CRYPTO_ASYM_OP_ENCRYPT operation.
+	 *
+	 * When RTE_CRYPTO_ASYM_OP_ENCRYPT op_type used underlying array
+	 * should have been allocated with enough memory to hold cipher
+	 * output (bigger or equal to RSA key size).
 	 */
 
 	rte_crypto_param sign;
