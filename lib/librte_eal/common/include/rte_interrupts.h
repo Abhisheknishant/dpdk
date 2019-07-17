@@ -118,6 +118,28 @@ int rte_intr_enable(const struct rte_intr_handle *intr_handle);
  */
 int rte_intr_disable(const struct rte_intr_handle *intr_handle);
 
+/**
+ * It acks an interrupt raised for the specified handle.
+ *
+ * Call this function to ack an interrupt from interrupt
+ * handler either from application or driver, so that
+ * new interrupts are raised.
+ *
+ * @note For interrupt handle types VFIO_MSIX and VFIO_MSI,
+ *    this function is a no-op and returns success without
+ *    changing anything as kernel doesn't expect
+ *    them to be acked.
+ *
+ * @param intr_handle
+ *  pointer to the interrupt handle.
+ *
+ * @return
+ *  - On success, zero.
+ *  - On failure, a negative value.
+ */
+__rte_experimental
+int rte_intr_ack(const struct rte_intr_handle *intr_handle);
+
 #ifdef __cplusplus
 }
 #endif
