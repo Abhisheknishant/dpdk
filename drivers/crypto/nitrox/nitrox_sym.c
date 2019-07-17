@@ -9,6 +9,7 @@
 
 #include "nitrox_sym.h"
 #include "nitrox_device.h"
+#include "nitrox_sym_capabilities.h"
 #include "nitrox_logs.h"
 
 #define CRYPTODEV_NAME_NITROX_PMD crypto_nitrox
@@ -23,6 +24,84 @@ static const char nitrox_sym_drv_name[] = RTE_STR(CRYPTODEV_NAME_NITROX_PMD);
 static const struct rte_driver nitrox_rte_sym_drv = {
 	.name = nitrox_sym_drv_name,
 	.alias = nitrox_sym_drv_name
+};
+
+static int nitrox_sym_dev_qp_release(struct rte_cryptodev *cdev,
+				     uint16_t qp_id);
+
+static int
+nitrox_sym_dev_config(__rte_unused struct rte_cryptodev *cdev,
+		      __rte_unused struct rte_cryptodev_config *config)
+{
+	return 0;
+}
+
+static int
+nitrox_sym_dev_start(__rte_unused struct rte_cryptodev *cdev)
+{
+	return 0;
+}
+
+static void
+nitrox_sym_dev_stop(__rte_unused struct rte_cryptodev *cdev)
+{
+}
+
+static int
+nitrox_sym_dev_close(struct rte_cryptodev *cdev)
+{
+	int i, ret;
+
+	for (i = 0; i < cdev->data->nb_queue_pairs; i++) {
+		ret = nitrox_sym_dev_qp_release(cdev, i);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static void
+nitrox_sym_dev_info_get(struct rte_cryptodev *cdev,
+			struct rte_cryptodev_info *info)
+{
+	struct nitrox_sym_device *sym_dev = cdev->data->dev_private;
+	struct nitrox_device *ndev = sym_dev->ndev;
+
+	if (!info)
+		return;
+
+	info->max_nb_queue_pairs = ndev->nr_queues;
+	info->feature_flags = cdev->feature_flags;
+	info->capabilities = nitrox_get_sym_capabilities();
+	info->driver_id = nitrox_sym_drv_id;
+	info->sym.max_nb_sessions = 0;
+}
+
+static int
+nitrox_sym_dev_qp_release(struct rte_cryptodev *cdev, uint16_t qp_id)
+{
+	RTE_SET_USED(cdev);
+	RTE_SET_USED(qp_id);
+	return 0;
+}
+
+static struct rte_cryptodev_ops nitrox_cryptodev_ops = {
+	.dev_configure		= nitrox_sym_dev_config,
+	.dev_start		= nitrox_sym_dev_start,
+	.dev_stop		= nitrox_sym_dev_stop,
+	.dev_close		= nitrox_sym_dev_close,
+	.dev_infos_get		= nitrox_sym_dev_info_get,
+
+	.stats_get		= NULL,
+	.stats_reset		= NULL,
+
+	.queue_pair_setup	= NULL,
+	.queue_pair_release     = NULL,
+
+	.sym_session_get_size   = NULL,
+	.sym_session_configure  = NULL,
+	.sym_session_clear      = NULL
 };
 
 int
@@ -50,7 +129,7 @@ nitrox_sym_pmd_create(struct nitrox_device *ndev)
 
 	ndev->rte_sym_dev.name = cdev->data->name;
 	cdev->driver_id = nitrox_sym_drv_id;
-	cdev->dev_ops = NULL;
+	cdev->dev_ops = &nitrox_cryptodev_ops;
 	cdev->enqueue_burst = NULL;
 	cdev->dequeue_burst = NULL;
 	cdev->feature_flags = RTE_CRYPTODEV_FF_SYMMETRIC_CRYPTO |
