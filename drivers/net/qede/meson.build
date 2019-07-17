@@ -10,3 +10,5 @@ sources = files(
 	'qede_main.c',
 	'qede_rxtx.c',
 )
+
+cflags += '-DALLOW_EXPERIMENTAL_API'

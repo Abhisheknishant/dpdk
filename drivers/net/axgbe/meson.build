@@ -14,6 +14,7 @@ sources = files('axgbe_ethdev.c',
 		'axgbe_rxtx.c')
 
 cflags += '-Wno-cast-qual'
+cflags += '-DALLOW_EXPERIMENTAL_API'
 
 if arch_subdir == 'x86'
 	sources += files('axgbe_rxtx_vec_sse.c')
