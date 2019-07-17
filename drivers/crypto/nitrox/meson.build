@@ -10,4 +10,5 @@ deps += ['bus_pci']
 allow_experimental_apis = true
 sources = files(
 		'nitrox_device.c',
+		'nitrox_hal.c',
 		)
