@@ -339,7 +339,7 @@ rte_mempool_populate_iova(struct rte_mempool *mp, char *vaddr,
 	i = rte_mempool_ops_populate(mp, mp->size - mp->populated_size,
 		(char *)vaddr + off,
 		(iova == RTE_BAD_IOVA) ? RTE_BAD_IOVA : (iova + off),
-		len - off, mempool_add_elem, NULL);
+		len - off, mempool_add_elem, opaque);
 
 	/* not enough room to store one object */
 	if (i == 0) {
