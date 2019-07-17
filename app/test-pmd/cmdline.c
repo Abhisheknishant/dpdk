@@ -802,7 +802,7 @@ static void cmd_help_long_parsed(void *parsed_result,
 			"    Set the max packet length.\n\n"
 
 			"port config all (crc-strip|scatter|rx-cksum|rx-timestamp|hw-vlan|hw-vlan-filter|"
-			"hw-vlan-strip|hw-vlan-extend|drop-en)"
+			"hw-vlan-strip|hw-vlan-extend|hw-qinq-strip|drop-en)"
 			" (on|off)\n"
 			"    Set crc-strip/scatter/rx-checksum/hardware-vlan/drop_en"
 			" for ports.\n\n"
@@ -2134,6 +2134,15 @@ cmd_config_rx_mode_flag_parsed(void *parsed_result,
 				printf("Unknown parameter\n");
 				return;
 			}
+		} else if (!strcmp(res->name, "hw-qinq-strip")) {
+			if (!strcmp(res->value, "on"))
+				rx_offloads |= DEV_RX_OFFLOAD_QINQ_STRIP;
+			else if (!strcmp(res->value, "off"))
+				rx_offloads &= ~DEV_RX_OFFLOAD_QINQ_STRIP;
+			else {
+				printf("Unknown parameter\n");
+				return;
+			}
 		} else if (!strcmp(res->name, "drop-en")) {
 			if (!strcmp(res->value, "on"))
 				rx_drop_en = 1;
@@ -2169,7 +2178,8 @@ cmdline_parse_token_string_t cmd_config_rx_mode_flag_all =
 cmdline_parse_token_string_t cmd_config_rx_mode_flag_name =
 	TOKEN_STRING_INITIALIZER(struct cmd_config_rx_mode_flag, name,
 					"crc-strip#scatter#rx-cksum#rx-timestamp#hw-vlan#"
-					"hw-vlan-filter#hw-vlan-strip#hw-vlan-extend");
+					"hw-vlan-filter#hw-vlan-strip#hw-vlan-extend#"
+					"hw-qinq-strip");
 cmdline_parse_token_string_t cmd_config_rx_mode_flag_value =
 	TOKEN_STRING_INITIALIZER(struct cmd_config_rx_mode_flag, value,
 							"on#off");
@@ -2178,7 +2188,7 @@ cmdline_parse_inst_t cmd_config_rx_mode_flag = {
 	.f = cmd_config_rx_mode_flag_parsed,
 	.data = NULL,
 	.help_str = "port config all crc-strip|scatter|rx-cksum|rx-timestamp|hw-vlan|"
-		"hw-vlan-filter|hw-vlan-strip|hw-vlan-extend on|off",
+		"hw-vlan-filter|hw-vlan-strip|hw-vlan-extend|hw-qinq-strip on|off",
 	.tokens = {
 		(void *)&cmd_config_rx_mode_flag_port,
 		(void *)&cmd_config_rx_mode_flag_keyword,
@@ -3931,6 +3941,8 @@ cmd_vlan_offload_parsed(void *parsed_result,
 	}
 	else if (!strcmp(res->what, "filter"))
 		rx_vlan_filter_set(port_id, on);
+	else if (!strcmp(res->what, "qinq"))
+		rx_vlan_qinq_strip_set(port_id, on);
 	else
 		vlan_extend_set(port_id, on);
 
@@ -3945,7 +3957,7 @@ cmdline_parse_token_string_t cmd_vlan_offload_set =
 				 set, "set");
 cmdline_parse_token_string_t cmd_vlan_offload_what =
 	TOKEN_STRING_INITIALIZER(struct cmd_vlan_offload_result,
-				 what, "strip#filter#qinq#stripq");
+				 what, "strip#filter#extend#qinq#stripq");
 cmdline_parse_token_string_t cmd_vlan_offload_on =
 	TOKEN_STRING_INITIALIZER(struct cmd_vlan_offload_result,
 			      on, "on#off");
@@ -3956,9 +3968,9 @@ cmdline_parse_token_string_t cmd_vlan_offload_portid =
 cmdline_parse_inst_t cmd_vlan_offload = {
 	.f = cmd_vlan_offload_parsed,
 	.data = NULL,
-	.help_str = "vlan set strip|filter|qinq|stripq on|off "
+	.help_str = "vlan set strip|filter|extend|qinq|stripq on|off "
 		"<port_id[,queue_id]>: "
-		"Filter/Strip for rx side qinq(extended) for both rx/tx sides",
+		"Filter/Strip/QinQ strip for rx side extend for both rx/tx sides",
 	.tokens = {
 		(void *)&cmd_vlan_offload_vlan,
 		(void *)&cmd_vlan_offload_set,

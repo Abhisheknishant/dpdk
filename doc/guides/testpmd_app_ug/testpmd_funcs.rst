@@ -200,7 +200,8 @@ For example:
    VLAN offload:
        strip on
        filter on
-       qinq(extend) off
+       extend off
+       qinq off
    Redirection table size: 512
    Supported flow types:
      ipv4-frag
@@ -2128,6 +2129,17 @@ Set hardware VLAN extend on or off for all ports::
 Hardware VLAN extend is off by default.
 
 The ``on`` option is equivalent to the ``--enable-hw-vlan-extend`` command-line option.
+
+port config - QINQ strip
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Set hardware QINQ strip on or off for all ports::
+
+   testpmd> port config all hw-qinq-strip (on|off)
+
+Hardware QINQ strip is off by default.
+
+The ``on`` option is equivalent to the ``--enable-hw-qinq-strip`` command-line option.
 
 port config - Drop Packets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
