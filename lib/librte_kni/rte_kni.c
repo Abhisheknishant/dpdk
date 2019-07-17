@@ -14,6 +14,7 @@
 #include <rte_spinlock.h>
 #include <rte_string_fns.h>
 #include <rte_ethdev.h>
+#include <rte_bus_pci.h>
 #include <rte_malloc.h>
 #include <rte_log.h>
 #include <rte_kni.h>
@@ -199,6 +200,26 @@ kni_release_mz(struct rte_kni *kni)
 	rte_memzone_free(kni->m_sync_addr);
 }
 
+static void
+kni_dev_pci_addr_get(struct rte_pci_addr *addr,
+		    struct rte_pci_id *id, uint16_t port_id)
+{
+	const struct rte_pci_device *pci_dev;
+	const struct rte_bus *bus = NULL;
+	struct rte_eth_dev_info dev_info;
+
+	memset(&dev_info, 0, sizeof(dev_info));
+	rte_eth_dev_info_get(port_id, &dev_info);
+
+	if (dev_info.device)
+		bus = rte_bus_find_by_device(dev_info.device);
+	if (bus && !strcmp(bus->name, "pci")) {
+		pci_dev = RTE_DEV_TO_PCI(dev_info.device);
+		*addr = pci_dev->addr;
+		*id = pci_dev->id;
+	}
+}
+
 struct rte_kni *
 rte_kni_alloc(struct rte_mempool *pktmbuf_pool,
 	      const struct rte_kni_conf *conf,
@@ -247,6 +268,37 @@ rte_kni_alloc(struct rte_mempool *pktmbuf_pool,
 		kni->ops.port_id = UINT16_MAX;
 
 	memset(&dev_info, 0, sizeof(dev_info));
+
+	if (rte_eal_iova_mode() == RTE_IOVA_VA) {
+		uint64_t page_sz = pktmbuf_pool->mz->hugepage_sz;
+		uint16_t port_id = conf->group_id;
+		struct rte_pci_addr addr = { 0 };
+		struct rte_pci_id id = { 0 };
+		size_t buf_sz;
+
+		kni_dev_pci_addr_get(&addr, &id, port_id);
+		dev_info.bus = addr.bus;
+		dev_info.devid = addr.devid;
+		dev_info.function = addr.function;
+		dev_info.vendor_id = id.vendor_id;
+		dev_info.device_id = id.device_id;
+
+		buf_sz = pktmbuf_pool->header_size + pktmbuf_pool->elt_size +
+			 pktmbuf_pool->trailer_size;
+
+		/* Return failure when mbuf size is bigger than page size,
+		 * because phys address of those mbuf might not be physically
+		 * contiguous and KNI kernal module can not translate those
+		 * mbuf's IOVA addresses.
+		 */
+		if (buf_sz > page_sz) {
+			RTE_LOG(ERR, KNI,
+				"KNI does not work in IOVA=VA mode when mbuf_sz > page_sz\n");
+			RTE_LOG(ERR, KNI, "buf_sz:0x%" PRIx64 " > ", buf_sz);
+			RTE_LOG(ERR, KNI, "page_sz:0x%" PRIx64 "\n", page_sz);
+			goto kni_fail;
+		}
+	}
 	dev_info.core_id = conf->core_id;
 	dev_info.force_bind = conf->force_bind;
 	dev_info.group_id = conf->group_id;
@@ -299,6 +351,8 @@ rte_kni_alloc(struct rte_mempool *pktmbuf_pool,
 	kni->pktmbuf_pool = pktmbuf_pool;
 	kni->group_id = conf->group_id;
 	kni->mbuf_size = conf->mbuf_size;
+
+	dev_info.iova_mode = (rte_eal_iova_mode() == RTE_IOVA_VA) ? 1 : 0;
 
 	ret = ioctl(kni_fd, RTE_KNI_IOCTL_CREATE, &dev_info);
 	if (ret < 0)
