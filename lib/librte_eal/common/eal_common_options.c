@@ -1551,6 +1551,10 @@ eal_check_common_options(struct internal_config *internal_cfg)
 			"be specified at the same time\n");
 		return -1;
 	}
+	if (internal_cfg->no_hugetlbfs && internal_cfg->memory == 0) {
+		RTE_LOG(NOTICE, EAL, "Option --"OPT_NO_HUGE" uses legacy mode, "
+			"option -m would override default memory allocation\n");
+	}
 	if (internal_cfg->no_hugetlbfs && internal_cfg->force_sockets == 1) {
 		RTE_LOG(ERR, EAL, "Option --"OPT_SOCKET_MEM" cannot "
 			"be specified together with --"OPT_NO_HUGE"\n");
