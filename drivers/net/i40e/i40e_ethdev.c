@@ -3708,7 +3708,9 @@ i40e_vlan_tpid_set(struct rte_eth_dev *dev,
 	}
 
 	/* 802.1ad frames ability is added in NVM API 1.7*/
-	if (hw->flags & I40E_HW_FLAG_802_1AD_CAPABLE) {
+	/* FW4.16 for SFP x722 does not support set_switch_config option */
+	if ((hw->flags & I40E_HW_FLAG_802_1AD_CAPABLE) &&
+		hw->device_id != I40E_DEV_ID_SFP_X722) {
 		if (qinq) {
 			if (vlan_type == ETH_VLAN_TYPE_OUTER)
 				hw->first_tag = rte_cpu_to_le_16(tpid);
