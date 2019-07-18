@@ -6,6 +6,7 @@ build = dep.found()
 reason = 'missing dependency, "zlib"'
 ext_deps += dep
 cflags += '-DZLIB_CONST'
+cflags += '-DALLOW_EXPERIMENTAL_API'
 sources = files('bnx2x.c',
 	'bnx2x_ethdev.c',
 	'bnx2x_rxtx.c',
