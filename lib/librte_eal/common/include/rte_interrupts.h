@@ -118,6 +118,30 @@ int rte_intr_enable(const struct rte_intr_handle *intr_handle);
  */
 int rte_intr_disable(const struct rte_intr_handle *intr_handle);
 
+/**
+ * It acks an interrupt raised for the specified handle.
+ *
+ * Call this function to ack an interrupt from interrupt
+ * handler either from application or driver, so that
+ * new interrupts are raised.
+ *
+ * @note PMD generally calls this function at the end of its IRQ callback.
+ *    Internally, it unmasks the interrupt if possible. For INTx, unmasking
+ *    is required as the interrupt is auto-masked prior to invoking
+ *    callback. For MSI/MSI-X, unmasking is typically not needed as the
+ *    interrupt is not auto-masked. In fact, for interrupt handle types
+ *    VFIO_MSIX and VFIO_MSI, this function is no-op.
+ *
+ * @param intr_handle
+ *  pointer to the interrupt handle.
+ *
+ * @return
+ *  - On success, zero.
+ *  - On failure, a negative value.
+ */
+__rte_experimental
+int rte_intr_ack(const struct rte_intr_handle *intr_handle);
+
 #ifdef __cplusplus
 }
 #endif

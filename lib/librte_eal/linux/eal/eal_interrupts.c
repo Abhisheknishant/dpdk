@@ -197,6 +197,35 @@ vfio_disable_intx(const struct rte_intr_handle *intr_handle) {
 	return 0;
 }
 
+/* unmask/ack legacy (INTx) interrupts */
+static int
+vfio_ack_intx(const struct rte_intr_handle *intr_handle)
+{
+	struct vfio_irq_set *irq_set;
+	char irq_set_buf[IRQ_SET_BUF_LEN];
+	int len, ret;
+
+	len = sizeof(struct vfio_irq_set);
+
+	/* unmask INTx */
+	irq_set = (struct vfio_irq_set *) irq_set_buf;
+	memset(irq_set, 0, len);
+	irq_set->argsz = len;
+	irq_set->count = 1;
+	irq_set->flags = VFIO_IRQ_SET_DATA_NONE | VFIO_IRQ_SET_ACTION_UNMASK;
+	irq_set->index = VFIO_PCI_INTX_IRQ_INDEX;
+	irq_set->start = 0;
+
+	ret = ioctl(intr_handle->vfio_dev_fd, VFIO_DEVICE_SET_IRQS, irq_set);
+
+	if (ret) {
+		RTE_LOG(ERR, EAL, "Error unmasking INTx interrupts for fd %d\n",
+			intr_handle->fd);
+		return -1;
+	}
+	return 0;
+}
+
 /* enable MSI interrupts */
 static int
 vfio_enable_msi(const struct rte_intr_handle *intr_handle) {
@@ -677,6 +706,58 @@ rte_intr_enable(const struct rte_intr_handle *intr_handle)
 		if (vfio_enable_req(intr_handle))
 			return -1;
 		break;
+#endif
+#endif
+	/* not used at this moment */
+	case RTE_INTR_HANDLE_DEV_EVENT:
+		return -1;
+	/* unknown handle type */
+	default:
+		RTE_LOG(ERR, EAL,
+			"Unknown handle type of fd %d\n",
+					intr_handle->fd);
+		return -1;
+	}
+
+	return 0;
+}
+
+int
+rte_intr_ack(const struct rte_intr_handle *intr_handle)
+{
+	if (intr_handle && intr_handle->type == RTE_INTR_HANDLE_VDEV)
+		return 0;
+
+	if (!intr_handle || intr_handle->fd < 0 || intr_handle->uio_cfg_fd < 0)
+		return -1;
+
+	switch (intr_handle->type) {
+	/* Both acking and disabling are same for UIO */
+	case RTE_INTR_HANDLE_UIO:
+		if (uio_intr_enable(intr_handle))
+			return -1;
+		break;
+	case RTE_INTR_HANDLE_UIO_INTX:
+		if (uio_intx_intr_enable(intr_handle))
+			return -1;
+		break;
+	/* not used at this moment */
+	case RTE_INTR_HANDLE_ALARM:
+		return -1;
+#ifdef VFIO_PRESENT
+		/* Since VFIO_MSIX is implicitly acked
+		 * unlike INTx, we report success
+		 */
+	case RTE_INTR_HANDLE_VFIO_MSIX:
+	case RTE_INTR_HANDLE_VFIO_MSI:
+		return 0;
+	case RTE_INTR_HANDLE_VFIO_LEGACY:
+		if (vfio_ack_intx(intr_handle))
+			return -1;
+		break;
+#ifdef HAVE_VFIO_DEV_REQ_INTERFACE
+	case RTE_INTR_HANDLE_VFIO_REQ:
+		return -1;
 #endif
 #endif
 	/* not used at this moment */
