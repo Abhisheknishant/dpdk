@@ -11,3 +11,5 @@ sources = files(
 	'hw_atl/hw_atl_utils.c',
 	'rte_pmd_atlantic.c',
 )
+
+cflags += '-DALLOW_EXPERIMENTAL_API'

@@ -7,3 +7,4 @@ if not is_linux
 endif
 sources = files('avp_ethdev.c')
 install_headers('rte_avp_common.h', 'rte_avp_fifo.h')
+cflags += '-DALLOW_EXPERIMENTAL_API'
