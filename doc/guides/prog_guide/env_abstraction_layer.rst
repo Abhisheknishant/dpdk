@@ -445,10 +445,24 @@ kernels.
 - if the preferred mode is RTE_IOVA_PA but there is no access to Physical
   Addresses, then EAL init will fail early, since later probing of the devices
   would fail anyway,
-- if the preferred mode is RTE_IOVA_DC then based on the Physical Addresses
-  availability, the preferred mode is adjusted to RTE_IOVA_PA or RTE_IOVA_VA.
+- if the preferred mode is RTE_IOVA_DC then select the IOVA mode as RTE_IOVA_VA.
+  The RTE_IOVA_VA selected as the default because,
+
+#. All drivers work in RTE_IOVA_VA mode, irrespective of physical address availability.
+
+#. By default, the mempool, first asks for IOVA-contiguous memory using ``RTE_MEMZONE_IOVA_CONTIG``,
+   and this is slow in IOVA as PA mode and it may affect the application boot time.
+
+#. It is easy to enable large amount of IOVA-contiguous memory use-cases with IOVA in VA mode.
+
   In the case when the buses had disagreed on the IOVA Mode at the first step,
   part of the buses won't work because of this decision.
+
+.. note::
+
+    If the device driver needs IOVA as VA and it cannot work with IOVA as PA
+    then the driver must request the PCI bus layer using  ``RTE_PCI_DRV_NEED_IOVA_AS_VA``
+    requirement flag. Absence of this flag, dictates, the driver must support both IOVA as PA and VA modes.
 
 IOVA Mode Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~
