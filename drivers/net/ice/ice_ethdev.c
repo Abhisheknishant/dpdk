@@ -1408,6 +1408,12 @@ ice_dev_init(struct rte_eth_dev *dev)
 	dev->tx_pkt_burst = ice_xmit_pkts;
 	dev->tx_pkt_prepare = ice_prep_pkts;
 
+	/* for secondary processes, we don't initialise any further as primary
+	 * has already done this work.
+	 */
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return 0;
+
 	ice_set_default_ptype_table(dev);
 	pci_dev = RTE_DEV_TO_PCI(dev->device);
 	intr_handle = &pci_dev->intr_handle;
@@ -1574,6 +1580,9 @@ ice_dev_stop(struct rte_eth_dev *dev)
 	struct rte_intr_handle *intr_handle = &pci_dev->intr_handle;
 	uint16_t i;
 
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return;
+
 	/* avoid stopping again */
 	if (pf->adapter_stopped)
 		return;
@@ -1610,6 +1619,9 @@ ice_dev_close(struct rte_eth_dev *dev)
 	struct ice_pf *pf = ICE_DEV_PRIVATE_TO_PF(dev->data->dev_private);
 	struct ice_hw *hw = ICE_DEV_PRIVATE_TO_HW(dev->data->dev_private);
 
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return;
+
 	/* Since stop will make link down, then the link event will be
 	 * triggered, disable the irq firstly to avoid the port_infoe etc
 	 * resources deallocation causing the interrupt service thread
@@ -1637,6 +1649,9 @@ ice_dev_uninit(struct rte_eth_dev *dev)
 	struct rte_intr_handle *intr_handle = &pci_dev->intr_handle;
 	struct ice_pf *pf = ICE_DEV_PRIVATE_TO_PF(dev->data->dev_private);
 	struct rte_flow *p_flow;
+
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return 0;
 
 	ice_dev_close(dev);
 
@@ -1669,6 +1684,9 @@ ice_dev_configure(__rte_unused struct rte_eth_dev *dev)
 {
 	struct ice_adapter *ad =
 		ICE_DEV_PRIVATE_TO_ADAPTER(dev->data->dev_private);
+
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return -E_RTE_SECONDARY;
 
 	/* Initialize to TRUE. If any of Rx queues doesn't meet the
 	 * bulk allocation or vector Rx preconditions we will reset it.
@@ -1948,6 +1966,9 @@ ice_dev_start(struct rte_eth_dev *dev)
 	uint16_t nb_txq, i;
 	int mask, ret;
 
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return -E_RTE_SECONDARY;
+
 	/* program Tx queues' context in hardware */
 	for (nb_txq = 0; nb_txq < data->nb_tx_queues; nb_txq++) {
 		ret = ice_tx_queue_start(dev, nb_txq);
@@ -2030,6 +2051,9 @@ static int
 ice_dev_reset(struct rte_eth_dev *dev)
 {
 	int ret;
+
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return -E_RTE_SECONDARY;
 
 	if (dev->data->sriov.active)
 		return -ENOTSUP;
@@ -2211,6 +2235,9 @@ ice_link_update(struct rte_eth_dev *dev, int wait_to_complete)
 	unsigned int rep_cnt = MAX_REPEAT_TIME;
 	bool enable_lse = dev->data->dev_conf.intr_conf.lsc ? true : false;
 
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return -E_RTE_SECONDARY;
+
 	memset(&link, 0, sizeof(link));
 	memset(&old, 0, sizeof(old));
 	memset(&link_status, 0, sizeof(link_status));
@@ -2350,6 +2377,8 @@ ice_dev_set_link_up(struct rte_eth_dev *dev)
 {
 	struct ice_hw *hw = ICE_DEV_PRIVATE_TO_HW(dev->data->dev_private);
 
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return -E_RTE_SECONDARY;
 	return ice_force_phys_link_state(hw, true);
 }
 
@@ -2358,6 +2387,8 @@ ice_dev_set_link_down(struct rte_eth_dev *dev)
 {
 	struct ice_hw *hw = ICE_DEV_PRIVATE_TO_HW(dev->data->dev_private);
 
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return -E_RTE_SECONDARY;
 	return ice_force_phys_link_state(hw, false);
 }
 
@@ -2367,6 +2398,9 @@ ice_mtu_set(struct rte_eth_dev *dev, uint16_t mtu)
 	struct ice_pf *pf = ICE_DEV_PRIVATE_TO_PF(dev->data->dev_private);
 	struct rte_eth_dev_data *dev_data = pf->dev_data;
 	uint32_t frame_size = mtu + ICE_ETH_OVERHEAD;
+
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return -E_RTE_SECONDARY;
 
 	/* check if mtu is within the allowed range */
 	if (mtu < RTE_ETHER_MIN_MTU || frame_size > ICE_FRAME_SIZE_MAX)
@@ -2401,6 +2435,9 @@ static int ice_macaddr_set(struct rte_eth_dev *dev,
 	struct ice_mac_filter *f;
 	uint8_t flags = 0;
 	int ret;
+
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return -E_RTE_SECONDARY;
 
 	if (!rte_is_valid_assigned_ether_addr(mac_addr)) {
 		PMD_DRV_LOG(ERR, "Tried to set invalid MAC address.");
@@ -2448,6 +2485,9 @@ ice_macaddr_add(struct rte_eth_dev *dev,
 	struct ice_vsi *vsi = pf->main_vsi;
 	int ret;
 
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return -E_RTE_SECONDARY;
+
 	ret = ice_add_mac_filter(vsi, mac_addr);
 	if (ret != ICE_SUCCESS) {
 		PMD_DRV_LOG(ERR, "Failed to add MAC filter");
@@ -2467,6 +2507,9 @@ ice_macaddr_remove(struct rte_eth_dev *dev, uint32_t index)
 	struct rte_ether_addr *macaddr;
 	int ret;
 
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return;
+
 	macaddr = &data->mac_addrs[index];
 	ret = ice_remove_mac_filter(vsi, macaddr);
 	if (ret) {
@@ -2483,6 +2526,9 @@ ice_vlan_filter_set(struct rte_eth_dev *dev, uint16_t vlan_id, int on)
 	int ret;
 
 	PMD_INIT_FUNC_TRACE();
+
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return -E_RTE_SECONDARY;
 
 	if (on) {
 		ret = ice_add_vlan_filter(vsi, vlan_id);
@@ -2602,6 +2648,9 @@ ice_vlan_offload_set(struct rte_eth_dev *dev, int mask)
 	struct ice_vsi *vsi = pf->main_vsi;
 	struct rte_eth_rxmode *rxmode;
 
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return -E_RTE_SECONDARY;
+
 	rxmode = &dev->data->dev_conf.rxmode;
 	if (mask & ETH_VLAN_FILTER_MASK) {
 		if (rxmode->offloads & DEV_RX_OFFLOAD_VLAN_FILTER)
@@ -2638,6 +2687,9 @@ ice_vlan_tpid_set(struct rte_eth_dev *dev,
 	int ret = 0;
 	int qinq = dev->data->dev_conf.rxmode.offloads &
 		   DEV_RX_OFFLOAD_VLAN_EXTEND;
+
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return -E_RTE_SECONDARY;
 
 	switch (vlan_type) {
 	case ETH_VLAN_TYPE_OUTER:
@@ -2748,6 +2800,9 @@ ice_rss_reta_update(struct rte_eth_dev *dev,
 	uint16_t idx, shift;
 	uint8_t *lut;
 	int ret;
+
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return -E_RTE_SECONDARY;
 
 	if (reta_size != ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_128 &&
 	    reta_size != ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_512 &&
@@ -2891,6 +2946,9 @@ ice_rss_hash_update(struct rte_eth_dev *dev,
 	struct ice_pf *pf = ICE_DEV_PRIVATE_TO_PF(dev->data->dev_private);
 	struct ice_vsi *vsi = pf->main_vsi;
 
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return -E_RTE_SECONDARY;
+
 	/* set hash key */
 	status = ice_set_rss_key(vsi, rss_conf->rss_key, rss_conf->rss_key_len);
 	if (status)
@@ -2924,6 +2982,9 @@ ice_promisc_enable(struct rte_eth_dev *dev)
 	enum ice_status status;
 	uint8_t pmask;
 
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return;
+
 	pmask = ICE_PROMISC_UCAST_RX | ICE_PROMISC_UCAST_TX |
 		ICE_PROMISC_MCAST_RX | ICE_PROMISC_MCAST_TX;
 
@@ -2943,6 +3004,9 @@ ice_promisc_disable(struct rte_eth_dev *dev)
 	enum ice_status status;
 	uint8_t pmask;
 
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return;
+
 	pmask = ICE_PROMISC_UCAST_RX | ICE_PROMISC_UCAST_TX |
 		ICE_PROMISC_MCAST_RX | ICE_PROMISC_MCAST_TX;
 
@@ -2960,6 +3024,9 @@ ice_allmulti_enable(struct rte_eth_dev *dev)
 	enum ice_status status;
 	uint8_t pmask;
 
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return;
+
 	pmask = ICE_PROMISC_MCAST_RX | ICE_PROMISC_MCAST_TX;
 
 	status = ice_set_vsi_promisc(hw, vsi->idx, pmask, 0);
@@ -2975,6 +3042,9 @@ ice_allmulti_disable(struct rte_eth_dev *dev)
 	struct ice_vsi *vsi = pf->main_vsi;
 	enum ice_status status;
 	uint8_t pmask;
+
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return;
 
 	if (dev->data->promiscuous == 1)
 		return; /* must remain in all_multicast mode */
@@ -2995,6 +3065,9 @@ static int ice_rx_queue_intr_enable(struct rte_eth_dev *dev,
 	uint32_t val;
 	uint16_t msix_intr;
 
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return -E_RTE_SECONDARY;
+
 	msix_intr = intr_handle->intr_vec[queue_id];
 
 	val = GLINT_DYN_CTL_INTENA_M | GLINT_DYN_CTL_CLEARPBA_M |
@@ -3014,6 +3087,9 @@ static int ice_rx_queue_intr_disable(struct rte_eth_dev *dev,
 	struct rte_intr_handle *intr_handle = &pci_dev->intr_handle;
 	struct ice_hw *hw = ICE_DEV_PRIVATE_TO_HW(dev->data->dev_private);
 	uint16_t msix_intr;
+
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return -E_RTE_SECONDARY;
 
 	msix_intr = intr_handle->intr_vec[queue_id];
 
@@ -3058,6 +3134,9 @@ ice_vsi_vlan_pvid_set(struct ice_vsi *vsi, struct ice_vsi_vlan_pvid_info *info)
 	struct ice_vsi_ctx ctxt;
 	uint8_t vlan_flags = 0;
 	int ret;
+
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return -E_RTE_SECONDARY;
 
 	if (!vsi || !info) {
 		PMD_DRV_LOG(ERR, "invalid parameters");
@@ -3112,6 +3191,9 @@ ice_vlan_pvid_set(struct rte_eth_dev *dev, uint16_t pvid, int on)
 	struct rte_eth_dev_data *data = pf->dev_data;
 	struct ice_vsi_vlan_pvid_info info;
 	int ret;
+
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return -E_RTE_SECONDARY;
 
 	memset(&info, 0, sizeof(info));
 	info.on = on;
@@ -3554,6 +3636,9 @@ ice_stats_reset(struct rte_eth_dev *dev)
 {
 	struct ice_pf *pf = ICE_DEV_PRIVATE_TO_PF(dev->data->dev_private);
 	struct ice_hw *hw = ICE_DEV_PRIVATE_TO_HW(dev->data->dev_private);
+
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+		return;
 
 	/* Mark PF and VSI stats to update the offset, aka "reset" */
 	pf->offset_loaded = false;

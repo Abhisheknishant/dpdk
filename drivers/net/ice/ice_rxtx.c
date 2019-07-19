@@ -337,6 +337,9 @@ ice_rx_queue_start(struct rte_eth_dev *dev, uint16_t rx_queue_id)
 
 	PMD_INIT_FUNC_TRACE();
 
+	if (rte_eal_process_type() == RTE_PROC_SECONDARY)
+		return -E_RTE_SECONDARY;
+
 	if (rx_queue_id >= dev->data->nb_rx_queues) {
 		PMD_DRV_LOG(ERR, "RX queue %u is out of range %u",
 			    rx_queue_id, dev->data->nb_rx_queues);
@@ -391,6 +394,9 @@ ice_rx_queue_stop(struct rte_eth_dev *dev, uint16_t rx_queue_id)
 	int err;
 	struct ice_hw *hw = ICE_DEV_PRIVATE_TO_HW(dev->data->dev_private);
 
+	if (rte_eal_process_type() == RTE_PROC_SECONDARY)
+		return -E_RTE_SECONDARY;
+
 	if (rx_queue_id < dev->data->nb_rx_queues) {
 		rxq = dev->data->rx_queues[rx_queue_id];
 
@@ -420,6 +426,9 @@ ice_tx_queue_start(struct rte_eth_dev *dev, uint16_t tx_queue_id)
 	struct ice_tlan_ctx tx_ctx;
 
 	PMD_INIT_FUNC_TRACE();
+
+	if (rte_eal_process_type() == RTE_PROC_SECONDARY)
+		return -E_RTE_SECONDARY;
 
 	if (tx_queue_id >= dev->data->nb_tx_queues) {
 		PMD_DRV_LOG(ERR, "TX queue %u is out of range %u",
@@ -548,6 +557,9 @@ ice_tx_queue_stop(struct rte_eth_dev *dev, uint16_t tx_queue_id)
 	uint32_t q_teids[1];
 	uint16_t q_handle = tx_queue_id;
 
+	if (rte_eal_process_type() == RTE_PROC_SECONDARY)
+		return -E_RTE_SECONDARY;
+
 	if (tx_queue_id >= dev->data->nb_tx_queues) {
 		PMD_DRV_LOG(ERR, "TX queue %u is out of range %u",
 			    tx_queue_id, dev->data->nb_tx_queues);
@@ -596,6 +608,9 @@ ice_rx_queue_setup(struct rte_eth_dev *dev,
 	uint32_t ring_size;
 	uint16_t len;
 	int use_def_burst_func = 1;
+
+	if (rte_eal_process_type() == RTE_PROC_SECONDARY)
+		return -E_RTE_SECONDARY;
 
 	if (nb_desc % ICE_ALIGN_RING_DESC != 0 ||
 	    nb_desc > ICE_MAX_RING_DESC ||
@@ -714,6 +729,9 @@ ice_rx_queue_release(void *rxq)
 {
 	struct ice_rx_queue *q = (struct ice_rx_queue *)rxq;
 
+	if (rte_eal_process_type() == RTE_PROC_SECONDARY)
+		return;
+
 	if (!q) {
 		PMD_DRV_LOG(DEBUG, "Pointer to rxq is NULL");
 		return;
@@ -738,6 +756,9 @@ ice_tx_queue_setup(struct rte_eth_dev *dev,
 	uint32_t ring_size;
 	uint16_t tx_rs_thresh, tx_free_thresh;
 	uint64_t offloads;
+
+	if (rte_eal_process_type() == RTE_PROC_SECONDARY)
+		return -E_RTE_SECONDARY;
 
 	offloads = tx_conf->offloads | dev->data->dev_conf.txmode.offloads;
 
@@ -909,6 +930,9 @@ void
 ice_tx_queue_release(void *txq)
 {
 	struct ice_tx_queue *q = (struct ice_tx_queue *)txq;
+
+	if (rte_eal_process_type() == RTE_PROC_SECONDARY)
+		return;
 
 	if (!q) {
 		PMD_DRV_LOG(DEBUG, "Pointer to TX queue is NULL");
