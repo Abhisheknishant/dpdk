@@ -1721,7 +1721,7 @@ bnxt_hwrm_vnic_rss_cfg_thor(struct bnxt *bp, struct bnxt_vnic_info *vnic)
 {
 	int i;
 	int rc = 0;
-	int nr_ctxs = bp->max_ring_grps;
+	int nr_ctxs = vnic->num_lb_ctxts;
 	struct hwrm_vnic_rss_cfg_input req = {.req_type = 0 };
 	struct hwrm_vnic_rss_cfg_output *resp = bp->hwrm_cmd_resp_addr;
 
