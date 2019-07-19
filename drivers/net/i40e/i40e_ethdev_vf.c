@@ -1332,6 +1332,10 @@ i40evf_handle_pf_event(struct rte_eth_dev *dev, uint8_t *msg,
 		PMD_DRV_LOG(DEBUG, "VIRTCHNL_EVENT_RESET_IMPENDING event");
 		_rte_eth_dev_callback_process(dev, RTE_ETH_EVENT_INTR_RESET,
 					      NULL);
+		if (!vf->vf_reset) {
+			vf->vf_reset = true;
+			vf->pend_msg |= PFMSG_RESET_IMPENDING;
+		}
 		break;
 	case VIRTCHNL_EVENT_LINK_CHANGE:
 		PMD_DRV_LOG(DEBUG, "VIRTCHNL_EVENT_LINK_CHANGE event");
