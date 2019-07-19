@@ -78,3 +78,13 @@ Deprecation Notices
   to set new power environment if power environment was already initialized.
   In this case the function will return -1 unless the environment is unset first
   (using ``rte_power_unset_env``). Other function usage scenarios will not change.
+
+* net: the Ethernet address and header definitions will change
+  attributes. The Ethernet address struct will no longer be marked as
+  packed since the packed attribute is meaningless on a byte
+  array. The Ethernet header will be marked as aligned on a 2-byte
+  boundary and will no longer have the packed attribute. This allows
+  for efficient access on CPU architectures where unaligned access is
+  expensive. These changes should not impact normal usage because drivers
+  naturally align the Ethernet header on receive and all known
+  encapsulations preserve the alignment of the header.
