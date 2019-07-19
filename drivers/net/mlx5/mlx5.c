@@ -1460,6 +1460,17 @@ mlx5_dev_spawn(struct rte_device *dpdk_dev,
 		eth_dev->data->dev_flags |= RTE_ETH_DEV_REPRESENTOR;
 		eth_dev->data->representor_id = priv->representor_id;
 	}
+	/*
+	 * Store associated network device interface index. This index
+	 * is permanent throughout the lifetime of device. We do not spawn
+	 * rte_eth_dev ports without associated network device, and if
+	 * network device is being unbound we get the remove notification
+	 * message and rte_eth_dev port is also detached. So, we may store
+	 * the ifindex here and use the cached value further. The network
+	 * device name can be changed dynamically and should not be cached.
+	 */
+	assert(spawn->ifindex);
+	priv->if_index = spawn->ifindex;
 	eth_dev->data->dev_private = priv;
 	priv->dev_data = eth_dev->data;
 	eth_dev->data->mac_addrs = priv->mac;
