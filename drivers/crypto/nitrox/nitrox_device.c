@@ -6,6 +6,7 @@
 
 #include "nitrox_device.h"
 #include "nitrox_hal.h"
+#include "nitrox_sym.h"
 
 TAILQ_HEAD(ndev_list, nitrox_device);
 static struct ndev_list ndev_list = TAILQ_HEAD_INITIALIZER(ndev_list);
@@ -63,6 +64,7 @@ nitrox_pci_probe(struct rte_pci_driver *pci_drv __rte_unused,
 		struct rte_pci_device *pdev)
 {
 	struct nitrox_device *ndev;
+	int err;
 
 	/* Nitrox CSR space */
 	if (!pdev->mem_resource[0].addr)
@@ -73,6 +75,12 @@ nitrox_pci_probe(struct rte_pci_driver *pci_drv __rte_unused,
 		return -ENOMEM;
 
 	ndev_init(ndev, pdev);
+	err = nitrox_sym_pmd_create(ndev);
+	if (err) {
+		ndev_release(ndev);
+		return err;
+	}
+
 	return 0;
 }
 
@@ -85,6 +93,7 @@ nitrox_pci_remove(struct rte_pci_device *pdev)
 	if (!ndev)
 		return -ENODEV;
 
+	nitrox_sym_pmd_destroy(ndev);
 	ndev_release(ndev);
 	return 0;
 }
