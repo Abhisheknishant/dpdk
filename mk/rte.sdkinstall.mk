@@ -27,7 +27,7 @@ ifeq ($(RTE_EXEC_ENV),linuxapp)
 RTE_EXEC_ENV=linux
 endif
 ifeq ($(RTE_EXEC_ENV),linux)
-kerneldir   ?= /lib/modules/$(shell uname -r)/extra/dpdk
+kerneldir   ?= $(subst /build,/extra/dpdk,$(RTE_KERNELDIR))
 else
 kerneldir   ?= /boot/modules
 endif
