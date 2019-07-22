@@ -1592,6 +1592,10 @@ eal_check_common_options(struct internal_config *internal_cfg)
 				"with --"OPT_MATCH_ALLOCATIONS"\n");
 		return -1;
 	}
+	if (internal_cfg->legacy_mem && internal_cfg->memory == 0) {
+		RTE_LOG(NOTICE, EAL, "Selected memory layout is static, "
+			"allocation can be increased with the option -m\n");
+	}
 
 	return 0;
 }
