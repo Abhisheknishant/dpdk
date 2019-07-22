@@ -384,7 +384,7 @@ rte_fslmc_vfio_mem_dmamap(uint64_t vaddr, uint64_t iova, uint64_t size)
 	dma_map.vaddr = vaddr;
 	dma_map.iova = iova;
 
-	DPAA2_BUS_DEBUG("VFIO dmamap 0x%llx:0x%llx, size 0x%llx\n",
+	DPAA2_BUS_DEBUG("VFIOdmamap 0x%"PRIx64":0x%"PRIx64",size 0x%"PRIx64"\n",
 			dma_map.vaddr, dma_map.iova, dma_map.size);
 	ret = ioctl(group->container->fd, VFIO_IOMMU_MAP_DMA,
 		    &dma_map);
