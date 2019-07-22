@@ -88,7 +88,9 @@ WERROR_FLAGS += -Wno-format-truncation
 endif
 
 # disable packed member unalign warnings
+ifeq ($(shell test $(HOST_GCC_VERSION) -gt 90 && echo 1), 1)
 WERROR_FLAGS += -Wno-address-of-packed-member
+endif
 
 export CC AS AR LD OBJCOPY OBJDUMP STRIP READELF
 export TOOLCHAIN_CFLAGS TOOLCHAIN_LDFLAGS TOOLCHAIN_ASFLAGS
