@@ -212,6 +212,9 @@ New Features
 
   Added multiple cores feature to compression perf tool application.
 
+* **Added Lock-free Stack for aarch64.**
+
+  The lock-free stack implementation is enabled for aarch64 platforms.
 
 Removed Items
 -------------
