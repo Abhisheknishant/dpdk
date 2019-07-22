@@ -68,6 +68,7 @@ flags_thunderx_extra = [
 	['RTE_USE_C11_MEM_MODEL', false]]
 flags_thunderx2_extra = [
 	['RTE_MACHINE', '"thunderx2"'],
+	['RTE_ARM_FEATURE_ATOMICS', true],
 	['RTE_CACHE_LINE_SIZE', 64],
 	['RTE_MAX_NUMA_NODES', 2],
 	['RTE_MAX_LCORE', 256],
