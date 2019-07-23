@@ -15,8 +15,12 @@ extern "C" {
 
 #include "generic/rte_atomic.h"
 
+#ifndef dsb
 #define dsb(opt) asm volatile("dsb " #opt : : : "memory")
+#endif
+#ifndef dmb
 #define dmb(opt) asm volatile("dmb " #opt : : : "memory")
+#endif
 
 #define rte_mb() dsb(sy)
 
