@@ -12,6 +12,12 @@ CONFIG_RTE_ARCH_64=y
 
 CONFIG_RTE_FORCE_INTRINSICS=y
 
+# Use WFE instructions to implement the rte_wait_for_equal_xxx APIs,
+# calling these APIs put the cores enter low power state while waiting
+# for the memory address to be become equal to the expected value.
+# This is supported only by aarch64.
+CONFIG_RTE_USE_WFE=n
+
 # Maximum available cache line size in arm64 implementations.
 # Setting to maximum available cache line size in generic config
 # to address minimum DMA alignment across all arm64 implementations.
