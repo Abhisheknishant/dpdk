@@ -1064,6 +1064,23 @@ rte_mempool_populate_virt(struct rte_mempool *mp, char *addr,
 /**
  * Add memory for objects in the pool at init
  *
+ * This is the function used to populate the mempool with page aligned memzone
+ * memory. It ensures all mempool objects being on the page by allocating
+ * memzones with page size.
+ *
+ * @param mp
+ *   A pointer to the mempool structure.
+ * @return
+ *   The number of objects added on success.
+ *   On error, the chunk is not added in the memory list of the
+ *   mempool and a negative errno is returned.
+ */
+__rte_experimental
+int rte_mempool_populate_from_pg_sz_chunks(struct rte_mempool *mp);
+
+/**
+ * Add memory for objects in the pool at init
+ *
  * This is the default function used by rte_mempool_create() to populate
  * the mempool. It adds memory allocated using rte_memzone_reserve().
  *
