@@ -7,6 +7,7 @@ include $(RTE_SDK)/mk/rte.vars.mk
 LIB = librte_kni.a
 
 CFLAGS += $(WERROR_FLAGS) -I$(SRCDIR) -O3 -fno-strict-aliasing
+CFLAGS += -I$(RTE_SDK)/drivers/bus/pci
 LDLIBS += -lrte_eal -lrte_mempool -lrte_mbuf -lrte_ethdev
 
 EXPORT_MAP := rte_kni_version.map
