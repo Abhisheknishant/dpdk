@@ -77,6 +77,7 @@ static const struct rte_flow_desc_data rte_flow_desc_item[] = {
 	MK_FLOW_ITEM(GRE_KEY, sizeof(rte_be32_t)),
 	MK_FLOW_ITEM(NSH, sizeof(struct rte_flow_item_nsh)),
 	MK_FLOW_ITEM(IGMP, sizeof(struct rte_flow_item_igmp)),
+	MK_FLOW_ITEM(AH, sizeof(struct rte_flow_item_ah)),
 };
 
 /** Generate flow_action[] entry. */
