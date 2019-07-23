@@ -2552,10 +2552,11 @@ rte_eth_dev_info_get(uint16_t port_id, struct rte_eth_dev_info *dev_info)
 		.nb_mtu_seg_max = UINT16_MAX,
 	};
 
+	memset(dev_info, 0, sizeof(struct rte_eth_dev_info));
+
 	RTE_ETH_VALID_PORTID_OR_RET(port_id);
 	dev = &rte_eth_devices[port_id];
 
-	memset(dev_info, 0, sizeof(struct rte_eth_dev_info));
 	dev_info->rx_desc_lim = lim;
 	dev_info->tx_desc_lim = lim;
 	dev_info->device = dev->device;
