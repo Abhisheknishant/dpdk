@@ -1239,9 +1239,9 @@ rte_intr_tls_epfd(void)
 	return RTE_PER_LCORE(_epfd);
 }
 
-int
-rte_epoll_wait(int epfd, struct rte_epoll_event *events,
-	       int maxevents, int timeout)
+static int
+eal_epoll_wait(int epfd, struct rte_epoll_event *events,
+	       int maxevents, int timeout, bool interruptible)
 {
 	struct epoll_event evs[maxevents];
 	int rc;
@@ -1255,27 +1255,38 @@ rte_epoll_wait(int epfd, struct rte_epoll_event *events,
 	if (epfd == RTE_EPOLL_PER_THREAD)
 		epfd = rte_intr_tls_epfd();
 
-	while (1) {
-		rc = epoll_wait(epfd, evs, maxevents, timeout);
-		if (likely(rc > 0)) {
-			/* epoll_wait has at least one fd ready to read */
-			rc = eal_epoll_process_event(evs, rc, events);
-			break;
-		} else if (rc < 0) {
-			if (errno == EINTR)
-				continue;
-			/* epoll_wait fail */
-			RTE_LOG(ERR, EAL, "epoll_wait returns with fail %s\n",
-				strerror(errno));
-			rc = -1;
-			break;
+retry:
+	rc = epoll_wait(epfd, evs, maxevents, timeout);
+	if (likely(rc > 0)) {
+		/* epoll_wait has at least one fd ready to read */
+		rc = eal_epoll_process_event(evs, rc, events);
+	} else if (rc < 0) {
+		if (errno == EINTR) {
+			if (!interruptible)
+				goto retry;
 		} else {
-			/* rc == 0, epoll_wait timed out */
-			break;
+			/* epoll_wait fail */
+			RTE_LOG(ERR, EAL,
+				"epoll_wait returns with fail %s\n",
+				strerror(errno));
 		}
 	}
 
 	return rc;
+}
+
+int
+rte_epoll_wait(int epfd, struct rte_epoll_event *events,
+	       int maxevents, int timeout)
+{
+	return eal_epoll_wait(epfd, events, maxevents, timeout, false);
+}
+
+int
+rte_epoll_wait_interruptible(int epfd, struct rte_epoll_event *events,
+			     int maxevents, int timeout)
+{
+	return eal_epoll_wait(epfd, events, maxevents, timeout, true);
 }
 
 static inline void
