@@ -411,11 +411,10 @@ int bnxt_rx_queue_start(struct rte_eth_dev *dev, uint16_t rx_queue_id)
 		return -EINVAL;
 	}
 
-	dev->data->rx_queue_state[rx_queue_id] = RTE_ETH_QUEUE_STATE_STARTED;
-
 	bnxt_free_hwrm_rx_ring(bp, rx_queue_id);
-	bnxt_alloc_hwrm_rx_ring(bp, rx_queue_id);
-	PMD_DRV_LOG(INFO, "Rx queue started %d\n", rx_queue_id);
+	rc = bnxt_alloc_hwrm_rx_ring(bp, rx_queue_id);
+	if (rc)
+		return rc;
 
 	if (dev_conf->rxmode.mq_mode & ETH_MQ_RX_RSS_FLAG) {
 		vnic = rxq->vnic;
@@ -433,12 +432,20 @@ int bnxt_rx_queue_start(struct rte_eth_dev *dev, uint16_t rx_queue_id)
 			    vnic, bp->grp_info[rx_queue_id].fw_grp_id);
 
 		rc = bnxt_vnic_rss_configure(bp, vnic);
+		if (rc)
+			return rc;
 	}
 
-	if (rc == 0)
-		rxq->rx_deferred_start = false;
+	dev->data->rx_queue_state[rx_queue_id] =
+			RTE_ETH_QUEUE_STATE_STARTED;
+	rxq->rx_deferred_start = false;
 
-	return rc;
+	PMD_DRV_LOG(INFO,
+		    "queue %d, rx_deferred_start %d, state %d!\n",
+		    rx_queue_id, rxq->rx_deferred_start,
+		    bp->eth_dev->data->rx_queue_state[rx_queue_id]);
+
+	return 0;
 }
 
 int bnxt_rx_queue_stop(struct rte_eth_dev *dev, uint16_t rx_queue_id)

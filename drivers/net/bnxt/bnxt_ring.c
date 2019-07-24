@@ -539,10 +539,6 @@ int bnxt_alloc_hwrm_rx_ring(struct bnxt *bp, int queue_index)
 		bnxt_db_write(&rxr->ag_db, rxr->ag_prod);
 	}
 	rxq->index = queue_index;
-	PMD_DRV_LOG(INFO,
-		    "queue %d, rx_deferred_start %d, state %d!\n",
-		    queue_index, rxq->rx_deferred_start,
-		    bp->eth_dev->data->rx_queue_state[queue_index]);
 
 err_out:
 	return rc;
