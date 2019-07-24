@@ -813,7 +813,7 @@ openssl_pmd_sym_session_configure(struct rte_cryptodev *dev __rte_unused,
 
 static int openssl_set_asym_session_parameters(
 		struct openssl_asym_session *asym_session,
-		struct rte_crypto_asym_xform *xform)
+		const struct rte_crypto_asym_xform *xform)
 {
 	int ret = 0;
 
@@ -925,7 +925,7 @@ err_rsa:
 	}
 	case RTE_CRYPTO_ASYM_XFORM_MODEX:
 	{
-		struct rte_crypto_modex_xform *xfrm = &(xform->modex);
+		const struct rte_crypto_modex_xform *xfrm = &(xform->modex);
 
 		BN_CTX *ctx = BN_CTX_new();
 		if (ctx == NULL) {
@@ -956,7 +956,7 @@ err_rsa:
 	}
 	case RTE_CRYPTO_ASYM_XFORM_MODINV:
 	{
-		struct rte_crypto_modinv_xform *xfrm = &(xform->modinv);
+		const struct rte_crypto_modinv_xform *xfrm = &(xform->modinv);
 
 		BN_CTX *ctx = BN_CTX_new();
 		if (ctx == NULL) {
@@ -1125,7 +1125,7 @@ err_dsa:
 /** Configure the session from a crypto xform chain */
 static int
 openssl_pmd_asym_session_configure(struct rte_cryptodev *dev __rte_unused,
-		struct rte_crypto_asym_xform *xform,
+		const struct rte_crypto_asym_xform *xform,
 		struct rte_cryptodev_asym_session *sess,
 		struct rte_mempool *mempool)
 {
