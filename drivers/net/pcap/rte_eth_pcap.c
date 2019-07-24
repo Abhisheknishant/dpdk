@@ -354,7 +354,8 @@ eth_pcap_tx_dumper(void *queue, struct rte_mbuf **bufs, uint16_t nb_pkts)
 					mbuf->pkt_len,
 					RTE_ETHER_MAX_JUMBO_FRAME_LEN);
 
-				break;
+				rte_pktmbuf_free(mbuf);
+				continue;
 			}
 		}
 
@@ -373,7 +374,7 @@ eth_pcap_tx_dumper(void *queue, struct rte_mbuf **bufs, uint16_t nb_pkts)
 	dumper_q->tx_stat.bytes += tx_bytes;
 	dumper_q->tx_stat.err_pkts += nb_pkts - num_tx;
 
-	return num_tx;
+	return nb_pkts;
 }
 
 /*
@@ -439,14 +440,15 @@ eth_pcap_tx(void *queue, struct rte_mbuf **bufs, uint16_t nb_pkts)
 					mbuf->pkt_len,
 					RTE_ETHER_MAX_JUMBO_FRAME_LEN);
 
-				break;
+				rte_pktmbuf_free(mbuf);
+				continue;
 			}
 		}
 
-		if (unlikely(ret != 0))
-			break;
-		num_tx++;
-		tx_bytes += mbuf->pkt_len;
+		if (ret == 0) {
+			num_tx++;
+			tx_bytes += mbuf->pkt_len;
+		}
 		rte_pktmbuf_free(mbuf);
 	}
 
@@ -454,7 +456,7 @@ eth_pcap_tx(void *queue, struct rte_mbuf **bufs, uint16_t nb_pkts)
 	tx_queue->tx_stat.bytes += tx_bytes;
 	tx_queue->tx_stat.err_pkts += nb_pkts - num_tx;
 
-	return num_tx;
+	return nb_pkts;
 }
 
 /*
