@@ -290,7 +290,7 @@ typedef int (*cryptodev_sym_configure_session_t)(struct rte_cryptodev *dev,
  *  - Returns -ENOMEM if the private session could not be allocated.
  */
 typedef int (*cryptodev_asym_configure_session_t)(struct rte_cryptodev *dev,
-		struct rte_crypto_asym_xform *xform,
+		const struct rte_crypto_asym_xform *xform,
 		struct rte_cryptodev_asym_session *session,
 		struct rte_mempool *mp);
 /**

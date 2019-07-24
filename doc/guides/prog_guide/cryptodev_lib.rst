@@ -894,6 +894,16 @@ asymmetric crypto chaining is Diffie-Hellman private key generation followed by
 public generation. Also, currently API does not support chaining of symmetric and
 asymmetric crypto xforms.
 
+Transform is attached to session during asym session initialization should not be
+modified either by PMD or application during and after session configuration.
+
+It and all the data buffers it points to should
+remain read only till the end of life span of a session. It should be used as it
+is in PMD, PMDs which requires modification of these immutable data should internally
+do memcpy of data and perform required operations. In that case, it's the PMDs
+responsibility to ensure that any private data copied to local PMD storage
+during session configuration is not stored by the PMD for longer than the session lifetime
+
 Each xform defines specific asymmetric crypto algo. Currently supported are:
 * RSA
 * Modular operations (Exponentiation and Inverse)

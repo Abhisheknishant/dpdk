@@ -1272,7 +1272,7 @@ rte_cryptodev_sym_session_init(uint8_t dev_id,
 int
 rte_cryptodev_asym_session_init(uint8_t dev_id,
 		struct rte_cryptodev_asym_session *sess,
-		struct rte_crypto_asym_xform *xforms,
+		const struct rte_crypto_asym_xform *xforms,
 		struct rte_mempool *mp)
 {
 	struct rte_cryptodev *dev;
