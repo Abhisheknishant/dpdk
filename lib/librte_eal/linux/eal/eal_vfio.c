@@ -2,6 +2,7 @@
  * Copyright(c) 2010-2018 Intel Corporation
  */
 
+#include <dirent.h>
 #include <inttypes.h>
 #include <string.h>
 #include <fcntl.h>
@@ -22,6 +23,8 @@
 #ifdef VFIO_PRESENT
 
 #define VFIO_MEM_EVENT_CLB_NAME "vfio_mem_event_clb"
+
+#define VFIO_KERNEL_IOMMU_GROUPS_PATH "/sys/kernel/iommu_groups"
 
 /* hot plug/unplug of VFIO groups may cause all DMA maps to be dropped. we can
  * recreate the mappings for DPDK segments, but we cannot do so for memory that
@@ -2026,6 +2029,33 @@ rte_vfio_container_dma_unmap(int container_fd, uint64_t vaddr, uint64_t iova,
 	return container_dma_unmap(vfio_cfg, vaddr, iova, len);
 }
 
+/*
+ * on Linux 3.6+, even if VFIO is not loaded, whenever IOMMU is enabled in the
+ * BIOS and in the kernel, /sys/kernel/iommu_groups path will contain kernel
+ * IOMMU groups. If IOMMU is not enabled, that path would be empty. Therefore,
+ * checking if the path is empty will tell us if IOMMU is enabled.
+ */
+int
+vfio_iommu_enabled(void)
+{
+	DIR *dir = opendir(VFIO_KERNEL_IOMMU_GROUPS_PATH);
+	struct dirent *d;
+	int n = 0;
+
+	/* if directory doesn't exist, assume IOMMU is not enabled */
+	if (dir == NULL)
+		return 0;
+
+	while ((d = readdir(dir)) != NULL) {
+		/* skip dot and dot-dot */
+		if (++n > 2)
+			break;
+	}
+	closedir(dir);
+
+	return n > 2;
+}
+
 #else
 
 int
@@ -2144,6 +2174,15 @@ rte_vfio_container_dma_unmap(__rte_unused int container_fd,
 		__rte_unused uint64_t len)
 {
 	return -1;
+}
+
+/*
+ * VFIO not compiled, so IOMMU unsupported.
+ */
+int
+vfio_iommu_enabled(void)
+{
+	return 0;
 }
 
 #endif /* VFIO_PRESENT */

@@ -1061,8 +1061,15 @@ rte_eal_init(int argc, char **argv)
 		enum rte_iova_mode iova_mode = rte_bus_get_iommu_class();
 
 		if (iova_mode == RTE_IOVA_DC) {
-			iova_mode = RTE_IOVA_VA;
-			RTE_LOG(DEBUG, EAL, "Buses did not request a specific IOVA mode, select IOVA as VA mode.\n");
+			/* if we have an IOMMU, pick IOVA as VA mode */
+			if (vfio_iommu_enabled()) {
+				iova_mode = RTE_IOVA_VA;
+				RTE_LOG(DEBUG, EAL, "Buses did not request a specific IOVA mode, selecting IOVA as VA mode.\n");
+			} else {
+				iova_mode = RTE_IOVA_PA;
+				RTE_LOG(DEBUG, EAL, "Buses did not request a specific IOVA mode, but IOMMU is not available.\n");
+				RTE_LOG(DEBUG, EAL, "Selecting IOVA as PA mode.\n");
+			}
 		}
 #ifdef RTE_LIBRTE_KNI
 		/* Workaround for KNI which requires physical address to work */
