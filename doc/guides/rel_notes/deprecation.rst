@@ -78,3 +78,8 @@ Deprecation Notices
   to set new power environment if power environment was already initialized.
   In this case the function will return -1 unless the environment is unset first
   (using ``rte_power_unset_env``). Other function usage scenarios will not change.
+
+* ipsec-secgw: All the ipsec-secgw legacy code path functionality is now
+  available in the librte_ipsec library. It is planned to deprecate the legacy
+  code path in the ipsec-secgw application in the 19.11 release and remove it
+  in the 20.02 release.
