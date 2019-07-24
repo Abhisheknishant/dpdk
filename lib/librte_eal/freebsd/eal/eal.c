@@ -72,6 +72,13 @@ static struct flock wr_lock = {
 		.l_len = sizeof(early_mem_config.memsegs),
 };
 
+static struct flock rd_lock = {
+	.l_type = F_RDLCK,
+	.l_whence = SEEK_SET,
+	.l_start = offsetof(struct rte_mem_config, memsegs),
+	.l_len = sizeof(early_mem_config.memsegs),
+};
+
 /* Address of global and public configuration */
 static struct rte_config rte_config = {
 		.mem_config = &early_mem_config,
@@ -254,6 +261,19 @@ rte_eal_config_create(void)
 		return -1;
 	}
 
+	/* we hold an exclusive lock - now downgrade it to a read lock to allow
+	 * other processes to also hold onto this file while preventing other
+	 * primaries from spinning up.
+	 */
+	retval = fcntl(mem_cfg_fd, F_SETLK, &rd_lock);
+	if (retval < 0) {
+		close(mem_cfg_fd);
+		mem_cfg_fd = -1;
+		RTE_LOG(ERR, EAL, "Cannot downgrade to shared lock on '%s': %s\n",
+			pathname, strerror(errno));
+		return -1;
+	}
+
 	rte_mem_cfg_addr = mmap(NULL, sizeof(*rte_config.mem_config),
 				PROT_READ | PROT_WRITE, MAP_SHARED, mem_cfg_fd, 0);
 
@@ -291,6 +311,16 @@ rte_eal_config_attach(void)
 				pathname);
 			return -1;
 		}
+	}
+	/* lock the file to prevent primary from initializing while this
+	 * process is still running.
+	 */
+	if (fcntl(mem_cfg_fd, F_SETLK, &rd_lock) < 0) {
+		close(mem_cfg_fd);
+		mem_cfg_fd = -1;
+		RTE_LOG(ERR, EAL, "Cannot create shared lock on '%s': %s\n",
+				pathname, strerror(errno));
+		return -1;
 	}
 
 	rte_mem_cfg_addr = mmap(NULL, sizeof(*rte_config.mem_config),
@@ -330,8 +360,6 @@ rte_eal_config_reattach(void)
 	mem_config = (struct rte_mem_config *) mmap(rte_mem_cfg_addr,
 			sizeof(*mem_config), PROT_READ | PROT_WRITE, MAP_SHARED,
 			mem_cfg_fd, 0);
-	close(mem_cfg_fd);
-	mem_cfg_fd = -1;
 
 	if (mem_config == MAP_FAILED) {
 		RTE_LOG(ERR, EAL, "Cannot mmap memory for rte_config! error %i (%s)\n",
