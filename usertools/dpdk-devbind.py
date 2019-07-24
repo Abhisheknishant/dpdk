@@ -146,6 +146,25 @@ def check_output(args, stderr=None):
     return subprocess.Popen(args, stdout=subprocess.PIPE,
                             stderr=stderr).communicate()[0]
 
+# check if a specific kernel module is loaded
+def module_is_loaded(module):
+    # Get list of sysfs modules (both built-in and dynamically loaded)
+    sysfs_path = '/sys/module/'
+
+    # Get the list of directories in sysfs_path
+    sysfs_mods = [os.path.join(sysfs_path, o) for o
+                  in os.listdir(sysfs_path)
+                  if os.path.isdir(os.path.join(sysfs_path, o))]
+
+    # get module names
+    sysfs_mods = [os.path.basename(a) for a in sysfs_mods]
+
+    # special case for vfio_pci (module is named vfio-pci,
+    # but its .ko is named vfio_pci)
+    sysfs_mods = [a if a != 'vfio_pci' else 'vfio-pci' for a in sysfs_mods]
+
+    return module in sysfs_mods
+
 
 def check_modules():
     '''Checks that igb_uio is loaded'''
@@ -155,27 +174,9 @@ def check_modules():
     mods = [{"Name": driver, "Found": False} for driver in dpdk_drivers]
 
     # first check if module is loaded
-    try:
-        # Get list of sysfs modules (both built-in and dynamically loaded)
-        sysfs_path = '/sys/module/'
-
-        # Get the list of directories in sysfs_path
-        sysfs_mods = [os.path.join(sysfs_path, o) for o
-                      in os.listdir(sysfs_path)
-                      if os.path.isdir(os.path.join(sysfs_path, o))]
-
-        # Extract the last element of '/sys/module/abc' in the array
-        sysfs_mods = [a.split('/')[-1] for a in sysfs_mods]
-
-        # special case for vfio_pci (module is named vfio-pci,
-        # but its .ko is named vfio_pci)
-        sysfs_mods = [a if a != 'vfio_pci' else 'vfio-pci' for a in sysfs_mods]
-
-        for mod in mods:
-            if mod["Name"] in sysfs_mods:
-                mod["Found"] = True
-    except:
-        pass
+    for mod in mods:
+        if module_is_loaded(mod["Name"]):
+            mod["Found"] = True
 
     # check if we have at least one loaded module
     if True not in [mod["Found"] for mod in mods] and b_flag is not None:
@@ -520,6 +521,11 @@ def bind_all(dev_list, driver, force=False):
     except ValueError:
         # driver generated error - it's not a valid device ID, so all is well
         pass
+
+    # check if we're attempting to bind to a driver that isn't loaded
+    if not module_is_loaded(driver):
+        print("ERROR: Driver '%s' is not loaded." % driver)
+        sys.exit(1)
 
     try:
         dev_list = map(dev_id_from_dev_name, dev_list)
