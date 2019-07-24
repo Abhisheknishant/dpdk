@@ -29,9 +29,13 @@ extern "C" {
 /* The macro expands divider twice */
 #define	EFX_DIV_ROUND_UP(_n, _d)		(((_n) + (_d) - 1) / (_d))
 
-/* Round size up to nearest power of two. */
+/* Round value up to the nearest power of two. */
 #define	EFX_P2ROUNDUP(_type, _value, _align)	\
 	(-(-(_type)(_value) & -(_type)(_align)))
+
+/* Align value down to the nearest power of two. */
+#define	EFX_P2ALIGN(_type, _value, _align)	\
+	((_type)(_value) & -(_type)(_align))
 
 /* Return codes */
 
