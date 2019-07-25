@@ -244,6 +244,29 @@ em_mask_key(void *key, xmm_t mask)
 #error No vector engine (SSE, NEON, ALTIVEC) available, check your toolchain
 #endif
 
+#if defined(RTE_MACHINE_CPUFLAG_SSE2)
+static inline xmm_t
+em_load_key(void *key)
+{
+	return _mm_loadu_si128((__m128i *)(key));
+}
+#elif defined(RTE_MACHINE_CPUFLAG_NEON)
+static inline xmm_t
+em_load_key(void *key)
+{
+	return vld1q_s32((int32_t *)key);
+}
+#elif defined(RTE_MACHINE_CPUFLAG_ALTIVEC)
+static inline xmm_t
+em_load_key(void *key)
+{
+	return vec_ld(0, (xmm_t *)(key));
+}
+#else
+#error No vector engine (SSE, NEON, ALTIVEC) available, check your toolchain
+#endif
+
+
 static inline uint16_t
 em_get_ipv4_dst_port(void *ipv4_hdr, uint16_t portid, void *lookup_struct)
 {
@@ -287,8 +310,7 @@ em_get_ipv6_dst_port(void *ipv6_hdr, uint16_t portid, void *lookup_struct)
 	 * Get part of 5 tuple: dst IP address lower 96 bits
 	 * and src IP address higher 32 bits.
 	 */
-	key.xmm[1] = *(xmm_t *)data1;
-
+	key.xmm[1] = em_load_key(data1);
 	/*
 	 * Get part of 5 tuple: dst port and src port
 	 * and dst IP address higher 32 bits.
