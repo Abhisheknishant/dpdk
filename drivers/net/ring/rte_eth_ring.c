@@ -172,7 +172,7 @@ static int
 eth_stats_get(struct rte_eth_dev *dev, struct rte_eth_stats *stats)
 {
 	unsigned int i;
-	unsigned long rx_total = 0, tx_total = 0, tx_err_total = 0;
+	unsigned long rx_total = 0, tx_total = 0;
 	const struct pmd_internals *internal = dev->data->dev_private;
 
 	for (i = 0; i < RTE_ETHDEV_QUEUE_STAT_CNTRS &&
@@ -185,12 +185,10 @@ eth_stats_get(struct rte_eth_dev *dev, struct rte_eth_stats *stats)
 			i < dev->data->nb_tx_queues; i++) {
 		stats->q_opackets[i] = internal->tx_ring_queues[i].tx_pkts.cnt;
 		tx_total += stats->q_opackets[i];
-		tx_err_total += internal->tx_ring_queues[i].err_pkts.cnt;
 	}
 
 	stats->ipackets = rx_total;
 	stats->opackets = tx_total;
-	stats->oerrors = tx_err_total;
 
 	return 0;
 }
