@@ -270,7 +270,6 @@ eth_kni_stats_get(struct rte_eth_dev *dev, struct rte_eth_stats *stats)
 	unsigned long rx_packets_total = 0, rx_bytes_total = 0;
 	unsigned long tx_packets_total = 0, tx_bytes_total = 0;
 	struct rte_eth_dev_data *data = dev->data;
-	unsigned long tx_packets_err_total = 0;
 	unsigned int i, num_stats;
 	struct pmd_queue *q;
 
@@ -292,14 +291,12 @@ eth_kni_stats_get(struct rte_eth_dev *dev, struct rte_eth_stats *stats)
 		stats->q_obytes[i] = q->tx.bytes;
 		tx_packets_total += stats->q_opackets[i];
 		tx_bytes_total += stats->q_obytes[i];
-		tx_packets_err_total += q->tx.err_pkts;
 	}
 
 	stats->ipackets = rx_packets_total;
 	stats->ibytes = rx_bytes_total;
 	stats->opackets = tx_packets_total;
 	stats->obytes = tx_bytes_total;
-	stats->oerrors = tx_packets_err_total;
 
 	return 0;
 }
