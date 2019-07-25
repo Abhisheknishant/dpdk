@@ -224,6 +224,20 @@ New Features
 
   Added multiple cores feature to compression perf tool application.
 
+* **Updated the IPsec library.**
+
+  Added missing functionality for IPsec RFC's (4301, 403, 7321) compliance.
+
+  * Added support for transport mode with IPv6 extension headers.
+
+  * Added support for SA lifetime (soft/hard limit bytes/time).
+
+  * Expanded IV generation code to make it complain with particular algorithm
+    requirements (CBC, GCM, etc.).
+
+  * Added support for RFC 4301, section 5.1.2. Header Construction for Tunnel
+    Mode.
+
 
 Removed Items
 -------------
@@ -384,7 +398,7 @@ The libraries prepended with a plus sign were incremented in this version.
      librte_gso.so.1
      librte_hash.so.2
      librte_ip_frag.so.1
-     librte_ipsec.so.1
+   + librte_ipsec.so.1
      librte_jobstats.so.1
      librte_kni.so.2
      librte_kvargs.so.1
