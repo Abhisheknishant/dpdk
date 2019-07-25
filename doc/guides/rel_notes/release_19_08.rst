@@ -224,6 +224,14 @@ New Features
 
   Added multiple cores feature to compression perf tool application.
 
+* **Updated the IPsec library.**
+
+  Added the following functionality to ``librte_ipsec``.
+
+  * Added support for transport mode with IPv6 extension headers.
+
+  * Added support for packets that consist of multiple segments.
+
 
 Removed Items
 -------------
