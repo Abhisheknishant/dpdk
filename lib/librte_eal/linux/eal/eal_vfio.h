@@ -133,6 +133,8 @@ vfio_has_supported_extensions(int vfio_container_fd);
 
 int vfio_mp_sync_setup(void);
 
+int vfio_iommu_enabled(void);
+
 #define EAL_VFIO_MP "eal_vfio_mp_sync"
 
 #define SOCKET_REQ_CONTAINER 0x100
