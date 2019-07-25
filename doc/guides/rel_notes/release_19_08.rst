@@ -105,6 +105,12 @@ New Features
   * Enabled generic filter framework and supported switch filter.
   * Supported UDP tunnel port add.
 
+* **Updated the i40e driver.**
+
+  Updated i40e driver with new features and improvements, including:
+
+  * Added support for MARK + RSS action in rte_flow (non-vector RX path only)
+
 * **Updated Mellanox mlx5 driver.**
 
   Updated Mellanox mlx5 driver with new features and improvements, including:
