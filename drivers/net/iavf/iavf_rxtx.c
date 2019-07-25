@@ -144,7 +144,8 @@ check_rx_bulk_allow(struct iavf_rx_queue *rxq)
 static inline void
 reset_rx_queue(struct iavf_rx_queue *rxq)
 {
-	uint16_t len, i;
+	uint16_t len;
+	uint32_t i;
 
 	if (!rxq)
 		return;
