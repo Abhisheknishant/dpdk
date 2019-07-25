@@ -938,7 +938,6 @@ memif_stats_get(struct rte_eth_dev *dev, struct rte_eth_stats *stats)
 	stats->ibytes = 0;
 	stats->opackets = 0;
 	stats->obytes = 0;
-	stats->oerrors = 0;
 
 	tmp = (pmd->role == MEMIF_ROLE_SLAVE) ? pmd->run.num_s2m_rings :
 	    pmd->run.num_m2s_rings;
@@ -966,7 +965,6 @@ memif_stats_get(struct rte_eth_dev *dev, struct rte_eth_stats *stats)
 		stats->q_obytes[i] = mq->n_bytes;
 		stats->opackets += mq->n_pkts;
 		stats->obytes += mq->n_bytes;
-		stats->oerrors += mq->n_err;
 	}
 	return 0;
 }
