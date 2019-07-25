@@ -654,8 +654,7 @@ int enic_alloc_intr_resources(struct enic *enic)
 	int err;
 	unsigned int i;
 
-	dev_info(enic, "vNIC resources used:  "\
-		"wq %d rq %d cq %d intr %d\n",
+	dev_notice(enic, "vNIC resources used:  wq %d rq %d cq %d intr %d\n",
 		enic->wq_count, enic_vnic_rq_count(enic),
 		enic->cq_count, enic->intr_count);
 
@@ -811,11 +810,11 @@ int enic_alloc_rq(struct enic *enic, uint16_t queue_idx,
 
 	if (enic->rte_dev->data->dev_conf.rxmode.offloads &
 	    DEV_RX_OFFLOAD_SCATTER) {
-		dev_info(enic, "Rq %u Scatter rx mode enabled\n", queue_idx);
+		dev_notice(enic, "Rq %u Scatter rx mode enabled\n", queue_idx);
 		/* ceil((max pkt len)/mbuf_size) */
 		mbufs_per_pkt = (max_rx_pkt_len + mbuf_size - 1) / mbuf_size;
 	} else {
-		dev_info(enic, "Scatter rx mode disabled\n");
+		dev_notice(enic, "Scatter rx mode disabled\n");
 		mbufs_per_pkt = 1;
 		if (max_rx_pkt_len > mbuf_size) {
 			dev_warning(enic, "The maximum Rx packet size (%u) is"
@@ -827,7 +826,7 @@ int enic_alloc_rq(struct enic *enic, uint16_t queue_idx,
 	}
 
 	if (mbufs_per_pkt > 1) {
-		dev_info(enic, "Rq %u Scatter rx mode in use\n", queue_idx);
+		dev_notice(enic, "Rq %u Scatter rx mode in use\n", queue_idx);
 		rq_sop->data_queue_enable = 1;
 		rq_data->in_use = 1;
 		/*
@@ -843,7 +842,7 @@ int enic_alloc_rq(struct enic *enic, uint16_t queue_idx,
 				    " when scatter rx mode is in use.\n");
 		}
 	} else {
-		dev_info(enic, "Rq %u Scatter rx mode not being used\n",
+		dev_notice(enic, "Rq %u Scatter rx mode not being used\n",
 			 queue_idx);
 		rq_sop->data_queue_enable = 0;
 		rq_data->in_use = 0;
@@ -881,12 +880,12 @@ int enic_alloc_rq(struct enic *enic, uint16_t queue_idx,
 		nb_data_desc = max_data;
 	}
 	if (mbufs_per_pkt > 1) {
-		dev_info(enic, "For max packet size %u and mbuf size %u valid"
+		dev_notice(enic, "For max packet size %u and mbuf size %u valid"
 			 " rx descriptor range is %u to %u\n",
 			 max_rx_pkt_len, mbuf_size, min_sop + min_data,
 			 max_sop + max_data);
 	}
-	dev_info(enic, "Using %d rx descriptors (sop %d, data %d)\n",
+	dev_notice(enic, "Using %d rx descriptors (sop %d, data %d)\n",
 		 nb_sop_desc + nb_data_desc, nb_sop_desc, nb_data_desc);
 
 	/* Allocate sop queue resources */
@@ -992,7 +991,7 @@ int enic_alloc_wq(struct enic *enic, uint16_t queue_idx,
 	 * rte_eth_tx_queue_setup() checks min, max, and alignment. So just
 	 * print an info message for diagnostics.
 	 */
-	dev_info(enic, "TX Queues - effective number of descs:%d\n", nb_desc);
+	dev_notice(enic, "TX Queues - effective number of descs:%d\n", nb_desc);
 
 	/* Allocate queue resources */
 	err = vnic_wq_alloc(enic->vdev, &enic->wq[queue_idx], queue_idx,
@@ -1518,7 +1517,7 @@ int enic_set_mtu(struct enic *enic, uint16_t new_mtu)
 		return -EINVAL;
 	}
 	if (new_mtu < ENIC_MIN_MTU) {
-		dev_info(enic,
+		dev_notice(enic,
 			"MTU not updated: requested (%u) less than min (%u)\n",
 			new_mtu, ENIC_MIN_MTU);
 		return -EINVAL;
@@ -1609,7 +1608,7 @@ int enic_set_mtu(struct enic *enic, uint16_t new_mtu)
 	}
 
 set_mtu_done:
-	dev_info(enic, "MTU changed from %u to %u\n",  old_mtu, new_mtu);
+	dev_notice(enic, "MTU changed from %u to %u\n",  old_mtu, new_mtu);
 	rte_spinlock_unlock(&enic->mtu_lock);
 	return rc;
 }
@@ -1694,7 +1693,7 @@ static int enic_dev_init(struct enic *enic)
 						  OVERLAY_OFFLOAD_DISABLE)) {
 			dev_err(enic, "failed to disable overlay offload\n");
 		} else {
-			dev_info(enic, "Overlay offload is disabled\n");
+			dev_notice(enic, "Overlay offload is disabled\n");
 		}
 	}
 	if (!enic->disable_overlay && enic->vxlan &&
@@ -1712,7 +1711,7 @@ static int enic_dev_init(struct enic *enic)
 			PKT_TX_OUTER_IP_CKSUM |
 			PKT_TX_TUNNEL_MASK;
 		enic->overlay_offload = true;
-		dev_info(enic, "Overlay offload is enabled\n");
+		dev_notice(enic, "Overlay offload is enabled\n");
 	}
 	/*
 	 * Reset the vxlan port if HW vxlan parsing is available. It

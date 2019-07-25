@@ -72,7 +72,7 @@ int enic_get_vnic_config(struct enic *enic)
 					 max_t(u16, ENIC_MIN_MTU, c->mtu));
 
 	enic->adv_filters = vnic_dev_capable_adv_filters(enic->vdev);
-	dev_info(enic, "Advanced Filters %savailable\n", ((enic->adv_filters)
+	dev_notice(enic, "Advanced Filters %savailable\n", ((enic->adv_filters)
 		 ? "" : "not "));
 
 	err = vnic_dev_capable_filter_mode(enic->vdev, &enic->flow_filter_mode,
@@ -85,7 +85,7 @@ int enic_get_vnic_config(struct enic *enic)
 	vnic_dev_capable_udp_rss_weak(enic->vdev, &enic->nic_cfg_chk,
 				      &enic->udp_rss_weak);
 
-	dev_info(enic, "Flow api filter mode: %s Actions: %s%s%s\n",
+	dev_notice(enic, "Flow api filter mode: %s Actions: %s%s%s\n",
 		((enic->flow_filter_mode == FILTER_DPDK_1) ? "DPDK" :
 		((enic->flow_filter_mode == FILTER_USNIC_IP) ? "USNIC" :
 		((enic->flow_filter_mode == FILTER_IPV4_5TUPLE) ? "5TUPLE" :
@@ -112,14 +112,14 @@ int enic_get_vnic_config(struct enic *enic)
 	c->intr_timer_usec = min_t(u32, c->intr_timer_usec,
 		vnic_dev_get_intr_coal_timer_max(enic->vdev));
 
-	dev_info(enic_get_dev(enic),
+	dev_notice(enic_get_dev(enic),
 		"vNIC MAC addr %02x:%02x:%02x:%02x:%02x:%02x "
 		"wq/rq %d/%d mtu %d, max mtu:%d\n",
 		enic->mac_addr[0], enic->mac_addr[1], enic->mac_addr[2],
 		enic->mac_addr[3], enic->mac_addr[4], enic->mac_addr[5],
 		c->wq_desc_count, c->rq_desc_count,
 		enic->rte_dev->data->mtu, enic->max_mtu);
-	dev_info(enic_get_dev(enic), "vNIC csum tx/rx %s/%s "
+	dev_notice(enic_get_dev(enic), "vNIC csum tx/rx %s/%s "
 		"rss %s intr mode %s type %s timer %d usec "
 		"loopback tag 0x%04x\n",
 		ENIC_SETTING(enic, TXCSUM) ? "yes" : "no",
@@ -268,7 +268,7 @@ void enic_get_res_counts(struct enic *enic)
 	enic->conf_intr_count = vnic_dev_get_res_count(enic->vdev,
 		RES_TYPE_INTR_CTRL);
 
-	dev_info(enic_get_dev(enic),
+	dev_notice(enic_get_dev(enic),
 		"vNIC resources avail: wq %d rq %d cq %d intr %d\n",
 		enic->conf_wq_count, enic->conf_rq_count,
 		enic->conf_cq_count, enic->conf_intr_count);

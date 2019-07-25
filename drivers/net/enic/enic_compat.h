@@ -54,7 +54,7 @@ extern int enic_pmd_logtype;
 		"PMD: rte_enic_pmd: " fmt, ##args)
 
 #define dev_err(x, args...) dev_printk(ERR, args)
-#define dev_info(x, args...) dev_printk(INFO,  args)
+#define dev_notice(x, args...) dev_printk(NOTICE,  args)
 #define dev_warning(x, args...) dev_printk(WARNING, args)
 #define dev_debug(x, args...) dev_printk(DEBUG, args)
 
