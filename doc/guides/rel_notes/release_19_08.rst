@@ -200,11 +200,20 @@ New Features
   handshake between two separate hosts and can share local memory for peer
   host to directly access.
 
-* **Updated IPSec library Header Reconstruction.**
+* **Updated IPSec library and IPsec Security Gateway application.**
 
-  Updated the IPSec library with ECN and DSCP field header reconstruction
-  feature followed by RFC4301. The IPSec-secgw sample application is also
-  updated to support this feature by default.
+  Added the following functionality to ``librte_ipsec`` and ``ipsec-secgw``
+
+  * Updated ``librte_ipsec`` with ECN and DSCP field header reconstruction
+    feature followed by RFC4301.
+
+  * Added support for transport mode with IPv6 extension headers to
+    ``librte_ipsec``.
+
+  * Added support for packets that consist of multiple segments to
+    ``librte_ipsec``.
+
+  * Updated the ``ipsec-secgw`` sample application to support these features.
 
 * **Updated telemetry library for global metrics support.**
 
