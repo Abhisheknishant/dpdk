@@ -244,6 +244,7 @@ em_mask_key(void *key, xmm_t mask)
 #error No vector engine (SSE, NEON, ALTIVEC) available, check your toolchain
 #endif
 
+
 static inline uint16_t
 em_get_ipv4_dst_port(void *ipv4_hdr, uint16_t portid, void *lookup_struct)
 {
@@ -287,8 +288,11 @@ em_get_ipv6_dst_port(void *ipv6_hdr, uint16_t portid, void *lookup_struct)
 	 * Get part of 5 tuple: dst IP address lower 96 bits
 	 * and src IP address higher 32 bits.
 	 */
+#if defined RTE_ARCH_X86
+	key.xmm[1] = _mm_loadu_si128(data1);
+#else
 	key.xmm[1] = *(xmm_t *)data1;
-
+#endif
 	/*
 	 * Get part of 5 tuple: dst port and src port
 	 * and dst IP address higher 32 bits.
