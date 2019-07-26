@@ -123,6 +123,10 @@ ifneq (,$(findstring y,$(MVEP-y)))
 _LDLIBS-y += -lrte_common_mvep -L$(LIBMUSDK_PATH)/lib -lmusdk
 endif
 
+# Bus devices use constructors to register and therefore
+# need to be always linked in (--whole-archive already enabled)
+_LDLIBS-y += --no-as-needed
+
 ifeq ($(CONFIG_RTE_LIBRTE_DPAA_BUS),y)
 _LDLIBS-$(CONFIG_RTE_LIBRTE_COMMON_DPAAX)   += -lrte_common_dpaax
 endif
@@ -136,6 +140,9 @@ _LDLIBS-$(CONFIG_RTE_LIBRTE_DPAA_BUS)       += -lrte_bus_dpaa
 ifeq ($(CONFIG_RTE_EAL_VFIO),y)
 _LDLIBS-$(CONFIG_RTE_LIBRTE_FSLMC_BUS)      += -lrte_bus_fslmc
 endif
+
+# drivers are as-needed
+_LDLIBS-y += --as-needed
 
 ifeq ($(CONFIG_RTE_BUILD_SHARED_LIB),n)
 # plugins (link only if static libraries)
