@@ -10,6 +10,7 @@
 #include <errno.h>
 
 #include <rte_memory.h>
+#include <rte_ethdev.h>
 #include <rte_string_fns.h>
 
 #include "common.h"
@@ -35,37 +36,54 @@ usage(void)
 }
 
 /**
+ * Check if port is present in the system
+ * It maybe owned by a device and should not be used.
+ */
+static int
+port_is_present(uint16_t portid)
+{
+	uint16_t id;
+
+	RTE_ETH_FOREACH_DEV(id) {
+		if (id == portid)
+			return 1;
+	}
+	return 0;
+}
+
+/**
  * The ports to be used by the application are passed in
  * the form of a bitmask. This function parses the bitmask
  * and places the port numbers to be used into the port[]
  * array variable
  */
 static int
-parse_portmask(uint8_t max_ports, const char *portmask)
+parse_portmask(const char *portmask)
 {
 	char *end = NULL;
 	unsigned long pm;
-	uint16_t count = 0;
+	uint16_t count;
 
 	if (portmask == NULL || *portmask == '\0')
 		return -1;
 
 	/* convert parameter to a number and verify */
 	pm = strtoul(portmask, &end, 16);
-	if (end == NULL || *end != '\0' || pm == 0)
+	if (end == NULL || *end != '\0' || pm > UINT16_MAX || pm == 0)
 		return -1;
 
 	/* loop through bits of the mask and mark ports */
-	while (pm != 0){
-		if (pm & 0x01){ /* bit is set in mask, use port */
-			if (count >= max_ports)
-				printf("WARNING: requested port %u not present"
-				" - ignoring\n", (unsigned)count);
-			else
-			    ports->id[ports->num_ports++] = count;
+	for (count = 0; pm != 0; pm >>= 1, ++count) {
+		if ((pm & 0x1) == 0)
+			continue;
+
+		if (!port_is_present(count)) {
+			printf("WARNING: requested port %u not present - ignoring\n",
+				count);
+			continue;
 		}
-		pm = (pm >> 1);
-		count++;
+
+		ports->id[ports->num_ports++] = count;
 	}
 
 	return 0;
@@ -99,7 +117,7 @@ parse_num_clients(const char *clients)
  * on error.
  */
 int
-parse_app_args(uint16_t max_ports, int argc, char *argv[])
+parse_app_args(int argc, char *argv[])
 {
 	int option_index, opt;
 	char **argvopt = argv;
@@ -112,7 +130,7 @@ parse_app_args(uint16_t max_ports, int argc, char *argv[])
 		&option_index)) != EOF){
 		switch (opt){
 			case 'p':
-				if (parse_portmask(max_ports, optarg) != 0){
+				if (parse_portmask(optarg) != 0) {
 					usage();
 					return -1;
 				}
