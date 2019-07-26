@@ -2,6 +2,7 @@
  * Copyright(c) 2010-2018 Intel Corporation
  */
 
+#include <dirent.h>
 #include <inttypes.h>
 #include <string.h>
 #include <fcntl.h>
@@ -18,6 +19,8 @@
 #include "eal_memcfg.h"
 #include "eal_vfio.h"
 #include "eal_private.h"
+
+#define VFIO_KERNEL_IOMMU_GROUPS_PATH "/sys/kernel/iommu_groups"
 
 #ifdef VFIO_PRESENT
 
@@ -2147,3 +2150,30 @@ rte_vfio_container_dma_unmap(__rte_unused int container_fd,
 }
 
 #endif /* VFIO_PRESENT */
+
+/*
+ * on Linux 3.6+, even if VFIO is not loaded, whenever IOMMU is enabled in the
+ * BIOS and in the kernel, /sys/kernel/iommu_groups path will contain kernel
+ * IOMMU groups. If IOMMU is not enabled, that path would be empty. Therefore,
+ * checking if the path is empty will tell us if IOMMU is enabled.
+ */
+int
+vfio_iommu_enabled(void)
+{
+	DIR *dir = opendir(VFIO_KERNEL_IOMMU_GROUPS_PATH);
+	struct dirent *d;
+	int n = 0;
+
+	/* if directory doesn't exist, assume IOMMU is not enabled */
+	if (dir == NULL)
+		return 0;
+
+	while ((d = readdir(dir)) != NULL) {
+		/* skip dot and dot-dot */
+		if (++n > 2)
+			break;
+	}
+	closedir(dir);
+
+	return n > 2;
+}
