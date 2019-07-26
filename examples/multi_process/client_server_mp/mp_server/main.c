@@ -56,26 +56,6 @@ struct client_rx_buf {
 /* One buffer per client rx queue - dynamically allocate array */
 static struct client_rx_buf *cl_rx_buf;
 
-static const char *
-get_printable_mac_addr(uint16_t port)
-{
-	static const char err_address[] = "00:00:00:00:00:00";
-	static char addresses[RTE_MAX_ETHPORTS][sizeof(err_address)];
-
-	if (unlikely(port >= RTE_MAX_ETHPORTS))
-		return err_address;
-	if (unlikely(addresses[port][0] == '\0')) {
-		struct rte_ether_addr mac;
-
-		rte_eth_macaddr_get(port, &mac);
-		snprintf(addresses[port], sizeof(addresses[port]),
-				"%02x:%02x:%02x:%02x:%02x:%02x\n",
-				mac.addr_bytes[0], mac.addr_bytes[1], mac.addr_bytes[2],
-				mac.addr_bytes[3], mac.addr_bytes[4], mac.addr_bytes[5]);
-	}
-	return addresses[port];
-}
-
 /*
  * This function displays the recorded statistics for each port
  * and for each client. It uses ANSI terminal codes to clear
@@ -118,9 +98,15 @@ do_stats_display(void)
 
 	printf("PORTS\n");
 	printf("-----\n");
-	for (i = 0; i < ports->num_ports; i++)
-		printf("Port %u: '%s'\t", ports->id[i],
-		       get_printable_mac_addr(ports->id[i]));
+	for (i = 0; i < ports->num_ports; i++) {
+		struct rte_ether_addr mac = { };
+		char buf[32];
+
+		rte_eth_macaddr_get(ports->id[i], &mac);
+		rte_ether_format_addr(buf, sizeof(buf), &mac);
+		printf("Port %u: '%s'\t", ports->id[i], buf);
+	}
+
 	printf("\n\n");
 	for (i = 0; i < ports->num_ports; i++) {
 		printf("Port %u - rx: %9"PRIu64"\ttx: %9"PRIu64"\n",
