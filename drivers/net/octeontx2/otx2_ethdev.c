@@ -521,6 +521,19 @@ otx2_nix_rx_queue_setup(struct rte_eth_dev *eth_dev, uint16_t rq,
 
 	eth_dev->data->rx_queues[rq] = rxq;
 	eth_dev->data->rx_queue_state[rq] = RTE_ETH_QUEUE_STATE_STOPPED;
+
+	/* Calculating delta and freq mult between PTP HI clock and tsc.
+	 * These are needed for deriving PTP HI clock value from tsc counter.
+	 */
+	if ((dev->rx_offloads & DEV_RX_OFFLOAD_TIMESTAMP) ||
+	    otx2_ethdev_is_ptp_en(dev)) {
+		rc = otx2_nix_raw_clock_tsc_conv(dev);
+		if (rc) {
+			otx2_err("Failed to calculate delta and freq mult");
+			goto fail;
+		}
+	}
+
 	return 0;
 
 free_rxq:
@@ -1184,6 +1197,81 @@ nix_set_nop_rxtx_function(struct rte_eth_dev *eth_dev)
 }
 
 static int
+nix_read_raw_clock(struct otx2_eth_dev *dev, uint64_t *clock, uint64_t *tsc,
+		   uint8_t is_pmu)
+{
+	struct otx2_mbox *mbox = dev->mbox;
+	struct ptp_req *req;
+	struct ptp_rsp *rsp;
+	int rc;
+
+	req = otx2_mbox_alloc_msg_ptp_op(mbox);
+	req->op = PTP_OP_GET_CLOCK;
+	req->is_pmu = is_pmu;
+	rc = otx2_mbox_process_msg(mbox, (void *)&rsp);
+	if (rc)
+		goto fail;
+
+	if (clock)
+		*clock = rsp->clk;
+	if (tsc)
+		*tsc = rsp->tsc;
+
+fail:
+	return rc;
+}
+
+/* This function calculates two parameters "clk_freq_mult" and
+ * "clk_delta" which is useful in deriving PTP HI clock from
+ * timestamp counter (tsc) value.
+ */
+int
+otx2_nix_raw_clock_tsc_conv(struct otx2_eth_dev *dev)
+{
+	uint64_t ticks_base = 0, ticks = 0, tsc = 0, t_freq;
+	int rc, val;
+
+	/* Calculating the frequency at which PTP HI clock is running */
+	rc = nix_read_raw_clock(dev, &ticks_base, &tsc, false);
+	if (rc) {
+		otx2_err("Failed to read the raw clock value: %d", rc);
+		goto fail;
+	}
+
+	rte_delay_ms(100);
+
+	rc = nix_read_raw_clock(dev, &ticks, &tsc, false);
+	if (rc) {
+		otx2_err("Failed to read the raw clock value: %d", rc);
+		goto fail;
+	}
+
+	t_freq = (ticks - ticks_base) * 10;
+
+	/* Calculating the freq multiplier viz the ratio between the
+	 * frequency at which PTP HI clock works and tsc clock runs
+	 */
+	dev->clk_freq_mult =
+		(double)pow(10, floor(log10(t_freq))) / rte_get_timer_hz();
+
+	val = false;
+#ifdef RTE_ARM_EAL_RDTSC_USE_PMU
+	val = true;
+#endif
+	rc = nix_read_raw_clock(dev, &ticks, &tsc, val);
+	if (rc) {
+		otx2_err("Failed to read the raw clock value: %d", rc);
+		goto fail;
+	}
+
+	/* Calculating delta between PTP HI clock and tsc */
+	dev->clk_delta = ((uint64_t)(ticks / dev->clk_freq_mult) - tsc);
+
+fail:
+	return rc;
+}
+
+static int
 otx2_nix_configure(struct rte_eth_dev *eth_dev)
 {
 	struct otx2_eth_dev *dev = otx2_eth_pmd_priv(eth_dev);
@@ -1646,6 +1734,7 @@ static const struct eth_dev_ops otx2_eth_dev_ops = {
 	.vlan_pvid_set		  = otx2_nix_vlan_pvid_set,
 	.rx_queue_intr_enable	  = otx2_nix_rx_queue_intr_enable,
 	.rx_queue_intr_disable	  = otx2_nix_rx_queue_intr_disable,
+	.read_clock		  = otx2_nix_read_clock,
 };
 
 static inline int
