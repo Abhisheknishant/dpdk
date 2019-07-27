@@ -224,6 +224,13 @@ otx2_nix_timesync_adjust_time(struct rte_eth_dev *eth_dev, int64_t delta)
 		rc = otx2_mbox_process_msg(mbox, (void *)&rsp);
 		if (rc)
 			return rc;
+		/* Since the frequency of PTP comp register is tuned, delta and
+		 * freq mult calculation for deriving PTP_HI from rdtsc should
+		 * be done again.
+		 */
+		rc = otx2_nix_raw_clock_rdtsc_conv(dev);
+		if (rc)
+			otx2_err("Failed to calculate delta and freq mult");
 	}
 	dev->systime_tc.nsec += delta;
 	dev->rx_tstamp_tc.nsec += delta;
@@ -268,6 +275,29 @@ otx2_nix_timesync_read_time(struct rte_eth_dev *eth_dev, struct timespec *ts)
 	*ts = rte_ns_to_timespec(ns);
 
 	otx2_nix_dbg("PTP time read: %ld.%09ld", ts->tv_sec, ts->tv_nsec);
+
+	return 0;
+}
+
+
+int
+otx2_nix_read_clock(struct rte_eth_dev *eth_dev, uint64_t *clock)
+{
+	struct otx2_eth_dev *dev = otx2_eth_pmd_priv(eth_dev);
+
+	if (!otx2_ethdev_is_ptp_en(dev)) {
+		otx2_err("PTP should be enabled.");
+		return -EINVAL;
+	}
+
+	/* This API returns the raw PTP HI clock value. Since LFs doesn't
+	 * have direct access to PTP registers and it requires mbox msg
+	 * to AF for this value. In fastpath reading this value for every
+	 * packet (which involes mbox call) becomes very expensive, hence
+	 * we should be able to derive PTP HI clock value from rdtsc by
+	 * using freq_mult and clk_delta calculated during configure stage.
+	 */
+	*clock = (rte_rdtsc() + dev->clk_delta) * dev->clk_freq_mult;
 
 	return 0;
 }
