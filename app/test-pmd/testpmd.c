@@ -1191,6 +1191,17 @@ init_config(void)
 				warning = 1;
 			}
 		}
+		if (rx_mode.max_rx_pkt_len + RTE_PKTMBUF_HEADROOM >
+		    mbuf_data_size) {
+			if (port->dev_info.rx_queue_offload_capa &
+			    DEV_RX_OFFLOAD_SCATTER)
+				port->dev_conf.rxmode.offloads |=
+						DEV_RX_OFFLOAD_SCATTER;
+			else
+				TESTPMD_LOG(WARNING, "Configure scatter is"
+					    " needed and cannot be configured"
+					    " in the port %u\n", pid);
+		}
 	}
 
 	if (warning)
