@@ -124,21 +124,6 @@ mlx5_mprq_enabled(struct rte_eth_dev *dev)
 }
 
 /**
- * Check whether LRO is supported and enabled for the device.
- *
- * @param dev
- *   Pointer to Ethernet device.
- *
- * @return
- *   0 if disabled, 1 if enabled.
- */
-inline int
-mlx5_lro_on(struct rte_eth_dev *dev)
-{
-	return (MLX5_LRO_SUPPORTED(dev) && MLX5_LRO_ENABLED(dev));
-}
-
-/**
  * Allocate RX queue elements for Multi-Packet RQ.
  *
  * @param rxq_ctrl
@@ -394,6 +379,8 @@ mlx5_get_rx_queue_offloads(struct rte_eth_dev *dev)
 			     DEV_RX_OFFLOAD_TCP_CKSUM);
 	if (config->hw_vlan_strip)
 		offloads |= DEV_RX_OFFLOAD_VLAN_STRIP;
+	if (MLX5_LRO_SUPPORTED(dev))
+		offloads |= DEV_RX_OFFLOAD_TCP_LRO;
 	return offloads;
 }
 
@@ -401,19 +388,14 @@ mlx5_get_rx_queue_offloads(struct rte_eth_dev *dev)
 /**
  * Returns the per-port supported offloads.
  *
- * @param dev
- *   Pointer to Ethernet device.
- *
  * @return
  *   Supported Rx offloads.
  */
 uint64_t
-mlx5_get_rx_port_offloads(struct rte_eth_dev *dev)
+mlx5_get_rx_port_offloads(void)
 {
 	uint64_t offloads = DEV_RX_OFFLOAD_VLAN_FILTER;
 
-	if (MLX5_LRO_SUPPORTED(dev))
-		offloads |= DEV_RX_OFFLOAD_TCP_LRO;
 	return offloads;
 }
 
@@ -887,7 +869,8 @@ mlx5_ibv_cq_new(struct rte_eth_dev *dev, struct mlx5_priv *priv,
 	cq_attr.mlx5 = (struct mlx5dv_cq_init_attr){
 		.comp_mask = 0,
 	};
-	if (priv->config.cqe_comp && !rxq_data->hw_timestamp) {
+	if (priv->config.cqe_comp && !rxq_data->hw_timestamp &&
+	    !rxq_data->lro) {
 		cq_attr.mlx5.comp_mask |=
 				MLX5DV_CQ_INIT_ATTR_MASK_COMPRESSED_CQE;
 #ifdef HAVE_IBV_DEVICE_STRIDING_RQ_SUPPORT
@@ -908,6 +891,10 @@ mlx5_ibv_cq_new(struct rte_eth_dev *dev, struct mlx5_priv *priv,
 		DRV_LOG(DEBUG,
 			"port %u Rx CQE compression is disabled for HW"
 			" timestamp",
+			dev->data->port_id);
+	} else if (priv->config.cqe_comp && rxq_data->lro) {
+		DRV_LOG(DEBUG,
+			"port %u Rx CQE compression is disabled for LRO",
 			dev->data->port_id);
 	}
 #ifdef HAVE_IBV_MLX5_MOD_CQE_128B_PAD
@@ -1604,6 +1591,7 @@ mlx5_rxq_new(struct rte_eth_dev *dev, uint16_t idx, uint16_t desc,
 		desc + config->rx_vec_en * MLX5_VPMD_DESCS_PER_LOOP;
 	uint64_t offloads = conf->offloads |
 			   dev->data->dev_conf.rxmode.offloads;
+	unsigned int lro_on_queue = !!(offloads & DEV_RX_OFFLOAD_TCP_LRO);
 	const int mprq_en = mlx5_check_mprq_support(dev) > 0;
 	unsigned int max_rx_pkt_len = dev->data->dev_conf.rxmode.max_rx_pkt_len;
 	unsigned int non_scatter_min_mbuf_size = max_rx_pkt_len +
@@ -1643,7 +1631,7 @@ mlx5_rxq_new(struct rte_eth_dev *dev, uint16_t idx, uint16_t desc,
 	 * In this case scatter is, for sure, enabled and an empty mbuf may be
 	 * added in the start for the head-room.
 	 */
-	if (mlx5_lro_on(dev) && RTE_PKTMBUF_HEADROOM > 0 &&
+	if (lro_on_queue && RTE_PKTMBUF_HEADROOM > 0 &&
 	    non_scatter_min_mbuf_size > mb_len) {
 		strd_headroom_en = 0;
 		mprq_stride_size = RTE_MIN(max_rx_pkt_len,
@@ -1690,7 +1678,7 @@ mlx5_rxq_new(struct rte_eth_dev *dev, uint16_t idx, uint16_t desc,
 		unsigned int size = non_scatter_min_mbuf_size;
 		unsigned int sges_n;
 
-		if (mlx5_lro_on(dev) && first_mb_free_size <
+		if (lro_on_queue && first_mb_free_size <
 		    MLX5_MAX_LRO_HEADER_FIX) {
 			DRV_LOG(ERR, "Not enough space in the first segment(%u)"
 				" to include the max header size(%u) for LRO",
@@ -1744,13 +1732,14 @@ mlx5_rxq_new(struct rte_eth_dev *dev, uint16_t idx, uint16_t desc,
 	tmpl->rxq.vlan_strip = !!(offloads & DEV_RX_OFFLOAD_VLAN_STRIP);
 	/* By default, FCS (CRC) is stripped by hardware. */
 	tmpl->rxq.crc_present = 0;
+	tmpl->rxq.lro = lro_on_queue;
 	if (offloads & DEV_RX_OFFLOAD_KEEP_CRC) {
 		if (config->hw_fcs_strip) {
 			/*
 			 * RQs used for LRO-enabled TIRs should not be
 			 * configured to scatter the FCS.
 			 */
-			if (mlx5_lro_on(dev))
+			if (lro_on_queue)
 				DRV_LOG(WARNING,
 					"port %u CRC stripping has been "
 					"disabled but will still be performed "
@@ -2200,7 +2189,16 @@ mlx5_hrxq_new(struct rte_eth_dev *dev,
 		}
 	} else { /* ind_tbl->type == MLX5_IND_TBL_TYPE_DEVX */
 		struct mlx5_devx_tir_attr tir_attr;
+		uint32_t i;
+		uint32_t lro = 1;
 
+		/* Enable TIR LRO only if all the queues were configured for. */
+		for (i = 0; i < queues_n; ++i) {
+			if (!(*priv->rxqs)[queues[i]]->lro) {
+				lro = 0;
+				break;
+			}
+		}
 		memset(&tir_attr, 0, sizeof(tir_attr));
 		tir_attr.disp_type = MLX5_TIRC_DISP_TYPE_INDIRECT;
 		tir_attr.rx_hash_fn = MLX5_RX_HASH_FN_TOEPLITZ;
@@ -2212,7 +2210,7 @@ mlx5_hrxq_new(struct rte_eth_dev *dev,
 		if (dev->data->dev_conf.lpbk_mode)
 			tir_attr.self_lb_block =
 					MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST;
-		if (mlx5_lro_on(dev)) {
+		if (lro) {
 			tir_attr.lro_timeout_period_usecs =
 					priv->config.lro.timeout;
 			tir_attr.lro_max_msg_sz = priv->max_lro_msg_size;
