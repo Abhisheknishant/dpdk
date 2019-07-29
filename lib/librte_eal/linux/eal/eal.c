@@ -1068,12 +1068,14 @@ rte_eal_init(int argc, char **argv)
 		/* Workaround for KNI which requires physical address to work */
 		if (iova_mode == RTE_IOVA_VA &&
 				rte_eal_check_module("rte_kni") == 1) {
+#if KERNEL_VERSION(4, 4, 0) > LINUX_VERSION_CODE
 			if (phys_addrs) {
 				iova_mode = RTE_IOVA_PA;
-				RTE_LOG(WARNING, EAL, "Forcing IOVA as 'PA' because KNI module is loaded\n");
+				RTE_LOG(WARNING, EAL, "Forcing IOVA as 'PA' because KNI module does not support VA\n");
 			} else {
 				RTE_LOG(DEBUG, EAL, "KNI can not work since physical addresses are unavailable\n");
 			}
+#endif
 		}
 #endif
 		rte_eal_get_configuration()->iova_mode = iova_mode;
