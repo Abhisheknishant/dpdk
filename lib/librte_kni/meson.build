@@ -9,3 +9,4 @@ version = 2
 sources = files('rte_kni.c')
 headers = files('rte_kni.h')
 deps += ['ethdev', 'pci']
+includes += include_directories('../../drivers/bus/pci')
