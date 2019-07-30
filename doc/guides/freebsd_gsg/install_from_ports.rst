@@ -46,6 +46,12 @@ those below would be added to the file ``/boot/loader.conf``.
     hw.nic_uio.bdfs="2:0:0,2:0:1"
     nic_uio_load="YES"
 
+.. note::
+
+   Please ensure that the latest patches are applied any third party libraries
+   or software to avoid any known vulnerabilities.
+
+
 Compiling and Running the Example Applications
 ----------------------------------------------
 
