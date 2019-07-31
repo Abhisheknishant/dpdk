@@ -1122,6 +1122,12 @@ rte_eal_init(int argc, char **argv)
 			}
 		}
 #endif
+#ifdef RTE_ARCH_PPC_64
+		if (iova_mode == RTE_IOVA_VA) {
+			iova_mode = RTE_IOVA_PA;
+			RTE_LOG(WARNING, EAL, "Forcing IOVA as 'PA' because PPC uses PA mode.\n");
+		}
+#endif
 		rte_eal_get_configuration()->iova_mode = iova_mode;
 	} else {
 		rte_eal_get_configuration()->iova_mode =
