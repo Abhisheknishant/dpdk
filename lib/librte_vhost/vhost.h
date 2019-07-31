@@ -88,6 +88,22 @@ struct vring_used_elem_packed {
 	uint32_t count;
 };
 
+struct inflight_desc_split {
+	uint8_t		inflight;
+	uint8_t		padding[5];
+	uint16_t	next;
+	uint64_t	counter;
+};
+
+struct inflight_info_split {
+	uint64_t		features;
+	uint16_t		version;
+	uint16_t		desc_num;
+	uint16_t		last_inflight_io;
+	uint16_t		used_idx;
+	struct inflight_desc_split desc[0];
+};
+
 /**
  * Structure contains variables relevant to RX/TX virtqueues.
  */
@@ -127,6 +143,14 @@ struct vhost_virtqueue {
 
 	/* Physical address of used ring, for logging */
 	uint64_t		log_guest_addr;
+
+	/* inflight share memory info */
+	union {
+		struct inflight_info_split *inflight_split;
+		struct inflight_info_packed *inflight_packed;
+	};
+	struct rte_vhost_resubmit_info *resubmit_inflight;
+	uint64_t		global_counter;
 
 	uint16_t		nr_zmbuf;
 	uint16_t		zmbuf_size;
@@ -215,24 +239,6 @@ struct vhost_msg {
  #define VIRTIO_F_VERSION_1 32
 #endif
 
-/* Declare packed ring related bits for older kernels */
-#ifndef VIRTIO_F_RING_PACKED
-
-#define VIRTIO_F_RING_PACKED 34
-
-struct vring_packed_desc {
-	uint64_t addr;
-	uint32_t len;
-	uint16_t id;
-	uint16_t flags;
-};
-
-struct vring_packed_desc_event {
-	uint16_t off_wrap;
-	uint16_t flags;
-};
-#endif
-
 /*
  * Declare below packed ring defines unconditionally
  * as Kernel header might use different names.
@@ -243,6 +249,10 @@ struct vring_packed_desc_event {
 #define VRING_EVENT_F_ENABLE 0x0
 #define VRING_EVENT_F_DISABLE 0x1
 #define VRING_EVENT_F_DESC 0x2
+
+#ifndef VIRTIO_F_RING_PACKED
+#define VIRTIO_F_RING_PACKED 34
+#endif
 
 /*
  * Available and used descs are in same order
@@ -286,6 +296,12 @@ struct guest_page {
 	uint64_t size;
 };
 
+struct inflight_mem_info {
+	int		fd;
+	void		*addr;
+	uint64_t	size;
+};
+
 /**
  * Device structure contains all configuration information relating
  * to the device.
@@ -303,6 +319,7 @@ struct virtio_net {
 	uint32_t		nr_vring;
 	int			dequeue_zero_copy;
 	struct vhost_virtqueue	*virtqueue[VHOST_MAX_QUEUE_PAIRS * 2];
+	struct inflight_mem_info inflight_info;
 #define IF_NAME_SZ (PATH_MAX > IFNAMSIZ ? PATH_MAX : IFNAMSIZ)
 	char			ifname[IF_NAME_SZ];
 	uint64_t		log_size;
@@ -467,6 +484,7 @@ void vhost_destroy_device(int);
 void vhost_destroy_device_notify(struct virtio_net *dev);
 
 void cleanup_vq(struct vhost_virtqueue *vq, int destroy);
+void cleanup_vq_inflight(struct virtio_net *dev, struct vhost_virtqueue *vq);
 void free_vq(struct virtio_net *dev, struct vhost_virtqueue *vq);
 
 int alloc_vring_queue(struct virtio_net *dev, uint32_t vring_idx);
