@@ -1312,6 +1312,9 @@ eth_i40e_dev_init(struct rte_eth_dev *dev, void *init_params __rte_unused)
 	hw->adapter_stopped = 0;
 	hw->adapter_closed = 0;
 
+	//Update switch device pointer
+	hw->switch_dev = NULL;
+
 	/*
 	 * Switch Tag value should not be identical to either the First Tag
 	 * or Second Tag values. So set something other than common Ethertype
@@ -2782,6 +2785,20 @@ update_link_aq(struct i40e_hw *hw, struct rte_eth_link *link,
 	}
 }
 
+void
+i40e_set_switch_dev(struct rte_eth_dev *i40e_dev,
+struct rte_eth_dev *switch_dev)
+{
+	struct i40e_hw *hw;
+
+	if (!i40e_dev)
+		return;
+
+	hw = I40E_DEV_PRIVATE_TO_HW(i40e_dev->data->dev_private);
+
+	hw->switch_dev = switch_dev;
+}
+
 int
 i40e_dev_link_update(struct rte_eth_dev *dev,
 		     int wait_to_complete)
@@ -2790,6 +2807,7 @@ i40e_dev_link_update(struct rte_eth_dev *dev,
 	struct rte_eth_link link;
 	bool enable_lse = dev->data->dev_conf.intr_conf.lsc ? true : false;
 	int ret;
+	struct rte_eth_dev *switch_ethdev;
 
 	memset(&link, 0, sizeof(link));
 
@@ -2802,6 +2820,18 @@ i40e_dev_link_update(struct rte_eth_dev *dev,
 		update_link_reg(hw, &link);
 	else
 		update_link_aq(hw, &link, enable_lse, wait_to_complete);
+
+	switch_ethdev = hw->switch_dev;
+	if (switch_ethdev) {
+		rte_eth_linkstatus_get(switch_ethdev, &link);
+		printf(">>>>>>>>>>>>>i40e_update_link 5 link.link_status %d\n",
+			link.link_status);
+	} else {
+		link.link_duplex = ETH_LINK_FULL_DUPLEX;
+		link.link_autoneg = ETH_LINK_SPEED_FIXED;
+		link.link_speed = ETH_SPEED_NUM_25G;
+		link.link_status = 0;
+	}
 
 	ret = rte_eth_linkstatus_set(dev, &link);
 	i40e_notify_all_vfs_link_status(dev);
@@ -12541,7 +12571,7 @@ i40e_update_customized_info(struct rte_eth_dev *dev, uint8_t *pkg,
  *	b.	Old_filter = 10 (Stag_Inner_Vlan)
  *	c.	New_filter = 0x10
  *	d.	TR bit = 0xff (optional, not used here)
- *	e.	Buffer – 2 entries:
+ *	e.	Buffer - 2 entries:
  *		i.	Byte 0 = 8 (outer vlan FV index).
  *			Byte 1 = 0 (rsv)
  *			Byte 2-3 = 0x0fff
@@ -12555,7 +12585,7 @@ i40e_update_customized_info(struct rte_eth_dev *dev, uint8_t *pkg,
  *	a.	Valid_flags.replace_cloud = 1
  *	b.	Old_filter = 1 (instead of outer IP)
  *	c.	New_filter = 0x10
- *	d.	Buffer – 2 entries:
+ *	d.	Buffer - 2 entries:
  *		i.	Byte 0 = 0x80 | 7 (valid | Stag).
  *			Byte 1-3 = 0 (rsv)
  *		ii.	Byte 8 = 0x80 | 0x10 (valid | new l1 filter step1)
