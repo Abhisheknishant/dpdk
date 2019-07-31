@@ -87,7 +87,9 @@ machine_args_generic = [
 	['0xd07', ['-mcpu=cortex-a57']],
 	['0xd08', ['-mcpu=cortex-a72']],
 	['0xd09', ['-mcpu=cortex-a73']],
-	['0xd0a', ['-mcpu=cortex-a75']]]
+	['0xd0a', ['-mcpu=cortex-a75']],
+	['0xd0b', ['-mcpu=cortex-a76']],
+	['0xd0c', ['-march=armv8.2-a', '-mcpu=neoverse-n1']]]
 
 machine_args_cavium = [
 	['default', ['-march=armv8-a+crc+crypto','-mcpu=thunderx']],
