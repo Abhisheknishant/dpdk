@@ -22,3 +22,11 @@ fi
 OPTS="$OPTS --default-library=$DEF_LIB"
 meson build --werror -Dexamples=all $OPTS
 ninja -C build
+
+if [ "$RUN_TESTS" = "1" ]; then
+    # On the test build, also build the documentation, since it's expensive
+    # and we shouldn't need to build so much of it.
+    ninja -C build doc
+
+    sudo meson test -C build --suite fast-tests -t 3
+fi
