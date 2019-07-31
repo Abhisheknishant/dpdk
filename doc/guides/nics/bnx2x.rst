@@ -69,9 +69,18 @@ Co-existence considerations
   bnx2fi) is not supported on the same adapter. So storage personality
   has to be disabled on that adapter when used in DPDK applications.
 
-- For SR-IOV case, bnx2x PMD will be used to bind to SR-IOV VF device and
-  Linux native kernel driver (bnx2x) will be attached to SR-IOV PF.
+- Linux kernel drivers and bnx2x PMD can’t be mixed on a given BCM578xx
+  adapter. This type of coexistence is unsupported. A given adapter
+  needs to be completely used by DPDK or Linux drivers, when SR-IOV
+  is not enabled. Before binging DPDK driver to one or more devices on
+  the adapter, please make sure to unbind Linux drivers from all devices
+  of the adapter. If there are multiple adapters on the system, one or
+  more adapter can be used by DPDK driver and other adapters can be used
+  by Linux drivers.
 
+- When SR-IOV is enabled, Linux native kernel driver (bnx2x) can be
+  bound to the PFs of a given adapter and either DPDK or Linux drivers
+  can be bound to the VFs of the adapter.
 
 Supported QLogic NICs
 ---------------------
