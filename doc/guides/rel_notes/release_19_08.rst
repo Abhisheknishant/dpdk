@@ -559,3 +559,18 @@ Tested Platforms
        * Firmware version: 3.25, 0x800006eb
        * Device id (pf): 8086:1533
        * Driver version: 5.4.0-k(igb)
+
+* ARMv8 SoC combinations from Marvell (with integrated NICs)
+
+   * SoC:
+
+     * CN83xx, CN96xx, CNF95xx, CN93xx
+
+   * OS:
+
+     * Arch Linux with Marvell OCTEON TX SDK 10.0 package
+     * Build root with Marvell OCTEON TX SDK 10.0 package
+     * Ubuntu 16.04.1 LTS with Marvell OCTEON TX SDK 10.0 package
+     * Ubuntu 16.10 with Marvell OCTEON TX SDK 10.0 package
+     * Ubuntu 18.04.1 LTS with Marvell OCTEON TX SDK 10.0 package
+     * Ubuntu 19.04 with Marvell OCTEON TX SDK 10.0 package
