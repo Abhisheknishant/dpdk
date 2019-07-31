@@ -9,6 +9,14 @@ include $(RTE_SDK)/mk/rte.vars.mk
 #
 HOSTAPP = dpdk-pmdinfogen
 
+HOST_GCC_MAJOR = $(shell echo __GNUC__ | $(HOSTCC) -E -x c - | tail -n 1)
+HOST_GCC_MINOR = $(shell echo __GNUC_MINOR__ | $(HOSTCC) -E -x c - | tail -n 1)
+HOST_GCC_VERSION = $(HOST_GCC_MAJOR)$(HOST_GCC_MINOR)
+
+ifeq ($(shell test $(HOST_GCC_VERSION) -gt 70 && echo 1), 1)
+HOST_WERROR_FLAGS = $(filter-out -Wimplicit-fallthrough=2, $(WERROR_FLAGS))
+endif
+
 #
 # all sources are stored in SRCS-y
 #
