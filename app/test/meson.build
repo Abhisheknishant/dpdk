@@ -297,6 +297,15 @@ dump_test_names = [
         'dump_memzone',
 ]
 
+if dpdk_conf.has('RTE_LIBRTE_RING_MEMPOOL')
+	test_deps += 'mempool_ring'
+endif
+if dpdk_conf.has('RTE_LIBRTE_STACK_MEMPOOL')
+	test_deps += 'mempool_stack'
+endif
+if dpdk_conf.has('RTE_LIBRTE_SKELETON_EVENTDEV_PMD')
+	test_deps += 'pmd_skeleton_event'
+endif
 if dpdk_conf.has('RTE_LIBRTE_PDUMP')
 	test_deps += 'pdump'
 endif
