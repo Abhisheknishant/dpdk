@@ -1044,7 +1044,7 @@ test_file_prefix(void)
 			DEFAULT_MEM_SIZE, "--file-prefix=" memtest };
 
 	/* primary process with memtest1 and default mem mode */
-	const char *argv1[] = {prgname, "-m",
+	const char *argv1[] = {prgname, "--no-pci", "-m",
 			DEFAULT_MEM_SIZE, "--file-prefix=" memtest1 };
 
 	/* primary process with memtest1 and legacy mem mode */
@@ -1058,7 +1058,7 @@ test_file_prefix(void)
 			"--legacy-mem" };
 
 	/* primary process with memtest2 and default mem mode */
-	const char *argv4[] = {prgname, "-m",
+	const char *argv4[] = {prgname, "--no-pci", "-m",
 			DEFAULT_MEM_SIZE, "--file-prefix=" memtest2 };
 
 	/* primary process with --in-memory mode */
@@ -1075,7 +1075,7 @@ test_file_prefix(void)
 		DEFAULT_MEM_SIZE, "--in-memory", "--file-prefix", prefix };
 
 	/* primary process with memtest1 and --single-file-segments mode */
-	const char * const argv8[] = {prgname, "-m",
+	const char * const argv8[] = {prgname, "--no-pci", "-m",
 		DEFAULT_MEM_SIZE, "--single-file-segments",
 		"--file-prefix=" memtest1 };
 
