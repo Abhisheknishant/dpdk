@@ -547,7 +547,7 @@ struct npa_aq_enq_req {
 	uint32_t __otx2_io aura_id;
 	uint8_t __otx2_io ctype;
 	uint8_t __otx2_io op;
-	union {
+	__otx2_io union {
 		/* Valid when op == WRITE/INIT and ctype == AURA.
 		 * LF fills the pool_id in aura.pool_addr. AF will translate
 		 * the pool_id to pool context pointer.
@@ -557,7 +557,7 @@ struct npa_aq_enq_req {
 		struct npa_pool_s pool;
 	};
 	/* Mask data when op == WRITE (1=write, 0=don't write) */
-	union {
+	__otx2_io union {
 		/* Valid when op == WRITE and ctype == AURA */
 		struct npa_aura_s aura_mask;
 		/* Valid when op == WRITE and ctype == POOL */
@@ -567,7 +567,7 @@ struct npa_aq_enq_req {
 
 struct npa_aq_enq_rsp {
 	struct mbox_msghdr hdr;
-	union {
+	__otx2_io union {
 		/* Valid when op == READ and ctype == AURA */
 		struct npa_aura_s aura;
 		/* Valid when op == READ and ctype == POOL */
@@ -653,7 +653,7 @@ struct nix_aq_enq_req {
 	uint32_t __otx2_io qidx;
 	uint8_t __otx2_io ctype;
 	uint8_t __otx2_io op;
-	union {
+	__otx2_io union {
 		/* Valid when op == WRITE/INIT and ctype == NIX_AQ_CTYPE_RQ */
 		struct nix_rq_ctx_s rq;
 		/* Valid when op == WRITE/INIT and ctype == NIX_AQ_CTYPE_SQ */
@@ -666,7 +666,7 @@ struct nix_aq_enq_req {
 		struct nix_rx_mce_s mce;
 	};
 	/* Mask data when op == WRITE (1=write, 0=don't write) */
-	union {
+	__otx2_io union {
 		/* Valid when op == WRITE and ctype == NIX_AQ_CTYPE_RQ */
 		struct nix_rq_ctx_s rq_mask;
 		/* Valid when op == WRITE and ctype == NIX_AQ_CTYPE_SQ */
@@ -682,7 +682,7 @@ struct nix_aq_enq_req {
 
 struct nix_aq_enq_rsp {
 	struct mbox_msghdr hdr;
-	union {
+	__otx2_io union {
 		struct nix_rq_ctx_s rq;
 		struct nix_sq_ctx_s sq;
 		struct nix_cq_ctx_s cq;
