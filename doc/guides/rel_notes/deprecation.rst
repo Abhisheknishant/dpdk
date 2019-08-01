@@ -51,6 +51,11 @@ Deprecation Notices
   structure would be made internal (or removed if all dependencies are cleared)
   in future releases.
 
+* mbuf: Some fields will be moved or converted to dynamic API in DPDK 19.11
+  in order to offer more space for the dynamic fields in future.
+  The namespace will be fixed at the same time while keeping a backward
+  compatibility for some time.
+
 * ethdev: the legacy filter API, including
   ``rte_eth_dev_filter_supported()``, ``rte_eth_dev_filter_ctrl()`` as well
   as filter types MACVLAN, ETHERTYPE, FLEXIBLE, SYN, NTUPLE, TUNNEL, FDIR,
