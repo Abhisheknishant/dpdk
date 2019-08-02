@@ -53,6 +53,9 @@ year's November (X.11) release will be maintained as an LTS for 2 years.
 After the X.11 release, an LTS branch will be created for it at
 http://git.dpdk.org/dpdk-stable where bugfixes will be backported to.
 
+A LTS release may align with the declaration of a new major ABI version,
+please read the `<DPDK ABI/API policy>`_ for more information.
+
 It is anticipated that there will be at least 4 releases per year of the LTS
 or approximately 1 every 3 months. However, the cadence can be shorter or
 longer depending on the number and criticality of the backported
@@ -68,10 +71,13 @@ point the LTS branch will no longer be maintained with no further releases.
 What changes should be backported
 ---------------------------------
 
-Backporting should be limited to bug fixes. All patches accepted on the master
-branch with a Fixes: tag should be backported to the relevant stable/LTS
-branches, unless the submitter indicates otherwise. If there are exceptions,
-they will be discussed on the mailing lists.
+Backporting is a naturally conservative activity, and therefore should only
+include bug fixes and support for new hardware, were adding support does not
+necessitate DPDK ABI/API changes.
+
+All patches accepted on the master branch with a Fixes: tag should be backported
+to the relevant stable/LTS branches, unless the submitter indicates otherwise.
+If there are exceptions, they will be discussed on the mailing lists.
 
 Fixes suitable for backport should have a ``Cc: stable@dpdk.org`` tag in the
 commit message body as follows::
@@ -86,13 +92,18 @@ commit message body as follows::
      Signed-off-by: Alex Smith <alex.smith@example.com>
 
 
-Fixes not suitable for backport should not include the ``Cc: stable@dpdk.org`` tag.
+Fixes not suitable for backport should not include the ``Cc: stable@dpdk.org``
+tag.
 
-Features should not be backported to stable releases. It may be acceptable, in
-limited cases, to back port features for the LTS release where:
+New features, with the exception of new hardware support, should not be
+backported to stable releases. In the case of new hardware support or any other
+exceptional circumstances limited backporting maybe permitted to the LTS release
+where:
 
-* There is a justifiable use case (for example a new PMD).
-* The change is non-invasive.
+* There is a justifiable use case, for example the change is required to support
+  a new platform or device (for example a new PMD).
+* The change is ABI/API preserving, it does not present an obvious "new feature"
+  to end consumer.
 * The work of preparing the backport is done by the proposer.
 * There is support within the community.
 
@@ -119,10 +130,3 @@ A Stable Release will be released by:
   list.
 
 Stable releases are available on the `dpdk.org download page <http://core.dpdk.org/download/>`_.
-
-
-ABI
----
-
-The Stable Release should not be seen as a way of breaking or circumventing
-the DPDK ABI policy.
