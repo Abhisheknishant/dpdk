@@ -64,8 +64,9 @@ get_printable_mac_addr(uint16_t port)
 
 	if (unlikely(port >= RTE_MAX_ETHPORTS))
 		return err_address;
-	if (unlikely(addresses[port][0]=='\0')){
+	if (unlikely(addresses[port][0] == '\0')) {
 		struct rte_ether_addr mac;
+
 		rte_eth_macaddr_get(port, &mac);
 		snprintf(addresses[port], sizeof(addresses[port]),
 				"%02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -85,9 +86,9 @@ get_printable_mac_addr(uint16_t port)
 static void
 do_stats_display(void)
 {
-	unsigned i, j;
+	unsigned int i, j;
 	const char clr[] = { 27, '[', '2', 'J', '\0' };
-	const char topLeft[] = { 27, '[', '1', ';', '1', 'H','\0' };
+	const char topLeft[] = { 27, '[', '1', ';', '1', 'H', '\0' };
 	uint64_t port_tx[RTE_MAX_ETHPORTS], port_tx_drop[RTE_MAX_ETHPORTS];
 	uint64_t client_tx[MAX_CLIENTS], client_tx_drop[MAX_CLIENTS];
 
@@ -97,12 +98,14 @@ do_stats_display(void)
 	memset(client_tx, 0, sizeof(client_tx));
 	memset(client_tx_drop, 0, sizeof(client_tx_drop));
 
-	for (i = 0; i < num_clients; i++){
+	for (i = 0; i < num_clients; i++) {
 		const volatile struct tx_stats *tx = &ports->tx_stats[i];
-		for (j = 0; j < ports->num_ports; j++){
+
+		for (j = 0; j < ports->num_ports; j++) {
 			/* assign to local variables here, save re-reading volatile vars */
 			const uint64_t tx_val = tx->tx[ports->id[j]];
 			const uint64_t drop_val = tx->tx_drop[ports->id[j]];
+
 			port_tx[j] += tx_val;
 			port_tx_drop[j] += drop_val;
 			client_tx[i] += tx_val;
@@ -116,21 +119,21 @@ do_stats_display(void)
 	printf("PORTS\n");
 	printf("-----\n");
 	for (i = 0; i < ports->num_ports; i++)
-		printf("Port %u: '%s'\t", (unsigned)ports->id[i],
-				get_printable_mac_addr(ports->id[i]));
+		printf("Port %u: '%s'\t", ports->id[i],
+		       get_printable_mac_addr(ports->id[i]));
 	printf("\n\n");
-	for (i = 0; i < ports->num_ports; i++){
-		printf("Port %u - rx: %9"PRIu64"\t"
-				"tx: %9"PRIu64"\n",
-				(unsigned)ports->id[i], ports->rx_stats.rx[i],
+	for (i = 0; i < ports->num_ports; i++) {
+		printf("Port %u - rx: %9"PRIu64"\ttx: %9"PRIu64"\n",
+				ports->id[i], ports->rx_stats.rx[i],
 				port_tx[i]);
 	}
 
 	printf("\nCLIENTS\n");
 	printf("-------\n");
-	for (i = 0; i < num_clients; i++){
+	for (i = 0; i < num_clients; i++) {
 		const unsigned long long rx = clients[i].stats.rx;
 		const unsigned long long rx_drop = clients[i].stats.rx_drop;
+
 		printf("Client %2u - rx: %9llu, rx_drop: %9llu\n"
 				"            tx: %9"PRIu64", tx_drop: %9"PRIu64"\n",
 				i, rx, rx_drop, client_tx[i], client_tx_drop[i]);
@@ -153,7 +156,8 @@ sleep_lcore(__attribute__((unused)) void *dummy)
 
 	/* Only one core should display stats */
 	if (rte_atomic32_test_and_set(&display_stats)) {
-		const unsigned sleeptime = 1;
+		const unsigned int sleeptime = 1;
+
 		printf("Core %u displaying statistics\n", rte_lcore_id());
 
 		/* Longer initial pause so above printf is seen */
@@ -173,7 +177,7 @@ sleep_lcore(__attribute__((unused)) void *dummy)
 static void
 clear_stats(void)
 {
-	unsigned i;
+	unsigned int i;
 
 	for (i = 0; i < num_clients; i++)
 		clients[i].stats.rx = clients[i].stats.rx_drop = 0;
@@ -194,12 +198,11 @@ flush_rx_queue(uint16_t client)
 
 	cl = &clients[client];
 	if (rte_ring_enqueue_bulk(cl->rx_q, (void **)cl_rx_buf[client].buffer,
-			cl_rx_buf[client].count, NULL) == 0){
+			cl_rx_buf[client].count, NULL) == 0) {
 		for (j = 0; j < cl_rx_buf[client].count; j++)
 			rte_pktmbuf_free(cl_rx_buf[client].buffer[j]);
 		cl->stats.rx_drop += cl_rx_buf[client].count;
-	}
-	else
+	} else
 		cl->stats.rx += cl_rx_buf[client].count;
 
 	cl_rx_buf[client].count = 0;
@@ -243,14 +246,14 @@ process_packets(uint32_t port_num __rte_unused,
 static void
 do_packet_forwarding(void)
 {
-	unsigned port_num = 0; /* indexes the port[] array */
+	unsigned int port_num = 0; /* indexes the port[] array */
 
 	for (;;) {
 		struct rte_mbuf *buf[PACKET_READ_SIZE];
 		uint16_t rx_count;
 
 		/* read a port */
-		rx_count = rte_eth_rx_burst(ports->id[port_num], 0, \
+		rx_count = rte_eth_rx_burst(ports->id[port_num], 0,
 				buf, PACKET_READ_SIZE);
 		ports->rx_stats.rx[port_num] += rx_count;
 
@@ -281,8 +284,9 @@ int
 main(int argc, char *argv[])
 {
 	signal(SIGINT, signal_handler);
+
 	/* initialise the system */
-	if (init(argc, argv) < 0 )
+	if (init(argc, argv) < 0)
 		return -1;
 	RTE_LOG(INFO, APP, "Finished Process Init.\n");
 

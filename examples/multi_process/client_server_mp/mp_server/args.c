@@ -112,33 +112,34 @@ parse_app_args(int argc, char *argv[])
 	progname = argv[0];
 
 	while ((opt = getopt_long(argc, argvopt, "n:p:", lgopts,
-		&option_index)) != EOF){
-		switch (opt){
-			case 'p':
-				if (parse_portmask(optarg) != 0) {
-					usage();
-					return -1;
-				}
-				break;
-			case 'n':
-				if (parse_num_clients(optarg) != 0){
-					usage();
-					return -1;
-				}
-				break;
-			default:
-				printf("ERROR: Unknown option '%c'\n", opt);
+				  &option_index)) != EOF) {
+
+		switch (opt) {
+		case 'p':
+			if (parse_portmask(optarg) != 0) {
 				usage();
 				return -1;
+			}
+			break;
+		case 'n':
+			if (parse_num_clients(optarg) != 0) {
+				usage();
+				return -1;
+			}
+			break;
+		default:
+			printf("ERROR: Unknown option '%c'\n", opt);
+			usage();
+			return -1;
 		}
 	}
 
-	if (ports->num_ports == 0 || num_clients == 0){
+	if (ports->num_ports == 0 || num_clients == 0) {
 		usage();
 		return -1;
 	}
 
-	if (ports->num_ports % 2 != 0){
+	if (ports->num_ports % 2 != 0) {
 		printf("ERROR: application requires an even number of ports to use\n");
 		return -1;
 	}

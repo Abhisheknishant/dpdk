@@ -49,7 +49,7 @@
 struct rte_mempool *pktmbuf_pool;
 
 /* array of info/queues for clients */
-struct client *clients = NULL;
+struct client *clients;
 
 /* the port details */
 struct port_info *ports;
@@ -72,7 +72,8 @@ init_mbuf_pools(void)
 		num_mbufs_server + num_mbufs_client + num_mbufs_mp_cache;
 
 	/* don't pass single-producer/single-consumer flags to mbuf create as it
-	 * seems faster to use a cache instead */
+	 * seems faster to use a cache instead
+	 */
 	printf("Creating mbuf pool '%s' [%u mbufs] ...\n",
 			PKTMBUF_POOL_NAME, num_mbufs);
 	pktmbuf_pool = rte_pktmbuf_pool_create(PKTMBUF_POOL_NAME, num_mbufs,
@@ -108,9 +109,11 @@ init_port(uint16_t port_num)
 	fflush(stdout);
 
 	/* Standard DPDK port initialisation - config port, then set up
-	 * rx and tx rings */
-	if ((retval = rte_eth_dev_configure(port_num, rx_rings, tx_rings,
-		&port_conf)) != 0)
+	 * rx and tx rings
+	 */
+	retval = rte_eth_dev_configure(port_num, rx_rings, tx_rings,
+				       &port_conf);
+	if (retval != 0)
 		return retval;
 
 	retval = rte_eth_dev_adjust_nb_rx_tx_desc(port_num, &rx_ring_size,
@@ -122,22 +125,25 @@ init_port(uint16_t port_num)
 		retval = rte_eth_rx_queue_setup(port_num, q, rx_ring_size,
 				rte_eth_dev_socket_id(port_num),
 				NULL, pktmbuf_pool);
-		if (retval < 0) return retval;
+		if (retval < 0)
+			return retval;
 	}
 
-	for ( q = 0; q < tx_rings; q ++ ) {
+	for (q = 0; q < tx_rings; q++) {
 		retval = rte_eth_tx_queue_setup(port_num, q, tx_ring_size,
 				rte_eth_dev_socket_id(port_num),
 				NULL);
-		if (retval < 0) return retval;
+		if (retval < 0)
+			return retval;
 	}
 
 	rte_eth_promiscuous_enable(port_num);
 
 	retval  = rte_eth_dev_start(port_num);
-	if (retval < 0) return retval;
+	if (retval < 0)
+		return retval;
 
-	printf( "done: \n");
+	printf("done:\n");
 
 	return 0;
 }
@@ -150,15 +156,15 @@ init_port(uint16_t port_num)
 static int
 init_shm_rings(void)
 {
-	unsigned i;
-	unsigned socket_id;
-	const char * q_name;
-	const unsigned ringsize = CLIENT_QUEUE_RINGSIZE;
+	unsigned int i, socket_id;
+	const char *q_name;
+	const unsigned int ringsize = CLIENT_QUEUE_RINGSIZE;
 
 	clients = rte_malloc("client details",
 		sizeof(*clients) * num_clients, 0);
 	if (clients == NULL)
-		rte_exit(EXIT_FAILURE, "Cannot allocate memory for client program details\n");
+		rte_exit(EXIT_FAILURE,
+			 "Cannot allocate memory for client program details\n");
 
 	for (i = 0; i < num_clients; i++) {
 		/* Create an RX queue for each client */
@@ -166,11 +172,25 @@ init_shm_rings(void)
 		q_name = get_rx_queue_name(i);
 		clients[i].rx_q = rte_ring_create(q_name,
 				ringsize, socket_id,
-				RING_F_SP_ENQ | RING_F_SC_DEQ ); /* single prod, single cons */
+				RING_F_SP_ENQ | RING_F_SC_DEQ);
 		if (clients[i].rx_q == NULL)
-			rte_exit(EXIT_FAILURE, "Cannot create rx ring queue for client %u\n", i);
+			rte_exit(EXIT_FAILURE,
+				 "Cannot create rx ring queue for client %u\n",
+				 i);
 	}
 	return 0;
+}
+
+static void
+print_link_status(uint16 id, const struct rte_eth_link *link)
+{
+	if (link->link_status)
+		printf("Port %d Link Up - speed %u Mbps - %s-duplex\n",
+		       id, link->link_speed,
+		       (link->link_duplex == ETH_LINK_FULL_DUPLEX) ?
+		       "full" : "half");
+	else
+		printf("Port %d Link Down\n", id);
 }
 
 /* Check the link status of all ports in up to 9s, and print them finally */
@@ -192,21 +212,11 @@ check_all_ports_link_status(uint16_t port_num, uint32_t port_mask)
 				continue;
 			memset(&link, 0, sizeof(link));
 			rte_eth_link_get_nowait(ports->id[portid], &link);
+
 			/* print link status if flag set */
-			if (print_flag == 1) {
-				if (link.link_status)
-					printf("Port %d Link Up - speed %u "
-						"Mbps - %s\n", ports->id[portid],
-						(unsigned)link.link_speed,
-				(link.link_duplex == ETH_LINK_FULL_DUPLEX) ?
-					("full-duplex") : ("half-duplex\n"));
-				else
-					printf("Port %d Link Down\n",
-						(uint8_t)ports->id[portid]);
-				continue;
-			}
-			/* clear all_ports_up flag if any link down */
-			if (link.link_status == ETH_LINK_DOWN) {
+			if (print_flag == 1)
+				print_link_status(&link);
+			else if (link.link_status == ETH_LINK_DOWN) {
 				all_ports_up = 0;
 				break;
 			}
@@ -251,7 +261,8 @@ init(int argc, char *argv[])
 	mz = rte_memzone_reserve(MZ_PORT_INFO, sizeof(*ports),
 				rte_socket_id(), NO_FLAGS);
 	if (mz == NULL)
-		rte_exit(EXIT_FAILURE, "Cannot reserve memory zone for port information\n");
+		rte_exit(EXIT_FAILURE,
+			 "Cannot reserve memory zone for port information\n");
 	memset(mz->addr, 0, sizeof(*ports));
 	ports = mz->addr;
 
@@ -269,8 +280,8 @@ init(int argc, char *argv[])
 	for (i = 0; i < ports->num_ports; i++) {
 		retval = init_port(ports->id[i]);
 		if (retval != 0)
-			rte_exit(EXIT_FAILURE, "Cannot initialise port %u\n",
-					(unsigned)i);
+			rte_exit(EXIT_FAILURE,
+				 "Cannot initialise port %u\n", i);
 	}
 
 	check_all_ports_link_status(ports->num_ports, (~0x0));
