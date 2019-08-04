@@ -4067,6 +4067,7 @@ mlx5_tx_burst_empw_inline(struct mlx5_txq_data *restrict txq,
 			 * Packet data are completely inlined,
 			 * free the packet immediately.
 			 */
+			txq->elts_comp--;
 			rte_pktmbuf_free_seg(loc->mbuf);
 			goto next_mbuf;
 pointer_empw:
@@ -4253,6 +4254,7 @@ mlx5_tx_burst_single_send(struct mlx5_txq_data *restrict txq,
 				 * Packet data are completely inlined,
 				 * free the packet immediately.
 				 */
+				txq->elts_comp--;
 				rte_pktmbuf_free_seg(loc->mbuf);
 			} else if (!MLX5_TXOFF_CONFIG(EMPW) &&
 				   txq->inlen_mode) {
