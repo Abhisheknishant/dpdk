@@ -588,6 +588,7 @@ i40e_recv_scattered_burst_vec_avx2(void *rx_queue, struct rte_mbuf **rx_pkts,
 		/* find the first split flag, and only reassemble then*/
 		while (i < nb_bufs && !split_flags[i])
 			i++;
+		rxq->pkt_first_seg = rx_pkts[i];
 		if (i == nb_bufs)
 			return nb_bufs;
 	}
