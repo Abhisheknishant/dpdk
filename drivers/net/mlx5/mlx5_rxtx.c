@@ -4490,6 +4490,14 @@ mlx5_tx_burst_tmpl(struct mlx5_txq_data *restrict txq,
 
 	assert(txq->elts_s >= (uint16_t)(txq->elts_head - txq->elts_tail));
 	assert(txq->wqe_s >= (uint16_t)(txq->wqe_ci - txq->wqe_pi));
+	if (unlikely(!pkts_n))
+		return 0;
+	loc.pkts_sent = 0;
+	loc.pkts_copy = 0;
+	loc.wqe_last = NULL;
+
+send_loop:
+	loc.pkts_loop = loc.pkts_sent;
 	/*
 	 * Check if there are some CQEs, if any:
 	 * - process an encountered errors
@@ -4497,9 +4505,7 @@ mlx5_tx_burst_tmpl(struct mlx5_txq_data *restrict txq,
 	 * - free related mbufs
 	 * - doorbell the NIC about processed CQEs
 	 */
-	if (unlikely(!pkts_n))
-		return 0;
-	rte_prefetch0(*pkts);
+	rte_prefetch0(*(pkts + loc.pkts_sent));
 	mlx5_tx_handle_completion(txq, olx);
 	/*
 	 * Calculate the number of available resources - elts and WQEs.
@@ -4516,10 +4522,7 @@ mlx5_tx_burst_tmpl(struct mlx5_txq_data *restrict txq,
 	loc.wqe_free = txq->wqe_s -
 				(uint16_t)(txq->wqe_ci - txq->wqe_pi);
 	if (unlikely(!loc.elts_free || !loc.wqe_free))
-		return 0;
-	loc.pkts_sent = 0;
-	loc.pkts_copy = 0;
-	loc.wqe_last = NULL;
+		return loc.pkts_sent;
 	for (;;) {
 		/*
 		 * Fetch the packet from array. Usually this is
@@ -4685,8 +4688,8 @@ enter_send_single:
 	 */
 	assert(MLX5_TXOFF_CONFIG(INLINE) || loc.pkts_sent >= loc.pkts_copy);
 	/* Take a shortcut if nothing is sent. */
-	if (unlikely(loc.pkts_sent == 0))
-		return 0;
+	if (unlikely(loc.pkts_sent == loc.pkts_loop))
+		return loc.pkts_sent;
 	/*
 	 * Ring QP doorbell immediately after WQE building completion
 	 * to improve latencies. The pure software related data treatment
@@ -4715,6 +4718,14 @@ enter_send_single:
 #endif
 	assert(txq->elts_s >= (uint16_t)(txq->elts_head - txq->elts_tail));
 	assert(txq->wqe_s >= (uint16_t)(txq->wqe_ci - txq->wqe_pi));
+	if (pkts_n > loc.pkts_sent) {
+		/*
+		 * If burst size is large there might be no enough CQE
+		 * fetched from completion queue and no enough resources
+		 * freed to send all the packets.
+		 */
+		goto send_loop;
+	}
 	return loc.pkts_sent;
 }
 
