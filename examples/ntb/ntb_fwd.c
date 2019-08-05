@@ -107,6 +107,7 @@ cmd_sendfile_parsed(void *parsed_result,
 	uint8_t *buff;
 	uint32_t val;
 	FILE *file;
+	int status;
 
 	if (!rte_rawdevs[dev_id].started) {
 		printf("Device needs to be up first. Try later.\n");
@@ -125,9 +126,17 @@ cmd_sendfile_parsed(void *parsed_result,
 		return;
 	}
 
-	fseek(file, 0, SEEK_END);
+	status = fseek(file, 0, SEEK_END);
+	if (status) {
+		printf("Fail to get file size.\n");
+		return;
+	}
 	size = ftell(file);
-	fseek(file, 0, SEEK_SET);
+	status = fseek(file, 0, SEEK_SET);
+	if (status) {
+		printf("Fail to get file size.\n");
+		return;
+	}
 
 	/**
 	 * No FIFO now. Only test memory. Limit sending file
