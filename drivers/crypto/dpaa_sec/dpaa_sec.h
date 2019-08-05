@@ -19,6 +19,12 @@
 #define AES_CTR_IV_LEN		16
 #define AES_GCM_IV_LEN		12
 
+#define DPAA_IPv6_DEFAULT_VTC_FLOW	0x60000000
+#define IPv6_TC_SHIFT			20
+#define IPv6_FLOW_SHIFT			0
+#define IPv6_TC_MASK			0x0FF00000
+#define IPv6_FLOW_MASK			0x000FFFFF
+
 /* Minimum job descriptor consists of a oneword job descriptor HEADER and
  * a pointer to the shared descriptor.
  */
@@ -139,7 +145,10 @@ typedef struct dpaa_sec_session_entry {
 			uint32_t digest_length;
 			struct ipsec_decap_pdb decap_pdb;
 			struct ipsec_encap_pdb encap_pdb;
-			struct ip ip4_hdr;
+			union {
+				struct ip ip4_hdr;
+				struct rte_ipv6_hdr ip6_hdr;
+			};
 		};
 		struct sec_pdcp_ctxt pdcp;
 	};
