@@ -45,6 +45,10 @@ Deprecation Notices
   - ``eal_parse_pci_DomBDF`` replaced by ``rte_pci_addr_parse``
   - ``rte_eal_compare_pci_addr`` replaced by ``rte_pci_addr_cmp``
 
+* mbuf: Remove ``tso_segsz`` mbuf field providing for LRO support. Use union
+  block for the field memory to be shared with a new field ``lro_segs_n``
+  indicates the number of segments aggregated in the LRO packet.
+
 * dpaa2: removal of ``rte_dpaa2_memsegs`` structure which has been replaced
   by a pa-va search library. This structure was earlier being used for holding
   memory segments used by dpaa2 driver for faster pa->va translation. This
