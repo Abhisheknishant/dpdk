@@ -16,9 +16,9 @@ GLOBAL_METRICS_REQ = "{\"action\":0,\"command\":\"global_stat_values\",\"data\":
 DEFAULT_FP = "/var/run/dpdk/default_client"
 
 try:
-	raw_input  # Python 2
+        raw_input  # Python 2
 except NameError:
-	raw_input = input  # Python 3
+        raw_input = input  # Python 3
 
 class Socket:
 
@@ -78,7 +78,8 @@ class Client:
 
     def repeatedlyRequestMetrics(self, sleep_time): # Recursively requests metrics for given client
         print("\nPlease enter the number of times you'd like to continuously request Metrics:")
-        n_requests = int(ast.literal_eval(raw_input("\n:")))
+        #n_requests = int(ast.literal_eval(raw_input("\n:")))
+        n_requests = int(raw_input("\n:"))
         print("\033[F") #Removes the user input from screen, cleans it up
         print("\033[K")
         for i in range(n_requests):
@@ -99,7 +100,8 @@ class Client:
             print("[4] Unregister client")
 
             try:
-                self.choice = int(ast.literal_eval(raw_input("\n:")))
+                #self.choice = int(ast.literal_eval(raw_input("\n:")))
+                self.choice = int(raw_input("\n:"))
                 print("\033[F") #Removes the user input for screen, cleans it up
                 print("\033[K")
                 if self.choice == 1:
