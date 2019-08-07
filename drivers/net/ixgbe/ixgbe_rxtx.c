@@ -2627,10 +2627,15 @@ ixgbe_dev_tx_queue_setup(struct rte_eth_dev *dev,
 	    hw->mac.type == ixgbe_mac_X540_vf ||
 	    hw->mac.type == ixgbe_mac_X550_vf ||
 	    hw->mac.type == ixgbe_mac_X550EM_x_vf ||
-	    hw->mac.type == ixgbe_mac_X550EM_a_vf)
+	    hw->mac.type == ixgbe_mac_X550EM_a_vf) {
 		txq->tdt_reg_addr = IXGBE_PCI_REG_ADDR(hw, IXGBE_VFTDT(queue_idx));
-	else
+		txq->tdh_reg_addr = IXGBE_PCI_REG_ADDR(hw,
+						       IXGBE_VFTDH(queue_idx));
+	} else {
 		txq->tdt_reg_addr = IXGBE_PCI_REG_ADDR(hw, IXGBE_TDT(txq->reg_idx));
+		txq->tdh_reg_addr = IXGBE_PCI_REG_ADDR(hw,
+						       IXGBE_TDH(txq->reg_idx));
+	}
 
 	txq->tx_ring_phys_addr = tz->iova;
 	txq->tx_ring = (union ixgbe_adv_tx_desc *) tz->addr;
@@ -3163,22 +3168,38 @@ ixgbe_dev_tx_descriptor_status(void *tx_queue, uint16_t offset)
 {
 	struct ixgbe_tx_queue *txq = tx_queue;
 	volatile uint32_t *status;
-	uint32_t desc;
+	int32_t desc, dd;
 
 	if (unlikely(offset >= txq->nb_tx_desc))
 		return -EINVAL;
+	if (offset >= txq->nb_tx_desc - txq->nb_tx_free)
+		return RTE_ETH_TX_DESC_DONE;
 
-	desc = txq->tx_tail + offset;
-	/* go to next desc that has the RS bit */
-	desc = ((desc + txq->tx_rs_thresh - 1) / txq->tx_rs_thresh) *
-		txq->tx_rs_thresh;
-	if (desc >= txq->nb_tx_desc) {
-		desc -= txq->nb_tx_desc;
-		if (desc >= txq->nb_tx_desc)
-			desc -= txq->nb_tx_desc;
+	desc = txq->tx_tail - offset - 1;
+	if (desc < 0)
+		desc += txq->nb_tx_desc;
+
+	/* offset is too small, no other way than reading PCI reg */
+	if (unlikely(offset < txq->tx_rs_thresh)) {
+		int16_t tx_head, queue_size;
+		tx_head = ixgbe_read_addr(txq->tdh_reg_addr);
+		queue_size = txq->tx_tail - tx_head;
+		if (queue_size < 0)
+			queue_size += txq->nb_tx_desc;
+		return queue_size > offset ? RTE_ETH_TX_DESC_FULL :
+			RTE_ETH_TX_DESC_DONE;
 	}
 
-	status = &txq->tx_ring[desc].wb.status;
+	/* index of the dd bit to look at */
+	dd = (desc / txq->tx_rs_thresh + 1) * txq->tx_rs_thresh - 1;
+
+	/* In full featured mode, RS bit is only set in the last descriptor */
+	/* of a multisegments packet */
+	if (!(txq->offloads == 0 &&
+	      txq->tx_rs_thresh >= RTE_PMD_IXGBE_TX_MAX_BURST))
+		dd = txq->sw_ring[dd].last_id;
+
+	status = &txq->tx_ring[dd].wb.status;
 	if (*status & rte_cpu_to_le_32(IXGBE_ADVTXD_STAT_DD))
 		return RTE_ETH_TX_DESC_DONE;
 

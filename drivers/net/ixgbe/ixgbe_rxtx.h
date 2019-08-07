@@ -201,6 +201,7 @@ struct ixgbe_tx_queue {
 		struct ixgbe_tx_entry_v *sw_ring_v; /**< address of SW ring for vector PMD */
 	};
 	volatile uint32_t   *tdt_reg_addr; /**< Address of TDT register. */
+	volatile uint32_t   *tdh_reg_addr; /**< Address of TDH register. */
 	uint16_t            nb_tx_desc;    /**< number of TX descriptors. */
 	uint16_t            tx_tail;       /**< current value of TDT reg. */
 	/**< Start freeing TX buffers if there are less free descriptors than
