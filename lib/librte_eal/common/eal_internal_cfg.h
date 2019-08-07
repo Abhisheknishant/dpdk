@@ -15,7 +15,7 @@
 
 #include "eal_thread.h"
 
-#define MAX_HUGEPAGE_SIZES 3  /**< support up to 3 page sizes */
+#define MAX_HUGEPAGE_SIZES 4  /**< support up to 4 page sizes */
 
 /*
  * internal configuration structure for the number, size and
