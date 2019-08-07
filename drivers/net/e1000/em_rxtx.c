@@ -152,6 +152,7 @@ struct em_tx_queue {
 	uint64_t               tx_ring_phys_addr; /**< TX ring DMA address. */
 	struct em_tx_entry    *sw_ring; /**< virtual address of SW ring. */
 	volatile uint32_t      *tdt_reg_addr; /**< Address of TDT register. */
+	volatile uint32_t      *tdh_reg_addr; /**< Address of TDH register. */
 	uint16_t               nb_tx_desc;    /**< number of TX descriptors. */
 	uint16_t               tx_tail;  /**< Current value of TDT register. */
 	/**< Start freeing TX buffers if there are less free descriptors than
@@ -1304,6 +1305,7 @@ eth_em_tx_queue_setup(struct rte_eth_dev *dev,
 	txq->port_id = dev->data->port_id;
 
 	txq->tdt_reg_addr = E1000_PCI_REG_ADDR(hw, E1000_TDT(queue_idx));
+	txq->tdh_reg_addr = E1000_PCI_REG_ADDR(hw, E1000_TDH(queue_idx));
 	txq->tx_ring_phys_addr = tz->iova;
 	txq->tx_ring = (struct e1000_data_desc *) tz->addr;
 
@@ -1557,22 +1559,33 @@ eth_em_tx_descriptor_status(void *tx_queue, uint16_t offset)
 {
 	struct em_tx_queue *txq = tx_queue;
 	volatile uint8_t *status;
-	uint32_t desc;
+	int32_t desc, dd;
 
 	if (unlikely(offset >= txq->nb_tx_desc))
 		return -EINVAL;
+	if (offset >= txq->nb_tx_desc - txq->nb_tx_free)
+		return RTE_ETH_TX_DESC_DONE;
 
-	desc = txq->tx_tail + offset;
-	/* go to next desc that has the RS bit */
-	desc = ((desc + txq->tx_rs_thresh - 1) / txq->tx_rs_thresh) *
-		txq->tx_rs_thresh;
-	if (desc >= txq->nb_tx_desc) {
-		desc -= txq->nb_tx_desc;
-		if (desc >= txq->nb_tx_desc)
-			desc -= txq->nb_tx_desc;
+	desc = txq->tx_tail - offset - 1;
+	if (desc < 0)
+		desc += txq->nb_tx_desc;
+
+	/* offset is too small, no other way than reading PCI reg */
+	if (unlikely(offset < txq->tx_rs_thresh)) {
+		int16_t tx_head, queue_size;
+		tx_head = e1000_read_addr(txq->tdh_reg_addr);
+		queue_size = txq->tx_tail - tx_head;
+		if (queue_size < 0)
+			queue_size += txq->nb_tx_desc;
+		return queue_size > offset ? RTE_ETH_TX_DESC_FULL :
+			RTE_ETH_TX_DESC_DONE;
 	}
 
-	status = &txq->tx_ring[desc].upper.fields.status;
+	/* index of the dd bit to look at */
+	dd = (desc / txq->tx_rs_thresh + 1) * txq->tx_rs_thresh - 1;
+	dd = txq->sw_ring[dd].last_id;
+
+	status = &txq->tx_ring[dd].upper.fields.status;
 	if (*status & E1000_TXD_STAT_DD)
 		return RTE_ETH_TX_DESC_DONE;
 
