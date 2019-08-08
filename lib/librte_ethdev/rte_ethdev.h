@@ -4569,6 +4569,35 @@ rte_eth_tx_buffer(uint16_t port_id, uint16_t queue_id,
 	return rte_eth_tx_buffer_flush(port_id, queue_id, buffer);
 }
 
+/**
+ * Buffer a single packet for future transmission on Tx buffer. This buffer 
+ * can be sent to a port and queue of a NIC using rte_eth_tx_buffer_flush ()
+ * call. 
+ *
+ * This function enqueues a packet to Tx buffer. In case there is no space
+ * in Tx buffer, this function fails. 
+ * Tx buffer will be flushed using rte_eth_tx_buffer_flush () call. It is 
+ * application's responsibility to flush the Tx buffer in regular interval.
+ *
+ * @param buffer
+ *  Buffer used to collect packets to be sent.
+ * @param tx_pkt
+ *  Pointer to the packet mbuf to be sent.
+ * @return
+ *  0 = packet has been buffered for later transmission
+ *  -1 = Packet can not be buffered since it reached limit
+ */
+static __rte_always_inline int
+rte_eth_tx_enqueue(struct rte_eth_dev_tx_buffer *buffer, struct rte_mbuf *tx_pkt)
+{
+	if (buffer->length < buffer->size) {
+		buffer->pkts[buffer->length++] = tx_pkt;
+		return 0;
+	}
+
+	return -1;
+}
+
 #ifdef __cplusplus
 }
 #endif
