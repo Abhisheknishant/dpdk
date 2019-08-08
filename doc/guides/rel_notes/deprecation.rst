@@ -78,3 +78,16 @@ Deprecation Notices
   to set new power environment if power environment was already initialized.
   In this case the function will return -1 unless the environment is unset first
   (using ``rte_power_unset_env``). Other function usage scenarios will not change.
+
+* ethdev: New offload flags ``DEV_RX_OFFLOAD_PTYPE``, ``DEV_RX_OFFLOAD_RSS_HASH``
+  and ``DEV_RX_OFFLOAD_FLOW_MARK`` will be added in 19.11.
+  This will allow application to enable or disable PMDs from updating
+  ``rte_mbuf`` fields ``rte_mbuf::packet_type``, ``rte_mbuf::hash::rss`` and
+  ``rte_mbuf::hash::fdir`` respectively.
+  This scheme will allow PMDs to avoid writes to ``rte_mbuf`` fields on Rx and
+  thereby improve Rx performance if application wishes do so.
+  In 19.11 PMDs will still update the fields even when the offloads are not
+  enabled.
+  The exact semantics of the flags will be worked out later either by making
+  them negative offloads to avoid application change or positive offload to
+  align with existing offload flag semantics.
