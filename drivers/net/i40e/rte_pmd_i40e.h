@@ -1061,4 +1061,8 @@ rte_pmd_i40e_inset_field_clear(uint64_t *inset, uint8_t field_idx)
 	return 0;
 }
 
+void
+i40e_set_switch_dev(struct rte_eth_dev *i40e_dev,
+struct rte_eth_dev *switch_dev);
+
 #endif /* _PMD_I40E_H_ */
