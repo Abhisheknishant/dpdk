@@ -4245,8 +4245,8 @@ rte_eth_rx_descriptor_status(uint16_t port_id, uint16_t queue_id,
  * @param queue_id
  *  A valid Tx queue identifier on this port.
  * @param offset
- *  The offset of the descriptor starting from tail (0 is the place where
- *  the next packet will be send).
+ *  The offset of the descriptor starting from tail (0 is the last written
+ *  descriptor).
  *
  * @return
  *  - (RTE_ETH_TX_DESC_FULL) Descriptor is being processed by the hw, i.e.
