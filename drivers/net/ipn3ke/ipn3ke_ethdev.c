@@ -209,6 +209,100 @@ ipn3ke_vbng_init_done(struct ipn3ke_hw *hw)
 	return 0;
 }
 
+static void ipn3ke_10G_mtu_setup
+(struct ipn3ke_hw *hw, uint32_t mac_num, uint32_t eth_group_sel)
+{
+	uint32_t tx;
+	uint32_t rx;
+	uint32_t tmp;
+
+	(*hw->f_mac_read)(hw,
+			&tx,
+			IPN3KE_10G_TX_FRAME_MAXLENGTH,
+			mac_num,
+			eth_group_sel);
+
+	(*hw->f_mac_read)(hw,
+			&rx,
+			IPN3KE_10G_RX_FRAME_MAXLENGTH,
+			mac_num,
+			eth_group_sel);
+
+	tmp = (tx > rx) ? rx : tx;
+	if (tmp < RTE_ETHER_MIN_MTU)
+		tmp = RTE_ETHER_MIN_MTU;
+	if (tmp > IPN3KE_MAC_FRAME_SIZE_MAX - IPN3KE_ETH_OVERHEAD)
+		tmp = IPN3KE_MAC_FRAME_SIZE_MAX - IPN3KE_ETH_OVERHEAD;
+
+	(*hw->f_mac_write)(hw,
+			tmp,
+			IPN3KE_10G_TX_FRAME_MAXLENGTH,
+			mac_num,
+			eth_group_sel);
+
+	(*hw->f_mac_write)(hw,
+			tmp,
+			IPN3KE_10G_RX_FRAME_MAXLENGTH,
+			mac_num,
+			eth_group_sel);
+}
+
+static void ipn3ke_25G_mtu_setup
+(struct ipn3ke_hw *hw, uint32_t mac_num, uint32_t eth_group_sel)
+{
+	uint32_t tx;
+	uint32_t rx;
+	uint32_t tmp;
+
+	(*hw->f_mac_read)(hw,
+			&tx,
+			IPN3KE_25G_MAX_TX_SIZE_CONFIG,
+			mac_num,
+			eth_group_sel);
+
+	(*hw->f_mac_read)(hw,
+			&rx,
+			IPN3KE_25G_MAX_RX_SIZE_CONFIG,
+			mac_num,
+			eth_group_sel);
+
+	tmp = (tx > rx) ? rx : tx;
+	if (tmp < RTE_ETHER_MIN_MTU)
+		tmp = RTE_ETHER_MIN_MTU;
+	if (tmp > IPN3KE_MAC_FRAME_SIZE_MAX - IPN3KE_ETH_OVERHEAD)
+		tmp = IPN3KE_MAC_FRAME_SIZE_MAX - IPN3KE_ETH_OVERHEAD;
+
+	(*hw->f_mac_write)(hw,
+			tmp,
+			IPN3KE_25G_MAX_TX_SIZE_CONFIG,
+			mac_num,
+			eth_group_sel);
+
+	(*hw->f_mac_write)(hw,
+			tmp,
+			IPN3KE_25G_MAX_RX_SIZE_CONFIG,
+			mac_num,
+			eth_group_sel);
+}
+
+static void
+ipn3ke_mtu_setup(struct ipn3ke_hw *hw)
+{
+	int i;
+	if (hw->retimer.mac_type == IFPGA_RAWDEV_RETIMER_MAC_TYPE_10GE_XFI) {
+		for (i = 0; i < hw->port_num; i++) {
+			ipn3ke_10G_mtu_setup(hw, i, 0);
+			ipn3ke_10G_mtu_setup(hw, i, 1);
+		}
+	} else if (hw->retimer.mac_type ==
+			IFPGA_RAWDEV_RETIMER_MAC_TYPE_25GE_25GAUI) {
+		for (i = 0; i < hw->port_num; i++) {
+			ipn3ke_25G_mtu_setup(hw, i, 0);
+			ipn3ke_25G_mtu_setup(hw, i, 1);
+		}
+	}
+}
+
 static int
 ipn3ke_hw_init(struct rte_afu_device *afu_dev,
 	struct ipn3ke_hw *hw)
@@ -302,6 +396,9 @@ ipn3ke_hw_init(struct rte_afu_device *afu_dev,
 			ipn3ke_xmac_rx_clr_25G_stcs(hw, i, 0);
 		}
 	}
+
+	/* init mtu */
+	ipn3ke_mtu_setup(hw);
 
 	ret = rte_eth_switch_domain_alloc(&hw->switch_domain_id);
 	if (ret)
