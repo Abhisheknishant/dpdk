@@ -1835,14 +1835,15 @@ eth_igb_tx_descriptor_status(void *tx_queue, uint16_t offset)
 {
 	struct igb_tx_queue *txq = tx_queue;
 	volatile uint32_t *status;
-	uint32_t desc;
+	int32_t desc;
 
 	if (unlikely(offset >= txq->nb_tx_desc))
 		return -EINVAL;
 
-	desc = txq->tx_tail + offset;
-	if (desc >= txq->nb_tx_desc)
-		desc -= txq->nb_tx_desc;
+	desc = txq->tx_tail - offset - 1;
+	if (desc < 0)
+		desc += txq->nb_tx_desc;
+	desc = txq->sw_ring[desc].last_id;
 
 	status = &txq->tx_ring[desc].wb.status;
 	if (*status & rte_cpu_to_le_32(E1000_TXD_STAT_DD))
