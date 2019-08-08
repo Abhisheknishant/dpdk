@@ -385,7 +385,8 @@ static void ixgbe_l2_tunnel_conf(struct rte_eth_dev *dev);
 #define UPDATE_VF_STAT(reg, last, cur)                          \
 {                                                               \
 	uint32_t latest = IXGBE_READ_REG(hw, reg);              \
-	cur += (latest - last) & UINT_MAX;                      \
+	if (latest)                                             \
+		cur += (latest - last) & UINT_MAX;              \
 	last = latest;                                          \
 }
 
@@ -394,7 +395,8 @@ static void ixgbe_l2_tunnel_conf(struct rte_eth_dev *dev);
 	u64 new_lsb = IXGBE_READ_REG(hw, lsb);                   \
 	u64 new_msb = IXGBE_READ_REG(hw, msb);                   \
 	u64 latest = ((new_msb << 32) | new_lsb);                \
-	cur += (0x1000000000LL + latest - last) & 0xFFFFFFFFFLL; \
+	if (latest)                                              \
+		cur += (0x1000000000LL + latest - last) & 0xFFFFFFFFFLL;\
 	last = latest;                                           \
 }
 
