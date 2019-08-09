@@ -2216,6 +2216,7 @@ bpf_validate(struct rte_bpf *bpf)
 
 	/* check input argument type, don't allow mbuf ptr on 32-bit */
 	if (bpf->prm.prog_arg.type != RTE_BPF_ARG_RAW &&
+			bpf->prm.prog_arg.type != RTE_BPF_ARG_PTR_STACK &&
 			bpf->prm.prog_arg.type != RTE_BPF_ARG_PTR &&
 			(sizeof(uint64_t) != sizeof(uintptr_t) ||
 			bpf->prm.prog_arg.type != RTE_BPF_ARG_PTR_MBUF)) {
