@@ -88,3 +88,26 @@ Deprecation Notices
   to set new power environment if power environment was already initialized.
   In this case the function will return -1 unless the environment is unset first
   (using ``rte_power_unset_env``). Other function usage scenarios will not change.
+
+* ethdev: New offload flags ``DEV_RX_OFFLOAD_RSS_HASH`` and ``DEV_RX_OFFLOAD_FLOW_MARK``
+  will be added in 19.11.
+  This will allow application to enable or disable PMDs from updating
+  ``rte_mbuf::hash::rss`` and ``rte_mbuf::hash::fdir`` respectively.
+  This scheme will allow PMDs to avoid writes to ``rte_mbuf`` fields on Rx and
+  thereby improve Rx performance if application wishes do so.
+  In 19.11 PMDs will still update the fields even when the offloads are not
+  enabled.
+
+* ethdev: New function ``rte_eth_dev_set_supported_ptypes`` will be added in
+  19.11.
+  This will allow application to request PMD to set specific ptypes defined
+  through ``rte_eth_dev_set_supported_ptypes`` in ``rte_mbuf::packet_type``.
+  If application doesn't want any ptype information it can call
+  ``rte_eth_dev_set_supported_ptypes(ethdev_id, RTE_PTYPE_UNKNOWN)``
+  If application doesn't call ``rte_eth_dev_set_supported_ptypes`` PMD can
+  return ``rte_mbuf::packet_type`` with ``rte_eth_dev_get_supported_ptypes``.
+  If application is interested only in L2/L3 layer, it can inform the PMD to update
+ ``rte_mbuf::packet_type`` with L2/L3 ptype by calling
+ ``rte_eth_dev_set_supported_ptypes(ethdev_id, RTE_PTYPE_L2_MASK | RTE_PTYPE_L3_MASK)``.
+  This scheme will allow PMDs to avoid writes to ``rte_mbuf`` fields on Rx and
+  thereby improve Rx performance if application wishes do so.
