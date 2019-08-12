@@ -29,11 +29,13 @@ else
 	exit 1
 fi
 
-build () # <directory> <meson options>
+build () # <directory> <target compiler> <meson options>
 {
 	builddir=$1
 	shift
-	if command -v $CC >/dev/null 2>&1 ; then
+	targetcc=$1
+	shift
+	if command -v $CC $targetcc >/dev/null 2>&1 ; then
 		if [ ! -f "$builddir/build.ninja" ] ; then
 			options="--werror -Dexamples=all $*"
 			echo "$MESON $options $srcdir $builddir"
@@ -71,7 +73,7 @@ for c in gcc clang ; do
 	command -v $c >/dev/null 2>&1 || continue
 	for s in static shared ; do
 		export CC="ccache $c"
-		build build-$c-$s --default-library=$s
+		build build-$c-$s $c --default-library=$s
 	done
 done
 
@@ -83,22 +85,19 @@ ok=$(cc -march=$default_machine -E - < /dev/null > /dev/null 2>&1 || echo false)
 if [ "$ok" = "false" ] ; then
 	default_machine='corei7'
 fi
-build build-x86-default -Dlibdir=lib -Dmachine=$default_machine $use_shared
+build build-x86-default cc -Dlibdir=lib -Dmachine=$default_machine $use_shared
 
-# enable cross compilation if gcc cross-compiler is found
 c=aarch64-linux-gnu-gcc
-if command -v $c >/dev/null 2>&1 ; then
-	# compile the general v8a also for clang to increase coverage
-	export CC="clang"
-	build build-arm64-host-clang $use_shared \
-		--cross-file $srcdir/config/arm/arm64_armv8_linux_gcc
-
-	for f in $srcdir/config/arm/arm*gcc ; do
-		export CC="ccache gcc"
-		build build-$(basename $f | tr '_' '-' | cut -d'-' -f-2) \
-			$use_shared --cross-file $f
-	done
-fi
+# generic armv8a with clang as host compiler
+export CC="clang"
+build build-arm64-host-clang $c $use_shared \
+	--cross-file $srcdir/config/arm/arm64_armv8_linux_gcc
+# all gcc/arm configurations
+for f in $srcdir/config/arm/arm*gcc ; do
+	export CC="ccache gcc"
+	build build-$(basename $f | tr '_' '-' | cut -d'-' -f-2) $c \
+		$use_shared --cross-file $f
+done
 
 # Test installation of the x86-default target, to be used for checking
 # the sample apps build using the pkg-config file for cflags and libs
