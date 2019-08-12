@@ -2608,12 +2608,32 @@ i40evf_config_rss(struct i40e_vf *vf)
 
 	num = RTE_MIN(vf->dev_data->nb_rx_queues, I40E_MAX_QP_NUM_PER_VF);
 	/* Fill out the look up table */
-	for (i = 0, j = 0; i < nb_q; i++, j++) {
-		if (j >= num)
-			j = 0;
-		lut = (lut << 8) | j;
-		if ((i & 3) == 3)
-			I40E_WRITE_REG(hw, I40E_VFQF_HLUT(i >> 2), lut);
+	if (!(vf->flags & I40E_FLAG_RSS_AQ_CAPABLE)) {
+		for (i = 0, j = 0; i < nb_q; i++, j++) {
+			if (j >= num)
+				j = 0;
+			lut = (lut << 8) | j;
+			if ((i & 3) == 3)
+				I40E_WRITE_REG(hw, I40E_VFQF_HLUT(i >> 2), lut);
+		}
+	} else {
+		uint8_t *lut;
+		uint32_t rss_lut_size = (I40E_VFQF_HLUT1_MAX_INDEX + 1) * 4;
+		int ret;
+		lut = rte_zmalloc("i40e_rss_lut", rss_lut_size, 0);
+		if (!lut) {
+			PMD_DRV_LOG(ERR, "No memory can be allocated");
+			return -ENOMEM;
+		}
+
+		for (i = 0; i < rss_lut_size; i++)
+			lut[i] = i % vf->num_queue_pairs;
+
+		ret = i40evf_set_rss_lut(&vf->vsi, lut,
+					 rss_lut_size);
+		rte_free(lut);
+		if (ret)
+			return ret;
 	}
 
 	rss_conf = vf->dev_data->dev_conf.rx_adv_conf.rss_conf;
