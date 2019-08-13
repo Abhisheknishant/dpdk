@@ -7,9 +7,9 @@ Running the Application
 EAL Command-line Options
 ------------------------
 
-Please refer to  :doc:`../linux_gsg/linux_eal_parameters` or
-:doc:`../freebsd_gsg/freebsd_eal_parameters` for a list of available EAL
-command-line options.
+Please refer to  :doc:`../linux_gsg/linux_eal_parameters` (Linux) or
+:doc:`../freebsd_gsg/freebsd_eal_parameters` (FreeBSD) for a list of available
+EAL command-line options.
 
 
 Testpmd Command-line Options
