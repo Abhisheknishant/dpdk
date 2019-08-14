@@ -167,6 +167,13 @@ enum index {
 	ITEM_GTP_TEID,
 	ITEM_GTPC,
 	ITEM_GTPU,
+	ITEM_GTP_PSC,
+	ITEM_GTP_PSC_QFI,
+	ITEM_GTP_PSC_PDU_T,
+	ITEM_PPPOES,
+	ITEM_PPPOED,
+	ITEM_PPPOE_SEID,
+	ITEM_PPPOE_PROTO,
 	ITEM_GENEVE,
 	ITEM_GENEVE_VNI,
 	ITEM_GENEVE_PROTO,
@@ -651,6 +658,9 @@ static const enum index next_item[] = {
 	ITEM_GTP,
 	ITEM_GTPC,
 	ITEM_GTPU,
+	ITEM_GTP_PSC,
+	ITEM_PPPOES,
+	ITEM_PPPOED,
 	ITEM_GENEVE,
 	ITEM_VXLAN_GPE,
 	ITEM_ARP_ETH_IPV4,
@@ -827,6 +837,20 @@ static const enum index item_gre_key[] = {
 
 static const enum index item_gtp[] = {
 	ITEM_GTP_TEID,
+	ITEM_NEXT,
+	ZERO,
+};
+
+static const enum index item_gtp_psc[] = {
+	ITEM_GTP_PSC_QFI,
+	ITEM_GTP_PSC_PDU_T,
+	ITEM_NEXT,
+	ZERO,
+};
+
+static const enum index item_pppoe[] = {
+	ITEM_PPPOE_SEID,
+	ITEM_PPPOE_PROTO,
 	ITEM_NEXT,
 	ZERO,
 };
@@ -2107,6 +2131,56 @@ static const struct token token_list[] = {
 		.priv = PRIV_ITEM(GTPU, sizeof(struct rte_flow_item_gtp)),
 		.next = NEXT(item_gtp),
 		.call = parse_vc,
+	},
+	[ITEM_GTP_PSC] = {
+		.name = "gtp_psc",
+		.help = "match GTP extension header (type is 0x85)",
+		.priv = PRIV_ITEM(GTP_PSC,
+				sizeof(struct rte_flow_item_gtp_psc)),
+		.next = NEXT(item_gtp_psc),
+		.call = parse_vc,
+	},
+	[ITEM_GTP_PSC_QFI] = {
+		.name = "qfi",
+		.help = "QoS flow identifier",
+		.next = NEXT(item_gtp_psc, NEXT_ENTRY(UNSIGNED), item_param),
+		.args = ARGS(ARGS_ENTRY_HTON(struct rte_flow_item_gtp_psc,
+					qfi)),
+	},
+	[ITEM_GTP_PSC_PDU_T] = {
+		.name = "pdu_t",
+		.help = "PDU type",
+		.next = NEXT(item_gtp_psc, NEXT_ENTRY(UNSIGNED), item_param),
+		.args = ARGS(ARGS_ENTRY_HTON(struct rte_flow_item_gtp_psc,
+					pdu_type)),
+	},
+	[ITEM_PPPOES] = {
+		.name = "pppoes",
+		.help = "match PPPoE Session header",
+		.priv = PRIV_ITEM(PPPOES, sizeof(struct rte_flow_item_pppoe)),
+		.next = NEXT(item_pppoe),
+		.call = parse_vc,
+	},
+	[ITEM_PPPOED] = {
+		.name = "pppoed",
+		.help = "match PPPoE Discovery stage header",
+		.priv = PRIV_ITEM(PPPOED, sizeof(struct rte_flow_item_pppoe)),
+		.next = NEXT(item_pppoe),
+		.call = parse_vc,
+	},
+	[ITEM_PPPOE_SEID] = {
+		.name = "seid",
+		.help = "Session identifier",
+		.next = NEXT(item_pppoe, NEXT_ENTRY(UNSIGNED), item_param),
+		.args = ARGS(ARGS_ENTRY_HTON(struct rte_flow_item_pppoe,
+					session_id)),
+	},
+	[ITEM_PPPOE_PROTO] = {
+		.name = "proto_id",
+		.help = "PPPOE protocol identifier",
+		.next = NEXT(item_pppoe, NEXT_ENTRY(UNSIGNED), item_param),
+		.args = ARGS(ARGS_ENTRY_HTON(struct rte_flow_item_pppoe,
+					proto_id)),
 	},
 	[ITEM_GENEVE] = {
 		.name = "geneve",
@@ -5752,6 +5826,12 @@ flow_item_default_mask(const struct rte_flow_item *item)
 		break;
 	case RTE_FLOW_ITEM_TYPE_GTP:
 		mask = &rte_flow_item_gtp_mask;
+		break;
+	case RTE_FLOW_ITEM_TYPE_GTP_PSC:
+		mask = &rte_flow_item_gtp_psc_mask;
+		break;
+	case RTE_FLOW_ITEM_TYPE_PPPOES:
+		mask = &rte_flow_item_pppoe_mask;
 		break;
 	case RTE_FLOW_ITEM_TYPE_ESP:
 		mask = &rte_flow_item_esp_mask;

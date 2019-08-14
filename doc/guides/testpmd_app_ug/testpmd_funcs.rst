@@ -3904,6 +3904,16 @@ This section lists supported pattern items and their attributes, if any.
 
   - ``teid {unsigned}``: tunnel endpoint identifier.
 
+- ``gtp_psc``: match GTPv1 entension header (type is 0x85).
+
+  - ``pdu_type {unsigned}``: PDU type (0 or 1).
+  - ``qfi {unsigned}``: QoS flow identifier.
+
+- ``pppoes``, ``pppoed``: match PPPOE header.
+
+  - ``session_id {unsigned}``: Session identifier.
+  - ``proto_id {unsigned}``: PPP Protocol identifier.
+
 - ``geneve``: match GENEVE header.
 
   - ``vni {unsigned}``: virtual network identifier.
