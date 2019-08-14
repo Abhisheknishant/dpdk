@@ -329,6 +329,34 @@ enum rte_flow_item_type {
 	RTE_FLOW_ITEM_TYPE_GTPU,
 
 	/**
+	 * Matches a GTP PDU extension header (type is 0x85:
+	 * PDU Session Container).
+	 *
+	 * Configure flow for GTP packets with extension header type 0x85.
+	 *
+	 * See struct rte_flow_item_gtp_psc.
+	 */
+	RTE_FLOW_ITEM_TYPE_GTP_PSC,
+
+	/**
+	 * Matches a PPPOE header.
+	 *
+	 * Configure flow for PPPoE Session packets.
+	 *
+	 * See struct rte_flow_item_pppoe.
+	 */
+	RTE_FLOW_ITEM_TYPE_PPPOES,
+
+	/**
+	 * Matches a PPPOE header.
+	 *
+	 * Configure flow for PPPoE Discovery stage packets.
+	 *
+	 * See struct rte_flow_item_pppoe.
+	 */
+	RTE_FLOW_ITEM_TYPE_PPPOED,
+
+	/**
 	 * Matches a ESP header.
 	 *
 	 * See struct rte_flow_item_esp.
@@ -919,6 +947,49 @@ struct rte_flow_item_gtp {
 #ifndef __cplusplus
 static const struct rte_flow_item_gtp rte_flow_item_gtp_mask = {
 	.teid = RTE_BE32(0xffffffff),
+};
+#endif
+
+/**
+ * RTE_FLOW_ITEM_TYPE_GTP_PSC.
+ *
+ * Matches a GTP-extension header
+ * (type is 0x85: PDU Session Container).
+ */
+struct rte_flow_item_gtp_psc {
+	uint8_t pdu_type; /**< PDU type (0 or 1). */
+	uint8_t qfi; /**< QoS flow identifier. */
+};
+
+/** Default mask for RTE_FLOW_ITEM_TYPE_GTP_PSC. */
+#ifndef __cplusplus
+static const struct rte_flow_item_gtp_psc
+rte_flow_item_gtp_psc_mask = {
+	.qfi = 0x3f,
+};
+#endif
+
+/**
+ * RTE_FLOW_ITEM_TYPE_PPPOE.
+ *
+ * Matches a PPPOE header.
+ */
+struct rte_flow_item_pppoe {
+	/**
+	 * Version (4b), type (4b).
+	 */
+	uint8_t v_t_flags;
+	uint8_t code; /**< Message type. */
+	rte_be16_t session_id; /**< Session identifier. */
+	rte_be16_t length; /**< Payload length. */
+	rte_be16_t proto_id; /**< PPP Protocol identifier. */
+};
+
+/** Default mask for RTE_FLOW_ITEM_TYPE_PPPOE. */
+#ifndef __cplusplus
+static const struct rte_flow_item_pppoe rte_flow_item_pppoe_mask = {
+	.session_id = RTE_BE16(0xffff),
+	.proto_id = RTE_BE16(0xffff),
 };
 #endif
 

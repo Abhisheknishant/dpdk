@@ -1055,6 +1055,31 @@ flow rules.
 - ``teid``: tunnel endpoint identifier.
 - Default ``mask`` matches teid only.
 
+Item: ``GTP_PSC``
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Matches a GTP Extension header (type is 0x85).
+
+- ``pdu_type``: PDU type.
+- ``qfi``: QoS flow identifier.
+- Default ``mask`` matches QFI only.
+
+Item: ``PPPOES``, ``PPPOED``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Matches a PPPOE header.
+
+Note: PPPOES and PPPOED use the same structure. PPPOES and PPPOED item
+are defined for a user-friendly API when creating PPPOE-Session and
+PPPOE-Discovery flow rules.
+
+- ``v_t_flags``: version (4b), type (4b).
+- ``code``: Message type.
+- ``session_id``: Session identifier.
+- ``length``: Payload length.
+- ``proto_id``: PPP Protocol identifier.
+- Default ``mask`` matches session_id,proto_id.
+
 Item: ``ESP``
 ^^^^^^^^^^^^^
 
