@@ -127,11 +127,13 @@ cmd_sendfile_parsed(void *parsed_result,
 
 	if (fseek(file, 0, SEEK_END) < 0) {
 		printf("Fail to get file size.\n");
+		fclose(file);
 		return;
 	}
 	size = ftell(file);
 	if (fseek(file, 0, SEEK_SET) < 0) {
 		printf("Fail to get file size.\n");
+		fclose(file);
 		return;
 	}
 
