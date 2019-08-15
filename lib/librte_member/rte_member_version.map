@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
 DPDK_17.11 {
 	global:
 
