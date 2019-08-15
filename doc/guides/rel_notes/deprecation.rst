@@ -4,7 +4,7 @@
 ABI and API Deprecation
 =======================
 
-See the :doc:`guidelines document for details of the ABI policy </contributing/versioning>`.
+See the :ref:`guidelines document for details of the ABI policy <abi_policy>`.
 API and ABI deprecation notices are to be posted here.
 
 
