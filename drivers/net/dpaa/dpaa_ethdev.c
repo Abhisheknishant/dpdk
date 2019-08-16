@@ -49,7 +49,8 @@
 /* Supported Rx offloads */
 static uint64_t dev_rx_offloads_sup =
 		DEV_RX_OFFLOAD_JUMBO_FRAME |
-		DEV_RX_OFFLOAD_SCATTER;
+		DEV_RX_OFFLOAD_SCATTER |
+		DEV_RX_OFFLOAD_RSS_HASH;
 
 /* Rx offloads which cannot be disabled */
 static uint64_t dev_rx_offloads_nodis =
