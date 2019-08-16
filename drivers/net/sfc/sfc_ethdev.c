@@ -195,6 +195,15 @@ sfc_dev_supported_ptypes_get(struct rte_eth_dev *dev)
 }
 
 static int
+sfc_dev_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
+}
+
+static int
 sfc_dev_configure(struct rte_eth_dev *dev)
 {
 	struct rte_eth_dev_data *dev_data = dev->data;
@@ -1782,6 +1791,7 @@ static const struct eth_dev_ops sfc_eth_dev_ops = {
 	.xstats_get_names		= sfc_xstats_get_names,
 	.dev_infos_get			= sfc_dev_infos_get,
 	.dev_supported_ptypes_get	= sfc_dev_supported_ptypes_get,
+	.dev_supported_ptypes_set       = sfc_dev_supported_ptypes_set,
 	.mtu_set			= sfc_dev_set_mtu,
 	.rx_queue_start			= sfc_rx_queue_start,
 	.rx_queue_stop			= sfc_rx_queue_stop,
@@ -1987,6 +1997,7 @@ sfc_eth_dev_clear_ops(struct rte_eth_dev *dev)
 
 static const struct eth_dev_ops sfc_eth_dev_secondary_ops = {
 	.dev_supported_ptypes_get	= sfc_dev_supported_ptypes_get,
+	.dev_supported_ptypes_set       = sfc_dev_supported_ptypes_set,
 	.rx_queue_count			= sfc_rx_queue_count,
 	.rx_descriptor_done		= sfc_rx_descriptor_done,
 	.rx_descriptor_status		= sfc_rx_descriptor_status,

@@ -696,6 +696,27 @@ mlx5_dev_supported_ptypes_get(struct rte_eth_dev *dev)
 }
 
 /**
+ * Set packet types interested in.
+ *
+ * @param dev
+ *   Pointer to Ethernet device structure.
+ * @param ptype_mask
+ *   Packet type mask that the application is interested in.
+ *
+ * @return
+ *   0 if packet types requested are successfully set.
+ *   -ENOTSUP if packet types requested are not supported.
+ */
+static int
+mlx5_dev_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
+}
+
+/**
  * Retrieve the master device for representor in the same switch domain.
  *
  * @param dev

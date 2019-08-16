@@ -302,7 +302,7 @@ int hn_vf_configure(struct rte_eth_dev *dev,
 	return ret;
 }
 
-const uint32_t *hn_vf_supported_ptypes(struct rte_eth_dev *dev)
+const uint32_t *hn_vf_supported_ptypes_get(struct rte_eth_dev *dev)
 {
 	struct hn_data *hv = dev->data->dev_private;
 	struct rte_eth_dev *vf_dev;
@@ -315,6 +315,14 @@ const uint32_t *hn_vf_supported_ptypes(struct rte_eth_dev *dev)
 	rte_spinlock_unlock(&hv->vf_lock);
 
 	return ptypes;
+}
+
+int hn_vf_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
 }
 
 int hn_vf_start(struct rte_eth_dev *dev)

@@ -1562,6 +1562,15 @@ tap_dev_supported_ptypes_get(struct rte_eth_dev *dev __rte_unused)
 }
 
 static int
+tap_dev_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
+}
+
+static int
 tap_flow_ctrl_get(struct rte_eth_dev *dev __rte_unused,
 		  struct rte_eth_fc_conf *fc_conf)
 {
@@ -1671,6 +1680,7 @@ static const struct eth_dev_ops ops = {
 	.stats_get              = tap_stats_get,
 	.stats_reset            = tap_stats_reset,
 	.dev_supported_ptypes_get = tap_dev_supported_ptypes_get,
+	.dev_supported_ptypes_set = tap_dev_supported_ptypes_set,
 	.rss_hash_update        = tap_rss_hash_update,
 	.filter_ctrl            = tap_dev_filter_ctrl,
 };

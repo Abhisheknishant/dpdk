@@ -61,6 +61,15 @@ otx2_nix_supported_ptypes_get(struct rte_eth_dev *eth_dev)
 		return NULL;
 }
 
+int
+otx2_nix_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
+}
+
 /*
  * +------------------ +------------------ +
  * |  | IL4 | IL3| IL2 | TU | L4 | L3 | L2 |

@@ -89,6 +89,8 @@ static void vmxnet3_dev_info_get(struct rte_eth_dev *dev,
 				 struct rte_eth_dev_info *dev_info);
 static const uint32_t *
 vmxnet3_dev_supported_ptypes_get(struct rte_eth_dev *dev);
+static int
+vmxnet3_dev_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask);
 static int vmxnet3_dev_vlan_filter_set(struct rte_eth_dev *dev,
 				       uint16_t vid, int on);
 static int vmxnet3_dev_vlan_offload_set(struct rte_eth_dev *dev, int mask);
@@ -126,6 +128,7 @@ static const struct eth_dev_ops vmxnet3_eth_dev_ops = {
 	.mac_addr_set         = vmxnet3_mac_addr_set,
 	.dev_infos_get        = vmxnet3_dev_info_get,
 	.dev_supported_ptypes_get = vmxnet3_dev_supported_ptypes_get,
+	.dev_supported_ptypes_set = vmxnet3_dev_supported_ptypes_set,
 	.vlan_filter_set      = vmxnet3_dev_vlan_filter_set,
 	.vlan_offload_set     = vmxnet3_dev_vlan_offload_set,
 	.rx_queue_setup       = vmxnet3_dev_rx_queue_setup,
@@ -1203,6 +1206,15 @@ vmxnet3_dev_supported_ptypes_get(struct rte_eth_dev *dev)
 	if (dev->rx_pkt_burst == vmxnet3_recv_pkts)
 		return ptypes;
 	return NULL;
+}
+
+static int
+vmxnet3_dev_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
 }
 
 static int

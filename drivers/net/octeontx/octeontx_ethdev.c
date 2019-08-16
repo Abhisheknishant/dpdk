@@ -956,6 +956,15 @@ octeontx_dev_supported_ptypes_get(struct rte_eth_dev *dev)
 }
 
 static int
+octeontx_dev_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
+}
+
+static int
 octeontx_pool_ops(struct rte_eth_dev *dev, const char *pool)
 {
 	RTE_SET_USED(dev);
@@ -986,6 +995,7 @@ static const struct eth_dev_ops octeontx_dev_ops = {
 	.rx_queue_setup		 = octeontx_dev_rx_queue_setup,
 	.rx_queue_release	 = octeontx_dev_rx_queue_release,
 	.dev_supported_ptypes_get = octeontx_dev_supported_ptypes_get,
+	.dev_supported_ptypes_set = octeontx_dev_supported_ptypes_set,
 	.pool_ops_supported      = octeontx_pool_ops,
 };
 

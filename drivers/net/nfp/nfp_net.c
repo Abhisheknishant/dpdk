@@ -1295,6 +1295,15 @@ nfp_net_supported_ptypes_get(struct rte_eth_dev *dev)
 	return NULL;
 }
 
+static int
+nfp_net_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
+}
+
 static uint32_t
 nfp_net_rx_queue_count(struct rte_eth_dev *dev, uint16_t queue_idx)
 {
@@ -2705,6 +2714,7 @@ static const struct eth_dev_ops nfp_net_eth_dev_ops = {
 	.stats_reset		= nfp_net_stats_reset,
 	.dev_infos_get		= nfp_net_infos_get,
 	.dev_supported_ptypes_get = nfp_net_supported_ptypes_get,
+	.dev_supported_ptypes_set = nfp_net_supported_ptypes_set,
 	.mtu_set		= nfp_net_dev_mtu_set,
 	.mac_addr_set           = nfp_set_mac_addr,
 	.vlan_offload_set	= nfp_net_vlan_offload_set,

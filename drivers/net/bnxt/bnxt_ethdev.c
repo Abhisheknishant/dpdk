@@ -2865,6 +2865,15 @@ bnxt_dev_supported_ptypes_get_op(struct rte_eth_dev *dev)
 	return ptypes;
 }
 
+static int
+bnxt_dev_supported_ptypes_set_op(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
+}
+
 static int bnxt_map_regs(struct bnxt *bp, uint32_t *reg_arr, int count,
 			 int reg_win)
 {
@@ -3316,6 +3325,7 @@ static const struct eth_dev_ops bnxt_dev_ops = {
 	.tx_queue_stop = bnxt_tx_queue_stop,
 	.filter_ctrl = bnxt_filter_ctrl_op,
 	.dev_supported_ptypes_get = bnxt_dev_supported_ptypes_get_op,
+	.dev_supported_ptypes_set = bnxt_dev_supported_ptypes_set_op,
 	.get_eeprom_length    = bnxt_get_eeprom_length_op,
 	.get_eeprom           = bnxt_get_eeprom_op,
 	.set_eeprom           = bnxt_set_eeprom_op,

@@ -185,6 +185,8 @@ static int ixgbe_fw_version_get(struct rte_eth_dev *dev, char *fw_version,
 static void ixgbe_dev_info_get(struct rte_eth_dev *dev,
 			       struct rte_eth_dev_info *dev_info);
 static const uint32_t *ixgbe_dev_supported_ptypes_get(struct rte_eth_dev *dev);
+static int ixgbe_dev_supported_ptypes_set(struct rte_eth_dev *dev,
+					  uint32_t ptype_mask);
 static void ixgbevf_dev_info_get(struct rte_eth_dev *dev,
 				 struct rte_eth_dev_info *dev_info);
 static int ixgbe_dev_mtu_set(struct rte_eth_dev *dev, uint16_t mtu);
@@ -532,6 +534,7 @@ static const struct eth_dev_ops ixgbe_eth_dev_ops = {
 	.fw_version_get       = ixgbe_fw_version_get,
 	.dev_infos_get        = ixgbe_dev_info_get,
 	.dev_supported_ptypes_get = ixgbe_dev_supported_ptypes_get,
+	.dev_supported_ptypes_set = ixgbe_dev_supported_ptypes_set,
 	.mtu_set              = ixgbe_dev_mtu_set,
 	.vlan_filter_set      = ixgbe_vlan_filter_set,
 	.vlan_tpid_set        = ixgbe_vlan_tpid_set,
@@ -615,6 +618,7 @@ static const struct eth_dev_ops ixgbevf_eth_dev_ops = {
 	.allmulticast_disable = ixgbevf_dev_allmulticast_disable,
 	.dev_infos_get        = ixgbevf_dev_info_get,
 	.dev_supported_ptypes_get = ixgbe_dev_supported_ptypes_get,
+	.dev_supported_ptypes_set = ixgbe_dev_supported_ptypes_set,
 	.mtu_set              = ixgbevf_dev_set_mtu,
 	.vlan_filter_set      = ixgbevf_vlan_filter_set,
 	.vlan_strip_queue_set = ixgbevf_vlan_strip_queue_set,
@@ -3900,6 +3904,15 @@ ixgbe_dev_supported_ptypes_get(struct rte_eth_dev *dev)
 		return ptypes;
 #endif
 	return NULL;
+}
+
+static int
+ixgbe_dev_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
 }
 
 static void

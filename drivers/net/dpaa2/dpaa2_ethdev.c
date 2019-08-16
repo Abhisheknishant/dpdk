@@ -751,6 +751,15 @@ dpaa2_supported_ptypes_get(struct rte_eth_dev *dev)
 	return NULL;
 }
 
+static int
+dpaa2_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
+}
+
 /**
  * Dpaa2 link Interrupt handler
  *
@@ -1968,6 +1977,7 @@ static struct eth_dev_ops dpaa2_ethdev_ops = {
 	.fw_version_get	   = dpaa2_fw_version_get,
 	.dev_infos_get	   = dpaa2_dev_info_get,
 	.dev_supported_ptypes_get = dpaa2_supported_ptypes_get,
+	.dev_supported_ptypes_set = dpaa2_supported_ptypes_set,
 	.mtu_set           = dpaa2_dev_mtu_set,
 	.vlan_filter_set      = dpaa2_vlan_filter_set,
 	.vlan_offload_set     = dpaa2_vlan_offload_set,

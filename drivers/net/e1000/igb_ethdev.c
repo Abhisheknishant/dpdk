@@ -105,6 +105,8 @@ static int eth_igb_fw_version_get(struct rte_eth_dev *dev,
 static void eth_igb_infos_get(struct rte_eth_dev *dev,
 			      struct rte_eth_dev_info *dev_info);
 static const uint32_t *eth_igb_supported_ptypes_get(struct rte_eth_dev *dev);
+static int eth_igb_supported_ptypes_set(struct rte_eth_dev *dev,
+					uint32_t ptype_mask);
 static void eth_igbvf_infos_get(struct rte_eth_dev *dev,
 				struct rte_eth_dev_info *dev_info);
 static int  eth_igb_flow_ctrl_get(struct rte_eth_dev *dev,
@@ -372,6 +374,7 @@ static const struct eth_dev_ops eth_igb_ops = {
 	.fw_version_get       = eth_igb_fw_version_get,
 	.dev_infos_get        = eth_igb_infos_get,
 	.dev_supported_ptypes_get = eth_igb_supported_ptypes_get,
+	.dev_supported_ptypes_set = eth_igb_supported_ptypes_set,
 	.mtu_set              = eth_igb_mtu_set,
 	.vlan_filter_set      = eth_igb_vlan_filter_set,
 	.vlan_tpid_set        = eth_igb_vlan_tpid_set,
@@ -439,6 +442,7 @@ static const struct eth_dev_ops igbvf_eth_dev_ops = {
 	.vlan_filter_set      = igbvf_vlan_filter_set,
 	.dev_infos_get        = eth_igbvf_infos_get,
 	.dev_supported_ptypes_get = eth_igb_supported_ptypes_get,
+	.dev_supported_ptypes_set = eth_igb_supported_ptypes_set,
 	.rx_queue_setup       = eth_igb_rx_queue_setup,
 	.rx_queue_release     = eth_igb_rx_queue_release,
 	.rx_descriptor_done   = eth_igb_rx_descriptor_done,
@@ -2318,6 +2322,15 @@ eth_igb_supported_ptypes_get(struct rte_eth_dev *dev)
 	    dev->rx_pkt_burst == eth_igb_recv_scattered_pkts)
 		return ptypes;
 	return NULL;
+}
+
+static int
+eth_igb_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
 }
 
 static void

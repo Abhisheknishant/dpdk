@@ -972,6 +972,15 @@ unlock:
 }
 
 static int
+fs_dev_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
+}
+
+static int
 fs_mtu_set(struct rte_eth_dev *dev, uint16_t mtu)
 {
 	struct sub_device *sdev;
@@ -1235,6 +1244,7 @@ const struct eth_dev_ops failsafe_ops = {
 	.stats_reset = fs_stats_reset,
 	.dev_infos_get = fs_dev_infos_get,
 	.dev_supported_ptypes_get = fs_dev_supported_ptypes_get,
+	.dev_supported_ptypes_set = fs_dev_supported_ptypes_set,
 	.mtu_set = fs_mtu_set,
 	.vlan_filter_set = fs_vlan_filter_set,
 	.rx_queue_start = fs_rx_queue_start,

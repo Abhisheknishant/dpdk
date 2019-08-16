@@ -689,6 +689,7 @@ void mlx5_dev_infos_get(struct rte_eth_dev *dev, struct rte_eth_dev_info *info);
 int mlx5_read_clock(struct rte_eth_dev *dev, uint64_t *clock);
 int mlx5_fw_version_get(struct rte_eth_dev *dev, char *fw_ver, size_t fw_size);
 const uint32_t *mlx5_dev_supported_ptypes_get(struct rte_eth_dev *dev);
+int mlx5_dev_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask);
 int mlx5_link_update(struct rte_eth_dev *dev, int wait_to_complete);
 int mlx5_force_link_status_change(struct rte_eth_dev *dev, int status);
 int mlx5_dev_set_mtu(struct rte_eth_dev *dev, uint16_t mtu);

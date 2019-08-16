@@ -214,6 +214,27 @@ mvneta_dev_supported_ptypes_get(struct rte_eth_dev *dev __rte_unused)
 }
 
 /**
+ * Set packet types interested in.
+ *
+ * @param dev
+ *   Pointer to Ethernet device structure.
+ * @param ptype_mask
+ *   Packet type mask that the application is interested in.
+ *
+ * @return
+ *   0 if packet types requested are successfully set.
+ *   -ENOTSUP if packet types requested are not supported.
+ */
+static int
+mvneta_dev_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
+}
+
+/**
  * DPDK callback to change the MTU.
  *
  * Setting the MTU affects hardware MRU (packets larger than the MRU
@@ -758,6 +779,7 @@ static const struct eth_dev_ops mvneta_ops = {
 	.stats_reset = mvneta_stats_reset,
 	.dev_infos_get = mvneta_dev_infos_get,
 	.dev_supported_ptypes_get = mvneta_dev_supported_ptypes_get,
+	.dev_supported_ptypes_set = mvneta_dev_supported_ptypes_set,
 	.rxq_info_get = mvneta_rxq_info_get,
 	.txq_info_get = mvneta_txq_info_get,
 	.rx_queue_setup = mvneta_rx_queue_setup,

@@ -1945,6 +1945,15 @@ qede_dev_supported_ptypes_get(struct rte_eth_dev *eth_dev)
 	return NULL;
 }
 
+static int
+qede_dev_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
+}
+
 static void qede_init_rss_caps(uint8_t *rss_caps, uint64_t hf)
 {
 	*rss_caps = 0;
@@ -2338,6 +2347,7 @@ static const struct eth_dev_ops qede_eth_dev_ops = {
 	.flow_ctrl_set = qede_flow_ctrl_set,
 	.flow_ctrl_get = qede_flow_ctrl_get,
 	.dev_supported_ptypes_get = qede_dev_supported_ptypes_get,
+	.dev_supported_ptypes_set = qede_dev_supported_ptypes_set,
 	.rss_hash_update = qede_rss_hash_update,
 	.rss_hash_conf_get = qede_rss_hash_conf_get,
 	.reta_update  = qede_rss_reta_update,
@@ -2376,6 +2386,7 @@ static const struct eth_dev_ops qede_eth_vf_dev_ops = {
 	.vlan_offload_set = qede_vlan_offload_set,
 	.vlan_filter_set = qede_vlan_filter_set,
 	.dev_supported_ptypes_get = qede_dev_supported_ptypes_get,
+	.dev_supported_ptypes_set = qede_dev_supported_ptypes_set,
 	.rss_hash_update = qede_rss_hash_update,
 	.rss_hash_conf_get = qede_rss_hash_conf_get,
 	.reta_update  = qede_rss_reta_update,

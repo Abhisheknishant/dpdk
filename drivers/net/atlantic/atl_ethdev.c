@@ -49,6 +49,8 @@ static void atl_dev_info_get(struct rte_eth_dev *dev,
 			       struct rte_eth_dev_info *dev_info);
 
 static const uint32_t *atl_dev_supported_ptypes_get(struct rte_eth_dev *dev);
+static int atl_dev_supported_ptypes_set(struct rte_eth_dev *dev,
+					uint32_t ptype_mask);
 
 static int atl_dev_mtu_set(struct rte_eth_dev *dev, uint16_t mtu);
 
@@ -296,6 +298,7 @@ static const struct eth_dev_ops atl_eth_dev_ops = {
 	.fw_version_get       = atl_fw_version_get,
 	.dev_infos_get	      = atl_dev_info_get,
 	.dev_supported_ptypes_get = atl_dev_supported_ptypes_get,
+	.dev_supported_ptypes_set = atl_dev_supported_ptypes_set,
 
 	.mtu_set              = atl_dev_mtu_set,
 
@@ -1140,6 +1143,15 @@ atl_dev_supported_ptypes_get(struct rte_eth_dev *dev)
 		return ptypes;
 
 	return NULL;
+}
+
+static int
+atl_dev_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
 }
 
 static void

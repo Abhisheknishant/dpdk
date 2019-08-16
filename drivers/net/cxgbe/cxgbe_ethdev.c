@@ -804,6 +804,15 @@ cxgbe_dev_supported_ptypes_get(struct rte_eth_dev *eth_dev)
 	return NULL;
 }
 
+static int
+cxgbe_dev_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
+}
+
 /* Update RSS hash configuration
  */
 static int cxgbe_dev_rss_hash_update(struct rte_eth_dev *dev,
@@ -1081,6 +1090,7 @@ static const struct eth_dev_ops cxgbe_eth_dev_ops = {
 	.dev_configure		= cxgbe_dev_configure,
 	.dev_infos_get		= cxgbe_dev_info_get,
 	.dev_supported_ptypes_get = cxgbe_dev_supported_ptypes_get,
+	.dev_supported_ptypes_set = cxgbe_dev_supported_ptypes_set,
 	.link_update		= cxgbe_dev_link_update,
 	.dev_set_link_up        = cxgbe_dev_set_link_up,
 	.dev_set_link_down      = cxgbe_dev_set_link_down,

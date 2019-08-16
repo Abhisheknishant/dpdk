@@ -125,6 +125,7 @@ static const struct eth_dev_ops ice_eth_dev_ops = {
 	.tx_queue_release             = ice_tx_queue_release,
 	.dev_infos_get                = ice_dev_info_get,
 	.dev_supported_ptypes_get     = ice_dev_supported_ptypes_get,
+	.dev_supported_ptypes_set     = ice_dev_supported_ptypes_set,
 	.link_update                  = ice_link_update,
 	.mtu_set                      = ice_mtu_set,
 	.mac_addr_set                 = ice_macaddr_set,

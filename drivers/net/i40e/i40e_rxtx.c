@@ -1687,6 +1687,15 @@ i40e_dev_supported_ptypes_get(struct rte_eth_dev *dev)
 	return NULL;
 }
 
+int
+i40e_dev_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
+}
+
 static int
 i40e_dev_first_queue(uint16_t idx, void **queues, int num)
 {

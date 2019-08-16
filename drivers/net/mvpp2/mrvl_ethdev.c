@@ -1489,6 +1489,27 @@ mrvl_dev_supported_ptypes_get(struct rte_eth_dev *dev __rte_unused)
 }
 
 /**
+ * Set packet types interested in.
+ *
+ * @param dev
+ *   Pointer to Ethernet device structure.
+ * @param ptype_mask
+ *   Packet type mask that the application is interested in.
+ *
+ * @return
+ *   0 if packet types requested are successfully set.
+ *   -ENOTSUP if packet types requested are not supported.
+ */
+static int
+mrvl_dev_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
+}
+
+/**
  * DPDK callback to get information about specific receive queue.
  *
  * @param dev
@@ -2048,6 +2069,7 @@ static const struct eth_dev_ops mrvl_ops = {
 	.xstats_get_names = mrvl_xstats_get_names,
 	.dev_infos_get = mrvl_dev_infos_get,
 	.dev_supported_ptypes_get = mrvl_dev_supported_ptypes_get,
+	.dev_supported_ptypes_set = mrvl_dev_supported_ptypes_set,
 	.rxq_info_get = mrvl_rxq_info_get,
 	.txq_info_get = mrvl_txq_info_get,
 	.vlan_filter_set = mrvl_vlan_filter_set,

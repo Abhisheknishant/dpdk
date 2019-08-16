@@ -80,6 +80,15 @@ enetc_supported_ptypes_get(struct rte_eth_dev *dev __rte_unused)
 	return ptypes;
 }
 
+static int
+enetc_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
+}
+
 /* return 0 means link status changed, -1 means not changed */
 static int
 enetc_link_update(struct rte_eth_dev *dev, int wait_to_complete __rte_unused)
@@ -795,6 +804,7 @@ static const struct eth_dev_ops enetc_ops = {
 	.tx_queue_stop        = enetc_tx_queue_stop,
 	.tx_queue_release     = enetc_tx_queue_release,
 	.dev_supported_ptypes_get = enetc_supported_ptypes_get,
+	.dev_supported_ptypes_set = enetc_supported_ptypes_set,
 };
 
 /**

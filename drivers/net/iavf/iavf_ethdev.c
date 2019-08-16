@@ -40,6 +40,8 @@ static void iavf_dev_close(struct rte_eth_dev *dev);
 static void iavf_dev_info_get(struct rte_eth_dev *dev,
 			     struct rte_eth_dev_info *dev_info);
 static const uint32_t *iavf_dev_supported_ptypes_get(struct rte_eth_dev *dev);
+static int iavf_dev_supported_ptypes_set(struct rte_eth_dev *dev,
+					uint32_t ptype_mask);
 static int iavf_dev_stats_get(struct rte_eth_dev *dev,
 			     struct rte_eth_stats *stats);
 static void iavf_dev_stats_reset(struct rte_eth_dev *dev);
@@ -88,6 +90,7 @@ static const struct eth_dev_ops iavf_eth_dev_ops = {
 	.dev_close                  = iavf_dev_close,
 	.dev_infos_get              = iavf_dev_info_get,
 	.dev_supported_ptypes_get   = iavf_dev_supported_ptypes_get,
+	.dev_supported_ptypes_set   = iavf_dev_supported_ptypes_set,
 	.link_update                = iavf_dev_link_update,
 	.stats_get                  = iavf_dev_stats_get,
 	.stats_reset                = iavf_dev_stats_reset,
@@ -575,6 +578,15 @@ iavf_dev_supported_ptypes_get(struct rte_eth_dev *dev __rte_unused)
 		RTE_PTYPE_UNKNOWN
 	};
 	return ptypes;
+}
+
+static int
+iavf_dev_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
 }
 
 int

@@ -1490,6 +1490,15 @@ fm10k_dev_supported_ptypes_get(struct rte_eth_dev *dev __rte_unused)
 #endif
 
 static int
+fm10k_dev_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
+}
+
+static int
 fm10k_vlan_filter_set(struct rte_eth_dev *dev, uint16_t vlan_id, int on)
 {
 	s32 result;
@@ -2817,6 +2826,7 @@ static const struct eth_dev_ops fm10k_eth_dev_ops = {
 	.link_update		= fm10k_link_update,
 	.dev_infos_get		= fm10k_dev_infos_get,
 	.dev_supported_ptypes_get = fm10k_dev_supported_ptypes_get,
+	.dev_supported_ptypes_set = fm10k_dev_supported_ptypes_set,
 	.vlan_filter_set	= fm10k_vlan_filter_set,
 	.vlan_offload_set	= fm10k_vlan_offload_set,
 	.mac_addr_add		= fm10k_macaddr_add,

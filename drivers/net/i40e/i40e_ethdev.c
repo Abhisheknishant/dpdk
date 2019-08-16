@@ -456,6 +456,7 @@ static const struct eth_dev_ops i40e_eth_dev_ops = {
 	.fw_version_get               = i40e_fw_version_get,
 	.dev_infos_get                = i40e_dev_info_get,
 	.dev_supported_ptypes_get     = i40e_dev_supported_ptypes_get,
+	.dev_supported_ptypes_set     = i40e_dev_supported_ptypes_set,
 	.vlan_filter_set              = i40e_vlan_filter_set,
 	.vlan_tpid_set                = i40e_vlan_tpid_set,
 	.vlan_offload_set             = i40e_vlan_offload_set,

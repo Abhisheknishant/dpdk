@@ -1536,6 +1536,15 @@ ice_dev_supported_ptypes_get(struct rte_eth_dev *dev)
 }
 
 int
+ice_dev_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
+}
+
+int
 ice_rx_descriptor_status(void *rx_queue, uint16_t offset)
 {
 	struct ice_rx_queue *rxq = rx_queue;

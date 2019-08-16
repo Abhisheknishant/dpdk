@@ -362,6 +362,15 @@ nicvf_dev_supported_ptypes_get(struct rte_eth_dev *dev)
 	return ptypes;
 }
 
+static int
+nicvf_dev_supported_ptypes_set(struct rte_eth_dev *dev, uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
+}
+
 static void
 nicvf_dev_stats_reset(struct rte_eth_dev *dev)
 {
@@ -1987,6 +1996,7 @@ static const struct eth_dev_ops nicvf_eth_dev_ops = {
 	.promiscuous_enable       = nicvf_dev_promisc_enable,
 	.dev_infos_get            = nicvf_dev_info_get,
 	.dev_supported_ptypes_get = nicvf_dev_supported_ptypes_get,
+	.dev_supported_ptypes_set = nicvf_dev_supported_ptypes_set,
 	.mtu_set                  = nicvf_dev_set_mtu,
 	.vlan_offload_set         = nicvf_vlan_offload_set,
 	.reta_update              = nicvf_dev_reta_update,

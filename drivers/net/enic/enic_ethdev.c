@@ -601,6 +601,15 @@ static const uint32_t *enicpmd_dev_supported_ptypes_get(struct rte_eth_dev *dev)
 	return NULL;
 }
 
+static int enicpmd_dev_supported_ptypes_set(struct rte_eth_dev *dev,
+					    uint32_t ptype_mask)
+{
+	RTE_SET_USED(dev);
+	RTE_SET_USED(ptype_mask);
+
+	return 0;
+}
+
 static void enicpmd_dev_promiscuous_enable(struct rte_eth_dev *eth_dev)
 {
 	struct enic *enic = pmd_priv(eth_dev);
@@ -1064,6 +1073,7 @@ static const struct eth_dev_ops enicpmd_eth_dev_ops = {
 	.queue_stats_mapping_set = NULL,
 	.dev_infos_get        = enicpmd_dev_info_get,
 	.dev_supported_ptypes_get = enicpmd_dev_supported_ptypes_get,
+	.dev_supported_ptypes_set = enicpmd_dev_supported_ptypes_set,
 	.mtu_set              = enicpmd_mtu_set,
 	.vlan_filter_set      = NULL,
 	.vlan_tpid_set        = NULL,
