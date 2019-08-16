@@ -110,6 +110,10 @@ typedef void (*eth_dev_infos_get_t)(struct rte_eth_dev *dev,
 typedef const uint32_t *(*eth_dev_supported_ptypes_get_t)(struct rte_eth_dev *dev);
 /**< @internal Get supported ptypes of an Ethernet device. */
 
+typedef int (*eth_dev_supported_ptypes_set_t)(struct rte_eth_dev *dev,
+					      uint32_t ptype_mask);
+/**< @internal Set required ptypes of an Ethernet device. */
+
 typedef int (*eth_queue_start_t)(struct rte_eth_dev *dev,
 				    uint16_t queue_id);
 /**< @internal Start rx and tx of a queue of an Ethernet device. */
@@ -421,6 +425,8 @@ struct eth_dev_ops {
 	eth_fw_version_get_t       fw_version_get; /**< Get firmware version. */
 	eth_dev_supported_ptypes_get_t dev_supported_ptypes_get;
 	/**< Get packet types supported and identified by device. */
+	eth_dev_supported_ptypes_set_t dev_supported_ptypes_set;
+	/**< Inform device about the interested ptypes. */
 
 	vlan_filter_set_t          vlan_filter_set; /**< Filter VLAN Setup. */
 	vlan_tpid_set_t            vlan_tpid_set; /**< Outer/Inner VLAN TPID Setup. */

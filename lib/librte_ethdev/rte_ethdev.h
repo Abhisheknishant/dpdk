@@ -2431,6 +2431,23 @@ int rte_eth_dev_fw_version_get(uint16_t port_id,
  */
 int rte_eth_dev_get_supported_ptypes(uint16_t port_id, uint32_t ptype_mask,
 				     uint32_t *ptypes, int num);
+/**
+ * Request Ethernet device to set only specific packet types in the packet.
+ *
+ * Application can use this function to set only specific ptypes that it's
+ * interested. This information can be used by the PMD to optimize Rx path.
+ *
+ * @param port_id
+ *   The port identifier of the Ethernet device.
+ * @param ptype_mask
+ *   The ptype family that application is interested in.
+ * @return
+ *   - (0) Successfully set supported ptypes.
+ *   - (-ENODEV) if *port_id* is invalid.
+ *   - (-ENOTSUP) Packet type mask supplied is not supported by the Ethernet
+ *		  device.
+ */
+int rte_eth_dev_set_supported_ptypes(uint16_t port_id, uint32_t ptype_mask);
 
 /**
  * Retrieve the MTU of an Ethernet device.

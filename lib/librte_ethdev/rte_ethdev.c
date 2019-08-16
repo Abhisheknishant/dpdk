@@ -2602,6 +2602,34 @@ rte_eth_dev_get_supported_ptypes(uint16_t port_id, uint32_t ptype_mask,
 	return j;
 }
 
+int
+rte_eth_dev_set_supported_ptypes(uint16_t port_id, uint32_t ptype_mask)
+{
+	int i;
+	struct rte_eth_dev *dev;
+	const uint32_t *all_ptypes;
+	uint32_t all_ptype_mask = 0;
+
+	RTE_ETH_VALID_PORTID_OR_ERR_RET(port_id, -ENODEV);
+	dev = &rte_eth_devices[port_id];
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->dev_supported_ptypes_set,
+				-ENOTSUP);
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->dev_supported_ptypes_get,
+				-ENOTSUP);
+	all_ptypes = (*dev->dev_ops->dev_supported_ptypes_get)(dev);
+
+	if (!all_ptypes)
+		return -ENOTSUP;
+
+	for (i = 0; all_ptypes[i] != RTE_PTYPE_UNKNOWN; ++i)
+		all_ptype_mask |= all_ptypes[i];
+
+	if ((all_ptype_mask & ptype_mask) != ptype_mask)
+		return -ENOTSUP;
+
+	return (*dev->dev_ops->dev_supported_ptypes_set)(dev, ptype_mask);
+}
+
 void
 rte_eth_macaddr_get(uint16_t port_id, struct rte_ether_addr *mac_addr)
 {
