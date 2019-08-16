@@ -594,6 +594,18 @@ application to set ptypes it is interested in.
 * **[provides]   mbuf**: ``mbuf.packet_type``.
 
 
+.. _nic_features_flow_action_type_update:
+
+Flow type update
+----------------
+
+Supports flow action type update to ``mbuf.ol_flags`` and ``mbuf.hash.fdir.hi``.
+
+* **[uses]     rte_eth_rxconf,rte_eth_rxmode**: ``offloads:DEV_RX_OFFLOAD_FLOW_TYPE``.
+* **[provides] mbuf**: ``mbuf.ol_flags:PKT_RX_FDIR``, ``mbuf.ol_flags:PKT_RX_FDIR_ID;``,
+  ``mbuf.hash.fdir.hi``
+
+
 .. _nic_features_timesync:
 
 Timesync
