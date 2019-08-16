@@ -85,6 +85,11 @@ API Changes
    Also, make sure to start the actual text at the margin.
    =========================================================
 
+* kni: ``rte_kni_pktmbuf_pool_create`` ``rte_kni_pktmbuf_pool_free`` functions
+  were introduced for KNI applications for creating & freeing packet pool.
+  Since IOVA=VA mode was added in KNI, packet pool's mbuf memory should be
+  physically contiguous for the KNI kernel module to work in IOVA=VA mode,
+  this requirement was taken care in the kni packet pool creation fucntions.
 
 ABI Changes
 -----------
