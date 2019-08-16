@@ -14,6 +14,7 @@
 #include <rte_spinlock.h>
 #include <rte_string_fns.h>
 #include <rte_ethdev.h>
+#include <rte_bus_pci.h>
 #include <rte_malloc.h>
 #include <rte_log.h>
 #include <rte_kni.h>
@@ -199,6 +200,27 @@ kni_release_mz(struct rte_kni *kni)
 	rte_memzone_free(kni->m_sync_addr);
 }
 
+static void
+kni_dev_pci_addr_get(uint16_t port_id, struct rte_kni_device_info *kni_dev_info)
+{
+	const struct rte_pci_device *pci_dev;
+	struct rte_eth_dev_info dev_info;
+	const struct rte_bus *bus = NULL;
+
+	rte_eth_dev_info_get(port_id, &dev_info);
+
+	if (dev_info.device)
+		bus = rte_bus_find_by_device(dev_info.device);
+	if (bus && !strcmp(bus->name, "pci")) {
+		pci_dev = RTE_DEV_TO_PCI(dev_info.device);
+		kni_dev_info->bus = pci_dev->addr.bus;
+		kni_dev_info->devid = pci_dev->addr.devid;
+		kni_dev_info->function = pci_dev->addr.function;
+		kni_dev_info->vendor_id = pci_dev->id.vendor_id;
+		kni_dev_info->device_id = pci_dev->id.device_id;
+	}
+}
+
 struct rte_kni *
 rte_kni_alloc(struct rte_mempool *pktmbuf_pool,
 	      const struct rte_kni_conf *conf,
@@ -247,6 +269,12 @@ rte_kni_alloc(struct rte_mempool *pktmbuf_pool,
 		kni->ops.port_id = UINT16_MAX;
 
 	memset(&dev_info, 0, sizeof(dev_info));
+
+	if (rte_eal_iova_mode() == RTE_IOVA_VA) {
+		uint16_t port_id = conf->group_id;
+
+		kni_dev_pci_addr_get(port_id, &dev_info);
+	}
 	dev_info.core_id = conf->core_id;
 	dev_info.force_bind = conf->force_bind;
 	dev_info.group_id = conf->group_id;
@@ -299,6 +327,8 @@ rte_kni_alloc(struct rte_mempool *pktmbuf_pool,
 	kni->pktmbuf_pool = pktmbuf_pool;
 	kni->group_id = conf->group_id;
 	kni->mbuf_size = conf->mbuf_size;
+
+	dev_info.iova_mode = (rte_eal_iova_mode() == RTE_IOVA_VA) ? 1 : 0;
 
 	ret = ioctl(kni_fd, RTE_KNI_IOCTL_CREATE, &dev_info);
 	if (ret < 0)
