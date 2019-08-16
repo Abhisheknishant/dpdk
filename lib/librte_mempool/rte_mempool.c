@@ -414,6 +414,75 @@ rte_mempool_populate_virt(struct rte_mempool *mp, char *addr,
 	return ret;
 }
 
+/* Function to populate mempool from page sized mem chunks, allocate page size
+ * of memory in memzone and populate them. Return the number of objects added,
+ * or a negative value on error.
+ */
+int
+rte_mempool_populate_from_pg_sz_chunks(struct rte_mempool *mp)
+{
+	char mz_name[RTE_MEMZONE_NAMESIZE];
+	size_t align, pg_sz, pg_shift;
+	const struct rte_memzone *mz;
+	unsigned int mz_id, n;
+	size_t min_chunk_size;
+	int ret;
+
+	ret = mempool_ops_alloc_once(mp);
+	if (ret != 0)
+		return ret;
+
+	if (mp->nb_mem_chunks != 0)
+		return -EEXIST;
+
+	pg_sz = get_min_page_size(mp->socket_id);
+	pg_shift = rte_bsf32(pg_sz);
+
+	for (mz_id = 0, n = mp->size; n > 0; mz_id++, n -= ret) {
+
+		ret = rte_mempool_ops_calc_mem_size(mp, n,
+				pg_shift, &min_chunk_size, &align);
+
+		if (ret < 0)
+			goto fail;
+
+		if (min_chunk_size > pg_sz) {
+			ret = -EINVAL;
+			goto fail;
+		}
+
+		ret = snprintf(mz_name, sizeof(mz_name),
+			RTE_MEMPOOL_MZ_FORMAT "_%d", mp->name, mz_id);
+		if (ret < 0 || ret >= (int)sizeof(mz_name)) {
+			ret = -ENAMETOOLONG;
+			goto fail;
+		}
+
+		mz = rte_memzone_reserve_aligned(mz_name, min_chunk_size,
+				mp->socket_id, 0, align);
+
+		if (mz == NULL) {
+			ret = -rte_errno;
+			goto fail;
+		}
+
+		ret = rte_mempool_populate_iova(mp, mz->addr,
+				mz->iova, mz->len,
+				rte_mempool_memchunk_mz_free,
+				(void *)(uintptr_t)mz);
+		if (ret < 0) {
+			rte_memzone_free(mz);
+			goto fail;
+		}
+	}
+
+	return mp->size;
+
+fail:
+	rte_mempool_free_memchunks(mp);
+	return ret;
+}
+
 /* Default function to populate the mempool: allocate memory in memzones,
  * and populate them. Return the number of objects added, or a negative
  * value on error.
