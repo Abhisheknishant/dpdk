@@ -835,9 +835,5 @@ RTE_PMD_REGISTER_PCI(raw_ntb, rte_ntb_pmd);
 RTE_PMD_REGISTER_PCI_TABLE(raw_ntb, pci_id_ntb_map);
 RTE_PMD_REGISTER_KMOD_DEP(raw_ntb, "* igb_uio | uio_pci_generic | vfio-pci");
 
-RTE_INIT(ntb_init_log)
-{
-	ntb_logtype = rte_log_register("pmd.raw.ntb");
-	if (ntb_logtype >= 0)
-		rte_log_set_level(ntb_logtype, RTE_LOG_DEBUG);
-}
+RTE_LOG_REGISTER(ntb_logtype, "pmd.raw.ntb",
+	RTE_LOG_DEBUG, RTE_LOGTYPE_PMD);

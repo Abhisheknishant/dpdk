@@ -1345,9 +1345,5 @@ RTE_PMD_REGISTER_DPAA2(dpaa2_qdma, rte_dpaa2_qdma_pmd);
 RTE_PMD_REGISTER_PARAM_STRING(dpaa2_qdma,
 	"no_prefetch=<int> ");
 
-RTE_INIT(dpaa2_qdma_init_log)
-{
-	dpaa2_qdma_logtype = rte_log_register("pmd.raw.dpaa2.qdma");
-	if (dpaa2_qdma_logtype >= 0)
-		rte_log_set_level(dpaa2_qdma_logtype, RTE_LOG_INFO);
-}
+RTE_LOG_REGISTER(dpaa2_qdma_logtype, "pmd.raw.dpaa2.qdma",
+	RTE_LOG_INFO, RTE_LOGTYPE_PMD);

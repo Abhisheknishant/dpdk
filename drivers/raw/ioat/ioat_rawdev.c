@@ -347,9 +347,5 @@ RTE_PMD_REGISTER_PCI(IOAT_PMD_RAWDEV_NAME, ioat_pmd_drv);
 RTE_PMD_REGISTER_PCI_TABLE(IOAT_PMD_RAWDEV_NAME, pci_id_ioat_map);
 RTE_PMD_REGISTER_KMOD_DEP(IOAT_PMD_RAWDEV_NAME, "* igb_uio | uio_pci_generic");
 
-RTE_INIT(ioat_pmd_init_log)
-{
-	ioat_pmd_logtype = rte_log_register(IOAT_PMD_LOG_NAME);
-	if (ioat_pmd_logtype >= 0)
-		rte_log_set_level(ioat_pmd_logtype, RTE_LOG_INFO);
-}
+RTE_LOG_REGISTER(ioat_pmd_logtype, IOAT_PMD_LOG_NAME,
+	RTE_LOG_INFO, RTE_LOGTYPE_PMD);
