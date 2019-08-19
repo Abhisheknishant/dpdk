@@ -206,43 +206,25 @@ int otx2_logtype_tim;
  */
 int otx2_logtype_dpi;
 
-RTE_INIT(otx2_log_init);
-static void
-otx2_log_init(void)
-{
-	otx2_logtype_base = rte_log_register("pmd.octeontx2.base");
-	if (otx2_logtype_base >= 0)
-		rte_log_set_level(otx2_logtype_base, RTE_LOG_NOTICE);
+RTE_LOG_REGISTER(otx2_logtype_base, "pmd.octeontx2.base",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
+RTE_LOG_REGISTER(otx2_logtype_mbox, "pmd.octeontx2.mbox",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
 
-	otx2_logtype_mbox = rte_log_register("pmd.octeontx2.mbox");
-	if (otx2_logtype_mbox >= 0)
-		rte_log_set_level(otx2_logtype_mbox, RTE_LOG_NOTICE);
+RTE_LOG_REGISTER(otx2_logtype_npa, "pmd.mempool.octeontx2",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_MEMPOOL);
 
-	otx2_logtype_npa = rte_log_register("pmd.mempool.octeontx2");
-	if (otx2_logtype_npa >= 0)
-		rte_log_set_level(otx2_logtype_npa, RTE_LOG_NOTICE);
+RTE_LOG_REGISTER(otx2_logtype_nix, "pmd.net.octeontx2",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
+RTE_LOG_REGISTER(otx2_logtype_npc, "pmd.net.octeontx2.flow",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
+RTE_LOG_REGISTER(otx2_logtype_tm, "pmd.net.octeontx2.tm",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
 
-	otx2_logtype_nix = rte_log_register("pmd.net.octeontx2");
-	if (otx2_logtype_nix >= 0)
-		rte_log_set_level(otx2_logtype_nix, RTE_LOG_NOTICE);
+RTE_LOG_REGISTER(otx2_logtype_sso, "pmd.event.octeontx2",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
+RTE_LOG_REGISTER(otx2_logtype_tim, "pmd.event.octeontx2.timer",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
 
-	otx2_logtype_npc = rte_log_register("pmd.net.octeontx2.flow");
-	if (otx2_logtype_npc >= 0)
-		rte_log_set_level(otx2_logtype_npc, RTE_LOG_NOTICE);
-
-	otx2_logtype_tm = rte_log_register("pmd.net.octeontx2.tm");
-	if (otx2_logtype_tm >= 0)
-		rte_log_set_level(otx2_logtype_tm, RTE_LOG_NOTICE);
-
-	otx2_logtype_sso = rte_log_register("pmd.event.octeontx2");
-	if (otx2_logtype_sso >= 0)
-		rte_log_set_level(otx2_logtype_sso, RTE_LOG_NOTICE);
-
-	otx2_logtype_tim = rte_log_register("pmd.event.octeontx2.timer");
-	if (otx2_logtype_tim >= 0)
-		rte_log_set_level(otx2_logtype_tim, RTE_LOG_NOTICE);
-
-	otx2_logtype_dpi = rte_log_register("pmd.raw.octeontx2.dpi");
-	if (otx2_logtype_dpi >= 0)
-		rte_log_set_level(otx2_logtype_dpi, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(otx2_logtype_dpi, "pmd.raw.octeontx2.dpi",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

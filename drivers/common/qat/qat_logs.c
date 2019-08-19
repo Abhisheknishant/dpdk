@@ -24,15 +24,9 @@ qat_hexdump_log(uint32_t level, uint32_t logtype, const char *title,
 	return 0;
 }
 
-RTE_INIT(qat_pci_init_log)
-{
-	/* Non-data-path logging for pci device and all services */
-	qat_gen_logtype = rte_log_register("pmd.qat_general");
-	if (qat_gen_logtype >= 0)
-		rte_log_set_level(qat_gen_logtype, RTE_LOG_NOTICE);
-
-	/* data-path logging for all services */
-	qat_dp_logtype = rte_log_register("pmd.qat_dp");
-	if (qat_dp_logtype >= 0)
-		rte_log_set_level(qat_dp_logtype, RTE_LOG_NOTICE);
-}
+/* Non-data-path logging for pci device and all services */
+RTE_LOG_REGISTER(qat_gen_logtype, "pmd.qat_general",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
+/* data-path logging for all services */
+RTE_LOG_REGISTER(qat_dp_logtype, "pmd.qat_dp",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

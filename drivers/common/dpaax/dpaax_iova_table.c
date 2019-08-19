@@ -457,9 +457,5 @@ dpaax_handle_memevents(void)
 					       dpaax_memevent_cb, NULL);
 }
 
-RTE_INIT(dpaax_log)
-{
-	dpaax_logger = rte_log_register("pmd.common.dpaax");
-	if (dpaax_logger >= 0)
-		rte_log_set_level(dpaax_logger, RTE_LOG_ERR);
-}
+RTE_LOG_REGISTER(dpaax_logger, "pmd.common.dpaax",
+	RTE_LOG_ERR, RTE_LOGTYPE_PMD);
