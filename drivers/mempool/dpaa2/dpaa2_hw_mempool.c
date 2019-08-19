@@ -437,9 +437,5 @@ static const struct rte_mempool_ops dpaa2_mpool_ops = {
 
 MEMPOOL_REGISTER_OPS(dpaa2_mpool_ops);
 
-RTE_INIT(dpaa2_mempool_init_log)
-{
-	dpaa2_logtype_mempool = rte_log_register("mempool.dpaa2");
-	if (dpaa2_logtype_mempool >= 0)
-		rte_log_set_level(dpaa2_logtype_mempool, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(dpaa2_logtype_mempool, "mempool.dpaa2",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_MEMPOOL);

@@ -108,12 +108,8 @@ static struct octeontx_fpadev fpadev;
 int octeontx_logtype_fpavf;
 int octeontx_logtype_fpavf_mbox;
 
-RTE_INIT(otx_pool_init_log)
-{
-	octeontx_logtype_fpavf = rte_log_register("pmd.mempool.octeontx");
-	if (octeontx_logtype_fpavf >= 0)
-		rte_log_set_level(octeontx_logtype_fpavf, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(octeontx_logtype_fpavf, "pmd.mempool.octeontx",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
 
 /* lock is taken by caller */
 static int
