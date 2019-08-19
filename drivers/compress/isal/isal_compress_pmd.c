@@ -753,9 +753,5 @@ RTE_PMD_REGISTER_VDEV(COMPDEV_NAME_ISAL_PMD, compdev_isal_pmd_drv);
 RTE_PMD_REGISTER_PARAM_STRING(COMPDEV_NAME_ISAL_PMD,
 	"socket_id=<int>");
 
-RTE_INIT(isal_init_log)
-{
-	isal_logtype_driver = rte_log_register("pmd.compress.isal");
-	if (isal_logtype_driver >= 0)
-		rte_log_set_level(isal_logtype_driver, RTE_LOG_INFO);
-}
+RTE_LOG_REGISTER(isal_logtype_driver, "pmd.compress.isal",
+	RTE_LOG_INFO, RTE_LOGTYPE_PMD);
