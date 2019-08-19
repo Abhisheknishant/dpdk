@@ -1067,3 +1067,9 @@ CONFIG_RTE_APP_CRYPTO_PERF=y
 # Compile the eventdev application
 #
 CONFIG_RTE_APP_EVENTDEV=y
+
+#
+# Enable undefined behavior sanitizer
+#
+CONFIG_RTE_UBSAN=n
+CONFIG_RTE_UBSAN_SANITIZE_ALL=n

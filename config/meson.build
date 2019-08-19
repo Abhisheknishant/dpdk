@@ -196,3 +196,18 @@ add_project_arguments('-D_GNU_SOURCE', language: 'c')
 if is_freebsd
 	add_project_arguments('-D__BSD_VISIBLE', language: 'c')
 endif
+
+# enable ubsan
+if get_option('enable_ubsan')
+	if cc.has_argument('-fsanitize=undefined')
+		ubsan_dep = cc.find_library('libubsan', required: false)
+		if ubsan_dep.found()
+			add_project_arguments('-fsanitize=undefined', language: 'c')
+			add_project_link_arguments('-fsanitize=undefined', language: 'c')
+		else
+			message('libubsan not found, UBSAN cannot be enabled')
+		endif
+	else
+		message('gcc version does not support UBSAN')
+	endif
+endif

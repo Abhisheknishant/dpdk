@@ -374,6 +374,16 @@ endif
 
 MAPFLAGS = -Map=$@.map --cref
 
+#
+# If UBSAN is enabled, all application will be compiled with
+# '-fsanitize=undefined' flag
+#
+ifeq ($(CONFIG_RTE_UBSAN),y)
+ifeq ($(UBSAN_ENABLE),y)
+CFLAGS += -fsanitize=undefined
+endif
+endif
+
 .PHONY: all
 all: install
 

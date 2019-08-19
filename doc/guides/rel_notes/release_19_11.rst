@@ -56,6 +56,13 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Added Undefined Behavior Sanitizer framework.**
+
+  UBSan is a fast runtime undefined behavior detector which uses compile-time
+  instrumentation and modifies the program by adding some stubs that perform
+  certain checks before operations that might cause undefined behavior.
+
+  See :doc:`../prog_guide/ubsan` for more information:
 
 Removed Items
 -------------
