@@ -348,9 +348,5 @@ RTE_PMD_REGISTER_PARAM_STRING(DRIVER_NAME,
 	BBDEV_NULL_SOCKET_ID_ARG"=<int>");
 RTE_PMD_REGISTER_ALIAS(DRIVER_NAME, bbdev_null);
 
-RTE_INIT(null_bbdev_init_log)
-{
-	bbdev_null_logtype = rte_log_register("pmd.bb.null");
-	if (bbdev_null_logtype >= 0)
-		rte_log_set_level(bbdev_null_logtype, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(bbdev_null_logtype, "pmd.bb.null",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

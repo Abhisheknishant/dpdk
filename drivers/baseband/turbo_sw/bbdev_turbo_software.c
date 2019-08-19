@@ -1988,9 +1988,5 @@ RTE_PMD_REGISTER_PARAM_STRING(DRIVER_NAME,
 	TURBO_SW_SOCKET_ID_ARG"=<int>");
 RTE_PMD_REGISTER_ALIAS(DRIVER_NAME, turbo_sw);
 
-RTE_INIT(turbo_sw_bbdev_init_log)
-{
-	bbdev_turbo_sw_logtype = rte_log_register("pmd.bb.turbo_sw");
-	if (bbdev_turbo_sw_logtype >= 0)
-		rte_log_set_level(bbdev_turbo_sw_logtype, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(bbdev_turbo_sw_logtype, "pmd.bb.turbo_sw",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

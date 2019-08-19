@@ -2663,13 +2663,10 @@ RTE_PMD_REGISTER_PCI(FPGA_LTE_FEC_VF_DRIVER_NAME, fpga_lte_fec_pci_vf_driver);
 RTE_PMD_REGISTER_PCI_TABLE(FPGA_LTE_FEC_VF_DRIVER_NAME,
 		pci_id_fpga_lte_fec_vf_map);
 
-RTE_INIT(fpga_lte_fec_init_log)
-{
-	fpga_lte_fec_logtype = rte_log_register("pmd.bb.fpga_lte_fec");
-	if (fpga_lte_fec_logtype >= 0)
+RTE_LOG_REGISTER(fpga_lte_fec_logtype, "pmd.bb.fpga_lte_fec",
 #ifdef RTE_LIBRTE_BBDEV_DEBUG
-		rte_log_set_level(fpga_lte_fec_logtype, RTE_LOG_DEBUG);
+	RTE_LOG_DEBUG
 #else
-		rte_log_set_level(fpga_lte_fec_logtype, RTE_LOG_NOTICE);
+	RTE_LOG_NOTICE
 #endif
-}
+	, RTE_LOGTYPE_PMD);
