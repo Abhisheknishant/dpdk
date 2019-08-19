@@ -2768,12 +2768,7 @@ RTE_PMD_REGISTER_PCI(net_qede_vf, rte_qedevf_pmd);
 RTE_PMD_REGISTER_PCI_TABLE(net_qede_vf, pci_id_qedevf_map);
 RTE_PMD_REGISTER_KMOD_DEP(net_qede_vf, "* igb_uio | vfio-pci");
 
-RTE_INIT(qede_init_log)
-{
-	qede_logtype_init = rte_log_register("pmd.net.qede.init");
-	if (qede_logtype_init >= 0)
-		rte_log_set_level(qede_logtype_init, RTE_LOG_NOTICE);
-	qede_logtype_driver = rte_log_register("pmd.net.qede.driver");
-	if (qede_logtype_driver >= 0)
-		rte_log_set_level(qede_logtype_driver, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(qede_logtype_init, "pmd.net.qede.init",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
+RTE_LOG_REGISTER(qede_logtype_driver, "pmd.net.qede.driver",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

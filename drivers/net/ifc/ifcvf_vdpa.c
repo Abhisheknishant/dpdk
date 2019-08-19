@@ -1262,9 +1262,5 @@ RTE_PMD_REGISTER_PCI(net_ifcvf, rte_ifcvf_vdpa);
 RTE_PMD_REGISTER_PCI_TABLE(net_ifcvf, pci_id_ifcvf_map);
 RTE_PMD_REGISTER_KMOD_DEP(net_ifcvf, "* vfio-pci");
 
-RTE_INIT(ifcvf_vdpa_init_log)
-{
-	ifcvf_vdpa_logtype = rte_log_register("pmd.net.ifcvf_vdpa");
-	if (ifcvf_vdpa_logtype >= 0)
-		rte_log_set_level(ifcvf_vdpa_logtype, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(ifcvf_vdpa_logtype, "pmd.net.ifcvf_vdpa",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

@@ -2453,12 +2453,7 @@ RTE_PMD_EXPORT_NAME(net_virtio, __COUNTER__);
 RTE_PMD_REGISTER_PCI_TABLE(net_virtio, pci_id_virtio_map);
 RTE_PMD_REGISTER_KMOD_DEP(net_virtio, "* igb_uio | uio_pci_generic | vfio-pci");
 
-RTE_INIT(virtio_init_log)
-{
-	virtio_logtype_init = rte_log_register("pmd.net.virtio.init");
-	if (virtio_logtype_init >= 0)
-		rte_log_set_level(virtio_logtype_init, RTE_LOG_NOTICE);
-	virtio_logtype_driver = rte_log_register("pmd.net.virtio.driver");
-	if (virtio_logtype_driver >= 0)
-		rte_log_set_level(virtio_logtype_driver, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(virtio_logtype_init, "pmd.net.virtio.init",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
+RTE_LOG_REGISTER(virtio_logtype_driver, "pmd.net.virtio.driver",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

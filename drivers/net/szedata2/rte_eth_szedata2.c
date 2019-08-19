@@ -1928,12 +1928,7 @@ RTE_PMD_REGISTER_PCI_TABLE(RTE_SZEDATA2_DRIVER_NAME, rte_szedata2_pci_id_table);
 RTE_PMD_REGISTER_KMOD_DEP(RTE_SZEDATA2_DRIVER_NAME,
 	"* combo6core & combov3 & szedata2 & ( szedata2_cv3 | szedata2_cv3_fdt )");
 
-RTE_INIT(szedata2_init_log)
-{
-	szedata2_logtype_init = rte_log_register("pmd.net.szedata2.init");
-	if (szedata2_logtype_init >= 0)
-		rte_log_set_level(szedata2_logtype_init, RTE_LOG_NOTICE);
-	szedata2_logtype_driver = rte_log_register("pmd.net.szedata2.driver");
-	if (szedata2_logtype_driver >= 0)
-		rte_log_set_level(szedata2_logtype_driver, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(szedata2_logtype_init, "pmd.net.szedata2.init",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
+RTE_LOG_REGISTER(szedata2_logtype_driver, "pmd.net.szedata2.driver",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

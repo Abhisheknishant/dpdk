@@ -8,19 +8,8 @@
 int e1000_logtype_init;
 int e1000_logtype_driver;
 
-/* avoids double registering of logs if EM and IGB drivers are in use */
-static int e1000_log_initialized;
-
-void
-e1000_igb_init_log(void)
-{
-	if (!e1000_log_initialized) {
-		e1000_logtype_init = rte_log_register("pmd.net.e1000.init");
-		if (e1000_logtype_init >= 0)
-			rte_log_set_level(e1000_logtype_init, RTE_LOG_NOTICE);
-		e1000_logtype_driver = rte_log_register("pmd.net.e1000.driver");
-		if (e1000_logtype_driver >= 0)
-			rte_log_set_level(e1000_logtype_driver, RTE_LOG_NOTICE);
-		e1000_log_initialized = 1;
-	}
-}
+/* register only once if EM and IGB drivers are in use */
+RTE_LOG_REGISTER(e1000_logtype_init, "pmd.net.e1000.init",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
+RTE_LOG_REGISTER(e1000_logtype_driver, "pmd.net.e1000.driver",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

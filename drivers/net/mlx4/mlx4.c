@@ -1274,16 +1274,14 @@ glue_error:
 
 #endif
 
+RTE_LOG_REGISTER(mlx4_logtype, "pmd.net.mlx4",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
+
 /**
  * Driver initialization routine.
  */
 RTE_INIT(rte_mlx4_pmd_init)
 {
-	/* Initialize driver log type. */
-	mlx4_logtype = rte_log_register("pmd.net.mlx4");
-	if (mlx4_logtype >= 0)
-		rte_log_set_level(mlx4_logtype, RTE_LOG_NOTICE);
-
 	/*
 	 * MLX4_DEVICE_FATAL_CLEANUP tells ibv_destroy functions we
 	 * want to get success errno value in case of calling them

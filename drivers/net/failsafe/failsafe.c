@@ -410,9 +410,5 @@ static struct rte_vdev_driver failsafe_drv = {
 RTE_PMD_REGISTER_VDEV(net_failsafe, failsafe_drv);
 RTE_PMD_REGISTER_PARAM_STRING(net_failsafe, PMD_FAILSAFE_PARAM_STRING);
 
-RTE_INIT(failsafe_init_log)
-{
-	failsafe_logtype = rte_log_register("pmd.net.failsafe");
-	if (failsafe_logtype >= 0)
-		rte_log_set_level(failsafe_logtype, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(failsafe_logtype, "pmd.net.failsafe",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD)

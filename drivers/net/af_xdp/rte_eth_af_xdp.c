@@ -1119,9 +1119,5 @@ RTE_PMD_REGISTER_PARAM_STRING(net_af_xdp,
 			      "queue_count=<int> "
 			      "pmd_zero_copy=<0|1>");
 
-RTE_INIT(af_xdp_init_log)
-{
-	af_xdp_logtype = rte_log_register("pmd.net.af_xdp");
-	if (af_xdp_logtype >= 0)
-		rte_log_set_level(af_xdp_logtype, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(af_xdp_logtype, "pmd.net.af_xdp",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

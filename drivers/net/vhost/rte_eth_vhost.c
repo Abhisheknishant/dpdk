@@ -1468,9 +1468,5 @@ RTE_PMD_REGISTER_PARAM_STRING(net_vhost,
 	"iommu-support=<0|1> "
 	"postcopy-support=<0|1>");
 
-RTE_INIT(vhost_init_log)
-{
-	vhost_logtype = rte_log_register("pmd.net.vhost");
-	if (vhost_logtype >= 0)
-		rte_log_set_level(vhost_logtype, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(vhost_logtype, "pmd.net.vhost",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

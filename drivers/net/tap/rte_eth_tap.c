@@ -2388,9 +2388,5 @@ RTE_PMD_REGISTER_PARAM_STRING(net_tap,
 			      ETH_TAP_REMOTE_ARG "=<string>");
 int tap_logtype;
 
-RTE_INIT(tap_init_log)
-{
-	tap_logtype = rte_log_register("pmd.net.tap");
-	if (tap_logtype >= 0)
-		rte_log_set_level(tap_logtype, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(tap_logtype, "pmd.net.tap",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

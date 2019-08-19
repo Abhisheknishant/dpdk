@@ -2664,16 +2664,14 @@ glue_error:
 
 #endif
 
+RTE_LOG_REGISTER(mlx5_logtype, "pmd.net.mlx5",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
+
 /**
  * Driver initialization routine.
  */
 RTE_INIT(rte_mlx5_pmd_init)
 {
-	/* Initialize driver log type. */
-	mlx5_logtype = rte_log_register("pmd.net.mlx5");
-	if (mlx5_logtype >= 0)
-		rte_log_set_level(mlx5_logtype, RTE_LOG_NOTICE);
-
 	/* Build the static tables for Verbs conversion. */
 	mlx5_set_ptype_table();
 	mlx5_set_cksum_table();

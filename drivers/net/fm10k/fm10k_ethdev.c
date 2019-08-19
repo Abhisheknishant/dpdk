@@ -3277,12 +3277,7 @@ RTE_PMD_REGISTER_PCI(net_fm10k, rte_pmd_fm10k);
 RTE_PMD_REGISTER_PCI_TABLE(net_fm10k, pci_id_fm10k_map);
 RTE_PMD_REGISTER_KMOD_DEP(net_fm10k, "* igb_uio | uio_pci_generic | vfio-pci");
 
-RTE_INIT(fm10k_init_log)
-{
-	fm10k_logtype_init = rte_log_register("pmd.net.fm10k.init");
-	if (fm10k_logtype_init >= 0)
-		rte_log_set_level(fm10k_logtype_init, RTE_LOG_NOTICE);
-	fm10k_logtype_driver = rte_log_register("pmd.net.fm10k.driver");
-	if (fm10k_logtype_driver >= 0)
-		rte_log_set_level(fm10k_logtype_driver, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(fm10k_logtype_init, "pmd.net.fm10k.init",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
+RTE_LOG_REGISTER(fm10k_logtype_driver, "pmd.net.fm10k.driver",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

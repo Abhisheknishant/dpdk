@@ -1581,9 +1581,5 @@ RTE_PMD_REGISTER_PARAM_STRING(net_pcap,
 	ETH_PCAP_PHY_MAC_ARG "=<int>"
 	ETH_PCAP_INFINITE_RX_ARG "=<0|1>");
 
-RTE_INIT(eth_pcap_init_log)
-{
-	eth_pcap_logtype = rte_log_register("pmd.net.pcap");
-	if (eth_pcap_logtype >= 0)
-		rte_log_set_level(eth_pcap_logtype, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(eth_pcap_logtype, "pmd.net.pcap",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

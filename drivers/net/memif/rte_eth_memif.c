@@ -1378,9 +1378,5 @@ RTE_PMD_REGISTER_PARAM_STRING(net_memif,
 
 int memif_logtype;
 
-RTE_INIT(memif_init_log)
-{
-	memif_logtype = rte_log_register("pmd.net.memif");
-	if (memif_logtype >= 0)
-		rte_log_set_level(memif_logtype, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(memif_logtype, "pmd.net.memif",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

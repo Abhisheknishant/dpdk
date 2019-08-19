@@ -775,13 +775,8 @@ RTE_PMD_REGISTER_PARAM_STRING(net_vdev_netvsc,
 			      VDEV_NETVSC_ARG_FORCE "=<int> "
 			      VDEV_NETVSC_ARG_IGNORE "=<int>");
 
-/** Initialize driver log type. */
-RTE_INIT(vdev_netvsc_init_log)
-{
-	vdev_netvsc_logtype = rte_log_register("pmd.net.vdev_netvsc");
-	if (vdev_netvsc_logtype >= 0)
-		rte_log_set_level(vdev_netvsc_logtype, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(vdev_netvsc_logtype, "pmd.net.vdev_netvsc",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
 
 /** Compare function for vdev find device operation. */
 static int

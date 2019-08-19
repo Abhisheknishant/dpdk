@@ -1411,15 +1411,10 @@ static struct rte_pci_driver rte_iavf_pmd = {
 RTE_PMD_REGISTER_PCI(net_iavf, rte_iavf_pmd);
 RTE_PMD_REGISTER_PCI_TABLE(net_iavf, pci_id_iavf_map);
 RTE_PMD_REGISTER_KMOD_DEP(net_iavf, "* igb_uio | vfio-pci");
-RTE_INIT(iavf_init_log)
-{
-	iavf_logtype_init = rte_log_register("pmd.net.iavf.init");
-	if (iavf_logtype_init >= 0)
-		rte_log_set_level(iavf_logtype_init, RTE_LOG_NOTICE);
-	iavf_logtype_driver = rte_log_register("pmd.net.iavf.driver");
-	if (iavf_logtype_driver >= 0)
-		rte_log_set_level(iavf_logtype_driver, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(iavf_logtype_init, "pmd.net.iavf.init",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
+RTE_LOG_REGISTER(iavf_logtype_driver, "pmd.net.iavf.driver",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
 
 /* memory func for base code */
 enum iavf_status_code

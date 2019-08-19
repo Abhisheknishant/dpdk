@@ -696,9 +696,5 @@ RTE_PMD_REGISTER_ALIAS(net_ring, eth_ring);
 RTE_PMD_REGISTER_PARAM_STRING(net_ring,
 	ETH_RING_NUMA_NODE_ACTION_ARG "=name:node:action(ATTACH|CREATE)");
 
-RTE_INIT(eth_ring_init_log)
-{
-	eth_ring_logtype = rte_log_register("pmd.net.ring");
-	if (eth_ring_logtype >= 0)
-		rte_log_set_level(eth_ring_logtype, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(eth_ring_logtype, "pmd.net.ring",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

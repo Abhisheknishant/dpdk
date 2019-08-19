@@ -688,13 +688,8 @@ RTE_PMD_REGISTER_PARAM_STRING(net_softnic,
 	PMD_PARAM_TM_QSIZE12 "=<uint32>"
 );
 
-
-RTE_INIT(pmd_softnic_init_log)
-{
-	pmd_softnic_logtype = rte_log_register("pmd.net.softnic");
-	if (pmd_softnic_logtype >= 0)
-		rte_log_set_level(pmd_softnic_logtype, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(pmd_softnic_logtype, "pmd.net.softnic",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
 
 int
 rte_pmd_softnic_manage(uint16_t port_id)

@@ -2391,9 +2391,5 @@ static struct rte_dpaa2_driver rte_dpaa2_pmd = {
 RTE_PMD_REGISTER_DPAA2(net_dpaa2, rte_dpaa2_pmd);
 RTE_PMD_REGISTER_PARAM_STRING(net_dpaa2,
 		DRIVER_LOOPBACK_MODE "=<int>");
-RTE_INIT(dpaa2_pmd_init_log)
-{
-	dpaa2_logtype_pmd = rte_log_register("pmd.net.dpaa2");
-	if (dpaa2_logtype_pmd >= 0)
-		rte_log_set_level(dpaa2_logtype_pmd, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(dpaa2_logtype_pmd, "pmd.net.dpaa2",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

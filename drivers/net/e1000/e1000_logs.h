@@ -43,8 +43,4 @@ extern int e1000_logtype_driver;
 #define PMD_DRV_LOG(level, fmt, args...) \
 	PMD_DRV_LOG_RAW(level, fmt "\n", ## args)
 
-
-/* log init function shared by e1000 and igb drivers */
-void e1000_igb_init_log(void);
-
 #endif /* _E1000_LOGS_H_ */

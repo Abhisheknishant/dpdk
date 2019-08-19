@@ -715,9 +715,5 @@ RTE_PMD_REGISTER_PARAM_STRING(ipn3ke_cfg,
 	"fpga_acc=<string>"
 	"i40e_pf=<string>");
 
-RTE_INIT(ipn3ke_afu_init_log)
-{
-	ipn3ke_afu_logtype = rte_log_register("pmd.afu.ipn3ke");
-	if (ipn3ke_afu_logtype >= 0)
-		rte_log_set_level(ipn3ke_afu_logtype, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(ipn3ke_afu_logtype, "pmd.afu.ipn3ke",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

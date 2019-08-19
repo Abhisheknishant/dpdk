@@ -1434,12 +1434,7 @@ RTE_PMD_REGISTER_PCI(net_vmxnet3, rte_vmxnet3_pmd);
 RTE_PMD_REGISTER_PCI_TABLE(net_vmxnet3, pci_id_vmxnet3_map);
 RTE_PMD_REGISTER_KMOD_DEP(net_vmxnet3, "* igb_uio | uio_pci_generic | vfio-pci");
 
-RTE_INIT(vmxnet3_init_log)
-{
-	vmxnet3_logtype_init = rte_log_register("pmd.net.vmxnet3.init");
-	if (vmxnet3_logtype_init >= 0)
-		rte_log_set_level(vmxnet3_logtype_init, RTE_LOG_NOTICE);
-	vmxnet3_logtype_driver = rte_log_register("pmd.net.vmxnet3.driver");
-	if (vmxnet3_logtype_driver >= 0)
-		rte_log_set_level(vmxnet3_logtype_driver, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(vmxnet3_logtype_init, "pmd.net.vmxnet3.init",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
+RTE_LOG_REGISTER(vmxnet3_logtype_driver, "pmd.net.vmxnet3.driver",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

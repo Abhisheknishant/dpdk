@@ -12761,15 +12761,10 @@ i40e_config_rss_filter(struct i40e_pf *pf,
 	return 0;
 }
 
-RTE_INIT(i40e_init_log)
-{
-	i40e_logtype_init = rte_log_register("pmd.net.i40e.init");
-	if (i40e_logtype_init >= 0)
-		rte_log_set_level(i40e_logtype_init, RTE_LOG_NOTICE);
-	i40e_logtype_driver = rte_log_register("pmd.net.i40e.driver");
-	if (i40e_logtype_driver >= 0)
-		rte_log_set_level(i40e_logtype_driver, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(i40e_logtype_init, "pmd.net.i40e.init",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
+RTE_LOG_REGISTER(i40e_logtype_driver, "pmd.net.i40e.driver",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
 
 RTE_PMD_REGISTER_PARAM_STRING(net_i40e,
 			      ETH_I40E_FLOATING_VEB_ARG "=1"

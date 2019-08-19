@@ -3797,12 +3797,7 @@ RTE_PMD_REGISTER_KMOD_DEP(net_ice, "* igb_uio | uio_pci_generic | vfio-pci");
 RTE_PMD_REGISTER_PARAM_STRING(net_ice,
 			      ICE_SAFE_MODE_SUPPORT_ARG "=<0|1>");
 
-RTE_INIT(ice_init_log)
-{
-	ice_logtype_init = rte_log_register("pmd.net.ice.init");
-	if (ice_logtype_init >= 0)
-		rte_log_set_level(ice_logtype_init, RTE_LOG_NOTICE);
-	ice_logtype_driver = rte_log_register("pmd.net.ice.driver");
-	if (ice_logtype_driver >= 0)
-		rte_log_set_level(ice_logtype_driver, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(ice_logtype_init, "pmd.net.ice.init",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
+RTE_LOG_REGISTER(ice_logtype_driver, "pmd.net.ice.driver",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

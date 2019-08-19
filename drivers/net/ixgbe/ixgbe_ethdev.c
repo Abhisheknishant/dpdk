@@ -8728,12 +8728,7 @@ RTE_PMD_REGISTER_KMOD_DEP(net_ixgbe_vf, "* igb_uio | vfio-pci");
 RTE_PMD_REGISTER_PARAM_STRING(net_ixgbe_vf,
 			      IXGBEVF_DEVARG_PFLINK_FULLCHK "=<0|1>");
 
-RTE_INIT(ixgbe_init_log)
-{
-	ixgbe_logtype_init = rte_log_register("pmd.net.ixgbe.init");
-	if (ixgbe_logtype_init >= 0)
-		rte_log_set_level(ixgbe_logtype_init, RTE_LOG_NOTICE);
-	ixgbe_logtype_driver = rte_log_register("pmd.net.ixgbe.driver");
-	if (ixgbe_logtype_driver >= 0)
-		rte_log_set_level(ixgbe_logtype_driver, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(ixgbe_logtype_init, "pmd.net.ixgbe.init",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
+RTE_LOG_REGISTER(ixgbe_logtype_driver, "pmd.net.ixgbe.driver",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
