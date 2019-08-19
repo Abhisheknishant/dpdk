@@ -558,9 +558,5 @@ static struct rte_bus rte_vdev_bus = {
 
 RTE_REGISTER_BUS(vdev, rte_vdev_bus);
 
-RTE_INIT(vdev_init_log)
-{
-	vdev_logtype_bus = rte_log_register("bus.vdev");
-	if (vdev_logtype_bus >= 0)
-		rte_log_set_level(vdev_logtype_bus, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(vdev_logtype_bus, "bus.vdev",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_EAL);

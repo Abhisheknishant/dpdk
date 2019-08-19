@@ -299,9 +299,5 @@ struct rte_vmbus_bus rte_vmbus_bus = {
 
 RTE_REGISTER_BUS(vmbus, rte_vmbus_bus.bus);
 
-RTE_INIT(vmbus_init_log)
-{
-	vmbus_logtype_bus = rte_log_register("bus.vmbus");
-	if (vmbus_logtype_bus >= 0)
-		rte_log_set_level(vmbus_logtype_bus, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(vmbus_logtype_bus, "bus.vmbus",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_EAL);

@@ -744,21 +744,11 @@ static struct rte_dpaa_bus rte_dpaa_bus = {
 
 RTE_REGISTER_BUS(FSL_DPAA_BUS_NAME, rte_dpaa_bus.bus);
 
-RTE_INIT(dpaa_init_log)
-{
-	dpaa_logtype_bus = rte_log_register("bus.dpaa");
-	if (dpaa_logtype_bus >= 0)
-		rte_log_set_level(dpaa_logtype_bus, RTE_LOG_NOTICE);
-
-	dpaa_logtype_mempool = rte_log_register("mempool.dpaa");
-	if (dpaa_logtype_mempool >= 0)
-		rte_log_set_level(dpaa_logtype_mempool, RTE_LOG_NOTICE);
-
-	dpaa_logtype_pmd = rte_log_register("pmd.net.dpaa");
-	if (dpaa_logtype_pmd >= 0)
-		rte_log_set_level(dpaa_logtype_pmd, RTE_LOG_NOTICE);
-
-	dpaa_logtype_eventdev = rte_log_register("pmd.event.dpaa");
-	if (dpaa_logtype_eventdev >= 0)
-		rte_log_set_level(dpaa_logtype_eventdev, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(dpaa_logtype_bus, "bus.dpaa",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_EAL);
+RTE_LOG_REGISTER(dpaa_logtype_mempool, "mempool.dpaa",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_MEMPOOL);
+RTE_LOG_REGISTER(dpaa_logtype_pmd, "pmd.net.dpaa",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
+RTE_LOG_REGISTER(dpaa_logtype_eventdev, "pmd.event.dpaa",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

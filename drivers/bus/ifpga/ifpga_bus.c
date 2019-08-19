@@ -474,9 +474,5 @@ static struct rte_bus rte_ifpga_bus = {
 
 RTE_REGISTER_BUS(IFPGA_BUS_NAME, rte_ifpga_bus);
 
-RTE_INIT(ifpga_init_log)
-{
-	ifpga_bus_logtype = rte_log_register("bus.ifpga");
-	if (ifpga_bus_logtype >= 0)
-		rte_log_set_level(ifpga_bus_logtype, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(ifpga_bus_logtype, "bus.ifpga",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_EAL);
