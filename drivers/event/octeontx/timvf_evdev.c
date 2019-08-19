@@ -6,12 +6,8 @@
 
 int otx_logtype_timvf;
 
-RTE_INIT(otx_timvf_init_log)
-{
-	otx_logtype_timvf = rte_log_register("pmd.event.octeontx.timer");
-	if (otx_logtype_timvf >= 0)
-		rte_log_set_level(otx_logtype_timvf, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(otx_logtype_timvf, "pmd.event.octeontx.timer",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
 
 struct __rte_packed timvf_mbox_dev_info {
 	uint64_t ring_active[4];
