@@ -312,6 +312,13 @@ DPDK_19.08 {
 
 } DPDK_19.05;
 
+DPDK_19.11 {
+	global:
+
+	rte_log_register_type_and_pick_level;
+
+} DPDK_19.08;
+
 EXPERIMENTAL {
 	global:
 
@@ -342,7 +349,6 @@ EXPERIMENTAL {
 	rte_fbarray_is_used;
 	rte_fbarray_set_free;
 	rte_fbarray_set_used;
-	rte_log_register_type_and_pick_level;
 	rte_malloc_dump_heaps;
 	rte_mem_alloc_validator_register;
 	rte_mem_alloc_validator_unregister;
