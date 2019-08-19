@@ -1380,7 +1380,5 @@ RTE_PMD_REGISTER_CRYPTO_DRIVER(aesni_mb_crypto_drv,
 		cryptodev_aesni_mb_pmd_drv.driver,
 		cryptodev_driver_id);
 
-RTE_INIT(aesni_mb_init_log)
-{
-	aesni_mb_logtype_driver = rte_log_register("pmd.crypto.aesni_mb");
-}
+RTE_LOG_REGISTER(aesni_mb_logtype_driver, "pmd.crypto.aesni_mb",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

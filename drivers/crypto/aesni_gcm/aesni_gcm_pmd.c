@@ -663,8 +663,5 @@ RTE_PMD_REGISTER_PARAM_STRING(CRYPTODEV_NAME_AESNI_GCM_PMD,
 RTE_PMD_REGISTER_CRYPTO_DRIVER(aesni_gcm_crypto_drv, aesni_gcm_pmd_drv.driver,
 		cryptodev_driver_id);
 
-
-RTE_INIT(aesni_gcm_init_log)
-{
-	aesni_gcm_logtype_driver = rte_log_register("pmd.crypto.aesni_gcm");
-}
+RTE_LOG_REGISTER(aesni_gcm_logtype_driver, "pmd.crypto.aesni_gcm",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

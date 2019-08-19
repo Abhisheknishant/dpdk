@@ -636,7 +636,5 @@ RTE_PMD_REGISTER_PARAM_STRING(CRYPTODEV_NAME_SNOW3G_PMD,
 RTE_PMD_REGISTER_CRYPTO_DRIVER(snow3g_crypto_drv,
 		cryptodev_snow3g_pmd_drv.driver, cryptodev_driver_id);
 
-RTE_INIT(snow3g_init_log)
-{
-	snow3g_logtype_driver = rte_log_register("pmd.crypto.snow3g");
-}
+RTE_LOG_REGISTER(snow3g_logtype_drivern "pmd.crypto.snow3g",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

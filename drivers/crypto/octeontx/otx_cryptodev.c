@@ -121,10 +121,5 @@ RTE_PMD_REGISTER_PCI_TABLE(CRYPTODEV_NAME_OCTEONTX_PMD, pci_id_cpt_table);
 RTE_PMD_REGISTER_CRYPTO_DRIVER(otx_cryptodev_drv, otx_cryptodev_pmd.driver,
 		otx_cryptodev_driver_id);
 
-RTE_INIT(otx_cpt_init_log)
-{
-	/* Bus level logs */
-	otx_cryptodev_logtype = rte_log_register("pmd.crypto.octeontx");
-	if (otx_cryptodev_logtype >= 0)
-		rte_log_set_level(otx_cryptodev_logtype, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(otx_cryptodev_logtype, "pmd.crypto.octeontx",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

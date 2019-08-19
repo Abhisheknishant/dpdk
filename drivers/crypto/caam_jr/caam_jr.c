@@ -2500,9 +2500,5 @@ RTE_PMD_REGISTER_PARAM_STRING(CRYPTODEV_NAME_CAAM_JR_PMD,
 RTE_PMD_REGISTER_CRYPTO_DRIVER(caam_jr_crypto_drv, cryptodev_caam_jr_drv.driver,
 		cryptodev_driver_id);
 
-RTE_INIT(caam_jr_init_log)
-{
-	caam_jr_logtype = rte_log_register("pmd.crypto.caam");
-	if (caam_jr_logtype >= 0)
-		rte_log_set_level(caam_jr_logtype, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(caam_jr_logtype, "pmd.crypto.caam",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

@@ -3454,10 +3454,5 @@ RTE_PMD_REGISTER_DPAA2(CRYPTODEV_NAME_DPAA2_SEC_PMD, rte_dpaa2_sec_driver);
 RTE_PMD_REGISTER_CRYPTO_DRIVER(dpaa2_sec_crypto_drv,
 		rte_dpaa2_sec_driver.driver, cryptodev_driver_id);
 
-RTE_INIT(dpaa2_sec_init_log)
-{
-	/* Bus level logs */
-	dpaa2_logtype_sec = rte_log_register("pmd.crypto.dpaa2");
-	if (dpaa2_logtype_sec >= 0)
-		rte_log_set_level(dpaa2_logtype_sec, RTE_LOG_NOTICE);
-}
+RTE_LOG_REGISTER(dpaa2_logtype_sec, "pmd.crypto.dpaa2",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

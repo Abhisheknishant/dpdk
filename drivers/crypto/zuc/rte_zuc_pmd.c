@@ -544,7 +544,5 @@ RTE_PMD_REGISTER_PARAM_STRING(CRYPTODEV_NAME_ZUC_PMD,
 RTE_PMD_REGISTER_CRYPTO_DRIVER(zuc_crypto_drv, cryptodev_zuc_pmd_drv.driver,
 		cryptodev_driver_id);
 
-RTE_INIT(zuc_init_log)
-{
-	zuc_logtype_driver = rte_log_register("pmd.crypto.zuc");
-}
+RTE_LOG_REGISTER(zuc_logtype_driver, "pmd.crypto.zuc",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);

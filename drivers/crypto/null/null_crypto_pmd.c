@@ -248,7 +248,5 @@ RTE_PMD_REGISTER_PARAM_STRING(CRYPTODEV_NAME_NULL_PMD,
 RTE_PMD_REGISTER_CRYPTO_DRIVER(null_crypto_drv, cryptodev_null_pmd_drv.driver,
 		cryptodev_driver_id);
 
-RTE_INIT(null_init_log)
-{
-	null_logtype_driver = rte_log_register("pmd.crypto.null");
-}
+RTE_LOG_REGISTER(null_logtype_driver, "pmd.crypto.null",
+	RTE_LOG_NOTICE, RTE_LOGTYPE_PMD);
