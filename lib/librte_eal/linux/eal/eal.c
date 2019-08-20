@@ -949,7 +949,6 @@ static int rte_eal_vfio_setup(void)
 
 static void rte_eal_init_alert(const char *msg)
 {
-	fprintf(stderr, "EAL: FATAL: %s\n", msg);
 	RTE_LOG(ERR, EAL, "%s\n", msg);
 }
 
