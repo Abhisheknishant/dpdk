@@ -137,6 +137,7 @@ SRCS-y += test_cpuflags.c
 SRCS-y += test_mp_secondary.c
 SRCS-y += test_eal_flags.c
 SRCS-y += test_eal_fs.c
+SRCS-y += test_eal_vfio.c
 SRCS-y += test_alarm.c
 SRCS-y += test_interrupts.c
 SRCS-y += test_version.c
