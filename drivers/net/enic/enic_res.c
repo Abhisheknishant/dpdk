@@ -199,7 +199,8 @@ int enic_get_vnic_config(struct enic *enic)
 		DEV_RX_OFFLOAD_IPV4_CKSUM |
 		DEV_RX_OFFLOAD_UDP_CKSUM |
 		DEV_RX_OFFLOAD_TCP_CKSUM |
-		DEV_RX_OFFLOAD_RSS_HASH;
+		DEV_RX_OFFLOAD_RSS_HASH |
+		DEV_RX_OFFLOAD_FLOW_MARK;
 	enic->tx_offload_mask =
 		PKT_TX_IPV6 |
 		PKT_TX_IPV4 |
