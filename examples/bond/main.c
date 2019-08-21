@@ -195,6 +195,7 @@ slave_port_init(uint16_t portid, struct rte_mempool *mbuf_pool)
 		rte_exit(retval, "port %u: TX queue 0 setup failed (res=%d)",
 				portid, retval);
 
+	rte_eth_dev_set_supported_ptypes(portid, 0);
 	retval  = rte_eth_dev_start(portid);
 	if (retval < 0)
 		rte_exit(retval,
@@ -271,6 +272,7 @@ bond_port_init(struct rte_mempool *mbuf_pool)
 		rte_exit(retval, "port %u: TX queue 0 setup failed (res=%d)",
 				BOND_PORT, retval);
 
+	rte_eth_dev_set_supported_ptypes(BOND_PORT, 0);
 	retval  = rte_eth_dev_start(BOND_PORT);
 	if (retval < 0)
 		rte_exit(retval, "Start port %d failed (res=%d)", BOND_PORT, retval);

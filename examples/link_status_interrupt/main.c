@@ -676,6 +676,7 @@ main(int argc, char **argv)
 			rte_exit(EXIT_FAILURE, "Cannot set error callback for "
 					"tx buffer on port %u\n", (unsigned) portid);
 
+		rte_eth_dev_set_supported_ptypes(portid, 0);
 		/* Start device */
 		ret = rte_eth_dev_start(portid);
 		if (ret < 0)

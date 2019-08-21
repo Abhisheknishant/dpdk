@@ -419,10 +419,12 @@ main(int argc, char **argv)
 
 	rte_eth_tx_buffer_init(tx_buffer, PKT_TX_BURST_MAX);
 
+	rte_eth_dev_set_supported_ptypes(port_rx, 0);
 	ret = rte_eth_dev_start(port_rx);
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "Port %d start error (%d)\n", port_rx, ret);
 
+	rte_eth_dev_set_supported_ptypes(port_tx, 0);
 	ret = rte_eth_dev_start(port_tx);
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "Port %d start error (%d)\n", port_tx, ret);

@@ -10,6 +10,7 @@
 build = dpdk_conf.has('RTE_LIBRTE_POWER')
 
 deps += ['distributor', 'power']
+allow_experimental_apis = true
 sources = files(
 	'main.c'
 )

@@ -496,6 +496,7 @@ app_init_nics(void)
 			}
 		}
 
+		rte_eth_dev_set_supported_ptypes(port, 0);
 		/* Start port */
 		ret = rte_eth_dev_start(port);
 		if (ret < 0) {

@@ -205,6 +205,7 @@ link_create(const char *name, struct link_params *params)
 			return NULL;
 	}
 
+	rte_eth_dev_set_supported_ptypes(port_id, 0);
 	/* Port start */
 	status = rte_eth_dev_start(port_id);
 	if (status < 0)

@@ -464,6 +464,7 @@ init_port(uint16_t port)
 		FATAL_ERROR("Could not setup up TX queue for port%u (%d)",
 				port, ret);
 
+	rte_eth_dev_set_supported_ptypes(port, 0);
 	ret = rte_eth_dev_start(port);
 	if (ret < 0)
 		FATAL_ERROR("Could not start port%u (%d)", port, ret);
