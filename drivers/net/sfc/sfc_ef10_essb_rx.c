@@ -716,7 +716,7 @@ struct sfc_dp_rx sfc_ef10_essb_rx = {
 	.features		= SFC_DP_RX_FEAT_FLOW_FLAG |
 				  SFC_DP_RX_FEAT_FLOW_MARK,
 	.dev_offload_capa	= DEV_RX_OFFLOAD_CHECKSUM,
-	.queue_offload_capa	= 0,
+	.queue_offload_capa	= DEV_RX_OFFLOAD_RSS_HASH,
 	.get_dev_info		= sfc_ef10_essb_rx_get_dev_info,
 	.pool_ops_supported	= sfc_ef10_essb_rx_pool_ops_supported,
 	.qsize_up_rings		= sfc_ef10_essb_rx_qsize_up_rings,
