@@ -212,6 +212,41 @@ find_user_mem_map(struct user_mem_maps *user_mem_maps, uint64_t addr,
 	return NULL;
 }
 
+static int
+find_user_mem_map_overlap(struct user_mem_maps *user_mem_maps, uint64_t addr,
+		uint64_t iova, uint64_t len)
+{
+	uint64_t va_end = addr + len;
+	uint64_t iova_end = iova + len;
+	int i;
+
+	for (i = 0; i < user_mem_maps->n_maps; i++) {
+		struct user_mem_map *map = &user_mem_maps->maps[i];
+		uint64_t map_va_end = map->addr + map->len;
+		uint64_t map_iova_end = map->iova + map->len;
+
+		bool no_lo_va_overlap = addr < map->addr && va_end <= map->addr;
+		bool no_hi_va_overlap = addr >= map_va_end &&
+			va_end > map_va_end;
+		bool no_lo_iova_overlap = iova < map->iova &&
+			iova_end <= map->iova;
+		bool no_hi_iova_overlap = iova >= map_iova_end &&
+			iova_end > map_iova_end;
+
+		/* check input VA and iova is not within the
+		 * existing map's range
+		 */
+		if ((no_lo_va_overlap || no_hi_va_overlap) &&
+				(no_lo_iova_overlap || no_hi_iova_overlap))
+			continue;
+		else
+			/* map overlaps */
+			return 1;
+	}
+	/* map doesn't overlap */
+	return 0;
+}
+
 /* this will sort all user maps, and merge/compact any adjacent maps */
 static void
 compact_user_maps(struct user_mem_maps *user_mem_maps)
@@ -1732,6 +1767,17 @@ container_dma_map(struct vfio_config *vfio_cfg, uint64_t vaddr, uint64_t iova,
 		ret = -1;
 		goto out;
 	}
+
+	/* check whether vaddr and iova exists in user_mem_maps */
+	ret = find_user_mem_map_overlap(user_mem_maps, vaddr, iova, len);
+	if (ret) {
+		RTE_LOG(ERR, EAL, "Mapping overlaps with a previously "
+				"existing mapping\n");
+		rte_errno = EEXIST;
+		ret = -1;
+		goto out;
+	}
+
 	/* map the entry */
 	if (vfio_dma_mem_map(vfio_cfg, vaddr, iova, len, 1)) {
 		/* technically, this will fail if there are currently no devices
