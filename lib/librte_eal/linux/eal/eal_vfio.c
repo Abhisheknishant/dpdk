@@ -184,13 +184,13 @@ find_user_mem_map(struct user_mem_maps *user_mem_maps, uint64_t addr,
 		uint64_t iova, uint64_t len)
 {
 	uint64_t va_end = addr + len;
-	uint64_t iova_end = iova + len;
 	int i;
 
 	for (i = 0; i < user_mem_maps->n_maps; i++) {
 		struct user_mem_map *map = &user_mem_maps->maps[i];
 		uint64_t map_va_end = map->addr + map->len;
-		uint64_t map_iova_end = map->iova + map->len;
+		uint64_t diff_addr_len = addr - map->addr;
+		uint64_t expected_iova = map->iova + diff_addr_len;
 
 		/* check start VA */
 		if (addr < map->addr || addr >= map_va_end)
@@ -199,11 +199,10 @@ find_user_mem_map(struct user_mem_maps *user_mem_maps, uint64_t addr,
 		if (va_end <= map->addr || va_end > map_va_end)
 			continue;
 
-		/* check start IOVA */
-		if (iova < map->iova || iova >= map_iova_end)
-			continue;
-		/* check if IOVA end is within boundaries */
-		if (iova_end <= map->iova || iova_end > map_iova_end)
+		/* check whether user input iova is in sync with
+		 * user_mem_map entry's iova
+		 */
+		if (expected_iova != iova)
 			continue;
 
 		/* we've found our map */
