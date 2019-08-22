@@ -1,57 +1,74 @@
 /* SPDX-License-Identifier: BSD-3-Clause
- * Copyright(c) 2010-2014 Intel Corporation
+ * Copyright(c) 2010-2019 Intel Corporation
+ *
+ * LPM Autotests from DPDK v2.2.0 for v2.0 abi compability testing.
+ *
  */
 
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <sys/queue.h>
 
+#include <rte_common.h>
 #include <rte_cycles.h>
+#include <rte_memory.h>
 #include <rte_random.h>
 #include <rte_branch_prediction.h>
 #include <rte_ip.h>
-#include <rte_lpm.h>
+#include <time.h>
 
-#include "test_lpm_routes.h"
-#include "test.h"
-#include "test_xmmt_ops.h"
+#include "../test.h"
 
-#define TEST_LPM_ASSERT(cond) do {                                            \
-	if (!(cond)) {                                                        \
-		printf("Error at line %d: \n", __LINE__);                     \
-		return -1;                                                    \
-	}                                                                     \
-} while(0)
+/* remapping of DPDK v2.0 symbols */
+#include "dcompat.h"
+/* backported header from DPDK v2.0 */
+#include "rte_lpm.h"
+#include "../test_lpm_routes.h"
+
+#define TEST_LPM_ASSERT(cond) do {              \
+    if (!(cond)) {                              \
+      printf("Error at line %d:\n", __LINE__);  \
+      return -1;                                \
+    }                                           \
+  } while (0)
+
+
+#define PASS 0
+
+/*
+ * Lookup performance test
+ */
 
 #define ITERATIONS (1 << 10)
 #define BATCH_SIZE (1 << 12)
 #define BULK_SIZE 32
 
-static int
+static int32_t test_lpm_perf(void);
+
+int32_t
 test_lpm_perf(void)
 {
 	struct rte_lpm *lpm = NULL;
-	struct rte_lpm_config config;
-
-	config.max_rules = 2000000;
-	config.number_tbl8s = 2048;
-	config.flags = 0;
 	uint64_t begin, total_time, lpm_used_entries = 0;
 	unsigned i, j;
-	uint32_t next_hop_add = 0xAA, next_hop_return = 0;
+	uint8_t next_hop_add = 0xAA, next_hop_return = 0;
 	int status = 0;
 	uint64_t cache_line_counter = 0;
 	int64_t count = 0;
 
 	rte_srand(rte_rdtsc());
 
+	/* (re) generate the routing table */
 	generate_large_route_rule_table();
 
 	printf("No. routes = %u\n", (unsigned) NUM_ROUTE_ENTRIES);
 
-	print_route_distribution(large_route_table, (uint32_t) NUM_ROUTE_ENTRIES);
+	print_route_distribution(large_route_table,
+				 (uint32_t) NUM_ROUTE_ENTRIES);
 
-	lpm = rte_lpm_create(__func__, SOCKET_ID_ANY, &config);
+	lpm = rte_lpm_create(__func__, SOCKET_ID_ANY, 1000000, 0);
 	TEST_LPM_ASSERT(lpm != NULL);
 
 	/* Measue add. */
@@ -71,7 +88,7 @@ test_lpm_perf(void)
 		if (lpm->tbl24[i].valid)
 			lpm_used_entries++;
 
-		if (i % 32 == 0) {
+		if (i % 32 == 0){
 			if ((uint64_t)count < lpm_used_entries) {
 				cache_line_counter++;
 				count = lpm_used_entries;
@@ -85,8 +102,7 @@ test_lpm_perf(void)
 	printf("64 byte Cache entries used = %u (%u bytes)\n",
 			(unsigned) cache_line_counter, (unsigned) cache_line_counter * 64);
 
-	printf("Average LPM Add: %g cycles\n",
-	       (double)total_time / NUM_ROUTE_ENTRIES);
+	printf("Average LPM Add: %g cycles\n", (double)total_time / NUM_ROUTE_ENTRIES);
 
 	/* Measure single Lookup */
 	total_time = 0;
@@ -118,7 +134,7 @@ test_lpm_perf(void)
 	count = 0;
 	for (i = 0; i < ITERATIONS; i++) {
 		static uint32_t ip_batch[BATCH_SIZE];
-		uint32_t next_hops[BULK_SIZE];
+		uint16_t next_hops[BULK_SIZE];
 
 		/* Create array of random IP addresses */
 		for (j = 0; j < BATCH_SIZE; j++)
@@ -145,7 +161,7 @@ test_lpm_perf(void)
 	count = 0;
 	for (i = 0; i < ITERATIONS; i++) {
 		static uint32_t ip_batch[BATCH_SIZE];
-		uint32_t next_hops[4];
+		uint16_t next_hops[4];
 
 		/* Create array of random IP addresses */
 		for (j = 0; j < BATCH_SIZE; j++)
@@ -155,13 +171,13 @@ test_lpm_perf(void)
 		begin = rte_rdtsc();
 		for (j = 0; j < BATCH_SIZE; j += RTE_DIM(next_hops)) {
 			unsigned k;
-			xmm_t ipx4;
+			__m128i ipx4;
 
-			ipx4 = vect_loadu_sil128((xmm_t *)(ip_batch + j));
-			ipx4 = *(xmm_t *)(ip_batch + j);
-			rte_lpm_lookupx4(lpm, ipx4, next_hops, UINT32_MAX);
+			ipx4 = _mm_loadu_si128((__m128i *)(ip_batch + j));
+			ipx4 = *(__m128i *)(ip_batch + j);
+			rte_lpm_lookupx4(lpm, ipx4, next_hops, UINT16_MAX);
 			for (k = 0; k < RTE_DIM(next_hops); k++)
-				if (unlikely(next_hops[k] == UINT32_MAX))
+				if (unlikely(next_hops[k] == UINT16_MAX))
 					count++;
 		}
 
@@ -189,7 +205,8 @@ test_lpm_perf(void)
 	rte_lpm_delete_all(lpm);
 	rte_lpm_free(lpm);
 
-	return 0;
+	return PASS;
 }
 
-REGISTER_TEST_COMMAND(lpm_perf_autotest, test_lpm_perf);
+REGISTER_TEST_COMMAND_VERSION(lpm_perf_autotest,
+			      test_lpm_perf, TEST_DPDK_ABI_VERSION_V20);

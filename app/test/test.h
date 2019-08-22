@@ -162,11 +162,7 @@ int test_set_rxtx_conf(cmdline_fixed_string_t mode);
 int test_set_rxtx_anchor(cmdline_fixed_string_t type);
 int test_set_rxtx_sc(cmdline_fixed_string_t type);
 
-#define MAP_ABI_SYMBOL_VERSION(name, abi_version)                             \
-	__asm(".symver "RTE_STR(name)","RTE_STR(name)"@"RTE_STR(abi_version))
-
 #define TEST_DPDK_ABI_VERSION_DEFAULT 0
-#define TEST_DPDK_ABI_VERSION_V1604   1
 #define TEST_DPDK_ABI_VERSION_V20     2
 #define TEST_DPDK_ABI_VERSION_MAX     3
 

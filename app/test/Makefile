@@ -80,6 +80,8 @@ SRCS-y += test_ring.c
 SRCS-y += test_ring_perf.c
 SRCS-y += test_pmd_perf.c
 
+#ABI Version Testing
+SRCS-$(CONFIG_RTE_BUILD_SHARED_LIB) += v2.0/test_v20.c
 ifeq ($(CONFIG_RTE_LIBRTE_TABLE),y)
 SRCS-y += test_table.c
 SRCS-$(CONFIG_RTE_LIBRTE_PIPELINE) += test_table_pipeline.c
@@ -109,7 +111,6 @@ SRCS-y += test_logs.c
 SRCS-y += test_memcpy.c
 SRCS-y += test_memcpy_perf.c
 
-
 SRCS-$(CONFIG_RTE_LIBRTE_MEMBER) += test_member.c
 SRCS-$(CONFIG_RTE_LIBRTE_MEMBER) += test_member_perf.c
 
@@ -124,10 +125,19 @@ SRCS-$(CONFIG_RTE_LIBRTE_HASH) += test_hash_multiwriter.c
 SRCS-$(CONFIG_RTE_LIBRTE_HASH) += test_hash_readwrite.c
 SRCS-$(CONFIG_RTE_LIBRTE_HASH) += test_hash_readwrite_lf.c
 
+SRCS-$(CONFIG_RTE_LIBRTE_LPM) += test_lpm_routes.c
 SRCS-$(CONFIG_RTE_LIBRTE_LPM) += test_lpm.c
 SRCS-$(CONFIG_RTE_LIBRTE_LPM) += test_lpm_perf.c
 SRCS-$(CONFIG_RTE_LIBRTE_LPM) += test_lpm6.c
 SRCS-$(CONFIG_RTE_LIBRTE_LPM) += test_lpm6_perf.c
+
+#LPM ABI Testing
+ifeq ($(CONFIG_RTE_BUILD_SHARED_LIB),y)
+SRCS-$(CONFIG_RTE_LIBRTE_LPM) += v2.0/test_lpm.c
+SRCS-$(CONFIG_RTE_LIBRTE_LPM) += v2.0/test_lpm_perf.c
+SRCS-$(CONFIG_RTE_LIBRTE_LPM) += v2.0/test_lpm6.c
+SRCS-$(CONFIG_RTE_LIBRTE_LPM) += v2.0/test_lpm6_perf.c
+endif
 
 SRCS-y += test_debug.c
 SRCS-y += test_errno.c
