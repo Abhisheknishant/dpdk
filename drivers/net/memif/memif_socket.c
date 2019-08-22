@@ -176,8 +176,7 @@ memif_msg_receive_hello(struct rte_eth_dev *dev, memif_msg_t *msg)
 
 	strlcpy(pmd->remote_name, (char *)h->name, sizeof(pmd->remote_name));
 
-	MIF_LOG(DEBUG, "%s: Connecting to %s.",
-		rte_vdev_device_name(pmd->vdev), pmd->remote_name);
+	MIF_LOG(DEBUG, "Connecting to %s.", pmd->remote_name);
 
 	return 0;
 }
@@ -339,8 +338,7 @@ memif_msg_receive_connect(struct rte_eth_dev *dev, memif_msg_t *msg)
 
 	strlcpy(pmd->remote_if_name, (char *)c->if_name,
 		sizeof(pmd->remote_if_name));
-	MIF_LOG(INFO, "%s: Remote interface %s connected.",
-		rte_vdev_device_name(pmd->vdev), pmd->remote_if_name);
+	MIF_LOG(INFO, "Remote interface %s connected.", pmd->remote_if_name);
 
 	return 0;
 }
@@ -358,8 +356,7 @@ memif_msg_receive_connected(struct rte_eth_dev *dev, memif_msg_t *msg)
 
 	strlcpy(pmd->remote_if_name, (char *)c->if_name,
 		sizeof(pmd->remote_if_name));
-	MIF_LOG(INFO, "%s: Remote interface %s connected.",
-		rte_vdev_device_name(pmd->vdev), pmd->remote_if_name);
+	MIF_LOG(INFO, "Remote interface %s connected.", pmd->remote_if_name);
 
 	return 0;
 }
@@ -370,14 +367,13 @@ memif_msg_receive_disconnect(struct rte_eth_dev *dev, memif_msg_t *msg)
 	struct pmd_internals *pmd = dev->data->dev_private;
 	memif_msg_disconnect_t *d = &msg->disconnect;
 
-	memset(pmd->remote_disc_string, 0, ETH_MEMIF_DISC_STRING_SIZE);
+	memset(pmd->remote_disc_string, 0, sizeof(pmd->remote_disc_string));
 	strlcpy(pmd->remote_disc_string, (char *)d->string,
 		sizeof(pmd->remote_disc_string));
 
-	MIF_LOG(INFO, "%s: Disconnect received: %s",
-		rte_vdev_device_name(pmd->vdev), pmd->remote_disc_string);
+	MIF_LOG(INFO, "Disconnect received: %s", pmd->remote_disc_string);
 
-	memset(pmd->local_disc_string, 0, ETH_MEMIF_DISC_STRING_SIZE);
+	memset(pmd->local_disc_string, 0, 96);
 	memif_disconnect(dev);
 	return 0;
 }
@@ -473,7 +469,6 @@ memif_msg_enq_connect(struct rte_eth_dev *dev)
 {
 	struct pmd_internals *pmd = dev->data->dev_private;
 	struct memif_msg_queue_elt *e = memif_msg_enq(pmd->cc);
-	const char *name = rte_vdev_device_name(pmd->vdev);
 	memif_msg_connect_t *c;
 
 	if (e == NULL)
@@ -481,7 +476,7 @@ memif_msg_enq_connect(struct rte_eth_dev *dev)
 
 	c = &e->msg.connect;
 	e->msg.type = MEMIF_MSG_TYPE_CONNECT;
-	strlcpy((char *)c->if_name, name, sizeof(c->if_name));
+	strlcpy((char *)c->if_name, dev->data->name, sizeof(c->if_name));
 
 	return 0;
 }
@@ -491,7 +486,6 @@ memif_msg_enq_connected(struct rte_eth_dev *dev)
 {
 	struct pmd_internals *pmd = dev->data->dev_private;
 	struct memif_msg_queue_elt *e = memif_msg_enq(pmd->cc);
-	const char *name = rte_vdev_device_name(pmd->vdev);
 	memif_msg_connected_t *c;
 
 	if (e == NULL)
@@ -499,7 +493,7 @@ memif_msg_enq_connected(struct rte_eth_dev *dev)
 
 	c = &e->msg.connected;
 	e->msg.type = MEMIF_MSG_TYPE_CONNECTED;
-	strlcpy((char *)c->if_name, name, sizeof(c->if_name));
+	strlcpy((char *)c->if_name, dev->data->name, sizeof(c->if_name));
 
 	return 0;
 }
@@ -525,7 +519,6 @@ void
 memif_disconnect(struct rte_eth_dev *dev)
 {
 	struct pmd_internals *pmd = dev->data->dev_private;
-	struct pmd_process_private *proc_private = dev->process_private;
 	struct memif_msg_queue_elt *elt, *next;
 	struct memif_queue *mq;
 	struct rte_intr_handle *ih;
@@ -615,7 +608,7 @@ memif_disconnect(struct rte_eth_dev *dev)
 		}
 	}
 
-	memif_free_regions(proc_private);
+	memif_free_regions(dev);
 
 	/* reset connection configuration */
 	memset(&pmd->run, 0, sizeof(pmd->run));
@@ -662,7 +655,7 @@ memif_msg_receive(struct memif_control_channel *cc)
 			if (cmsg->cmsg_type == SCM_CREDENTIALS)
 				cr = (struct ucred *)CMSG_DATA(cmsg);
 			else if (cmsg->cmsg_type == SCM_RIGHTS)
-				memcpy(&afd, CMSG_DATA(cmsg), sizeof(int));
+				rte_memcpy(&afd, CMSG_DATA(cmsg), sizeof(int));
 		}
 		cmsg = CMSG_NXTHDR(&mh, cmsg);
 	}
@@ -861,7 +854,7 @@ memif_listener_handler(void *arg)
 }
 
 static struct memif_socket *
-memif_socket_create(struct pmd_internals *pmd, char *key, uint8_t listener)
+memif_socket_create(char *key, uint8_t listener)
 {
 	struct memif_socket *sock;
 	struct sockaddr_un un;
@@ -899,17 +892,15 @@ memif_socket_create(struct pmd_internals *pmd, char *key, uint8_t listener)
 		if (ret < 0)
 			goto error;
 
-		MIF_LOG(DEBUG, "%s: Memif listener socket %s created.",
-			rte_vdev_device_name(pmd->vdev), sock->filename);
+		MIF_LOG(DEBUG, "Memif listener socket %s created.", sock->filename);
 
 		sock->intr_handle.fd = sockfd;
 		sock->intr_handle.type = RTE_INTR_HANDLE_EXT;
 		ret = rte_intr_callback_register(&sock->intr_handle,
 						 memif_listener_handler, sock);
 		if (ret < 0) {
-			MIF_LOG(ERR, "%s: Failed to register interrupt "
-				"callback for listener socket",
-				rte_vdev_device_name(pmd->vdev));
+			MIF_LOG(ERR, "Failed to register interrupt "
+				"callback for listener socket");
 			return NULL;
 		}
 	}
@@ -917,9 +908,7 @@ memif_socket_create(struct pmd_internals *pmd, char *key, uint8_t listener)
 	return sock;
 
  error:
-	MIF_LOG(ERR, "%s: Failed to setup socket %s: %s",
-		rte_vdev_device_name(pmd->vdev) ?
-		rte_vdev_device_name(pmd->vdev) : "NULL", key, strerror(errno));
+	MIF_LOG(ERR, "Failed to setup socket %s: %s", key, strerror(errno));
 	if (sock != NULL)
 		rte_free(sock);
 	if (sockfd >= 0)
@@ -963,9 +952,8 @@ memif_socket_init(struct rte_eth_dev *dev, const char *socket_filename)
 	rte_memcpy(key, socket_filename, strlen(socket_filename));
 	ret = rte_hash_lookup_data(hash, key, (void **)&socket);
 	if (ret < 0) {
-		socket = memif_socket_create(pmd, key,
-					     (pmd->role ==
-					      MEMIF_ROLE_SLAVE) ? 0 : 1);
+		socket = memif_socket_create(key,
+					     (pmd->role == MEMIF_ROLE_SLAVE) ? 0 : 1);
 		if (socket == NULL)
 			return -1;
 		ret = rte_hash_add_key_data(hash, key, socket);
@@ -996,8 +984,7 @@ memif_socket_init(struct rte_eth_dev *dev, const char *socket_filename)
 
 	elt = rte_malloc("pmd-queue", sizeof(struct memif_socket_dev_list_elt), 0);
 	if (elt == NULL) {
-		MIF_LOG(ERR, "%s: Failed to add device to socket device list.",
-			rte_vdev_device_name(pmd->vdev));
+		MIF_LOG(ERR, "Failed to add device to socket device list.");
 		return -1;
 	}
 	elt->dev = dev;
@@ -1075,8 +1062,7 @@ memif_connect_slave(struct rte_eth_dev *dev)
 
 	sockfd = socket(AF_UNIX, SOCK_SEQPACKET, 0);
 	if (sockfd < 0) {
-		MIF_LOG(ERR, "%s: Failed to open socket.",
-			rte_vdev_device_name(pmd->vdev));
+		MIF_LOG(ERR, "Failed to open socket.");
 		return -1;
 	}
 
@@ -1087,19 +1073,16 @@ memif_connect_slave(struct rte_eth_dev *dev)
 	ret = connect(sockfd, (struct sockaddr *)&sun,
 		      sizeof(struct sockaddr_un));
 	if (ret < 0) {
-		MIF_LOG(ERR, "%s: Failed to connect socket: %s.",
-			rte_vdev_device_name(pmd->vdev), pmd->socket_filename);
+		MIF_LOG(ERR, "Failed to connect socket: %s.", pmd->socket_filename);
 		goto error;
 	}
 
-	MIF_LOG(DEBUG, "%s: Memif socket: %s connected.",
-		rte_vdev_device_name(pmd->vdev), pmd->socket_filename);
+	MIF_LOG(DEBUG, "Memif socket: %s connected.", pmd->socket_filename);
 
 	pmd->cc = rte_zmalloc("memif-cc",
 			      sizeof(struct memif_control_channel), 0);
 	if (pmd->cc == NULL) {
-		MIF_LOG(ERR, "%s: Failed to allocate control channel.",
-			rte_vdev_device_name(pmd->vdev));
+		MIF_LOG(ERR, "Failed to allocate control channel.");
 		goto error;
 	}
 
@@ -1112,8 +1095,7 @@ memif_connect_slave(struct rte_eth_dev *dev)
 	ret = rte_intr_callback_register(&pmd->cc->intr_handle,
 					 memif_intr_handler, pmd->cc);
 	if (ret < 0) {
-		MIF_LOG(ERR, "%s: Failed to register interrupt callback "
-			"for control fd", rte_vdev_device_name(pmd->vdev));
+		MIF_LOG(ERR, "Failed to register interrupt callback for control fd");
 		goto error;
 	}
 
