@@ -116,6 +116,7 @@ impl_dpaa = ['NXP DPAA', flags_dpaa, machine_args_generic]
 impl_dpaa2 = ['NXP DPAA2', flags_dpaa2, machine_args_generic]
 
 dpdk_conf.set('RTE_FORCE_INTRINSICS', 1)
+dpdk_conf.set('RTE_ARM_USE_WFE', 0)
 
 if not dpdk_conf.get('RTE_ARCH_64')
 	dpdk_conf.set('RTE_CACHE_LINE_SIZE', 64)
