@@ -307,3 +307,5 @@ suite_summary:
 		return TEST_SKIPPED;
 	return TEST_SUCCESS;
 }
+
+REGISTER_TEST_ABI_VERSION(default, TEST_DPDK_ABI_VERSION_DEFAULT)

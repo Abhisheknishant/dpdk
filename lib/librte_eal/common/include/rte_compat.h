@@ -51,6 +51,13 @@
 #define __vsym __attribute__((used))
 
 /*
+ * BIND_VERSION_SYMBOL
+ * Creates a symbol version entry instructing the linker to bind references to
+ * symbol <b> to the symbol version <b>@DPDK_<n>
+ */
+#define BIND_VERSION_SYMBOL(b, n) __asm__(".symver " RTE_STR(b) ", " RTE_STR(b) "@DPDK_" RTE_STR(n))
+
+/*
  * MAP_STATIC_SYMBOL
  * If a function has been bifurcated into multiple versions, none of which
  * are defined as the exported symbol name in the map file, this macro can be

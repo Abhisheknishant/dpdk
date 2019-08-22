@@ -221,6 +221,10 @@ The macros exported are:
   the linker to bind references to symbol ``b`` to the internal symbol
   ``b_e``.
 
+* ``BIND_VERSION_SYMBOL(b, n)``: Creates a symbol version entry instructing
+  the linker to bind references to symbol ``b`` to the external symbol
+  ``b@DPDK_n``
+
 * ``MAP_STATIC_SYMBOL(f, p)``: Declare the prototype ``f``, and map it to the
   fully qualified function ``p``, so that if a symbol becomes versioned, it
   can still be mapped back to the public symbol name.
