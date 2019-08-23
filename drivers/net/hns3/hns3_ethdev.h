@@ -620,5 +620,18 @@ hns3_test_and_clear_bit(unsigned int nr, volatile uint64_t *addr)
 
 int hns3_buffer_alloc(struct hns3_hw *hw);
 int hns3_config_gro(struct hns3_hw *hw, bool en);
+bool hns3_is_reset_pending(struct hns3_adapter *hns);
+bool hns3vf_is_reset_pending(struct hns3_adapter *hns);
+
+static inline bool
+is_reset_pending(struct hns3_adapter *hns)
+{
+	bool ret;
+	if (hns->is_vf)
+		ret = hns3vf_is_reset_pending(hns);
+	else
+		ret = hns3_is_reset_pending(hns);
+	return ret;
+}
 
 #endif /* _HNS3_ETHDEV_H_ */

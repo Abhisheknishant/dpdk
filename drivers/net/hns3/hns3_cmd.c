@@ -33,6 +33,7 @@
 #include "hns3_stats.h"
 #include "hns3_ethdev.h"
 #include "hns3_regs.h"
+#include "hns3_intr.h"
 #include "hns3_logs.h"
 
 #define hns3_is_csq(ring) ((ring)->flag & HNS3_TYPE_CSQ)
@@ -231,6 +232,22 @@ hns3_cmd_csq_clean(struct hns3_hw *hw)
 		hns3_err(hw, "wrong cmd head (%d, %d-%d)", head,
 			    csq->next_to_use, csq->next_to_clean);
 		rte_atomic16_set(&hw->reset.disable_cmd, 1);
+		if (hns->is_vf) {
+			global = hns3_read_dev(hw, HNS3_VF_RST_ING);
+			fun_rst = hns3_read_dev(hw, HNS3_FUN_RST_ING);
+			hns3_err(hw, "Delayed VF reset global: %x fun_rst: %x",
+				 global, fun_rst);
+			hns3_atomic_set_bit(HNS3_VF_RESET, &hw->reset.pending);
+		} else {
+			global = hns3_read_dev(hw, HNS3_GLOBAL_RESET_REG);
+			fun_rst = hns3_read_dev(hw, HNS3_FUN_RST_ING);
+			hns3_err(hw, "Delayed IMP reset global: %x fun_rst: %x",
+				 global, fun_rst);
+			hns3_atomic_set_bit(HNS3_IMP_RESET, &hw->reset.pending);
+		}
+
+		hns3_schedule_delayed_reset(hns);
+
 		return -EIO;
 	}
 
@@ -325,6 +342,11 @@ static int hns3_cmd_poll_reply(struct hns3_hw *hw)
 			hns3_err(hw,
 				 "Don't wait for reply because of disable_cmd");
 			return -EBUSY;
+		}
+
+		if (is_reset_pending(hns)) {
+			hns3_err(hw, "Don't wait for reply because of reset pending");
+			return -EIO;
 		}
 
 		rte_delay_us(1);
@@ -482,6 +504,15 @@ hns3_cmd_init(struct hns3_hw *hw)
 	rte_spinlock_unlock(&hw->cmq.crq.lock);
 	rte_spinlock_unlock(&hw->cmq.csq.lock);
 
+	/*
+	 * Check if there is new reset pending, because the higher level
+	 * reset may happen when lower level reset is being processed.
+	 */
+	if (is_reset_pending(HNS3_DEV_HW_TO_ADAPTER(hw))) {
+		PMD_INIT_LOG(ERR, "New reset pending, keep disable cmd");
+		ret = -EBUSY;
+		goto err_cmd_init;
+	}
 	rte_atomic16_clear(&hw->reset.disable_cmd);
 
 	ret = hns3_cmd_query_firmware_version(hw, &hw->fw_version);
