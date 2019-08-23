@@ -606,4 +606,7 @@ hns3_test_and_clear_bit(unsigned int nr, volatile uint64_t *addr)
 	return __sync_fetch_and_and(addr, ~mask) & mask;
 }
 
+int hns3_buffer_alloc(struct hns3_hw *hw);
+int hns3_config_gro(struct hns3_hw *hw, bool en);
+
 #endif /* _HNS3_ETHDEV_H_ */
