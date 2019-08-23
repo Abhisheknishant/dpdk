@@ -463,6 +463,9 @@ struct hns3_pf {
 	struct hns3_vtag_cfg vtag_config;
 	struct hns3_port_base_vlan_config port_base_vlan_cfg;
 	LIST_HEAD(vlan_tbl, hns3_user_vlan_table) vlan_list;
+
+	struct hns3_fdir_info fdir; /* flow director info */
+	LIST_HEAD(counters, hns3_flow_counter) flow_counters;
 };
 
 struct hns3_vf {
