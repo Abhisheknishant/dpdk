@@ -111,49 +111,6 @@ extern "C" {
 #endif
 
 /*
- * Subport configuration parameters. The period and credits_per_period
- * parameters are measured in bytes, with one byte meaning the time
- * duration associated with the transmission of one byte on the
- * physical medium of the output port, with pipe or pipe traffic class
- * rate (measured as percentage of output port rate) determined as
- * credits_per_period divided by period. One credit represents one
- * byte.
- */
-struct rte_sched_subport_params {
-	/** Token bucket rate (measured in bytes per second) */
-	uint32_t tb_rate;
-
-	/** Token bucket size (measured in credits) */
-	uint32_t tb_size;
-
-	/** Traffic class rates (measured in bytes per second) */
-	uint32_t tc_rate[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-
-	/** Enforcement period for rates (measured in milliseconds) */
-	uint32_t tc_period;
-};
-
-/** Subport statistics */
-struct rte_sched_subport_stats {
-	/** Number of packets successfully written */
-	uint32_t n_pkts_tc[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-
-	/** Number of packets dropped */
-	uint32_t n_pkts_tc_dropped[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-
-	/** Number of bytes successfully written for each traffic class */
-	uint32_t n_bytes_tc[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-
-	/** Number of bytes dropped for each traffic class */
-	uint32_t n_bytes_tc_dropped[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-
-#ifdef RTE_SCHED_RED
-	/** Number of packets dropped by red */
-	uint32_t n_pkts_red_dropped[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
-#endif
-};
-
-/*
  * Pipe configuration parameters. The period and credits_per_period
  * parameters are measured in bytes, with one byte meaning the time
  * duration associated with the transmission of one byte on the
@@ -180,6 +137,71 @@ struct rte_sched_pipe_params {
 
 	/** WRR weights of best-effort traffic class queues */
 	uint8_t wrr_weights[RTE_SCHED_BE_QUEUES_PER_PIPE];
+};
+
+/*
+ * Subport configuration parameters. The period and credits_per_period
+ * parameters are measured in bytes, with one byte meaning the time
+ * duration associated with the transmission of one byte on the
+ * physical medium of the output port, with pipe or pipe traffic class
+ * rate (measured as percentage of output port rate) determined as
+ * credits_per_period divided by period. One credit represents one
+ * byte.
+ */
+struct rte_sched_subport_params {
+	/** Token bucket rate (measured in bytes per second) */
+	uint32_t tb_rate;
+
+	/** Token bucket size (measured in credits) */
+	uint32_t tb_size;
+
+	/** Traffic class rates (measured in bytes per second) */
+	uint32_t tc_rate[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
+
+	/** Enforcement period for rates (measured in milliseconds) */
+	uint32_t tc_period;
+
+	/** Number of subport_pipes */
+	uint32_t n_pipes_per_subport;
+
+	/** Packet queue size for each traffic class.
+	 * All the pipes within the same subport share the similar
+	 * configuration for the queues.
+	 */
+	uint16_t qsize[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
+
+	/** Pipe profile table.
+	 * Every pipe is configured using one of the profiles from this table.
+	 */
+	struct rte_sched_pipe_params *pipe_profiles;
+
+	/** Profiles in the pipe profile table */
+	uint32_t n_pipe_profiles;
+
+#ifdef RTE_SCHED_RED
+	/** RED parameters */
+	struct rte_red_params red_params[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE][RTE_COLORS];
+#endif
+};
+
+/** Subport statistics */
+struct rte_sched_subport_stats {
+	/** Number of packets successfully written */
+	uint32_t n_pkts_tc[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
+
+	/** Number of packets dropped */
+	uint32_t n_pkts_tc_dropped[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
+
+	/** Number of bytes successfully written for each traffic class */
+	uint32_t n_bytes_tc[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
+
+	/** Number of bytes dropped for each traffic class */
+	uint32_t n_bytes_tc_dropped[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
+
+#ifdef RTE_SCHED_RED
+	/** Number of packets dropped by red */
+	uint32_t n_pkts_red_dropped[RTE_SCHED_TRAFFIC_CLASSES_PER_PIPE];
+#endif
 };
 
 /** Queue statistics */
@@ -226,6 +248,9 @@ struct rte_sched_port_params {
 
 	/** Number of subport_pipes */
 	uint32_t n_pipes_per_subport;
+
+	/** Maximum number of subport_pipes */
+	uint32_t n_max_pipes_per_subport;
 
 	/** Packet queue size for each traffic class.
 	 * All the pipes within the same subport share the similar
