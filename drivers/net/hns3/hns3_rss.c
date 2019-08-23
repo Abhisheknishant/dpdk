@@ -13,6 +13,7 @@
 #include "hns3_mbx.h"
 #include "hns3_rss.h"
 #include "hns3_fdir.h"
+#include "hns3_stats.h"
 #include "hns3_ethdev.h"
 #include "hns3_logs.h"
 

@@ -332,6 +332,9 @@ struct hns3_hw {
 	pthread_t irq_thread_id;
 	struct hns3_mac mac;
 	unsigned int secondary_cnt; /* Number of secondary processes init'd. */
+	struct hns3_tqp_stats tqp_stats;
+	/* Include Mac stats | Rx stats | Tx stats */
+	struct hns3_mac_stats mac_stats;
 	uint32_t fw_version;
 
 	uint16_t num_msi;

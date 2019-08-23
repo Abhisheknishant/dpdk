@@ -18,6 +18,7 @@
 #include "hns3_cmd.h"
 #include "hns3_mbx.h"
 #include "hns3_rss.h"
+#include "hns3_stats.h"
 #include "hns3_fdir.h"
 #include "hns3_regs.h"
 #include "hns3_ethdev.h"
