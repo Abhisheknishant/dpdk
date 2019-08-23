@@ -329,6 +329,7 @@ struct hns3_hw {
 	struct hns3_cmq cmq;
 	struct hns3_mbx_resp_status mbx_resp; /* mailbox response */
 	struct hns3_mbx_arq_ring arq;         /* mailbox async rx queue */
+	pthread_t irq_thread_id;
 	struct hns3_mac mac;
 	unsigned int secondary_cnt; /* Number of secondary processes init'd. */
 	uint32_t fw_version;

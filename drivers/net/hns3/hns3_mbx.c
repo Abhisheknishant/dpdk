@@ -31,6 +31,7 @@
 #include "hns3_ethdev.h"
 #include "hns3_regs.h"
 #include "hns3_logs.h"
+#include "hns3_intr.h"
 
 #define HNS3_REG_MSG_DATA_OFFSET	4
 #define HNS3_CMD_CODE_OFFSET		2
@@ -105,7 +106,17 @@ hns3_get_mbx_resp(struct hns3_hw *hw, uint16_t code0, uint16_t code1,
 	end = now + HNS3_MAX_RETRY_MS;
 	while ((hw->mbx_resp.head != hw->mbx_resp.tail + hw->mbx_resp.lost) &&
 	       (now < end)) {
-		rte_delay_ms(HNS3_POLL_RESPONE_MS);
+		/*
+		 * The mbox response is running on the interrupt thread.
+		 * Sending mbox in the interrupt thread cannot wait for the
+		 * response, so polling the mbox response on the irq thread.
+		 */
+		if (pthread_equal(hw->irq_thread_id, pthread_self())) {
+			in_irq = true;
+			hns3_poll_all_sync_msg();
+		} else {
+			rte_delay_ms(HNS3_POLL_RESPONE_MS);
+		}
 		now = get_timeofday_ms();
 	}
 	hw->mbx_resp.req_msg_data = 0;

@@ -37,6 +37,7 @@
 #include "hns3_logs.h"
 #include "hns3_rxtx.h"
 #include "hns3_regs.h"
+#include "hns3_intr.h"
 #include "hns3_dcb.h"
 
 #define HNS3VF_KEEP_ALIVE_INTERVAL	2000000 /* us */
@@ -44,6 +45,12 @@
 
 #define HNS3VF_RESET_WAIT_MS	20
 #define HNS3VF_RESET_WAIT_CNT	2000
+
+enum hns3vf_evt_cause {
+	HNS3VF_VECTOR0_EVENT_RST,
+	HNS3VF_VECTOR0_EVENT_MBX,
+	HNS3VF_VECTOR0_EVENT_OTHER,
+};
 
 static int hns3vf_dev_mtu_set(struct rte_eth_dev *dev, uint16_t mtu);
 static int hns3vf_dev_configure_vlan(struct rte_eth_dev *dev);
@@ -560,6 +567,9 @@ hns3vf_interrupt_handler(void *param)
 	struct hns3_hw *hw = &hns->hw;
 	enum hns3vf_evt_cause event_cause;
 	uint32_t clearval;
+
+	if (hw->irq_thread_id == 0)
+		hw->irq_thread_id = pthread_self();
 
 	/* Disable interrupt */
 	hns3vf_disable_irq0(hw);
