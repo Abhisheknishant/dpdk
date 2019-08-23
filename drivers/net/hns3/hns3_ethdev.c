@@ -40,6 +40,7 @@
 #include "hns3_intr.h"
 #include "hns3_regs.h"
 #include "hns3_dcb.h"
+#include "hns3_mp.h"
 
 #define HNS3_DEFAULT_PORT_CONF_BURST_SIZE	32
 #define HNS3_DEFAULT_PORT_CONF_QUEUES_NUM	1
@@ -4078,6 +4079,10 @@ hns3_dev_stop(struct rte_eth_dev *eth_dev)
 	hw->adapter_state = HNS3_NIC_STOPPING;
 	hns3_set_rxtx_function(eth_dev);
 	rte_wmb();
+	/* Disable datapath on secondary process. */
+	hns3_mp_req_stop_rxtx(eth_dev);
+	/* Prevent crashes when queues are still in use. */
+	rte_delay_ms(hw->tqps_num);
 
 	rte_spinlock_lock(&hw->lock);
 	if (rte_atomic16_read(&hw->reset.resetting) == 0) {
@@ -4108,6 +4113,7 @@ hns3_dev_close(struct rte_eth_dev *eth_dev)
 	hns3_uninit_pf(eth_dev);
 	hns3_free_all_queues(eth_dev);
 	rte_free(hw->reset.wait_data);
+	hns3_mp_uninit_primary();
 	hns3_warn(hw, "Close port %d finished", hw->data->port_id);
 }
 
@@ -4750,6 +4756,28 @@ static const struct eth_dev_ops hns3_eth_dev_ops = {
 	.dev_supported_ptypes_get = hns3_dev_supported_ptypes_get,
 };
 
+static const struct eth_dev_ops hns3_eth_dev_secondary_ops = {
+	.stats_get          = hns3_stats_get,
+	.stats_reset        = hns3_stats_reset,
+	.xstats_get         = hns3_dev_xstats_get,
+	.xstats_get_names   = hns3_dev_xstats_get_names,
+	.xstats_reset       = hns3_dev_xstats_reset,
+	.xstats_get_by_id   = hns3_dev_xstats_get_by_id,
+	.xstats_get_names_by_id = hns3_dev_xstats_get_names_by_id,
+	.dev_infos_get          = hns3_dev_infos_get,
+	.fw_version_get         = hns3_fw_version_get,
+	.flow_ctrl_get          = hns3_flow_ctrl_get,
+	.link_update            = hns3_dev_link_update,
+	.rss_hash_update        = hns3_dev_rss_hash_update,
+	.rss_hash_conf_get      = hns3_dev_rss_hash_conf_get,
+	.reta_update            = hns3_dev_rss_reta_update,
+	.reta_query             = hns3_dev_rss_reta_query,
+	.filter_ctrl            = hns3_dev_filter_ctrl,
+	.get_reg                = hns3_get_regs,
+	.get_dcb_info           = hns3_get_dcb_info,
+	.dev_supported_ptypes_get = hns3_dev_supported_ptypes_get,
+};
+
 static const struct hns3_reset_ops hns3_reset_ops = {
 	.reset_service       = hns3_reset_service,
 	.stop_service        = hns3_stop_service,
@@ -4783,10 +4811,16 @@ hns3_dev_init(struct rte_eth_dev *eth_dev)
 	hns3_filterlist_init(eth_dev);
 
 	hns3_set_rxtx_function(eth_dev);
-	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY) {
+		eth_dev->dev_ops = &hns3_eth_dev_secondary_ops;
+		hns3_mp_init_secondary();
+		hw->secondary_cnt++;
 		return 0;
+	}
 
 	eth_dev->dev_ops = &hns3_eth_dev_ops;
+	hns3_mp_init_primary();
+	hw->adapter_state = HNS3_NIC_UNINITIALIZED;
 	rte_eth_copy_pci_info(eth_dev, pci_dev);
 
 	if (device_id == HNS3_DEV_ID_25GE_RDMA ||
