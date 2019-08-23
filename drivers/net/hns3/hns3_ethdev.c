@@ -35,6 +35,7 @@
 #include "hns3_fdir.h"
 #include "hns3_ethdev.h"
 #include "hns3_logs.h"
+#include "hns3_rxtx.h"
 #include "hns3_regs.h"
 #include "hns3_dcb.h"
 
@@ -3603,6 +3604,10 @@ static const struct eth_dev_ops hns3_eth_dev_ops = {
 	.mtu_set            = hns3_dev_mtu_set,
 	.dev_infos_get          = hns3_dev_infos_get,
 	.fw_version_get         = hns3_fw_version_get,
+	.rx_queue_setup         = hns3_rx_queue_setup,
+	.tx_queue_setup         = hns3_tx_queue_setup,
+	.rx_queue_release       = hns3_dev_rx_queue_release,
+	.tx_queue_release       = hns3_dev_tx_queue_release,
 	.flow_ctrl_get          = hns3_flow_ctrl_get,
 	.flow_ctrl_set          = hns3_flow_ctrl_set,
 	.priority_flow_ctrl_set = hns3_priority_flow_ctrl_set,
@@ -3645,6 +3650,7 @@ hns3_dev_init(struct rte_eth_dev *eth_dev)
 	/* initialize flow filter lists */
 	hns3_filterlist_init(eth_dev);
 
+	hns3_set_rxtx_function(eth_dev);
 	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
 		return 0;
 
@@ -3698,6 +3704,8 @@ err_rte_zmalloc:
 
 err_init_pf:
 	eth_dev->dev_ops = NULL;
+	eth_dev->rx_pkt_burst = NULL;
+	eth_dev->tx_pkt_burst = NULL;
 	rte_free(eth_dev->process_private);
 	eth_dev->process_private = NULL;
 	return ret;

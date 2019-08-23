@@ -35,6 +35,7 @@
 #include "hns3_fdir.h"
 #include "hns3_ethdev.h"
 #include "hns3_logs.h"
+#include "hns3_rxtx.h"
 #include "hns3_regs.h"
 #include "hns3_dcb.h"
 
@@ -1133,6 +1134,7 @@ hns3vf_dev_start(struct rte_eth_dev *eth_dev)
 	}
 	hw->adapter_state = HNS3_NIC_STARTED;
 	rte_spinlock_unlock(&hw->lock);
+	hns3_set_rxtx_function(eth_dev);
 	return 0;
 }
 
@@ -1142,6 +1144,10 @@ static const struct eth_dev_ops hns3vf_eth_dev_ops = {
 	.dev_close          = hns3vf_dev_close,
 	.mtu_set            = hns3vf_dev_mtu_set,
 	.dev_infos_get      = hns3vf_dev_infos_get,
+	.rx_queue_setup     = hns3_rx_queue_setup,
+	.tx_queue_setup     = hns3_tx_queue_setup,
+	.rx_queue_release   = hns3_dev_rx_queue_release,
+	.tx_queue_release   = hns3_dev_tx_queue_release,
 	.dev_configure      = hns3vf_dev_configure,
 	.mac_addr_add       = hns3vf_add_mac_addr,
 	.mac_addr_remove    = hns3vf_remove_mac_addr,
@@ -1179,6 +1185,7 @@ hns3vf_dev_init(struct rte_eth_dev *eth_dev)
 	/* initialize flow filter lists */
 	hns3_filterlist_init(eth_dev);
 
+	hns3_set_rxtx_function(eth_dev);
 	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
 		return 0;
 

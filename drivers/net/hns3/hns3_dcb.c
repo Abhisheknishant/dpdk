@@ -13,6 +13,7 @@
 #include <rte_memcpy.h>
 #include <rte_spinlock.h>
 
+#include "hns3_rxtx.h"
 #include "hns3_logs.h"
 #include "hns3_cmd.h"
 #include "hns3_mbx.h"
