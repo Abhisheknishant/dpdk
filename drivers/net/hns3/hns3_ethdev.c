@@ -29,6 +29,7 @@
 #include <rte_log.h>
 #include <rte_pci.h>
 
+#include "hns3_cmd.h"
 #include "hns3_ethdev.h"
 #include "hns3_logs.h"
 #include "hns3_regs.h"
@@ -36,12 +37,70 @@
 int hns3_logtype_init;
 int hns3_logtype_driver;
 
+static int
+hns3_init_pf(struct rte_eth_dev *eth_dev)
+{
+	struct rte_device *dev = eth_dev->device;
+	struct rte_pci_device *pci_dev = RTE_DEV_TO_PCI(dev);
+	struct hns3_adapter *hns = eth_dev->data->dev_private;
+	struct hns3_hw *hw = &hns->hw;
+	int ret;
+
+	PMD_INIT_FUNC_TRACE();
+
+	/* Get hardware io base address from pcie BAR2 IO space */
+	hw->io_base = pci_dev->mem_resource[2].addr;
+
+	/* Firmware command queue initialize */
+	ret = hns3_cmd_init_queue(hw);
+	if (ret) {
+		PMD_INIT_LOG(ERR, "Failed to init cmd queue: %d", ret);
+		goto err_cmd_init_queue;
+	}
+
+	hns3_clear_all_event_cause(hw);
+
+	/* Firmware command initialize */
+	ret = hns3_cmd_init(hw);
+	if (ret) {
+		PMD_INIT_LOG(ERR, "Failed to init cmd: %d", ret);
+		goto err_cmd_init;
+	}
+
+	return 0;
+
+err_cmd_init:
+	hns3_cmd_destroy_queue(hw);
+
+err_cmd_init_queue:
+	hw->io_base = NULL;
+
+	return ret;
+}
+
+static void
+hns3_uninit_pf(struct rte_eth_dev *eth_dev)
+{
+	struct hns3_adapter *hns = eth_dev->data->dev_private;
+	struct rte_device *dev = eth_dev->device;
+	struct rte_pci_device *pci_dev = RTE_DEV_TO_PCI(dev);
+	struct hns3_hw *hw = &hns->hw;
+
+	PMD_INIT_FUNC_TRACE();
+
+	hns3_cmd_uninit(hw);
+	hns3_cmd_destroy_queue(hw);
+	hw->io_base = NULL;
+}
+
 static void
 hns3_dev_close(struct rte_eth_dev *eth_dev)
 {
 	struct hns3_adapter *hns = eth_dev->data->dev_private;
 	struct hns3_hw *hw = &hns->hw;
 
+	hw->adapter_state = HNS3_NIC_CLOSING;
+	hns3_uninit_pf(eth_dev);
 	hw->adapter_state = HNS3_NIC_CLOSED;
 }
 
@@ -69,9 +128,20 @@ hns3_dev_init(struct rte_eth_dev *eth_dev)
 
 	hns->is_vf = false;
 	hw->data = eth_dev->data;
+
+	ret = hns3_init_pf(eth_dev);
+	if (ret) {
+		PMD_INIT_LOG(ERR, "Failed to init pf: %d", ret);
+		goto err_init_pf;
+	}
+
 	hw->adapter_state = HNS3_NIC_INITIALIZED;
 
 	return 0;
+
+err_init_pf:
+	eth_dev->dev_ops = NULL;
+	return ret;
 }
 
 static int
