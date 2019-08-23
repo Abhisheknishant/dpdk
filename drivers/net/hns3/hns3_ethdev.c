@@ -40,6 +40,8 @@
 int hns3_logtype_init;
 int hns3_logtype_driver;
 
+static int hns3_dev_mtu_set(struct rte_eth_dev *dev, uint16_t mtu);
+
 static int
 hns3_config_tso(struct hns3_hw *hw, unsigned int tso_mss_min,
 		unsigned int tso_mss_max)
@@ -997,6 +999,131 @@ hns3_config_mtu(struct hns3_hw *hw, uint16_t mps)
 	}
 
 	return 0;
+}
+
+static int
+hns3_dev_mtu_set(struct rte_eth_dev *dev, uint16_t mtu)
+{
+	struct hns3_adapter *hns = dev->data->dev_private;
+	uint32_t frame_size = mtu + HNS3_ETH_OVERHEAD;
+	struct hns3_hw *hw = &hns->hw;
+	bool is_jumbo_frame;
+	int ret;
+
+	if (mtu < RTE_ETHER_MIN_MTU || frame_size > HNS3_MAX_FRAME_LEN) {
+		hns3_err(hw, "Failed to set mtu, mtu(%u) invalid. valid "
+			 "range: %d~%d", mtu, RTE_ETHER_MIN_MTU, HNS3_MAX_MTU);
+		return -EINVAL;
+	}
+
+	if (dev->data->dev_started) {
+		hns3_err(hw, "Failed to set mtu, port %u must be stopped "
+			 "before configuration", dev->data->port_id);
+		return -EBUSY;
+	}
+
+	rte_spinlock_lock(&hw->lock);
+	is_jumbo_frame = frame_size > RTE_ETHER_MAX_LEN ? true : false;
+	frame_size = RTE_MAX(frame_size, HNS3_DEFAULT_FRAME_LEN);
+
+	/*
+	 * Maximum value of frame_size is HNS3_MAX_FRAME_LEN, so it can safely
+	 * assign to "uint16_t" type variable.
+	 */
+	ret = hns3_config_mtu(hw, (uint16_t)frame_size);
+	if (ret) {
+		rte_spinlock_unlock(&hw->lock);
+		hns3_err(hw, "Failed to set mtu, port %u mtu %u: %d",
+			 dev->data->port_id, mtu, ret);
+		return ret;
+	}
+	hns->pf.mps = (uint16_t)frame_size;
+	if (is_jumbo_frame)
+		dev->data->dev_conf.rxmode.offloads |=
+						DEV_RX_OFFLOAD_JUMBO_FRAME;
+	else
+		dev->data->dev_conf.rxmode.offloads &=
+						~DEV_RX_OFFLOAD_JUMBO_FRAME;
+	dev->data->dev_conf.rxmode.max_rx_pkt_len = frame_size;
+	rte_spinlock_unlock(&hw->lock);
+
+	return 0;
+}
+
+static void
+hns3_dev_infos_get(struct rte_eth_dev *eth_dev, struct rte_eth_dev_info *info)
+{
+	struct hns3_adapter *hns = eth_dev->data->dev_private;
+	struct hns3_hw *hw = &hns->hw;
+
+	info->max_rx_queues = hw->tqps_num;
+	info->max_tx_queues = hw->tqps_num;
+	info->max_rx_pktlen = HNS3_MAX_FRAME_LEN; /* CRC included */
+	info->min_rx_bufsize = hw->rx_buf_len;
+	info->max_mac_addrs = HNS3_UC_MACADDR_NUM;
+	info->max_mtu = info->max_rx_pktlen - HNS3_ETH_OVERHEAD;
+	info->min_mtu = RTE_ETHER_MIN_MTU;
+	info->rx_offload_capa = (DEV_RX_OFFLOAD_IPV4_CKSUM |
+				 DEV_RX_OFFLOAD_UDP_CKSUM |
+				 DEV_RX_OFFLOAD_TCP_CKSUM |
+				 DEV_RX_OFFLOAD_OUTER_IPV4_CKSUM |
+				 DEV_RX_OFFLOAD_OUTER_UDP_CKSUM |
+				 DEV_RX_OFFLOAD_KEEP_CRC |
+				 DEV_RX_OFFLOAD_SCATTER |
+				 DEV_RX_OFFLOAD_VLAN_STRIP |
+				 DEV_RX_OFFLOAD_QINQ_STRIP |
+				 DEV_RX_OFFLOAD_VLAN_FILTER |
+				 DEV_RX_OFFLOAD_VLAN_EXTEND |
+				 DEV_RX_OFFLOAD_JUMBO_FRAME);
+	info->tx_queue_offload_capa = DEV_TX_OFFLOAD_MBUF_FAST_FREE;
+	info->tx_offload_capa = (DEV_TX_OFFLOAD_IPV4_CKSUM |
+				 DEV_TX_OFFLOAD_UDP_CKSUM |
+				 DEV_TX_OFFLOAD_TCP_CKSUM |
+				 DEV_TX_OFFLOAD_VLAN_INSERT |
+				 DEV_TX_OFFLOAD_QINQ_INSERT |
+				 DEV_TX_OFFLOAD_MULTI_SEGS |
+				 info->tx_queue_offload_capa);
+
+	info->rx_desc_lim = (struct rte_eth_desc_lim) {
+		.nb_max = HNS3_MAX_RING_DESC,
+		.nb_min = HNS3_MIN_RING_DESC,
+		.nb_align = HNS3_ALIGN_RING_DESC,
+	};
+
+	info->tx_desc_lim = (struct rte_eth_desc_lim) {
+		.nb_max = HNS3_MAX_RING_DESC,
+		.nb_min = HNS3_MIN_RING_DESC,
+		.nb_align = HNS3_ALIGN_RING_DESC,
+	};
+
+	info->vmdq_queue_num = 0;
+
+	info->reta_size = HNS3_RSS_IND_TBL_SIZE;
+	info->hash_key_size = HNS3_RSS_KEY_SIZE;
+	info->flow_type_rss_offloads = HNS3_ETH_RSS_SUPPORT;
+
+	info->default_rxportconf.burst_size = HNS3_DEFAULT_PORT_CONF_BURST_SIZE;
+	info->default_txportconf.burst_size = HNS3_DEFAULT_PORT_CONF_BURST_SIZE;
+	info->default_rxportconf.nb_queues = HNS3_DEFAULT_PORT_CONF_QUEUES_NUM;
+	info->default_txportconf.nb_queues = HNS3_DEFAULT_PORT_CONF_QUEUES_NUM;
+	info->default_rxportconf.ring_size = HNS3_DEFAULT_RING_DESC;
+	info->default_txportconf.ring_size = HNS3_DEFAULT_RING_DESC;
+}
+
+static int
+hns3_fw_version_get(struct rte_eth_dev *eth_dev, char *fw_version,
+		    size_t fw_size)
+{
+	struct hns3_adapter *hns = eth_dev->data->dev_private;
+	struct hns3_hw *hw = &hns->hw;
+	int ret;
+
+	ret = snprintf(fw_version, fw_size, "0x%08x", hw->fw_version);
+	ret += 1; /* add the size of '\0' */
+	if (fw_size < (uint32_t)ret)
+		return ret;
+	else
+		return 0;
 }
 
 static int
@@ -2394,6 +2521,9 @@ hns3_dev_close(struct rte_eth_dev *eth_dev)
 
 static const struct eth_dev_ops hns3_eth_dev_ops = {
 	.dev_close          = hns3_dev_close,
+	.mtu_set            = hns3_dev_mtu_set,
+	.dev_infos_get          = hns3_dev_infos_get,
+	.fw_version_get         = hns3_fw_version_get,
 	.mac_addr_add           = hns3_add_mac_addr,
 	.mac_addr_remove        = hns3_remove_mac_addr,
 	.mac_addr_set           = hns3_set_default_mac_addr,
@@ -2420,7 +2550,12 @@ hns3_dev_init(struct rte_eth_dev *eth_dev)
 
 	hns->is_vf = false;
 	hw->data = eth_dev->data;
-	hns->pf.mps = HNS3_DEFAULT_FRAME_LEN;
+
+	/*
+	 * Set default max packet size according to the mtu
+	 * default vale in DPDK frame.
+	 */
+	hns->pf.mps = hw->data->mtu + HNS3_ETH_OVERHEAD;
 
 	ret = hns3_init_pf(eth_dev);
 	if (ret) {
