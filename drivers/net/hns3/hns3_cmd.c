@@ -27,6 +27,7 @@
 #include <rte_io.h>
 
 #include "hns3_cmd.h"
+#include "hns3_rss.h"
 #include "hns3_fdir.h"
 #include "hns3_ethdev.h"
 #include "hns3_regs.h"

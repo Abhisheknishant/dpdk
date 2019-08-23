@@ -342,6 +342,9 @@ struct hns3_hw {
 	struct rte_ether_addr mc_addrs[HNS3_MC_MACADDR_NUM];
 	int mc_addrs_num; /* Multicast mac addresses number */
 
+	/* The configuration info of RSS */
+	struct hns3_rss_conf rss_info;
+
 	uint8_t num_tc;             /* Total number of enabled TCs */
 	uint8_t hw_tc_map;
 	enum hns3_fc_mode current_mode;

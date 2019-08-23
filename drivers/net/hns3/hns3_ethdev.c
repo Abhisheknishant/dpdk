@@ -30,6 +30,7 @@
 #include <rte_pci.h>
 
 #include "hns3_cmd.h"
+#include "hns3_rss.h"
 #include "hns3_fdir.h"
 #include "hns3_ethdev.h"
 #include "hns3_logs.h"
@@ -2689,6 +2690,8 @@ hns3_init_pf(struct rte_eth_dev *eth_dev)
 		goto err_hw_init;
 	}
 
+	hns3_set_default_rss_args(hw);
+
 	return 0;
 
 err_hw_init:
@@ -2716,6 +2719,7 @@ hns3_uninit_pf(struct rte_eth_dev *eth_dev)
 
 	PMD_INIT_FUNC_TRACE();
 
+	hns3_rss_uninit(hns);
 	hns3_fdir_filter_uninit(hns);
 	hns3_uninit_umv_space(hw);
 	hns3_cmd_uninit(hw);
@@ -2744,6 +2748,10 @@ static const struct eth_dev_ops hns3_eth_dev_ops = {
 	.mac_addr_set           = hns3_set_default_mac_addr,
 	.set_mc_addr_list       = hns3_set_mc_mac_addr_list,
 	.link_update            = hns3_dev_link_update,
+	.rss_hash_update        = hns3_dev_rss_hash_update,
+	.rss_hash_conf_get      = hns3_dev_rss_hash_conf_get,
+	.reta_update            = hns3_dev_rss_reta_update,
+	.reta_query             = hns3_dev_rss_reta_query,
 	.filter_ctrl            = hns3_dev_filter_ctrl,
 };
 
