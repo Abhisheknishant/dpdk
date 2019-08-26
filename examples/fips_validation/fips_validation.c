@@ -248,6 +248,48 @@ fips_test_parse_header(void)
 		fprintf(info.fp_wr, "%s\n", info.vec[i]);
 	}
 
+	/* use folder name if algorithm is not found yet*/
+	if (info.algo == FIPS_TEST_ALGO_MAX) {
+		if (strstr(info.file_name, "AESVS")) {
+			info.algo = FIPS_TEST_ALGO_AES;
+			ret = parse_test_aes_init();
+			if (ret < 0)
+				return ret;
+		} else if (strstr(info.file_name, "GCM")) {
+			info.algo = FIPS_TEST_ALGO_AES_GCM;
+			ret = parse_test_gcm_init();
+			if (ret < 0)
+				return ret;
+		} else if (strstr(info.file_name, "CMAC")) {
+			info.algo = FIPS_TEST_ALGO_AES_CMAC;
+			ret = parse_test_cmac_init();
+			if (ret < 0)
+				return ret;
+		} else if (strstr(info.file_name, "CCM")) {
+			info.algo = FIPS_TEST_ALGO_AES_CCM;
+			ret = parse_test_ccm_init();
+			if (ret < 0)
+				return ret;
+		} else if (strstr(info.file_name, "HMAC")) {
+			info.algo = FIPS_TEST_ALGO_HMAC;
+			ret = parse_test_hmac_init();
+			if (ret < 0)
+				return ret;
+		} else if (strstr(info.file_name, "TDES")) {
+			info.algo = FIPS_TEST_ALGO_TDES;
+			ret = parse_test_tdes_init();
+			if (ret < 0)
+				return ret;
+		} else if (strstr(info.file_name, "SHA-")) {
+			if (info.algo != FIPS_TEST_ALGO_HMAC) {
+				info.algo = FIPS_TEST_ALGO_SHA;
+				ret = parse_test_sha_init();
+				if (ret < 0)
+					return ret;
+			}
+		}
+	}
+
 	return 0;
 }
 
