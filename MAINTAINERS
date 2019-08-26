@@ -781,6 +781,12 @@ F: drivers/net/enetc/
 F: doc/guides/nics/enetc.rst
 F: doc/guides/nics/features/enetc.ini
 
+NXP ppfe
+M: Gagandeep Singh <g.singh@nxp.com>
+M: Akhil Goyal <akhil.goyal@nxp.com>
+F: drivers/net/ppfe/
+F: doc/guides/nics/features/ppfe.ini
+
 QLogic bnx2x
 M: Rasesh Mody <rmody@marvell.com>
 M: Shahed Shaikh <shshaikh@marvell.com>
