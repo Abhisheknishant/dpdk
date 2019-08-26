@@ -33,10 +33,15 @@
 
 #define NEG_TEST_STR	"FAIL"
 
+static int
+parse_uint8_known_len_hex_str_dec(const char *key,
+						char *src,
+						struct fips_val *val);
+
 struct fips_test_callback gcm_dec_vectors[] = {
 		{KEY_STR, parse_uint8_known_len_hex_str, &vec.aead.key},
 		{IV_STR, parse_uint8_known_len_hex_str, &vec.iv},
-		{CT_STR, parse_uint8_known_len_hex_str, &vec.ct},
+		{CT_STR, parse_uint8_known_len_hex_str_dec, &vec.ct},
 		{AAD_STR, parse_uint8_known_len_hex_str, &vec.aead.aad},
 		{TAG_STR, parse_uint8_known_len_hex_str,
 				&vec.aead.digest},
@@ -122,4 +127,20 @@ parse_test_gcm_init(void)
 	info.parse_writeback = parse_test_gcm_writeback;
 
 	return 0;
+}
+
+static int
+parse_uint8_known_len_hex_str_dec(const char *key,
+						char *src,
+						struct fips_val *val)
+{
+	/* AES-GCM CAVS vectors for decryption set PTlen (plain text length)
+	 * but provide crypto text.
+	 * In order to compensate the behavior we assign PTlen to CTlen
+	 * (crypto text length) which is used for calculations
+	 */
+	if (info.op == FIPS_TEST_DEC_AUTH_VERIF)
+		vec.ct.len = vec.pt.len;
+
+	return parse_uint8_known_len_hex_str(key, src, val);
 }
