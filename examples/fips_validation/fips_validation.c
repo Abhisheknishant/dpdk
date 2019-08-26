@@ -401,10 +401,13 @@ fips_test_parse_one_case(void)
 	}
 
 	if (is_interim) {
-		for (i = 0; i < info.nb_vec_lines; i++)
-			fprintf(info.fp_wr, "%s\n", info.vec[i]);
-		fprintf(info.fp_wr, "\n");
-		return 1;
+		if (!(strstr(info.vec[0], "DECRYPT") &&
+			  info.nb_vec_lines > 1)) {
+			for (i = 0; i < info.nb_vec_lines; i++)
+				fprintf(info.fp_wr, "%s\n", info.vec[i]);
+			fprintf(info.fp_wr, "\n");
+			return 1;
+		}
 	}
 
 	for (i = 0; i < info.nb_vec_lines; i++) {
