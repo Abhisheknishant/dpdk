@@ -399,6 +399,12 @@ get_flexi_auth_type(enum rte_crypto_auth_algorithm algo)
 	case RTE_CRYPTO_AUTH_SHA1_HMAC:
 		type = AUTH_SHA1;
 		break;
+	case RTE_CRYPTO_AUTH_SHA224_HMAC:
+		type = AUTH_SHA2_SHA224;
+		break;
+	case RTE_CRYPTO_AUTH_SHA256_HMAC:
+		type = AUTH_SHA2_SHA256;
+		break;
 	default:
 		NITROX_LOG(ERR, "Algorithm not supported %d\n", algo);
 		type = AUTH_INVALID;
