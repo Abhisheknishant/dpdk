@@ -125,13 +125,13 @@ fips_test_parse_header(void)
 				info.algo = FIPS_TEST_ALGO_AES_CMAC;
 				ret = parse_test_cmac_init();
 				if (ret < 0)
-					return 0;
+					return ret;
 			} else if (strstr(info.vec[i], "CCM")) {
 				algo_parsed = 1;
 				info.algo = FIPS_TEST_ALGO_AES_CCM;
 				ret = parse_test_ccm_init();
 				if (ret < 0)
-					return 0;
+					return ret;
 			} else if (strstr(info.vec[i], "HMAC")) {
 				algo_parsed = 1;
 				info.algo = FIPS_TEST_ALGO_HMAC;
@@ -143,7 +143,7 @@ fips_test_parse_header(void)
 				info.algo = FIPS_TEST_ALGO_TDES;
 				ret = parse_test_tdes_init();
 				if (ret < 0)
-					return 0;
+					return ret;
 			} else if (strstr(info.vec[i], "SHA-")) {
 				if (info.algo != FIPS_TEST_ALGO_HMAC) {
 					algo_parsed = 1;
