@@ -784,6 +784,7 @@ F: doc/guides/nics/features/enetc.ini
 NXP ppfe
 M: Gagandeep Singh <g.singh@nxp.com>
 M: Akhil Goyal <akhil.goyal@nxp.com>
+F: doc/guides/nics/ppfe.rst
 F: drivers/net/ppfe/
 F: doc/guides/nics/features/ppfe.ini
 
