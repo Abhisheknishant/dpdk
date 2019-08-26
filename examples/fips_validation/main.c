@@ -636,6 +636,10 @@ prepare_aead_op(void)
 		}
 
 		memcpy(ct, vec.ct.val, vec.ct.len);
+
+		/* keep digest after crypto text */
+		memcpy(ct + vec.ct.len, vec.aead.digest.val,
+			vec.aead.digest.len);
 		sym->aead.data.length = vec.ct.len;
 		sym->aead.digest.data = vec.aead.digest.val;
 		sym->aead.digest.phys_addr = rte_malloc_virt2iova(
