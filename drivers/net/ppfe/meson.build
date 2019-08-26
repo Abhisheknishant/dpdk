@@ -6,6 +6,11 @@ if host_machine.system() != 'linux'
 endif
 deps += ['bus_dpaa']
 
-sources = files('ppfe_ethdev.c')
+sources = files('ppfe_ethdev.c',
+		'pfe_hal.c',
+		'pfe_hif_lib.c',
+		'pfe_hif.c')
 
-includes += include_directories('../../bus/dpaa/include/')
+allow_experimental_apis = true
+
+includes += include_directories('base','../../bus/dpaa/include/')
