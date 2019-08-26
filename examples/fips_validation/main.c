@@ -25,6 +25,7 @@
 #define CRYPTODEV_BK_DIR_KEY	"broken-test-dir"
 #define CRYPTODEV_ENC_KEYWORD	"enc"
 #define CRYPTODEV_DEC_KEYWORD	"dec"
+#define IV_SALT_LEN 12
 
 struct fips_test_vector vec;
 struct fips_test_interim_info info;
@@ -580,10 +581,16 @@ prepare_aead_op(void)
 	__rte_crypto_op_reset(env.op, RTE_CRYPTO_OP_TYPE_SYMMETRIC);
 	rte_pktmbuf_reset(env.mbuf);
 
-	if (info.algo == FIPS_TEST_ALGO_AES_CCM)
+	if (info.algo == FIPS_TEST_ALGO_AES_CCM) {
 		memcpy(iv + 1, vec.iv.val, vec.iv.len);
-	else
+	} else {
 		memcpy(iv, vec.iv.val, vec.iv.len);
+		/* Set initial IV if specified only salt IV value */
+		if (vec.iv.len == IV_SALT_LEN) {
+			memset(&iv[vec.iv.len], 0, 4);
+			iv[vec.iv.len + 3] = 1;
+		}
+	}
 
 	sym->m_src = env.mbuf;
 	sym->aead.data.offset = 0;
