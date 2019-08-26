@@ -95,6 +95,8 @@ PPFE Features
 - Packet type parsing
 - Basic stats
 - MTU update
+- Promiscuous mode
+- Allmulticast mode
 - ARMv8
 
 Supported PPFE SoCs
