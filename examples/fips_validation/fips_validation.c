@@ -11,6 +11,10 @@
 
 #include "fips_validation.h"
 
+#define COUNT0_STR	"COUNT = 0  "
+#define KEY_STR		"KEY"
+#define NK_STR		"NumKey"
+
 #define skip_white_spaces(pos)			\
 ({						\
 	__typeof__(pos) _p = (pos);		\
@@ -66,6 +70,22 @@ fips_test_fetch_one_block(void)
 		ret = get_file_line();
 		size = strlen(info.one_line_text);
 		if (size == 0)
+			break;
+
+		/* if first line is KEY-line then insert COUNT-line */
+		if (i == 0) {
+			if (strstr(info.one_line_text, KEY_STR)) {
+				info.vec[0] = calloc(1, sizeof(COUNT0_STR));
+				strlcpy(info.vec[0],
+						COUNT0_STR,
+						sizeof(COUNT0_STR));
+				i = 1;
+				info.nb_vec_lines = 1;
+			}
+		}
+
+		/* don't copy NumKey-line */
+		if (strstr(info.one_line_text, NK_STR))
 			break;
 
 		info.vec[i] = calloc(1, size + 5);
