@@ -145,11 +145,13 @@ fips_test_parse_header(void)
 				if (ret < 0)
 					return 0;
 			} else if (strstr(info.vec[i], "SHA-")) {
-				algo_parsed = 1;
-				info.algo = FIPS_TEST_ALGO_SHA;
-				ret = parse_test_sha_init();
-				if (ret < 0)
-					return ret;
+				if (info.algo != FIPS_TEST_ALGO_HMAC) {
+					algo_parsed = 1;
+					info.algo = FIPS_TEST_ALGO_SHA;
+					ret = parse_test_sha_init();
+					if (ret < 0)
+						return ret;
+				}
 			}
 		}
 
