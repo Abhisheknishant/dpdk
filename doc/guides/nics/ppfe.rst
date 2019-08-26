@@ -97,6 +97,7 @@ PPFE Features
 - MTU update
 - Promiscuous mode
 - Allmulticast mode
+- Link status
 - ARMv8
 
 Supported PPFE SoCs
