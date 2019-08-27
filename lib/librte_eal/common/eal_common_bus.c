@@ -70,16 +70,20 @@ rte_bus_probe(void)
 		}
 
 		ret = bus->probe();
-		if (ret)
+		if (ret) {
 			RTE_LOG(ERR, EAL, "Bus (%s) probe failed.\n",
 				bus->name);
+			return ret;
+		}
 	}
 
 	if (vbus) {
 		ret = vbus->probe();
-		if (ret)
+		if (ret) {
 			RTE_LOG(ERR, EAL, "Bus (%s) probe failed.\n",
 				vbus->name);
+			return ret;
+		}
 	}
 
 	return 0;
