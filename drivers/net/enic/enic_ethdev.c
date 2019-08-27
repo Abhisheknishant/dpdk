@@ -93,7 +93,7 @@ enicpmd_fdir_ctrl_func(struct rte_eth_dev *eth_dev,
 	switch (filter_op) {
 	case RTE_ETH_FILTER_ADD:
 	case RTE_ETH_FILTER_UPDATE:
-		ret = enic_fdir_add_fltr(enic,
+		ret = enic_fdir_add_fltr(eth_dev,
 			(struct rte_eth_fdir_filter *)arg);
 		break;
 
@@ -160,10 +160,11 @@ static void enicpmd_dev_tx_queue_release(void *txq)
 	enic_free_wq(txq);
 }
 
-static int enicpmd_dev_setup_intr(struct enic *enic)
+static int enicpmd_dev_setup_intr(struct rte_eth_dev *eth_dev)
 {
 	int ret;
 	unsigned int index;
+	struct enic *enic = pmd_priv(eth_dev);
 
 	ENICPMD_FUNC_TRACE();
 
@@ -193,7 +194,7 @@ static int enicpmd_dev_setup_intr(struct enic *enic)
 		dev_err(enic, "alloc intr failed\n");
 		return ret;
 	}
-	enic_init_vnic_resources(enic);
+	enic_init_vnic_resources(eth_dev);
 
 	ret = enic_setup_finish(enic);
 	if (ret)
@@ -228,17 +229,15 @@ static int enicpmd_dev_tx_queue_setup(struct rte_eth_dev *eth_dev,
 		return ret;
 	}
 
-	return enicpmd_dev_setup_intr(enic);
+	return enicpmd_dev_setup_intr(eth_dev);
 }
 
 static int enicpmd_dev_tx_queue_start(struct rte_eth_dev *eth_dev,
 	uint16_t queue_idx)
 {
-	struct enic *enic = pmd_priv(eth_dev);
-
 	ENICPMD_FUNC_TRACE();
 
-	enic_start_wq(enic, queue_idx);
+	enic_start_wq(eth_dev, queue_idx);
 
 	return 0;
 }
@@ -247,12 +246,12 @@ static int enicpmd_dev_tx_queue_stop(struct rte_eth_dev *eth_dev,
 	uint16_t queue_idx)
 {
 	int ret;
-	struct enic *enic = pmd_priv(eth_dev);
 
 	ENICPMD_FUNC_TRACE();
 
-	ret = enic_stop_wq(enic, queue_idx);
+	ret = enic_stop_wq(eth_dev, queue_idx);
 	if (ret)
+	  //struct enic *enic = pmd_priv(eth_dev);
 		dev_err(enic, "error in stopping wq %d\n", queue_idx);
 
 	return ret;
@@ -261,11 +260,9 @@ static int enicpmd_dev_tx_queue_stop(struct rte_eth_dev *eth_dev,
 static int enicpmd_dev_rx_queue_start(struct rte_eth_dev *eth_dev,
 	uint16_t queue_idx)
 {
-	struct enic *enic = pmd_priv(eth_dev);
-
 	ENICPMD_FUNC_TRACE();
 
-	enic_start_rq(enic, queue_idx);
+	enic_start_rq(eth_dev, queue_idx);
 
 	return 0;
 }
@@ -274,12 +271,12 @@ static int enicpmd_dev_rx_queue_stop(struct rte_eth_dev *eth_dev,
 	uint16_t queue_idx)
 {
 	int ret;
-	struct enic *enic = pmd_priv(eth_dev);
 
 	ENICPMD_FUNC_TRACE();
 
-	ret = enic_stop_rq(enic, queue_idx);
+	ret = enic_stop_rq(eth_dev, queue_idx);
 	if (ret)
+	  //struct enic *enic = pmd_priv(eth_dev);
 		dev_err(enic, "error in stopping rq %d\n", queue_idx);
 
 	return ret;
@@ -337,14 +334,14 @@ static int enicpmd_dev_rx_queue_setup(struct rte_eth_dev *eth_dev,
 	eth_dev->data->rx_queues[queue_idx] =
 		(void *)&enic->rq[enic_rte_rq_idx_to_sop_idx(queue_idx)];
 
-	ret = enic_alloc_rq(enic, queue_idx, socket_id, mp, nb_desc,
+	ret = enic_alloc_rq(eth_dev, queue_idx, socket_id, mp, nb_desc,
 			    rx_conf->rx_free_thresh);
 	if (ret) {
 		dev_err(enic, "error in allocating rq\n");
 		return ret;
 	}
 
-	return enicpmd_dev_setup_intr(enic);
+	return enicpmd_dev_setup_intr(eth_dev);
 }
 
 static int enicpmd_vlan_offload_set(struct rte_eth_dev *eth_dev, int mask)
@@ -387,7 +384,7 @@ static int enicpmd_dev_configure(struct rte_eth_dev *eth_dev)
 		return -E_RTE_SECONDARY;
 
 	ENICPMD_FUNC_TRACE();
-	ret = enic_set_vnic_res(enic);
+	ret = enic_set_vnic_res(eth_dev);
 	if (ret) {
 		dev_err(enic, "Set vNIC resource num  failed, aborting\n");
 		return ret;
@@ -410,7 +407,7 @@ static int enicpmd_dev_configure(struct rte_eth_dev *eth_dev)
 	 * given (rx_adv_conf.rss_conf.rss_key), will use that instead of the
 	 * default key.
 	 */
-	return enic_init_rss_nic_cfg(enic);
+	return enic_init_rss_nic_cfg(eth_dev);
 }
 
 /* Start the device.
@@ -418,13 +415,11 @@ static int enicpmd_dev_configure(struct rte_eth_dev *eth_dev)
  */
 static int enicpmd_dev_start(struct rte_eth_dev *eth_dev)
 {
-	struct enic *enic = pmd_priv(eth_dev);
-
 	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
 		return -E_RTE_SECONDARY;
 
 	ENICPMD_FUNC_TRACE();
-	return enic_enable(enic);
+	return enic_enable(eth_dev);
 }
 
 /*
@@ -433,13 +428,12 @@ static int enicpmd_dev_start(struct rte_eth_dev *eth_dev)
 static void enicpmd_dev_stop(struct rte_eth_dev *eth_dev)
 {
 	struct rte_eth_link link;
-	struct enic *enic = pmd_priv(eth_dev);
 
 	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
 		return;
 
 	ENICPMD_FUNC_TRACE();
-	enic_disable(enic);
+	enic_disable(eth_dev);
 
 	memset(&link, 0, sizeof(link));
 	rte_eth_linkstatus_set(eth_dev, &link);
@@ -459,10 +453,8 @@ static void enicpmd_dev_close(struct rte_eth_dev *eth_dev)
 static int enicpmd_dev_link_update(struct rte_eth_dev *eth_dev,
 	__rte_unused int wait_to_complete)
 {
-	struct enic *enic = pmd_priv(eth_dev);
-
 	ENICPMD_FUNC_TRACE();
-	return enic_link_update(enic);
+	return enic_link_update(eth_dev);
 }
 
 static int enicpmd_dev_stats_get(struct rte_eth_dev *eth_dev,
@@ -654,41 +646,36 @@ static int enicpmd_add_mac_addr(struct rte_eth_dev *eth_dev,
 	struct rte_ether_addr *mac_addr,
 	__rte_unused uint32_t index, __rte_unused uint32_t pool)
 {
-	struct enic *enic = pmd_priv(eth_dev);
-
 	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
 		return -E_RTE_SECONDARY;
 
 	ENICPMD_FUNC_TRACE();
-	return enic_set_mac_address(enic, mac_addr->addr_bytes);
+	return enic_set_mac_address(eth_dev, mac_addr->addr_bytes);
 }
 
 static void enicpmd_remove_mac_addr(struct rte_eth_dev *eth_dev, uint32_t index)
 {
-	struct enic *enic = pmd_priv(eth_dev);
-
 	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
 		return;
 
 	ENICPMD_FUNC_TRACE();
-	if (enic_del_mac_address(enic, index))
+	if (enic_del_mac_address(eth_dev, index))
 		dev_err(enic, "del mac addr failed\n");
 }
 
 static int enicpmd_set_mac_addr(struct rte_eth_dev *eth_dev,
 				struct rte_ether_addr *addr)
 {
-	struct enic *enic = pmd_priv(eth_dev);
 	int ret;
 
 	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
 		return -E_RTE_SECONDARY;
 
 	ENICPMD_FUNC_TRACE();
-	ret = enic_del_mac_address(enic, 0);
+	ret = enic_del_mac_address(eth_dev, 0);
 	if (ret)
 		return ret;
-	return enic_set_mac_address(enic, addr->addr_bytes);
+	return enic_set_mac_address(eth_dev, addr->addr_bytes);
 }
 
 static void debug_log_add_del_addr(struct rte_ether_addr *addr, bool add)
@@ -785,18 +772,16 @@ static int enicpmd_set_mc_addr_list(struct rte_eth_dev *eth_dev,
 
 static int enicpmd_mtu_set(struct rte_eth_dev *eth_dev, uint16_t mtu)
 {
-	struct enic *enic = pmd_priv(eth_dev);
-
 	ENICPMD_FUNC_TRACE();
-	return enic_set_mtu(enic, mtu);
+	return enic_set_mtu(eth_dev, mtu);
 }
 
-static int enicpmd_dev_rss_reta_query(struct rte_eth_dev *dev,
+static int enicpmd_dev_rss_reta_query(struct rte_eth_dev *eth_dev,
 				      struct rte_eth_rss_reta_entry64
 				      *reta_conf,
 				      uint16_t reta_size)
 {
-	struct enic *enic = pmd_priv(dev);
+	struct enic *enic = pmd_priv(eth_dev);
 	uint16_t i, idx, shift;
 
 	ENICPMD_FUNC_TRACE();
@@ -817,12 +802,12 @@ static int enicpmd_dev_rss_reta_query(struct rte_eth_dev *dev,
 	return 0;
 }
 
-static int enicpmd_dev_rss_reta_update(struct rte_eth_dev *dev,
+static int enicpmd_dev_rss_reta_update(struct rte_eth_dev *eth_dev,
 				       struct rte_eth_rss_reta_entry64
 				       *reta_conf,
 				       uint16_t reta_size)
 {
-	struct enic *enic = pmd_priv(dev);
+	struct enic *enic = pmd_priv(eth_dev);
 	union vnic_rss_cpu rss_cpu;
 	uint16_t i, idx, shift;
 
@@ -849,13 +834,11 @@ static int enicpmd_dev_rss_reta_update(struct rte_eth_dev *dev,
 	return enic_set_rss_reta(enic, &rss_cpu);
 }
 
-static int enicpmd_dev_rss_hash_update(struct rte_eth_dev *dev,
+static int enicpmd_dev_rss_hash_update(struct rte_eth_dev *eth_dev,
 				       struct rte_eth_rss_conf *rss_conf)
 {
-	struct enic *enic = pmd_priv(dev);
-
 	ENICPMD_FUNC_TRACE();
-	return enic_set_rss_conf(enic, rss_conf);
+	return enic_set_rss_conf(eth_dev, rss_conf);
 }
 
 static int enicpmd_dev_rss_hash_conf_get(struct rte_eth_dev *dev,
@@ -1205,7 +1188,6 @@ static int eth_enicpmd_dev_init(struct rte_eth_dev *eth_dev)
 	ENICPMD_FUNC_TRACE();
 
 	enic->port_id = eth_dev->data->port_id;
-	enic->rte_dev = eth_dev;
 	eth_dev->dev_ops = &enicpmd_eth_dev_ops;
 	eth_dev->rx_pkt_burst = &enic_recv_pkts;
 	eth_dev->tx_pkt_burst = &enic_xmit_pkts;
@@ -1215,7 +1197,6 @@ static int eth_enicpmd_dev_init(struct rte_eth_dev *eth_dev)
 
 	pdev = RTE_ETH_DEV_TO_PCI(eth_dev);
 	rte_eth_copy_pci_info(eth_dev, pdev);
-	enic->pdev = pdev;
 	addr = &pdev->addr;
 
 	snprintf(enic->bdf_name, ENICPMD_BDF_LENGTH, "%04x:%02x:%02x.%x",
@@ -1224,7 +1205,7 @@ static int eth_enicpmd_dev_init(struct rte_eth_dev *eth_dev)
 	err = enic_check_devargs(eth_dev);
 	if (err)
 		return err;
-	return enic_probe(enic);
+	return enic_probe(eth_dev);
 }
 
 static int eth_enic_pci_probe(struct rte_pci_driver *pci_drv __rte_unused,

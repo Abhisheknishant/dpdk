@@ -332,7 +332,7 @@ int enic_fdir_del_fltr(struct enic *enic, struct rte_eth_fdir_filter *params)
 	return 0;
 }
 
-int enic_fdir_add_fltr(struct enic *enic, struct rte_eth_fdir_filter *params)
+int enic_fdir_add_fltr(struct rte_eth_dev *eth_dev, struct rte_eth_fdir_filter *params)
 {
 	struct enic_fdir_node *key;
 	struct filter_v2 fltr;
@@ -343,6 +343,7 @@ int enic_fdir_add_fltr(struct enic *enic, struct rte_eth_fdir_filter *params)
 	u16 flex_bytes;
 	u16 queue;
 	struct filter_action_v2 action;
+	struct enic *enic = pmd_priv(eth_dev);
 
 	memset(&fltr, 0, sizeof(fltr));
 	memset(&action, 0, sizeof(action));
@@ -429,7 +430,7 @@ int enic_fdir_add_fltr(struct enic *enic, struct rte_eth_fdir_filter *params)
 	key->rq_index = queue;
 
 	enic->fdir.copy_fltr_fn(&fltr, &params->input,
-				&enic->rte_dev->data->dev_conf.fdir_conf.mask);
+				&eth_dev->data->dev_conf.fdir_conf.mask);
 	action.type = FILTER_ACTION_RQ_STEERING;
 	action.rq_idx = queue;
 
