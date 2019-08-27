@@ -3103,6 +3103,11 @@ eth_fm10k_dev_init(struct rte_eth_dev *dev)
 		&dev->data->mac_addrs[0]);
 	}
 
+	/* Pass the information to the rte_eth_dev_close() that it should also
+	 * release the private port resources.
+	 */
+	dev->data->dev_flags |= RTE_ETH_DEV_CLOSE_REMOVE;
+
 	/* Reset the hw statistics */
 	fm10k_stats_reset(dev);
 
