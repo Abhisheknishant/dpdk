@@ -300,15 +300,17 @@ rte_pci_probe(void)
 		probe_all = 1;
 
 	FOREACH_DEVICE_ON_PCIBUS(dev) {
-		probed++;
-
 		devargs = dev->device.devargs;
 		/* probe all or only whitelisted devices */
-		if (probe_all)
+		if (probe_all) {
 			ret = pci_probe_all_drivers(dev);
+			probed++;
+		}
 		else if (devargs != NULL &&
-			devargs->policy == RTE_DEV_WHITELISTED)
+			devargs->policy == RTE_DEV_WHITELISTED) {
 			ret = pci_probe_all_drivers(dev);
+			probed++;
+		}
 		if (ret < 0) {
 			if (ret != -EEXIST) {
 				RTE_LOG(ERR, EAL, "Requested device "
