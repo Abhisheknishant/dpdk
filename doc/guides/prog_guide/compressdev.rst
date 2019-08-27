@@ -76,6 +76,11 @@ The ``rte_compressdev_configure`` API is used to configure a compression device.
 The ``rte_compressdev_config`` structure is used to pass the configuration
 parameters.
 
+The allocation of the ``rte_compressdev_config`` struct passed on the API is in the application
+domain, so to allow future API extensions in a backwardly compatible manner the application
+should zero this struct, e.g. using sizeof(), before populating it. This allows the addition
+of new parameters to the struct with default value of zero indicating original behaviour.
+
 See *DPDK API Reference* for details.
 
 Configuration of Queue Pairs
@@ -263,6 +268,11 @@ Transforms
 Compression transforms (``rte_comp_xform``) are the mechanism
 to specify the details of the compression operation such as algorithm,
 window size and checksum.
+
+The allocation of the ``rte_comp_xform`` struct passed on the API is in the application
+domain, so to allow future API extensions in a backwardly compatible manner the application
+should zero this struct, e.g. using sizeof(), before populating it. This allows the addition
+of new parameters to the struct with default value of zero indicating original behaviour.
 
 Compression API Hash support
 ----------------------------
