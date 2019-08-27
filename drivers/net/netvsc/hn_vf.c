@@ -176,8 +176,16 @@ static void hn_vf_info_merge(struct rte_eth_dev *vf_dev,
 			     struct rte_eth_dev_info *info)
 {
 	struct rte_eth_dev_info vf_info;
+	int ret;
 
-	rte_eth_dev_info_get(vf_dev->data->port_id, &vf_info);
+	ret = rte_eth_dev_info_get(vf_dev->data->port_id, &vf_info);
+	if (ret != 0) {
+		PMD_DRV_LOG(ERR,
+			"Error during getting device (port %u) info: %s\n",
+			vf_dev->data->port_id, strerror(-ret));
+
+		return;
+	}
 
 	info->speed_capa = vf_info.speed_capa;
 	info->default_rxportconf = vf_info.default_rxportconf;
