@@ -21,8 +21,9 @@
 #include "enic_res.h"
 #include "enic.h"
 
-int enic_get_vnic_config(struct enic *enic)
+int enic_get_vnic_config(struct rte_eth_dev *eth_dev)
 {
+  struct enic *enic = pmd_priv(eth_dev);
 	struct vnic_enet_config *c = &enic->config;
 	int err;
 
@@ -68,7 +69,7 @@ int enic_get_vnic_config(struct enic *enic)
 	if (c->mtu == 0)
 		c->mtu = 1500;
 
-	enic->rte_dev->data->mtu = min_t(u16, enic->max_mtu,
+	eth_dev->data->mtu = min_t(u16, enic->max_mtu,
 					 max_t(u16, ENIC_MIN_MTU, c->mtu));
 
 	enic->adv_filters = vnic_dev_capable_adv_filters(enic->vdev);
@@ -118,7 +119,7 @@ int enic_get_vnic_config(struct enic *enic)
 		enic->mac_addr[0], enic->mac_addr[1], enic->mac_addr[2],
 		enic->mac_addr[3], enic->mac_addr[4], enic->mac_addr[5],
 		c->wq_desc_count, c->rq_desc_count,
-		enic->rte_dev->data->mtu, enic->max_mtu);
+		eth_dev->data->mtu, enic->max_mtu);
 	dev_info(enic_get_dev(enic), "vNIC csum tx/rx %s/%s "
 		"rss %s intr mode %s type %s timer %d usec "
 		"loopback tag 0x%04x\n",

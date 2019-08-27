@@ -30,9 +30,11 @@
 #include "vnic_intr.h"
 #include "vnic_nic.h"
 
-static inline int enic_is_sriov_vf(struct enic *enic)
+static inline int enic_is_sriov_vf(struct rte_eth_dev *eth_dev)
 {
-	return enic->pdev->id.device_id == PCI_DEVICE_ID_CISCO_VIC_ENET_VF;
+  struct rte_pci_device *pdev = RTE_ETH_DEV_TO_PCI(eth_dev);
+
+  return pdev->id.device_id == PCI_DEVICE_ID_CISCO_VIC_ENET_VF;
 }
 
 static int is_zero_addr(uint8_t *addr)
@@ -161,17 +163,18 @@ int enic_dev_stats_get(struct enic *enic, struct rte_eth_stats *r_stats)
 	return 0;
 }
 
-int enic_del_mac_address(struct enic *enic, int mac_index)
+int enic_del_mac_address(struct rte_eth_dev *eth_dev, int mac_index)
 {
-	struct rte_eth_dev *eth_dev = enic->rte_dev;
 	uint8_t *mac_addr = eth_dev->data->mac_addrs[mac_index].addr_bytes;
+	struct enic *enic = pmd_priv(eth_dev);
 
 	return vnic_dev_del_addr(enic->vdev, mac_addr);
 }
 
-int enic_set_mac_address(struct enic *enic, uint8_t *mac_addr)
+int enic_set_mac_address(struct rte_eth_dev *eth_dev, uint8_t *mac_addr)
 {
 	int err;
+	struct enic *enic = pmd_priv(eth_dev);
 
 	if (!is_eth_addr_valid(mac_addr)) {
 		dev_err(enic, "invalid mac address\n");
@@ -194,7 +197,7 @@ enic_free_rq_buf(struct rte_mbuf **mbuf)
 	*mbuf = NULL;
 }
 
-void enic_init_vnic_resources(struct enic *enic)
+void enic_init_vnic_resources(struct rte_eth_dev *eth_dev)
 {
 	unsigned int error_interrupt_enable = 1;
 	unsigned int error_interrupt_offset = 0;
@@ -203,8 +206,9 @@ void enic_init_vnic_resources(struct enic *enic)
 	unsigned int index = 0;
 	unsigned int cq_idx;
 	struct vnic_rq *data_rq;
+	struct enic *enic = pmd_priv(eth_dev);
 
-	if (enic->rte_dev->data->dev_conf.intr_conf.rxq)
+	if (eth_dev->data->dev_conf.intr_conf.rxq)
 		rxq_interrupt_enable = 1;
 
 	for (index = 0; index < enic->rq_count; index++) {
@@ -270,7 +274,7 @@ void enic_init_vnic_resources(struct enic *enic)
 
 
 static int
-enic_alloc_rx_queue_mbufs(struct enic *enic, struct vnic_rq *rq)
+enic_alloc_rx_queue_mbufs(struct rte_eth_dev *eth_dev, struct vnic_rq *rq)
 {
 	struct rte_mbuf *mb;
 	struct rq_enet_desc *rqd = rq->ring.descs;
@@ -293,7 +297,7 @@ enic_alloc_rx_queue_mbufs(struct enic *enic, struct vnic_rq *rq)
 	 * drop in the rx handler. Not ideal, but better than returning
 	 * large packets when the user is not expecting them.
 	 */
-	max_rx_pkt_len = enic->rte_dev->data->dev_conf.rxmode.max_rx_pkt_len;
+	max_rx_pkt_len = eth_dev->data->dev_conf.rxmode.max_rx_pkt_len;
 	rq_buf_len = rte_pktmbuf_data_room_size(rq->mp) - RTE_PKTMBUF_HEADROOM;
 	if (max_rx_pkt_len < rq_buf_len && !rq->data_queue_enable)
 		rq_buf_len = max_rx_pkt_len;
@@ -417,10 +421,10 @@ enic_free_consistent(void *priv,
 	rte_free(mze);
 }
 
-int enic_link_update(struct enic *enic)
+int enic_link_update(struct rte_eth_dev *eth_dev)
 {
-	struct rte_eth_dev *eth_dev = enic->rte_dev;
 	struct rte_eth_link link;
+	struct enic *enic = pmd_priv(eth_dev);
 
 	memset(&link, 0, sizeof(link));
 	link.link_status = enic_get_link_status(enic);
@@ -433,24 +437,25 @@ int enic_link_update(struct enic *enic)
 static void
 enic_intr_handler(void *arg)
 {
-	struct rte_eth_dev *dev = (struct rte_eth_dev *)arg;
-	struct enic *enic = pmd_priv(dev);
+	struct rte_eth_dev *eth_dev = (struct rte_eth_dev *)arg;
+	struct enic *enic = pmd_priv(eth_dev);
 
 	vnic_intr_return_all_credits(&enic->intr[ENICPMD_LSC_INTR_OFFSET]);
 
-	enic_link_update(enic);
-	_rte_eth_dev_callback_process(dev, RTE_ETH_EVENT_INTR_LSC, NULL);
+	enic_link_update(eth_dev);
+	_rte_eth_dev_callback_process(eth_dev, RTE_ETH_EVENT_INTR_LSC, NULL);
 	enic_log_q_error(enic);
 }
 
-static int enic_rxq_intr_init(struct enic *enic)
+static int enic_rxq_intr_init(struct rte_eth_dev *eth_dev)
 {
 	struct rte_intr_handle *intr_handle;
 	uint32_t rxq_intr_count, i;
 	int err;
+	struct enic *enic = pmd_priv(eth_dev);
 
-	intr_handle = enic->rte_dev->intr_handle;
-	if (!enic->rte_dev->data->dev_conf.intr_conf.rxq)
+	intr_handle = eth_dev->intr_handle;
+	if (!eth_dev->data->dev_conf.intr_conf.rxq)
 		return 0;
 	/*
 	 * Rx queue interrupts only work when we have MSI-X interrupts,
@@ -480,11 +485,11 @@ static int enic_rxq_intr_init(struct enic *enic)
 	return 0;
 }
 
-static void enic_rxq_intr_deinit(struct enic *enic)
+static void enic_rxq_intr_deinit(struct rte_eth_dev *eth_dev)
 {
 	struct rte_intr_handle *intr_handle;
 
-	intr_handle = enic->rte_dev->intr_handle;
+	intr_handle = eth_dev->intr_handle;
 	rte_intr_efd_disable(intr_handle);
 	if (intr_handle->intr_vec != NULL) {
 		rte_free(intr_handle->intr_vec);
@@ -518,14 +523,14 @@ static void enic_prep_wq_for_simple_tx(struct enic *enic, uint16_t queue_idx)
  * used when that file is not compiled.
  */
 __rte_weak bool
-enic_use_vector_rx_handler(__rte_unused struct enic *enic)
+enic_use_vector_rx_handler(__rte_unused struct rte_eth_dev *eth_dev)
 {
 	return false;
 }
 
-static void pick_rx_handler(struct enic *enic)
+static void pick_rx_handler(struct rte_eth_dev *eth_dev)
 {
-	struct rte_eth_dev *eth_dev;
+  struct enic *enic = pmd_priv(eth_dev);
 
 	/*
 	 * Preference order:
@@ -533,8 +538,7 @@ static void pick_rx_handler(struct enic *enic)
 	 * 2. The non-scatter, simplified handler if scatter Rx is not used.
 	 * 3. The default handler as a fallback.
 	 */
-	eth_dev = enic->rte_dev;
-	if (enic_use_vector_rx_handler(enic))
+	if (enic_use_vector_rx_handler(eth_dev))
 		return;
 	if (enic->rq_count > 0 && enic->rq[0].data_queue_enable == 0) {
 		ENICPMD_LOG(DEBUG, " use the non-scatter Rx handler");
@@ -545,13 +549,13 @@ static void pick_rx_handler(struct enic *enic)
 	}
 }
 
-int enic_enable(struct enic *enic)
+int enic_enable(struct rte_eth_dev *eth_dev)
 {
 	unsigned int index;
 	int err;
-	struct rte_eth_dev *eth_dev = enic->rte_dev;
 	uint64_t simple_tx_offloads;
 	uintptr_t p;
+	struct enic *enic = pmd_priv(eth_dev);
 
 	if (enic->enable_avx2_rx) {
 		struct rte_mbuf mb_def = { .buf_addr = 0 };
@@ -580,7 +584,7 @@ int enic_enable(struct enic *enic)
 	if (eth_dev->data->dev_conf.intr_conf.lsc)
 		vnic_dev_notify_set(enic->vdev, 0);
 
-	err = enic_rxq_intr_init(enic);
+	err = enic_rxq_intr_init(eth_dev);
 	if (err)
 		return err;
 	if (enic_clsf_init(enic))
@@ -588,13 +592,13 @@ int enic_enable(struct enic *enic)
 			"Flow director feature will not work\n");
 
 	for (index = 0; index < enic->rq_count; index++) {
-		err = enic_alloc_rx_queue_mbufs(enic,
+		err = enic_alloc_rx_queue_mbufs(eth_dev,
 			&enic->rq[enic_rte_rq_idx_to_sop_idx(index)]);
 		if (err) {
 			dev_err(enic, "Failed to alloc sop RX queue mbufs\n");
 			return err;
 		}
-		err = enic_alloc_rx_queue_mbufs(enic,
+		err = enic_alloc_rx_queue_mbufs(eth_dev,
 			&enic->rq[enic_rte_rq_idx_to_data_idx(index)]);
 		if (err) {
 			/* release the allocated mbufs for the sop rq*/
@@ -627,22 +631,26 @@ int enic_enable(struct enic *enic)
 		eth_dev->tx_pkt_burst = &enic_xmit_pkts;
 	}
 
-	pick_rx_handler(enic);
+	pick_rx_handler(eth_dev);
 
 	for (index = 0; index < enic->wq_count; index++)
-		enic_start_wq(enic, index);
+		enic_start_wq(eth_dev, index);
 	for (index = 0; index < enic->rq_count; index++)
-		enic_start_rq(enic, index);
+		enic_start_rq(eth_dev, index);
 
 	vnic_dev_add_addr(enic->vdev, enic->mac_addr);
 
 	vnic_dev_enable_wait(enic->vdev);
 
 	/* Register and enable error interrupt */
-	rte_intr_callback_register(&(enic->pdev->intr_handle),
-		enic_intr_handler, (void *)enic->rte_dev);
+	{
+	  struct rte_pci_device *pdev = RTE_ETH_DEV_TO_PCI(eth_dev);
 
-	rte_intr_enable(&(enic->pdev->intr_handle));
+	  rte_intr_callback_register(&pdev->intr_handle,
+	                             enic_intr_handler, (void *)eth_dev);
+
+	  rte_intr_enable(&pdev->intr_handle);
+	}
 	/* Unmask LSC interrupt */
 	vnic_intr_unmask(&enic->intr[ENICPMD_LSC_INTR_OFFSET]);
 
@@ -715,17 +723,18 @@ void enic_free_rq(void *rxq)
 	rq_data->in_use = 0;
 }
 
-void enic_start_wq(struct enic *enic, uint16_t queue_idx)
+void enic_start_wq(struct rte_eth_dev *eth_dev, uint16_t queue_idx)
 {
-	struct rte_eth_dev *eth_dev = enic->rte_dev;
-	vnic_wq_enable(&enic->wq[queue_idx]);
+  struct enic *enic = pmd_priv(eth_dev);
+
+  vnic_wq_enable(&enic->wq[queue_idx]);
 	eth_dev->data->tx_queue_state[queue_idx] = RTE_ETH_QUEUE_STATE_STARTED;
 }
 
-int enic_stop_wq(struct enic *enic, uint16_t queue_idx)
+int enic_stop_wq(struct rte_eth_dev *eth_dev, uint16_t queue_idx)
 {
-	struct rte_eth_dev *eth_dev = enic->rte_dev;
 	int ret;
+	struct enic *enic = pmd_priv(eth_dev);
 
 	ret = vnic_wq_disable(&enic->wq[queue_idx]);
 	if (ret)
@@ -735,13 +744,14 @@ int enic_stop_wq(struct enic *enic, uint16_t queue_idx)
 	return 0;
 }
 
-void enic_start_rq(struct enic *enic, uint16_t queue_idx)
+void enic_start_rq(struct rte_eth_dev *eth_dev, uint16_t queue_idx)
 {
 	struct vnic_rq *rq_sop;
 	struct vnic_rq *rq_data;
+	struct enic *enic = pmd_priv(eth_dev);
+
 	rq_sop = &enic->rq[enic_rte_rq_idx_to_sop_idx(queue_idx)];
 	rq_data = &enic->rq[rq_sop->data_queue_idx];
-	struct rte_eth_dev *eth_dev = enic->rte_dev;
 
 	if (rq_data->in_use) {
 		vnic_rq_enable(rq_data);
@@ -753,12 +763,13 @@ void enic_start_rq(struct enic *enic, uint16_t queue_idx)
 	eth_dev->data->rx_queue_state[queue_idx] = RTE_ETH_QUEUE_STATE_STARTED;
 }
 
-int enic_stop_rq(struct enic *enic, uint16_t queue_idx)
+int enic_stop_rq(struct rte_eth_dev *eth_dev, uint16_t queue_idx)
 {
 	int ret1 = 0, ret2 = 0;
-	struct rte_eth_dev *eth_dev = enic->rte_dev;
 	struct vnic_rq *rq_sop;
 	struct vnic_rq *rq_data;
+	struct enic *enic = pmd_priv(eth_dev);
+
 	rq_sop = &enic->rq[enic_rte_rq_idx_to_sop_idx(queue_idx)];
 	rq_data = &enic->rq[rq_sop->data_queue_idx];
 
@@ -776,13 +787,14 @@ int enic_stop_rq(struct enic *enic, uint16_t queue_idx)
 	return 0;
 }
 
-int enic_alloc_rq(struct enic *enic, uint16_t queue_idx,
+int enic_alloc_rq(struct rte_eth_dev *eth_dev, uint16_t queue_idx,
 	unsigned int socket_id, struct rte_mempool *mp,
 	uint16_t nb_desc, uint16_t free_thresh)
 {
 	int rc;
 	uint16_t sop_queue_idx = enic_rte_rq_idx_to_sop_idx(queue_idx);
 	uint16_t data_queue_idx = enic_rte_rq_idx_to_data_idx(queue_idx);
+	struct enic *enic = pmd_priv(eth_dev);
 	struct vnic_rq *rq_sop = &enic->rq[sop_queue_idx];
 	struct vnic_rq *rq_data = &enic->rq[data_queue_idx];
 	unsigned int mbuf_size, mbufs_per_pkt;
@@ -807,9 +819,9 @@ int enic_alloc_rq(struct enic *enic, uint16_t queue_idx,
 	mbuf_size = (uint16_t)(rte_pktmbuf_data_room_size(mp) -
 			       RTE_PKTMBUF_HEADROOM);
 	/* max_rx_pkt_len includes the ethernet header and CRC. */
-	max_rx_pkt_len = enic->rte_dev->data->dev_conf.rxmode.max_rx_pkt_len;
+	max_rx_pkt_len = eth_dev->data->dev_conf.rxmode.max_rx_pkt_len;
 
-	if (enic->rte_dev->data->dev_conf.rxmode.offloads &
+	if (eth_dev->data->dev_conf.rxmode.offloads &
 	    DEV_RX_OFFLOAD_SCATTER) {
 		dev_info(enic, "Rq %u Scatter rx mode enabled\n", queue_idx);
 		/* ceil((max pkt len)/mbuf_size) */
@@ -1025,26 +1037,29 @@ int enic_alloc_wq(struct enic *enic, uint16_t queue_idx,
 	return err;
 }
 
-int enic_disable(struct enic *enic)
+int enic_disable(struct rte_eth_dev *eth_dev)
 {
 	unsigned int i;
 	int err;
+	struct enic *enic = pmd_priv(eth_dev);
+	struct rte_pci_device *pdev = RTE_ETH_DEV_TO_PCI(eth_dev);
 
 	for (i = 0; i < enic->intr_count; i++) {
 		vnic_intr_mask(&enic->intr[i]);
 		(void)vnic_intr_masked(&enic->intr[i]); /* flush write */
 	}
-	enic_rxq_intr_deinit(enic);
-	rte_intr_disable(&enic->pdev->intr_handle);
-	rte_intr_callback_unregister(&enic->pdev->intr_handle,
+	enic_rxq_intr_deinit(eth_dev);
+
+	rte_intr_disable(&pdev->intr_handle);
+	rte_intr_callback_unregister(&pdev->intr_handle,
 				     enic_intr_handler,
-				     (void *)enic->rte_dev);
+				     (void *)eth_dev);
 
 	vnic_dev_disable(enic->vdev);
 
 	enic_clsf_destroy(enic);
 
-	if (!enic_is_sriov_vf(enic))
+	if (!enic_is_sriov_vf(eth_dev))
 		vnic_dev_del_addr(enic->vdev, enic->mac_addr);
 
 	for (i = 0; i < enic->wq_count; i++) {
@@ -1064,7 +1079,7 @@ int enic_disable(struct enic *enic)
 	 * to disable interrupts.  We are not disabling link notifcations,
 	 * though, as we want the polling of link status to continue working.
 	 */
-	if (enic->rte_dev->data->dev_conf.intr_conf.lsc)
+	if (eth_dev->data->dev_conf.intr_conf.lsc)
 		vnic_dev_notify_set(enic->vdev, -1);
 
 	vnic_dev_set_reset_flag(enic->vdev, 1);
@@ -1198,7 +1213,7 @@ static int enic_set_niccfg(struct enic *enic, u8 rss_default_cpu,
 }
 
 /* Initialize RSS with defaults, called from dev_configure */
-int enic_init_rss_nic_cfg(struct enic *enic)
+int enic_init_rss_nic_cfg(struct rte_eth_dev *eth_dev)
 {
 	static uint8_t default_rss_key[] = {
 		85, 67, 83, 97, 119, 101, 115, 111, 109, 101,
@@ -1209,8 +1224,9 @@ int enic_init_rss_nic_cfg(struct enic *enic)
 	struct rte_eth_rss_conf rss_conf;
 	union vnic_rss_cpu rss_cpu;
 	int ret, i;
+	struct enic *enic = pmd_priv(eth_dev);
 
-	rss_conf = enic->rte_dev->data->dev_conf.rx_adv_conf.rss_conf;
+	rss_conf = eth_dev->data->dev_conf.rx_adv_conf.rss_conf;
 	/*
 	 * If setting key for the first time, and the user gives us none, then
 	 * push the default key to NIC.
@@ -1219,7 +1235,7 @@ int enic_init_rss_nic_cfg(struct enic *enic)
 		rss_conf.rss_key = default_rss_key;
 		rss_conf.rss_key_len = ENIC_RSS_HASH_KEY_SIZE;
 	}
-	ret = enic_set_rss_conf(enic, &rss_conf);
+	ret = enic_set_rss_conf(eth_dev, &rss_conf);
 	if (ret) {
 		dev_err(enic, "Failed to configure RSS\n");
 		return ret;
@@ -1277,13 +1293,13 @@ static int enic_rss_conf_valid(struct enic *enic,
 }
 
 /* Set hash type and key according to rss_conf */
-int enic_set_rss_conf(struct enic *enic, struct rte_eth_rss_conf *rss_conf)
+int enic_set_rss_conf(struct rte_eth_dev *eth_dev, struct rte_eth_rss_conf *rss_conf)
 {
-	struct rte_eth_dev *eth_dev;
 	uint64_t rss_hf;
 	u8 rss_hash_type;
 	u8 rss_enable;
 	int ret;
+	struct enic *enic = pmd_priv(eth_dev);
 
 	RTE_ASSERT(rss_conf != NULL);
 	ret = enic_rss_conf_valid(enic, rss_conf);
@@ -1292,7 +1308,6 @@ int enic_set_rss_conf(struct enic *enic, struct rte_eth_rss_conf *rss_conf)
 		return ret;
 	}
 
-	eth_dev = enic->rte_dev;
 	rss_hash_type = 0;
 	rss_hf = rss_conf->rss_hf & enic->flow_type_rss_offloads;
 	if (enic->rq_count > 1 &&
@@ -1389,11 +1404,11 @@ static void enic_dev_deinit(struct enic *enic)
 }
 
 
-int enic_set_vnic_res(struct enic *enic)
+int enic_set_vnic_res(struct rte_eth_dev *eth_dev)
 {
-	struct rte_eth_dev *eth_dev = enic->rte_dev;
 	int rc = 0;
 	unsigned int required_rq, required_wq, required_cq, required_intr;
+	struct enic *enic = pmd_priv(eth_dev);
 
 	/* Always use two vNIC RQs per eth_dev RQ, regardless of Rx scatter. */
 	required_rq = eth_dev->data->nb_rx_queues * 2;
@@ -1440,11 +1455,12 @@ int enic_set_vnic_res(struct enic *enic)
 
 /* Initialize the completion queue for an RQ */
 static int
-enic_reinit_rq(struct enic *enic, unsigned int rq_idx)
+enic_reinit_rq(struct rte_eth_dev *eth_dev, unsigned int rq_idx)
 {
 	struct vnic_rq *sop_rq, *data_rq;
 	unsigned int cq_idx;
 	int rc = 0;
+	struct enic *enic = pmd_priv(eth_dev);
 
 	sop_rq = &enic->rq[enic_rte_rq_idx_to_sop_idx(rq_idx)];
 	data_rq = &enic->rq[enic_rte_rq_idx_to_data_idx(rq_idx)];
@@ -1474,12 +1490,12 @@ enic_reinit_rq(struct enic *enic, unsigned int rq_idx)
 				   data_rq->ring.desc_count - 1, 1, 0);
 	}
 
-	rc = enic_alloc_rx_queue_mbufs(enic, sop_rq);
+	rc = enic_alloc_rx_queue_mbufs(eth_dev, sop_rq);
 	if (rc)
 		return rc;
 
 	if (data_rq->in_use) {
-		rc = enic_alloc_rx_queue_mbufs(enic, data_rq);
+		rc = enic_alloc_rx_queue_mbufs(eth_dev, data_rq);
 		if (rc) {
 			enic_rxmbuf_queue_release(enic, sop_rq);
 			return rc;
@@ -1496,14 +1512,14 @@ enic_reinit_rq(struct enic *enic, unsigned int rq_idx)
  * Depending on the network setup, doing so may cause packet drops
  * and unexpected behavior.
  */
-int enic_set_mtu(struct enic *enic, uint16_t new_mtu)
+int enic_set_mtu(struct rte_eth_dev *eth_dev, uint16_t new_mtu)
 {
 	unsigned int rq_idx;
 	struct vnic_rq *rq;
 	int rc = 0;
 	uint16_t old_mtu;	/* previous setting */
 	uint16_t config_mtu;	/* Value configured into NIC via CIMC/UCSM */
-	struct rte_eth_dev *eth_dev = enic->rte_dev;
+	struct enic *enic = pmd_priv(eth_dev);
 
 	old_mtu = eth_dev->data->mtu;
 	config_mtu = enic->config.mtu;
@@ -1554,7 +1570,7 @@ int enic_set_mtu(struct enic *enic, uint16_t new_mtu)
 	for (rq_idx = 0; rq_idx < enic->rq_count * 2; rq_idx++) {
 		rq = &enic->rq[rq_idx];
 		if (rq->is_sop && rq->in_use) {
-			rc = enic_stop_rq(enic,
+			rc = enic_stop_rq(eth_dev,
 					  enic_sop_rq_idx_to_rte_idx(rq_idx));
 			if (rc) {
 				dev_err(enic, "Failed to stop Rq %u\n", rq_idx);
@@ -1580,7 +1596,7 @@ int enic_set_mtu(struct enic *enic, uint16_t new_mtu)
 			continue;
 
 		enic_free_rq(rq);
-		rc = enic_alloc_rq(enic, rq_idx, rq->socket_id, rq->mp,
+		rc = enic_alloc_rq(eth_dev, rq_idx, rq->socket_id, rq->mp,
 				   rq->tot_nb_desc, rq->rx_free_thresh);
 		if (rc) {
 			dev_err(enic,
@@ -1588,7 +1604,7 @@ int enic_set_mtu(struct enic *enic, uint16_t new_mtu)
 			goto set_mtu_done;
 		}
 
-		rc = enic_reinit_rq(enic, rq_idx);
+		rc = enic_reinit_rq(eth_dev, rq_idx);
 		if (rc) {
 			dev_err(enic,
 				"Fatal MTU RQ reinit- No traffic will pass\n");
@@ -1598,14 +1614,14 @@ int enic_set_mtu(struct enic *enic, uint16_t new_mtu)
 
 	/* put back the real receive function */
 	rte_mb();
-	pick_rx_handler(enic);
+	pick_rx_handler(eth_dev);
 	rte_mb();
 
 	/* restart Rx traffic */
 	for (rq_idx = 0; rq_idx < enic->rq_count; rq_idx++) {
 		rq = &enic->rq[enic_rte_rq_idx_to_sop_idx(rq_idx)];
 		if (rq->is_sop && rq->in_use)
-			enic_start_rq(enic, rq_idx);
+			enic_start_rq(eth_dev, rq_idx);
 	}
 
 set_mtu_done:
@@ -1614,16 +1630,16 @@ set_mtu_done:
 	return rc;
 }
 
-static int enic_dev_init(struct enic *enic)
+static int enic_dev_init(struct rte_eth_dev *eth_dev)
 {
 	int err;
-	struct rte_eth_dev *eth_dev = enic->rte_dev;
+	struct enic *enic = pmd_priv(eth_dev);
 
 	vnic_dev_intr_coal_timer_info_default(enic->vdev);
 
 	/* Get vNIC configuration
 	*/
-	err = enic_get_vnic_config(enic);
+	err = enic_get_vnic_config(eth_dev);
 	if (err) {
 		dev_err(dev, "Get vNIC configuration failed, aborting\n");
 		return err;
@@ -1737,9 +1753,10 @@ static int enic_dev_init(struct enic *enic)
 
 }
 
-int enic_probe(struct enic *enic)
+int enic_probe(struct rte_eth_dev *eth_dev)
 {
-	struct rte_pci_device *pdev = enic->pdev;
+  struct enic *enic = pmd_priv(eth_dev);
+  struct rte_pci_device *pdev = RTE_ETH_DEV_TO_PCI(eth_dev);
 	int err = -1;
 
 	dev_debug(enic, "Initializing ENIC PMD\n");
@@ -1752,7 +1769,7 @@ int enic_probe(struct enic *enic)
 	enic->bar0.len = pdev->mem_resource[0].len;
 
 	/* Register vNIC device */
-	enic->vdev = vnic_dev_register(NULL, enic, enic->pdev, &enic->bar0, 1);
+	enic->vdev = vnic_dev_register(NULL, enic, pdev, &enic->bar0, 1);
 	if (!enic->vdev) {
 		dev_err(enic, "vNIC registration failed, aborting\n");
 		goto err_out;
@@ -1806,7 +1823,7 @@ int enic_probe(struct enic *enic)
 		goto err_out_dev_close;
 	}
 
-	err = enic_dev_init(enic);
+	err = enic_dev_init(eth_dev);
 	if (err) {
 		dev_err(enic, "Device initialization failed, aborting\n");
 		goto err_out_dev_close;
