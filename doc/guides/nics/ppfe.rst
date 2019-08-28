@@ -94,6 +94,7 @@ PPFE Features
 - L3/L4 checksum offload
 - Packet type parsing
 - Basic stats
+- MTU update
 - ARMv8
 
 Supported PPFE SoCs
