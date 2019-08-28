@@ -24,7 +24,7 @@
 #include <rte_cpuflags.h>
 #include <rte_rwlock.h>
 #include <rte_spinlock.h>
-#include <rte_ring.h>
+#include <rte_ring_32.h>
 #include <rte_compat.h>
 #include <rte_vect.h>
 #include <rte_tailq.h>
@@ -213,7 +213,7 @@ rte_hash_create(const struct rte_hash_parameters *params)
 
 	snprintf(ring_name, sizeof(ring_name), "HT_%s", params->name);
 	/* Create ring (Dummy slot index is not enqueued) */
-	r = rte_ring_create(ring_name, rte_align32pow2(num_key_slots),
+	r = rte_ring_create_32(ring_name, rte_align32pow2(num_key_slots),
 			params->socket_id, 0);
 	if (r == NULL) {
 		RTE_LOG(ERR, HASH, "memory allocation failed\n");
@@ -227,7 +227,7 @@ rte_hash_create(const struct rte_hash_parameters *params)
 	if (ext_table_support) {
 		snprintf(ext_ring_name, sizeof(ext_ring_name), "HT_EXT_%s",
 								params->name);
-		r_ext = rte_ring_create(ext_ring_name,
+		r_ext = rte_ring_create_32(ext_ring_name,
 				rte_align32pow2(num_buckets + 1),
 				params->socket_id, 0);
 
@@ -295,7 +295,7 @@ rte_hash_create(const struct rte_hash_parameters *params)
 		 * for next bucket
 		 */
 		for (i = 1; i <= num_buckets; i++)
-			rte_ring_sp_enqueue(r_ext, (void *)((uintptr_t) i));
+			rte_ring_sp_enqueue_32(r_ext, i);
 
 		if (readwrite_concur_lf_support) {
 			ext_bkt_to_free = rte_zmalloc(NULL, sizeof(uint32_t) *
@@ -434,7 +434,7 @@ rte_hash_create(const struct rte_hash_parameters *params)
 
 	/* Populate free slots ring. Entry zero is reserved for key misses. */
 	for (i = 1; i < num_key_slots; i++)
-		rte_ring_sp_enqueue(r, (void *)((uintptr_t) i));
+		rte_ring_sp_enqueue_32(r, i);
 
 	te->data = (void *) h;
 	TAILQ_INSERT_TAIL(hash_list, te, next);
@@ -598,13 +598,12 @@ rte_hash_reset(struct rte_hash *h)
 		tot_ring_cnt = h->entries;
 
 	for (i = 1; i < tot_ring_cnt + 1; i++)
-		rte_ring_sp_enqueue(h->free_slots, (void *)((uintptr_t) i));
+		rte_ring_sp_enqueue_32(h->free_slots, i);
 
 	/* Repopulate the free ext bkt ring. */
 	if (h->ext_table_support) {
 		for (i = 1; i <= h->num_buckets; i++)
-			rte_ring_sp_enqueue(h->free_ext_bkts,
-						(void *)((uintptr_t) i));
+			rte_ring_sp_enqueue_32(h->free_ext_bkts, i);
 	}
 
 	if (h->use_local_cache) {
@@ -623,13 +622,13 @@ rte_hash_reset(struct rte_hash *h)
 static inline void
 enqueue_slot_back(const struct rte_hash *h,
 		struct lcore_cache *cached_free_slots,
-		void *slot_id)
+		uint32_t slot_id)
 {
 	if (h->use_local_cache) {
 		cached_free_slots->objs[cached_free_slots->len] = slot_id;
 		cached_free_slots->len++;
 	} else
-		rte_ring_sp_enqueue(h->free_slots, slot_id);
+		rte_ring_sp_enqueue_32(h->free_slots, slot_id);
 }
 
 /* Search a key from bucket and update its data.
@@ -923,8 +922,8 @@ __rte_hash_add_key_with_hash(const struct rte_hash *h, const void *key,
 	uint32_t prim_bucket_idx, sec_bucket_idx;
 	struct rte_hash_bucket *prim_bkt, *sec_bkt, *cur_bkt;
 	struct rte_hash_key *new_k, *keys = h->key_store;
-	void *slot_id = NULL;
-	void *ext_bkt_id = NULL;
+	uint32_t slot_id = 0;
+	uint32_t ext_bkt_id = 0;
 	uint32_t new_idx, bkt_id;
 	int ret;
 	unsigned n_slots;
@@ -968,7 +967,7 @@ __rte_hash_add_key_with_hash(const struct rte_hash *h, const void *key,
 		/* Try to get a free slot from the local cache */
 		if (cached_free_slots->len == 0) {
 			/* Need to get another burst of free slots from global ring */
-			n_slots = rte_ring_mc_dequeue_burst(h->free_slots,
+			n_slots = rte_ring_mc_dequeue_burst_32(h->free_slots,
 					cached_free_slots->objs,
 					LCORE_CACHE_SIZE, NULL);
 			if (n_slots == 0) {
@@ -982,13 +981,12 @@ __rte_hash_add_key_with_hash(const struct rte_hash *h, const void *key,
 		cached_free_slots->len--;
 		slot_id = cached_free_slots->objs[cached_free_slots->len];
 	} else {
-		if (rte_ring_sc_dequeue(h->free_slots, &slot_id) != 0) {
+		if (rte_ring_sc_dequeue_32(h->free_slots, &slot_id) != 0)
 			return -ENOSPC;
-		}
 	}
 
-	new_k = RTE_PTR_ADD(keys, (uintptr_t)slot_id * h->key_entry_size);
-	new_idx = (uint32_t)((uintptr_t) slot_id);
+	new_k = RTE_PTR_ADD(keys, slot_id * h->key_entry_size);
+	new_idx = slot_id;
 	/* The store to application data (by the application) at *data should
 	 * not leak after the store of pdata in the key store. i.e. pdata is
 	 * the guard variable. Release the application data to the readers.
@@ -1078,12 +1076,12 @@ __rte_hash_add_key_with_hash(const struct rte_hash *h, const void *key,
 	/* Failed to get an empty entry from extendable buckets. Link a new
 	 * extendable bucket. We first get a free bucket from ring.
 	 */
-	if (rte_ring_sc_dequeue(h->free_ext_bkts, &ext_bkt_id) != 0) {
+	if (rte_ring_sc_dequeue_32(h->free_ext_bkts, &ext_bkt_id) != 0) {
 		ret = -ENOSPC;
 		goto failure;
 	}
 
-	bkt_id = (uint32_t)((uintptr_t)ext_bkt_id) - 1;
+	bkt_id = ext_bkt_id - 1;
 	/* Use the first location of the new bucket */
 	(h->buckets_ext[bkt_id]).sig_current[0] = short_sig;
 	/* Store to signature and key should not leak after
@@ -1373,7 +1371,7 @@ remove_entry(const struct rte_hash *h, struct rte_hash_bucket *bkt, unsigned i)
 		/* Cache full, need to free it. */
 		if (cached_free_slots->len == LCORE_CACHE_SIZE) {
 			/* Need to enqueue the free slots in global ring. */
-			n_slots = rte_ring_mp_enqueue_burst(h->free_slots,
+			n_slots = rte_ring_mp_enqueue_burst_32(h->free_slots,
 						cached_free_slots->objs,
 						LCORE_CACHE_SIZE, NULL);
 			ERR_IF_TRUE((n_slots == 0),
@@ -1383,11 +1381,10 @@ remove_entry(const struct rte_hash *h, struct rte_hash_bucket *bkt, unsigned i)
 		}
 		/* Put index of new free slot in cache. */
 		cached_free_slots->objs[cached_free_slots->len] =
-				(void *)((uintptr_t)bkt->key_idx[i]);
+				bkt->key_idx[i];
 		cached_free_slots->len++;
 	} else {
-		rte_ring_sp_enqueue(h->free_slots,
-				(void *)((uintptr_t)bkt->key_idx[i]));
+		rte_ring_sp_enqueue_32(h->free_slots, bkt->key_idx[i]);
 	}
 }
 
@@ -1551,7 +1548,7 @@ return_bkt:
 			 */
 			h->ext_bkt_to_free[ret] = index;
 		else
-			rte_ring_sp_enqueue(h->free_ext_bkts, (void *)(uintptr_t)index);
+			rte_ring_sp_enqueue_32(h->free_ext_bkts, index);
 	}
 	__hash_rw_writer_unlock(h);
 	return ret;
@@ -1614,7 +1611,7 @@ rte_hash_free_key_with_position(const struct rte_hash *h,
 		uint32_t index = h->ext_bkt_to_free[position];
 		if (index) {
 			/* Recycle empty ext bkt to free list. */
-			rte_ring_sp_enqueue(h->free_ext_bkts, (void *)(uintptr_t)index);
+			rte_ring_sp_enqueue_32(h->free_ext_bkts, index);
 			h->ext_bkt_to_free[position] = 0;
 		}
 	}
@@ -1625,19 +1622,17 @@ rte_hash_free_key_with_position(const struct rte_hash *h,
 		/* Cache full, need to free it. */
 		if (cached_free_slots->len == LCORE_CACHE_SIZE) {
 			/* Need to enqueue the free slots in global ring. */
-			n_slots = rte_ring_mp_enqueue_burst(h->free_slots,
+			n_slots = rte_ring_mp_enqueue_burst_32(h->free_slots,
 						cached_free_slots->objs,
 						LCORE_CACHE_SIZE, NULL);
 			RETURN_IF_TRUE((n_slots == 0), -EFAULT);
 			cached_free_slots->len -= n_slots;
 		}
 		/* Put index of new free slot in cache. */
-		cached_free_slots->objs[cached_free_slots->len] =
-					(void *)((uintptr_t)key_idx);
+		cached_free_slots->objs[cached_free_slots->len] = key_idx;
 		cached_free_slots->len++;
 	} else {
-		rte_ring_sp_enqueue(h->free_slots,
-				(void *)((uintptr_t)key_idx));
+		rte_ring_sp_enqueue_32(h->free_slots, key_idx);
 	}
 
 	return 0;
