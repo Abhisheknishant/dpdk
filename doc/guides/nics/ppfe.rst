@@ -91,6 +91,7 @@ pfe.ko is required for PHY initialisation.
 PPFE Features
 ~~~~~~~~~~~~~~
 
+- L3/L4 checksum offload
 - ARMv8
 
 Supported PPFE SoCs
