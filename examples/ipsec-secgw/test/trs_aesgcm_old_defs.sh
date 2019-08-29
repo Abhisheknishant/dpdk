@@ -2,4 +2,4 @@
 
 . ${DIR}/trs_aesgcm_defs.sh
 
-SGW_CMD_XPRM=
+SGW_CMD_XPRM='-l 0'
