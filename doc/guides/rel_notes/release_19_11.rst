@@ -56,6 +56,13 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Updated the AF_XDP PMD.**
+
+  Updated the AF_XDP PMD. The new features include:
+
+  * Enabled zero copy between application mempools and UMEM by enabling the
+    XDP_UMEM_UNALIGNED_CHUNKS UMEM flag.
+
 
 Removed Items
 -------------
@@ -68,6 +75,8 @@ Removed Items
    This section is a comment. Do not overwrite or remove it.
    Also, make sure to start the actual text at the margin.
    =========================================================
+
+* Removed AF_XDP pmd_zero copy vdev argument. Support is now auto-detected.
 
 
 API Changes
