@@ -46,6 +46,12 @@ Please note that enabling debugging options may affect system performance.
 
   Toggle to use a 16-byte RX descriptor, by default the RX descriptor is 32 byte.
 
+- ``CONFIG_RTE_LIBRTE_ICE_PROTO_XTR`` (default ``y``)
+
+  Toggle to enable ``Protocol extraction for per queue``, it can't be enabled
+  with ``CONFIG_RTE_LIBRTE_ICE_16BYTE_RX_DESC`` at the same time. And it will
+  modify the ``rte_mbuf::udata64``.
+
 Runtime Config Options
 ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -60,6 +66,107 @@ Runtime Config Options
   Then the driver will be initialized successfully and the device will enter Safe Mode.
   NOTE: In Safe mode, only very limited features are available, features like RSS,
   checksum, fdir, tunneling ... are all disabled.
+
+- ``Protocol extraction for per queue``
+
+  Configure the RX queues to do protocol extraction into ``rte_mbuf::udata64``
+  for protocol handling acceleration, like checking the TCP SYN packets quickly.
+
+  The argument format is::
+
+      -w 18:00.0,proto_xtr=<queues:protocol>[<queues:protocol>...]
+      -w 18:00.0,proto_xtr=<protocol>
+
+  Queues are grouped by ``(`` and ``)`` within the group. The ``-`` character
+  is used as a range separator and ``,`` is used as a single number separator.
+  The grouping ``()`` can be omitted for single element group. If no queues are
+  specified, PMD will use this protocol extraction type for all queues.
+
+  Protocol is : ``vlan, ipv4, ipv6, ipv6_flow, tcp``.
+
+  .. code-block:: console
+
+    testpmd -w 18:00.0,proto_xtr='[(1,2-3,8-9):tcp,10-13:vlan]'
+
+  This setting means queues 1, 2-3, 8-9 are TCP extraction, queues 10-13 are
+  VLAN extraction, other queues run with no protocol extraction.
+
+  .. code-block:: console
+
+    testpmd -w 18:00.0,proto_xtr=vlan,proto_xtr='[(1,2-3,8-9):tcp,10-23:ipv6]'
+
+  This setting means queues 1, 2-3, 8-9 are TCP extraction, queues 10-23 are
+  IPv6 extraction, other queues use the default VLAN extraction.
+
+  The extraction will be copied into the lower 32 bit of ``rte_mbuf::udata64``.
+
+  .. table:: Protocol extraction : ``vlan``
+
+   +----------------------------+----------------------------+
+   |           VLAN2            |           VLAN1            |
+   +======+===+=================+======+===+=================+
+   |  PCP | D |       VID       |  PCP | D |       VID       |
+   +------+---+-----------------+------+---+-----------------+
+
+  VLAN1 - single or EVLAN (first for QinQ).
+
+  VLAN2 - C-VLAN (second for QinQ).
+
+  .. table:: Protocol extraction : ``ipv4``
+
+   +----------------------------+----------------------------+
+   |           IPHDR2           |           IPHDR1           |
+   +======+=======+=============+==============+=============+
+   |  Ver |Hdr Len|    ToS      |      TTL     |  Protocol   |
+   +------+-------+-------------+--------------+-------------+
+
+  IPHDR1 - IPv4 header word 4, "TTL" and "Protocol" fields.
+
+  IPHDR2 - IPv4 header word 0, "Ver", "Hdr Len" and "Type of Service" fields.
+
+  .. table:: Protocol extraction : ``ipv6``
+
+   +----------------------------+----------------------------+
+   |           IPHDR2           |           IPHDR1           |
+   +=====+=============+========+=============+==============+
+   | Ver |Traffic class|  Flow  | Next Header |   Hop Limit  |
+   +-----+-------------+--------+-------------+--------------+
+
+  IPHDR1 - IPv6 header word 3, "Next Header" and "Hop Limit" fields.
+
+  IPHDR2 - IPv6 header word 0, "Ver", "Traffic class" and high 4 bits of
+  "Flow Label" fields.
+
+  .. table:: Protocol extraction : ``ipv6_flow``
+
+   +----------------------------+----------------------------+
+   |           IPHDR2           |           IPHDR1           |
+   +=====+=============+========+============================+
+   | Ver |Traffic class|            Flow Label               |
+   +-----+-------------+-------------------------------------+
+
+  IPHDR1 - IPv6 header word 1, 16 low bits of the "Flow Label" field.
+
+  IPHDR2 - IPv6 header word 0, "Ver", "Traffic class" and high 4 bits of
+  "Flow Label" fields.
+
+  .. table:: Protocol extraction : ``tcp``
+
+   +----------------------------+----------------------------+
+   |           TCPHDR2          |           TCPHDR1          |
+   +============================+======+======+==============+
+   |          Reserved          |Offset|  RSV |     Flags    |
+   +----------------------------+------+------+--------------+
+
+  TCPHDR1 - TCP header word 6, "Data Offset" and "Flags" fields.
+
+  TCPHDR2 - Reserved
+
+  Use ``get_proto_xtr_flds(struct rte_mbuf *mb)`` to access the protocol
+  extraction, do not use ``rte_mbuf::udata64`` directly.
+
+  The ``dump_proto_xtr_flds(struct rte_mbuf *mb)`` routine shows how to
+  access the protocol extraction result in ``struct rte_mbuf``.
 
 Driver compilation and testing
 ------------------------------

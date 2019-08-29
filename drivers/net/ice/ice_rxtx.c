@@ -13,6 +13,40 @@
 		PKT_TX_TCP_SEG |		 \
 		PKT_TX_OUTER_IP_CKSUM)
 
+#ifdef RTE_LIBRTE_ICE_PROTO_XTR
+
+static inline uint8_t
+ice_rxdid_to_proto_xtr_type(uint8_t rxdid)
+{
+	static uint8_t xtr_map[] = {
+		[ICE_RXDID_COMMS_AUX_VLAN]      = PROTO_XTR_VLAN,
+		[ICE_RXDID_COMMS_AUX_IPV4]      = PROTO_XTR_IPV4,
+		[ICE_RXDID_COMMS_AUX_IPV6]      = PROTO_XTR_IPV6,
+		[ICE_RXDID_COMMS_AUX_IPV6_FLOW] = PROTO_XTR_IPV6_FLOW,
+		[ICE_RXDID_COMMS_AUX_TCP]       = PROTO_XTR_TCP,
+	};
+
+	return rxdid < RTE_DIM(xtr_map) ? xtr_map[rxdid] : PROTO_XTR_NONE;
+}
+
+static inline uint8_t
+ice_proto_xtr_type_to_rxdid(uint8_t xtr_tpye)
+{
+	static uint8_t rxdid_map[] = {
+		[PROTO_XTR_VLAN]      = ICE_RXDID_COMMS_AUX_VLAN,
+		[PROTO_XTR_IPV4]      = ICE_RXDID_COMMS_AUX_IPV4,
+		[PROTO_XTR_IPV6]      = ICE_RXDID_COMMS_AUX_IPV6,
+		[PROTO_XTR_IPV6_FLOW] = ICE_RXDID_COMMS_AUX_IPV6_FLOW,
+		[PROTO_XTR_TCP]       = ICE_RXDID_COMMS_AUX_TCP,
+	};
+	uint8_t rxdid;
+
+	rxdid = xtr_tpye < RTE_DIM(rxdid_map) ? rxdid_map[xtr_tpye] : 0;
+
+	return rxdid != 0 ? rxdid : ICE_RXDID_COMMS_GENERIC;
+}
+
+#endif
 
 static enum ice_status
 ice_program_hw_rx_queue(struct ice_rx_queue *rxq)
@@ -83,6 +117,13 @@ ice_program_hw_rx_queue(struct ice_rx_queue *rxq)
 	rx_ctx.l2tsel = 1;
 	rx_ctx.showiv = 0;
 	rx_ctx.crcstrip = (rxq->crc_len == 0) ? 1 : 0;
+
+#ifdef RTE_LIBRTE_ICE_PROTO_XTR
+	rxdid = ice_proto_xtr_type_to_rxdid(rxq->proto_xtr);
+
+	PMD_DRV_LOG(DEBUG, "Port (%u) - Rx queue (%u) is set with RXDID : %u",
+		    rxq->port_id, rxq->queue_id, rxdid);
+#endif
 
 	/* Enable Flexible Descriptors in the queue context which
 	 * allows this driver to select a specific receive descriptor format
@@ -639,6 +680,13 @@ ice_rx_queue_setup(struct rte_eth_dev *dev,
 	rxq->vsi = vsi;
 	rxq->rx_deferred_start = rx_conf->rx_deferred_start;
 
+#ifdef RTE_LIBRTE_ICE_PROTO_XTR
+	rxq->proto_xtr = pf->proto_xtr_table != NULL ?
+			 pf->proto_xtr_table[queue_idx] : PROTO_XTR_NONE;
+	if (rxq->proto_xtr == PROTO_XTR_NONE)
+		rxq->proto_xtr = pf->proto_xtr;
+#endif
+
 	/* Allocate the maximun number of RX ring hardware descriptor. */
 	len = ICE_MAX_RING_DESC;
 
@@ -1059,6 +1107,10 @@ ice_rxd_to_vlan_tci(struct rte_mbuf *mb, volatile union ice_rx_flex_desc *rxdp)
 		   mb->vlan_tci, mb->vlan_tci_outer);
 }
 
+#define ICE_RX_PROTO_XTR_VALID \
+	((1 << ICE_RX_FLEX_DESC_STATUS1_XTRMD4_VALID_S) | \
+	 (1 << ICE_RX_FLEX_DESC_STATUS1_XTRMD5_VALID_S))
+
 static inline void
 ice_rxd_to_pkt_fields(struct rte_mbuf *mb,
 		      volatile union ice_rx_flex_desc *rxdp)
@@ -1072,6 +1124,29 @@ ice_rxd_to_pkt_fields(struct rte_mbuf *mb,
 		mb->ol_flags |= PKT_RX_RSS_HASH;
 		mb->hash.rss = rte_le_to_cpu_32(desc->rss_hash);
 	}
+
+#ifdef RTE_LIBRTE_ICE_PROTO_XTR
+#ifdef RTE_LIBRTE_ICE_16BYTE_RX_DESC
+#error "RTE_LIBRTE_ICE_16BYTE_RX_DESC must be disabled"
+#endif
+	init_proto_xtr_flds(mb);
+
+	stat_err = rte_le_to_cpu_16(desc->status_error1);
+	if (stat_err & ICE_RX_PROTO_XTR_VALID) {
+		struct proto_xtr_flds *xtr = get_proto_xtr_flds(mb);
+
+		if (stat_err & (1 << ICE_RX_FLEX_DESC_STATUS1_XTRMD4_VALID_S))
+			xtr->u.raw.data0 =
+				rte_le_to_cpu_16(desc->flex_ts.flex.aux0);
+
+		if (stat_err & (1 << ICE_RX_FLEX_DESC_STATUS1_XTRMD5_VALID_S))
+			xtr->u.raw.data1 =
+				rte_le_to_cpu_16(desc->flex_ts.flex.aux1);
+
+		xtr->type = ice_rxdid_to_proto_xtr_type(desc->rxdid);
+		xtr->magic = PROTO_XTR_MAGIC_ID;
+	}
+#endif
 }
 
 #ifdef RTE_LIBRTE_ICE_RX_ALLOW_BULK_ALLOC
