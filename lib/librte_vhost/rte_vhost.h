@@ -11,6 +11,7 @@
  */
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <sys/eventfd.h>
 
 #include <rte_memory.h>
@@ -684,6 +685,18 @@ uint16_t rte_vhost_dequeue_burst(int vid, uint16_t queue_id,
  *  0 on success, -1 on failure
  */
 int rte_vhost_get_mem_table(int vid, struct rte_vhost_memory **mem);
+
+/**
+ * Get vq is packed
+ *
+ * @param vid
+ *  vhost device ID
+ * @return
+ *  true on packed, false on split
+ */
+__rte_experimental
+bool
+rte_vhost_vq_is_packed(int vid);
 
 /**
  * Get guest vring info, including the vring address, vring size, etc.

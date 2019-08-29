@@ -753,6 +753,18 @@ rte_vhost_get_mem_table(int vid, struct rte_vhost_memory **mem)
 	return 0;
 }
 
+bool
+rte_vhost_vq_is_packed(int vid)
+{
+	struct virtio_net *dev;
+
+	dev = get_device(vid);
+	if (unlikely(!dev))
+		return -1;
+
+	return vq_is_packed(dev);
+}
+
 int
 rte_vhost_get_vhost_vring(int vid, uint16_t vring_idx,
 			  struct rte_vhost_vring *vring)
