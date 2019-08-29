@@ -3093,6 +3093,17 @@ ice_get_default_pkt_type(uint16_t ptype)
 				RTE_PTYPE_TUNNEL_GTPU,
 		[267] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV6_EXT_UNKNOWN |
 				RTE_PTYPE_TUNNEL_GTPU,
+		/* [268] - [271] reserved */
+		/* Some protocols are not supported by API, Like, VRRP, OSPF.
+		 * Just report them as L2 or L3 packets.
+		 */
+		[272] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN,
+		[273] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN,
+		[274] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV6_EXT_UNKNOWN,
+		[275] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV6_EXT_UNKNOWN,
+		[276] = RTE_PTYPE_L2_ETHER,
+		/* [277] reserved */
+		[278] = RTE_PTYPE_L2_ETHER,
 
 		/* All others reserved */
 	};
