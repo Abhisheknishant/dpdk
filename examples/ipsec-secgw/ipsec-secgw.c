@@ -188,7 +188,7 @@ static uint32_t frame_buf_size = RTE_MBUF_DEFAULT_BUF_SIZE;
 static uint32_t mtu_size = RTE_ETHER_MTU;
 
 /* application wide librte_ipsec/SA parameters */
-struct app_sa_prm app_sa_prm = {.enable = 0};
+struct app_sa_prm app_sa_prm = {.enable = 1};
 
 struct lcore_rx_queue {
 	uint16_t port_id;
@@ -1259,7 +1259,7 @@ print_usage(const char *prgname)
 		" [-P]"
 		" [-u PORTMASK]"
 		" [-j FRAMESIZE]"
-		" [-l]"
+		" [-l 0 | 1]"
 		" [-w REPLAY_WINDOW_SIZE]"
 		" [-e]"
 		" [-a]"
@@ -1277,7 +1277,8 @@ print_usage(const char *prgname)
 		"  -u PORTMASK: Hexadecimal bitmask of unprotected ports\n"
 		"  -j FRAMESIZE: Data buffer size, minimum (and default)\n"
 		"     value: RTE_MBUF_DEFAULT_BUF_SIZE\n"
-		"  -l enables code-path that uses librte_ipsec\n"
+		"  -l 0 enables code-path that uses the legacy code\n"
+		"  -l 1 enables code-path that uses librte_ipsec\n"
 		"  -w REPLAY_WINDOW_SIZE specifies IPsec SQN replay window\n"
 		"     size for each SA\n"
 		"  -e enables ESN\n"
@@ -1418,6 +1419,7 @@ print_app_sa_prm(const struct app_sa_prm *prm)
 	printf("replay window size: %u\n", prm->window_size);
 	printf("ESN: %s\n", (prm->enable_esn == 0) ? "disabled" : "enabled");
 	printf("SA flags: %#" PRIx64 "\n", prm->flags);
+	printf("Fragment Table size %u\n", frag_tbl_sz);
 }
 
 static int32_t
@@ -1431,7 +1433,7 @@ parse_args(int32_t argc, char **argv)
 
 	argvopt = argv;
 
-	while ((opt = getopt_long(argc, argvopt, "aelp:Pu:f:j:w:",
+	while ((opt = getopt_long(argc, argvopt, "aep:Pu:f:j:w:l:",
 				lgopts, &option_index)) != EOF) {
 
 		switch (opt) {
@@ -1483,18 +1485,28 @@ parse_args(int32_t argc, char **argv)
 			printf("Custom frame buffer size %u\n", frame_buf_size);
 			break;
 		case 'l':
-			app_sa_prm.enable = 1;
+			ret = parse_decimal(optarg);
+			if (ret == -1) {
+				printf("Invalid argument l %s\n", optarg);
+				print_usage(prgname);
+				return -1;
+			} else if (ret == 0)
+				app_sa_prm.enable = 0;
+			else if (ret == 1)
+				app_sa_prm.enable = 1;
+			else {
+				printf("Invalid argument l %d\n", ret);
+				print_usage(prgname);
+				return -1;
+			}
 			break;
 		case 'w':
-			app_sa_prm.enable = 1;
 			app_sa_prm.window_size = parse_decimal(optarg);
 			break;
 		case 'e':
-			app_sa_prm.enable = 1;
 			app_sa_prm.enable_esn = 1;
 			break;
 		case 'a':
-			app_sa_prm.enable = 1;
 			app_sa_prm.flags |= RTE_IPSEC_SAFLAG_SQN_ATOM;
 			break;
 		case CMD_LINE_OPT_CONFIG_NUM:
@@ -1579,14 +1591,14 @@ parse_args(int32_t argc, char **argv)
 		return -1;
 	}
 
-	/* check do we need to enable multi-seg support */
-	if (multi_seg_required()) {
-		/* legacy mode doesn't support multi-seg */
-		app_sa_prm.enable = 1;
-		printf("frame buf size: %u, mtu: %u, "
-			"number of reassemble entries: %u\n"
-			"multi-segment support is required\n",
-			frame_buf_size, mtu_size, frag_tbl_sz);
+	if (app_sa_prm.enable == 0 &&
+			(app_sa_prm.window_size > 0 ||
+					app_sa_prm.enable_esn ||
+					app_sa_prm.flags != 0 ||
+					multi_seg_required())) {
+		printf("-w -e -a and reassembly options are not "
+				"supported in legacy mode\n");
+		return -1;
 	}
 
 	print_app_sa_prm(&app_sa_prm);

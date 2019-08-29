@@ -92,7 +92,7 @@ The application has a number of command line options::
 
    ./build/ipsec-secgw [EAL options] --
                         -p PORTMASK -P -u PORTMASK -j FRAMESIZE
-                        -l -w REPLAY_WINOW_SIZE -e -a
+                        -l 0 -w REPLAY_WINOW_SIZE -e -a
                         --config (port,queue,lcore)[,(port,queue,lcore]
                         --single-sa SAIDX
                         --rxoffload MASK
@@ -120,7 +120,9 @@ Where:
     Minimum value: RTE_MBUF_DEFAULT_BUF_SIZE (2176)
     Maximum value: UINT16_MAX (65535).
 
-*   ``-l``: enables code-path that uses librte_ipsec.
+*   ``-l 0 | 1``: Default is ``librte_ipsec`` code path.
+    0 enables the code path that uses legacy code.
+    1 enables the code path that uses ``librte_ipsec``.
 
 *   ``-w REPLAY_WINOW_SIZE``: specifies the IPsec sequence number replay window
     size for each Security Association (available only with librte_ipsec

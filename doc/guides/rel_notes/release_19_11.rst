@@ -56,6 +56,14 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Updated the IPsec Security Gateway application.**
+
+  The ``librte_ipsec`` code path is now the default code path in
+  ``ipsec-secgw``
+
+  * The ``-l`` command line option has been extended to take a 0 | 1 argument.
+    0 enables the code path that uses legacy code.
+    1 enables the code path that uses ``librte_ipsec``.
 
 Removed Items
 -------------
