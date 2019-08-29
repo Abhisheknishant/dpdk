@@ -2,4 +2,4 @@
 
 . ${DIR}/tun_aesgcm_inline_crypto_defs.sh
 
-SGW_CMD_XPRM=
+SGW_CMD_XPRM='-l 0'
