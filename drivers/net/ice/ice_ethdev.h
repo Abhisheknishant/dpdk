@@ -263,6 +263,8 @@ struct ice_pf {
 	uint16_t lan_nb_qp_max;
 	uint16_t lan_nb_qps; /* The number of queue pairs of LAN */
 	uint16_t base_queue; /* The base queue pairs index  in the device */
+	uint8_t proto_xtr; /* Protocol extraction from flexible descriptor */
+	uint8_t *proto_xtr_table; /* Per queue for lan_nb_qps size */
 	struct ice_hw_port_stats stats_offset;
 	struct ice_hw_port_stats stats;
 	/* internal packet statistics, it should be excluded from the total */
