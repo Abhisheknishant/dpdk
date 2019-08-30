@@ -3607,6 +3607,94 @@ void bnxt_dev_reset_and_resume(void *arg)
 		PMD_DRV_LOG(ERR, "Error setting recovery alarm");
 }
 
+uint32_t bnxt_read_fw_status_reg(struct bnxt *bp, uint32_t index)
+{
+	struct bnxt_error_recovery_info *info = bp->recovery_info;
+	uint32_t reg = info->status_regs[index];
+	uint32_t type, offset, val = 0;
+
+	type = BNXT_FW_STATUS_REG_TYPE(reg);
+	offset = BNXT_FW_STATUS_REG_OFF(reg);
+
+	switch (type) {
+	case BNXT_FW_STATUS_REG_TYPE_CFG:
+		rte_pci_read_config(bp->pdev, &val, sizeof(val), offset);
+		break;
+	case BNXT_FW_STATUS_REG_TYPE_GRC:
+		offset = info->mapped_status_regs[index];
+		/* FALLTHROUGH */
+	case BNXT_FW_STATUS_REG_TYPE_BAR0:
+		val = rte_le_to_cpu_32(rte_read32((uint8_t *)bp->bar0 +
+				       offset));
+		break;
+	}
+
+	return val;
+}
+
+/* Driver should poll FW heartbeat, reset_counter with the frequency
+ * advertised by FW in HWRM_ERROR_RECOVERY_QCFG.
+ * When the driver detects heartbeat stop or change in reset_counter,
+ * it has to trigger a reset to recover from the error condition.
+ * A “master PF” is the function who will have the privilege to
+ * initiate the chimp reset. The master PF will be elected by the
+ * firmware and will be notified through async message.
+ */
+static void bnxt_check_fw_health(void *arg)
+{
+	struct bnxt *bp = arg;
+	struct bnxt_error_recovery_info *info = bp->recovery_info;
+	uint32_t val = 0;
+
+	if (!info || !bnxt_is_recovery_enabled(bp) ||
+	    is_bnxt_in_error(bp))
+		return;
+
+	val = bnxt_read_fw_status_reg(bp, BNXT_FW_HEARTBEAT_CNT_REG);
+	if (val == info->last_heart_beat)
+		goto reset;
+
+	info->last_heart_beat = val;
+
+	val = bnxt_read_fw_status_reg(bp, BNXT_FW_RECOVERY_CNT_REG);
+	if (val != info->last_reset_counter)
+		goto reset;
+
+	info->last_reset_counter = val;
+
+	rte_eal_alarm_set(US_PER_MS * info->driver_polling_freq,
+			  bnxt_check_fw_health, (void *)bp);
+
+	return;
+reset:
+	/* Stop DMA to/from device */
+	bp->flags |= BNXT_FLAG_FATAL_ERROR;
+	bp->flags |= BNXT_FLAG_FW_RESET;
+
+	PMD_DRV_LOG(ERR, "Detected FW dead condition\n");
+}
+
+void bnxt_schedule_fw_health_check(struct bnxt *bp)
+{
+	uint32_t polling_freq = bp->recovery_info->driver_polling_freq;
+
+	if (!bnxt_is_recovery_enabled(bp))
+		return;
+
+	rte_eal_alarm_set(US_PER_MS * polling_freq,
+			  bnxt_check_fw_health, (void *)bp);
+	bp->flags |= BNXT_FLAG_FW_HEALTH_CHECK_SCHEDULED;
+}
+
+static void bnxt_cancel_fw_health_check(struct bnxt *bp)
+{
+	if (!bnxt_is_recovery_enabled(bp))
+		return;
+
+	rte_eal_alarm_cancel(bnxt_check_fw_health, (void *)bp);
+	bp->flags &= ~BNXT_FLAG_FW_HEALTH_CHECK_SCHEDULED;
+}
+
 static bool bnxt_vf_pciid(uint16_t id)
 {
 	if (id == BROADCOM_DEV_ID_57304_VF ||
@@ -4269,6 +4357,7 @@ bnxt_uninit_resources(struct bnxt *bp, bool reconfig_dev)
 	bnxt_free_int(bp);
 	bnxt_free_mem(bp, reconfig_dev);
 	bnxt_hwrm_func_buf_unrgtr(bp);
+	bnxt_cancel_fw_health_check(bp);
 	bnxt_unmap_fw_health_status_regs(bp);
 	rc = bnxt_hwrm_func_driver_unregister(bp, 0);
 	bp->flags &= ~BNXT_FLAG_REGISTERED;
