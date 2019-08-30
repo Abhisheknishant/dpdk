@@ -685,6 +685,8 @@ int bnxt_hwrm_func_driver_register(struct bnxt *bp)
 		return 0;
 
 	flags = HWRM_FUNC_DRV_RGTR_INPUT_FLAGS_HOT_RESET_SUPPORT;
+	if (bp->flags & BNXT_FLAG_FW_CAP_ERROR_RECOVERY)
+		flags |= HWRM_FUNC_DRV_RGTR_INPUT_FLAGS_ERROR_RECOVERY_SUPPORT;
 
 	HWRM_PREP(req, FUNC_DRV_RGTR, BNXT_USE_CHIMP_MB);
 	req.enables = rte_cpu_to_le_32(HWRM_FUNC_DRV_RGTR_INPUT_ENABLES_VER |
@@ -716,6 +718,9 @@ int bnxt_hwrm_func_driver_register(struct bnxt *bp)
 				 ASYNC_CMPL_EVENT_ID_PORT_CONN_NOT_ALLOWED |
 				 ASYNC_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE |
 				 ASYNC_CMPL_EVENT_ID_RESET_NOTIFY);
+	if (bp->flags & BNXT_FLAG_FW_CAP_ERROR_RECOVERY)
+		req.async_event_fwd[0] |=
+			rte_cpu_to_le_32(ASYNC_CMPL_EVENT_ID_ERROR_RECOVERY);
 	req.async_event_fwd[1] |=
 		rte_cpu_to_le_32(ASYNC_CMPL_EVENT_ID_PF_DRVR_UNLOAD |
 				 ASYNC_CMPL_EVENT_ID_VF_CFG_CHANGE);
