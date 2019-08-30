@@ -803,6 +803,8 @@ static int bnxt_dev_start_op(struct rte_eth_dev *eth_dev)
 			bp->rx_cp_nr_rings, RTE_ETHDEV_QUEUE_STAT_CNTRS);
 	}
 
+	bnxt_hwrm_if_change(bp, 1);
+
 	rc = bnxt_init_chip(bp);
 	if (rc)
 		goto error;
@@ -829,6 +831,7 @@ static int bnxt_dev_start_op(struct rte_eth_dev *eth_dev)
 	return 0;
 
 error:
+	bnxt_hwrm_if_change(bp, 0);
 	bnxt_shutdown_nic(bp);
 	bnxt_free_tx_mbufs(bp);
 	bnxt_free_rx_mbufs(bp);
@@ -895,6 +898,7 @@ static void bnxt_dev_stop_op(struct rte_eth_dev *eth_dev)
 	bnxt_free_tx_mbufs(bp);
 	bnxt_free_rx_mbufs(bp);
 	bnxt_shutdown_nic(bp);
+	bnxt_hwrm_if_change(bp, 0);
 	bp->dev_stopped = 1;
 }
 
