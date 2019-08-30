@@ -353,6 +353,10 @@ int bnxt_stats_get_op(struct rte_eth_dev *eth_dev,
 	struct bnxt *bp = eth_dev->data->dev_private;
 	unsigned int num_q_stats;
 
+	rc = is_bnxt_in_error(bp);
+	if (rc)
+		return rc;
+
 	memset(bnxt_stats, 0, sizeof(*bnxt_stats));
 	if (!(bp->flags & BNXT_FLAG_INIT_DONE)) {
 		PMD_DRV_LOG(ERR, "Device Initialization not complete!\n");
@@ -397,6 +401,9 @@ void bnxt_stats_reset_op(struct rte_eth_dev *eth_dev)
 	struct bnxt *bp = eth_dev->data->dev_private;
 	unsigned int i;
 
+	if (is_bnxt_in_error(bp))
+		return;
+
 	if (!(bp->flags & BNXT_FLAG_INIT_DONE)) {
 		PMD_DRV_LOG(ERR, "Device Initialization not complete!\n");
 		return;
@@ -414,13 +421,17 @@ int bnxt_dev_xstats_get_op(struct rte_eth_dev *eth_dev,
 			   struct rte_eth_xstat *xstats, unsigned int n)
 {
 	struct bnxt *bp = eth_dev->data->dev_private;
-
 	unsigned int count, i;
 	uint64_t tx_drop_pkts;
 	unsigned int rx_port_stats_ext_cnt;
 	unsigned int tx_port_stats_ext_cnt;
 	unsigned int stat_size = sizeof(uint64_t);
 	unsigned int stat_count;
+	int rc;
+
+	rc = is_bnxt_in_error(bp);
+	if (rc)
+		return rc;
 
 	memset(xstats, 0, sizeof(*xstats));
 
@@ -499,7 +510,13 @@ int bnxt_dev_xstats_get_names_op(__rte_unused struct rte_eth_dev *eth_dev,
 				RTE_DIM(bnxt_tx_stats_strings) + 1 +
 				RTE_DIM(bnxt_rx_ext_stats_strings) +
 				RTE_DIM(bnxt_tx_ext_stats_strings);
+	struct bnxt *bp = (struct bnxt *)eth_dev->data->dev_private;
 	unsigned int i, count;
+	int rc;
+
+	rc = is_bnxt_in_error(bp);
+	if (rc)
+		return rc;
 
 	if (xstats_names != NULL) {
 		count = 0;
@@ -547,6 +564,9 @@ void bnxt_dev_xstats_reset_op(struct rte_eth_dev *eth_dev)
 {
 	struct bnxt *bp = eth_dev->data->dev_private;
 
+	if (is_bnxt_in_error(bp))
+		return;
+
 	if (bp->flags & BNXT_FLAG_PORT_STATS && BNXT_SINGLE_PF(bp))
 		bnxt_hwrm_port_clr_stats(bp);
 
@@ -566,9 +586,15 @@ int bnxt_dev_xstats_get_by_id_op(struct rte_eth_dev *dev, const uint64_t *ids,
 				RTE_DIM(bnxt_tx_stats_strings) + 1 +
 				RTE_DIM(bnxt_rx_ext_stats_strings) +
 				RTE_DIM(bnxt_tx_ext_stats_strings);
+	struct bnxt *bp = dev->data->dev_private;
 	struct rte_eth_xstat xstats[stat_cnt];
 	uint64_t values_copy[stat_cnt];
 	uint16_t i;
+	int rc;
+
+	rc = is_bnxt_in_error(bp);
+	if (rc)
+		return rc;
 
 	if (!ids)
 		return bnxt_dev_xstats_get_op(dev, xstats, stat_cnt);
@@ -594,7 +620,13 @@ int bnxt_dev_xstats_get_names_by_id_op(struct rte_eth_dev *dev,
 				RTE_DIM(bnxt_rx_ext_stats_strings) +
 				RTE_DIM(bnxt_tx_ext_stats_strings);
 	struct rte_eth_xstat_name xstats_names_copy[stat_cnt];
+	struct bnxt *bp = dev->data->dev_private;
 	uint16_t i;
+	int rc;
+
+	rc = is_bnxt_in_error(bp);
+	if (rc)
+		return rc;
 
 	if (!ids)
 		return bnxt_dev_xstats_get_names_op(dev, xstats_names,
