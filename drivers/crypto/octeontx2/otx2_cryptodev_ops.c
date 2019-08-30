@@ -329,6 +329,163 @@ sym_session_clear(int driver_id, struct rte_cryptodev_sym_session *sess)
 	rte_mempool_put(pool, priv);
 }
 
+static __rte_always_inline int32_t __hot
+otx2_cpt_enqueue_req(const struct otx2_cpt_qp *qp,
+		     struct pending_queue *pend_q,
+		     struct cpt_request_info *req)
+{
+	void *lmtline = qp->lmtline;
+	union cpt_inst_s inst;
+	uint64_t lmt_status;
+
+	if (unlikely(pend_q->pending_count >= OTX2_CPT_DEFAULT_CMD_QLEN))
+		return -EAGAIN;
+
+	inst.u[0] = 0;
+	inst.s9x.res_addr = req->comp_baddr;
+	inst.u[2] = 0;
+	inst.u[3] = 0;
+
+	inst.s9x.ei0 = req->ist.ei0;
+	inst.s9x.ei1 = req->ist.ei1;
+	inst.s9x.ei2 = req->ist.ei2;
+	inst.s9x.ei3 = req->ist.ei3;
+
+	req->time_out = rte_get_timer_cycles() +
+			DEFAULT_COMMAND_TIMEOUT * rte_get_timer_hz();
+
+	do {
+		/* Copy CPT command to LMTLINE */
+		memcpy(lmtline, &inst, sizeof(inst));
+
+		/*
+		 * Make sure compiler does not reorder memcpy and ldeor.
+		 * LMTST transactions are always flushed from the write
+		 * buffer immediately, a DMB is not required to push out
+		 * LMTSTs.
+		 */
+		rte_cio_wmb();
+		lmt_status = otx2_lmt_submit(qp->lf_nq_reg);
+	} while (lmt_status == 0);
+
+	pend_q->rid_queue[pend_q->enq_tail].rid = (uintptr_t)req;
+
+	/* We will use soft queue length here to limit requests */
+	MOD_INC(pend_q->enq_tail, OTX2_CPT_DEFAULT_CMD_QLEN);
+	pend_q->pending_count += 1;
+
+	return 0;
+}
+
+static __rte_always_inline int __hot
+otx2_cpt_enqueue_sym(struct otx2_cpt_qp *qp, struct rte_crypto_op *op,
+		     struct pending_queue *pend_q)
+{
+	struct rte_crypto_sym_op *sym_op = op->sym;
+	struct cpt_request_info *req;
+	struct cpt_sess_misc *sess;
+	vq_cmd_word3_t *w3;
+	uint64_t cpt_op;
+	void *mdata;
+	int ret;
+
+	sess = get_sym_session_private_data(sym_op->session,
+					    otx2_cryptodev_driver_id);
+
+	cpt_op = sess->cpt_op;
+
+	if (cpt_op & CPT_OP_CIPHER_MASK)
+		ret = fill_fc_params(op, sess, &qp->meta_info, &mdata,
+				     (void **)&req);
+	else
+		ret = fill_digest_params(op, sess, &qp->meta_info, &mdata,
+					 (void **)&req);
+
+	if (unlikely(ret)) {
+		CPT_LOG_DP_ERR("Crypto req : op %p, cpt_op 0x%x ret 0x%x",
+				op, (unsigned int)cpt_op, ret);
+		return ret;
+	}
+
+	w3 = ((vq_cmd_word3_t *)(&req->ist.ei3));
+	w3->s.grp = sess->egrp;
+
+	ret = otx2_cpt_enqueue_req(qp, pend_q, req);
+
+	if (unlikely(ret)) {
+		/* Free buffer allocated by fill params routines */
+		free_op_meta(mdata, qp->meta_info.pool);
+	}
+
+	return ret;
+}
+
+static __rte_always_inline int __hot
+otx2_cpt_enqueue_sym_sessless(struct otx2_cpt_qp *qp, struct rte_crypto_op *op,
+			      struct pending_queue *pend_q)
+{
+	const int driver_id = otx2_cryptodev_driver_id;
+	struct rte_crypto_sym_op *sym_op = op->sym;
+	struct rte_cryptodev_sym_session *sess;
+	int ret;
+
+	/* Create temporary session */
+
+	if (rte_mempool_get(qp->sess_mp, (void **)&sess))
+		return -ENOMEM;
+
+	ret = sym_session_configure(driver_id, sym_op->xform, sess,
+				    qp->sess_mp_priv);
+	if (ret)
+		goto sess_put;
+
+	sym_op->session = sess;
+
+	ret = otx2_cpt_enqueue_sym(qp, op, pend_q);
+
+	if (unlikely(ret))
+		goto priv_put;
+
+	return 0;
+
+priv_put:
+	sym_session_clear(driver_id, sess);
+sess_put:
+	rte_mempool_put(qp->sess_mp, sess);
+	return ret;
+}
+
+static uint16_t
+otx2_cpt_enqueue_burst(void *qptr, struct rte_crypto_op **ops, uint16_t nb_ops)
+{
+	uint16_t nb_allowed, count = 0;
+	struct otx2_cpt_qp *qp = qptr;
+	struct pending_queue *pend_q;
+	struct rte_crypto_op *op;
+	int ret;
+
+	pend_q = &qp->pend_q;
+
+	nb_allowed = OTX2_CPT_DEFAULT_CMD_QLEN - pend_q->pending_count;
+	if (nb_ops > nb_allowed)
+		nb_ops = nb_allowed;
+
+	for (count = 0; count < nb_ops; count++) {
+		op = ops[count];
+		if (op->sess_type == RTE_CRYPTO_OP_WITH_SESSION)
+			ret = otx2_cpt_enqueue_sym(qp, op, pend_q);
+		else if (op->sess_type == RTE_CRYPTO_OP_SESSIONLESS)
+			ret = otx2_cpt_enqueue_sym_sessless(qp, op, pend_q);
+		else
+			break;
+
+		if (unlikely(ret))
+			break;
+	}
+
+	return count;
+}
+
 /* PMD ops */
 
 static int
@@ -377,6 +534,8 @@ otx2_cpt_dev_config(struct rte_cryptodev *dev,
 		CPT_LOG_ERR("Could not register error interrupts");
 		goto queues_detach;
 	}
+
+	dev->enqueue_burst = otx2_cpt_enqueue_burst;
 
 	rte_mb();
 	return 0;
