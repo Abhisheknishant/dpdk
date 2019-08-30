@@ -281,6 +281,20 @@ typedef union cpt_res_s {
 		uint64_t reserved_64_127       : 64;
 #endif /* Word 1 - End */
 	} s8x;
+	struct cpt_res_s_9s {
+#if (RTE_BYTE_ORDER == RTE_BIG_ENDIAN) /* Word 0 - Big Endian */
+		uint64_t reserved_17_63:47;
+		uint64_t doneint:1;
+		uint64_t uc_compcode:8;
+		uint64_t compcode:8;
+#else /* Word 0 - Little Endian */
+		uint64_t compcode:8;
+		uint64_t uc_compcode:8;
+		uint64_t doneint:1;
+		uint64_t reserved_17_63:47;
+#endif /* Word 0 - End */
+		uint64_t reserved_64_127;
+	} s9x;
 } cpt_res_s_t;
 
 /**

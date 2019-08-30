@@ -486,6 +486,133 @@ otx2_cpt_enqueue_burst(void *qptr, struct rte_crypto_op **ops, uint16_t nb_ops)
 	return count;
 }
 
+static inline void
+otx2_cpt_dequeue_post_process(struct otx2_cpt_qp *qp, struct rte_crypto_op *cop,
+			      uintptr_t *rsp, uint8_t cc)
+{
+	if (cop->type == RTE_CRYPTO_OP_TYPE_SYMMETRIC) {
+		if (likely(cc == NO_ERR)) {
+			/* Verify authentication data if required */
+			if (unlikely(rsp[2]))
+				compl_auth_verify(cop, (uint8_t *)rsp[2],
+						 rsp[3]);
+			else
+				cop->status = RTE_CRYPTO_OP_STATUS_SUCCESS;
+		} else {
+			if (cc == ERR_GC_ICV_MISCOMPARE)
+				cop->status = RTE_CRYPTO_OP_STATUS_AUTH_FAILED;
+			else
+				cop->status = RTE_CRYPTO_OP_STATUS_ERROR;
+		}
+
+		if (unlikely(cop->sess_type == RTE_CRYPTO_OP_SESSIONLESS)) {
+			sym_session_clear(otx2_cryptodev_driver_id,
+					  cop->sym->session);
+			rte_mempool_put(qp->sess_mp, cop->sym->session);
+			cop->sym->session = NULL;
+		}
+	}
+}
+
+static __rte_always_inline uint8_t
+otx2_cpt_compcode_get(struct cpt_request_info *req)
+{
+	volatile struct cpt_res_s_9s *res;
+	uint8_t ret;
+
+	res = (volatile struct cpt_res_s_9s *)req->completion_addr;
+
+	if (unlikely(res->compcode == CPT_9X_COMP_E_NOTDONE)) {
+		if (rte_get_timer_cycles() < req->time_out)
+			return ERR_REQ_PENDING;
+
+		CPT_LOG_DP_ERR("Request timed out");
+		return ERR_REQ_TIMEOUT;
+	}
+
+	if (likely(res->compcode == CPT_9X_COMP_E_GOOD)) {
+		ret = NO_ERR;
+		if (unlikely(res->uc_compcode)) {
+			ret = res->uc_compcode;
+			CPT_LOG_DP_DEBUG("Request failed with microcode error");
+			CPT_LOG_DP_DEBUG("MC completion code 0x%x",
+					 res->uc_compcode);
+		}
+	} else {
+		CPT_LOG_DP_DEBUG("HW completion code 0x%x", res->compcode);
+
+		ret = res->compcode;
+		switch (res->compcode) {
+		case CPT_9X_COMP_E_INSTERR:
+			CPT_LOG_DP_ERR("Request failed with instruction error");
+			break;
+		case CPT_9X_COMP_E_FAULT:
+			CPT_LOG_DP_ERR("Request failed with DMA fault");
+			break;
+		case CPT_9X_COMP_E_HWERR:
+			CPT_LOG_DP_ERR("Request failed with hardware error");
+			break;
+		default:
+			CPT_LOG_DP_ERR("Request failed with unknown completion code");
+		}
+	}
+
+	return ret;
+}
+
+static uint16_t
+otx2_cpt_dequeue_burst(void *qptr, struct rte_crypto_op **ops, uint16_t nb_ops)
+{
+	int i, nb_pending, nb_completed;
+	struct otx2_cpt_qp *qp = qptr;
+	struct pending_queue *pend_q;
+	struct cpt_request_info *req;
+	struct rte_crypto_op *cop;
+	uint8_t cc[nb_ops];
+	struct rid *rid;
+	uintptr_t *rsp;
+	void *metabuf;
+
+	pend_q = &qp->pend_q;
+
+	nb_pending = pend_q->pending_count;
+
+	if (nb_ops > nb_pending)
+		nb_ops = nb_pending;
+
+	for (i = 0; i < nb_ops; i++) {
+		rid = &pend_q->rid_queue[pend_q->deq_head];
+		req = (struct cpt_request_info *)(rid->rid);
+
+		cc[i] = otx2_cpt_compcode_get(req);
+
+		if (unlikely(cc[i] == ERR_REQ_PENDING))
+			break;
+
+		ops[i] = req->op;
+
+		MOD_INC(pend_q->deq_head, OTX2_CPT_DEFAULT_CMD_QLEN);
+		pend_q->pending_count -= 1;
+	}
+
+	nb_completed = i;
+
+	for (i = 0; i < nb_completed; i++) {
+		rsp = (void *)ops[i];
+
+		metabuf = (void *)rsp[0];
+		cop = (void *)rsp[1];
+
+		ops[i] = cop;
+
+		otx2_cpt_dequeue_post_process(qp, cop, rsp, cc[i]);
+
+		free_op_meta(metabuf, qp->meta_info.pool);
+	}
+
+	return nb_completed;
+}
+
 /* PMD ops */
 
 static int
@@ -536,6 +663,7 @@ otx2_cpt_dev_config(struct rte_cryptodev *dev,
 	}
 
 	dev->enqueue_burst = otx2_cpt_enqueue_burst;
+	dev->dequeue_burst = otx2_cpt_dequeue_burst;
 
 	rte_mb();
 	return 0;
