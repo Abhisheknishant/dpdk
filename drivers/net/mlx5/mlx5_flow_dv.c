@@ -967,6 +967,47 @@ flow_dv_validate_action_push_vlan(uint64_t action_flags,
 }
 
 /**
+ * Validate the set VLAN PCP.
+ *
+ * @param[in] action_flags
+ *   Holds the actions detected until now.
+ * @param[in] actions
+ *   Pointer to the list of actions remaining in the flow rule.
+ * @param[in] attr
+ *   Pointer to flow attributes
+ * @param[out] error
+ *   Pointer to error structure.
+ *
+ * @return
+ *   0 on success, a negative errno value otherwise and rte_errno is set.
+ */
+static int
+flow_dv_validate_action_set_vlan_pcp(uint64_t action_flags,
+				     const struct rte_flow_action actions[],
+				     struct rte_flow_error *error)
+{
+	const struct rte_flow_action *action = actions;
+	const struct rte_flow_action_of_set_vlan_pcp *conf = action->conf;
+
+	if (conf->vlan_pcp > 7)
+		return rte_flow_error_set(error, EINVAL,
+					  RTE_FLOW_ERROR_TYPE_ACTION, action,
+					  "VLAN PCP value to too big");
+	if (mlx5_flow_find_action(actions,
+				  RTE_FLOW_ACTION_TYPE_OF_PUSH_VLAN) == NULL)
+		return rte_flow_error_set(error, ENOTSUP,
+					  RTE_FLOW_ERROR_TYPE_ACTION, action,
+					  "set VLAN PCP can only be used "
+					  "with push VLAN action");
+	if (action_flags & MLX5_FLOW_ACTION_OF_PUSH_VLAN)
+		return rte_flow_error_set(error, ENOTSUP,
+					  RTE_FLOW_ERROR_TYPE_ACTION, action,
+					  "set VLAN PCP action must precede "
+					  "the push VLAN action");
+	return 0;
+}
+
+/**
  * Validate count action.
  *
  * @param[in] dev
@@ -3377,6 +3418,13 @@ flow_dv_validate(struct rte_eth_dev *dev, const struct rte_flow_attr *attr,
 			action_flags |= MLX5_FLOW_ACTION_OF_PUSH_VLAN;
 			++actions_n;
 			break;
+		case RTE_FLOW_ACTION_TYPE_OF_SET_VLAN_PCP:
+			ret = flow_dv_validate_action_set_vlan_pcp
+						(action_flags, actions, error);
+			if (ret < 0)
+				return ret;
+			/* Count PCP with push_vlan command. */
+			break;
 		case RTE_FLOW_ACTION_TYPE_VXLAN_ENCAP:
 		case RTE_FLOW_ACTION_TYPE_NVGRE_ENCAP:
 			ret = flow_dv_validate_action_l2_encap(action_flags,
@@ -4967,6 +5015,7 @@ flow_dv_translate(struct rte_eth_dev *dev,
 	void *match_mask = matcher.mask.buf;
 	void *match_value = dev_flow->dv.value.buf;
 	uint8_t next_protocol = 0xff;
+	uint16_t vlan_tci;
 	struct flow_dv_vlan_be vlan = { 0 };
 
 	flow_dev_get_vlan_info_from_items(items, &vlan);
@@ -5093,6 +5142,15 @@ cnt_err:
 			dev_flow->dv.actions[actions_n++] =
 					   dev_flow->dv.push_vlan_res->action;
 			action_flags |= MLX5_FLOW_ACTION_OF_PUSH_VLAN;
+			break;
+		case RTE_FLOW_ACTION_TYPE_OF_SET_VLAN_PCP:
+			vlan_tci =
+			    ((const struct rte_flow_action_of_set_vlan_pcp *)
+						       actions->conf)->vlan_pcp;
+			vlan_tci = vlan_tci << FLOW_DV_VLAN_PCP_SHIFT;
+			vlan.tci &= ~FLOW_DV_VLAN_PCP_MASK;
+			vlan.tci |= rte_cpu_to_be_16(vlan_tci);
+			/* Push VLAN command will use this value */
 			break;
 		case RTE_FLOW_ACTION_TYPE_VXLAN_ENCAP:
 		case RTE_FLOW_ACTION_TYPE_NVGRE_ENCAP:
