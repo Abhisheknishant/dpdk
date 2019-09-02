@@ -282,6 +282,7 @@ struct e1000_adapter {
 	struct e1000_vf_info    *vfdata;
 	struct e1000_filter_info filter;
 	bool stopped;
+	bool closed;
 	struct rte_timecounter  systime_tc;
 	struct rte_timecounter  rx_tstamp_tc;
 	struct rte_timecounter  tx_tstamp_tc;
