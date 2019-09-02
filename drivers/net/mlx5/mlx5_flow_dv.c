@@ -50,6 +50,21 @@
 #define MLX5DV_DR_ACTION_FLAGS_ROOT_LEVEL 1
 #endif
 
+/* VLAN header definitions */
+#define FLOW_DV_VLAN_PCP_SHIFT 13
+#define FLOW_DV_VLAN_PCP_MASK RTE_BE16(0x7 << FLOW_DV_VLAN_PCP_SHIFT)
+#define FLOW_DV_VLAN_VID_MASK RTE_BE16(0x0fff)
+
+struct flow_dv_vlan_be {
+#if RTE_BYTE_ORDER == RTE_BIG_ENDIAN
+	rte_be16_t tci;
+	rte_be16_t tpid;
+#else
+	rte_be16_t tpid;
+	rte_be16_t tci;
+#endif
+};
+
 union flow_dv_attr {
 	struct {
 		uint32_t valid:1;
@@ -817,6 +832,8 @@ flow_dv_validate_item_port_id(struct rte_eth_dev *dev,
 /**
  * Validate the pop VLAN action.
  *
+ * @param[in] dev
+ *   Pointer to the rte_eth_dev structure.
  * @param[in] action_flags
  *   Holds the actions detected until now.
  * @param[in] action
@@ -866,6 +883,86 @@ flow_dv_validate_action_pop_vlan(struct rte_eth_dev *dev,
 					  NULL,
 					  "cannot pop vlan without a "
 					  "match on (outer) vlan in the flow");
+	return 0;
+}
+
+/**
+ * Get VLAN default info from vlan match info.
+ *
+ * @param[in] dev
+ *   Pointer to the rte_eth_dev structure.
+ * @param[in] item
+ *   the list of item specifications.
+ * @param[out] vlan
+ *   pointer VLAN info to fill to.
+ * @param[out] error
+ *   Pointer to error structure.
+ *
+ * @return
+ *   0 on success, a negative errno value otherwise and rte_errno is set.
+ */
+static void
+flow_dev_get_vlan_info_from_items(const struct rte_flow_item *items,
+				   struct flow_dv_vlan_be *vlan)
+{
+	const struct rte_flow_item_vlan nic_mask = {
+		.tci = RTE_BE16(0x0fff),
+		.inner_type = RTE_BE16(0xffff),
+	};
+
+	if (items == NULL)
+		return;
+	for (; items->type != RTE_FLOW_ITEM_TYPE_END &&
+	       items->type != RTE_FLOW_ITEM_TYPE_VLAN; items++)
+		;
+	if (items->type == RTE_FLOW_ITEM_TYPE_VLAN) {
+		const struct rte_flow_item_vlan *vlan_m = items->mask;
+		const struct rte_flow_item_vlan *vlan_v = items->spec;
+
+		if (!vlan_m)
+			vlan_m = &nic_mask;
+		if (vlan_m->tci == nic_mask.tci)
+			vlan->tci = vlan_v->tci & vlan_m->tci;
+		if (vlan_m->inner_type == nic_mask.inner_type)
+			vlan->tpid = vlan_v->inner_type & vlan_m->inner_type;
+	}
+}
+
+/**
+ * Validate the push VLAN action.
+ *
+ * @param[in] action_flags
+ *   Holds the actions detected until now.
+ * @param[in] action
+ *   Pointer to the encap action.
+ * @param[in] attr
+ *   Pointer to flow attributes
+ * @param[out] error
+ *   Pointer to error structure.
+ *
+ * @return
+ *   0 on success, a negative errno value otherwise and rte_errno is set.
+ */
+static int
+flow_dv_validate_action_push_vlan(uint64_t action_flags,
+				  const struct rte_flow_action *action,
+				  const struct rte_flow_attr *attr,
+				  struct rte_flow_error *error)
+{
+	const struct rte_flow_action_of_push_vlan *push_vlan = action->conf;
+
+	if (push_vlan->ethertype != RTE_BE16(0x8100) &&
+	    push_vlan->ethertype != RTE_BE16(0x88a8))
+		return rte_flow_error_set(error, EINVAL,
+					  RTE_FLOW_ERROR_TYPE_ACTION, action,
+					  "invalid vlan ethertype");
+	if (action_flags &
+		(MLX5_FLOW_ACTION_OF_POP_VLAN | MLX5_FLOW_ACTION_OF_PUSH_VLAN))
+		return rte_flow_error_set(error, ENOTSUP,
+					  RTE_FLOW_ERROR_TYPE_ACTION, action,
+					  "no support for multiple VLAN "
+					  "actions");
+	(void)attr;
 	return 0;
 }
 
@@ -1294,6 +1391,77 @@ flow_dv_port_id_action_resource_register
 }
 
 /**
+ * Find existing push vlan resource or create and register a new one.
+ *
+ * @param dev[in, out]
+ *   Pointer to rte_eth_dev structure.
+ * @param[in, out] resource
+ *   Pointer to port ID action resource.
+ * @parm[in, out] dev_flow
+ *   Pointer to the dev_flow.
+ * @param[out] error
+ *   pointer to error structure.
+ *
+ * @return
+ *   0 on success otherwise -errno and errno is set.
+ */
+static int
+flow_dv_push_vlan_action_resource_register
+		       (struct rte_eth_dev *dev,
+			struct mlx5_flow_dv_push_vlan_action_resource *resource,
+			struct mlx5_flow *dev_flow,
+			struct rte_flow_error *error)
+{
+	struct mlx5_priv *priv = dev->data->dev_private;
+	struct mlx5_ibv_shared *sh = priv->sh;
+	struct mlx5_flow_dv_push_vlan_action_resource *cache_resource;
+	struct mlx5dv_dr_domain *domain;
+
+	/* Lookup a matching resource from cache. */
+	LIST_FOREACH(cache_resource, &sh->push_vlan_action_list, next) {
+		if (resource->vlan_tag == cache_resource->vlan_tag &&
+		    resource->ft_type == cache_resource->ft_type) {
+			DRV_LOG(DEBUG, "push-VLAN action resource resource %p: "
+				"refcnt %d++",
+				(void *)cache_resource,
+				rte_atomic32_read(&cache_resource->refcnt));
+			rte_atomic32_inc(&cache_resource->refcnt);
+			dev_flow->dv.push_vlan_res = cache_resource;
+			return 0;
+		}
+	}
+	/* Register new push_vlan action resource. */
+	cache_resource = rte_calloc(__func__, 1, sizeof(*cache_resource), 0);
+	if (!cache_resource)
+		return rte_flow_error_set(error, ENOMEM,
+					  RTE_FLOW_ERROR_TYPE_UNSPECIFIED, NULL,
+					  "cannot allocate resource memory");
+	*cache_resource = *resource;
+	if (resource->ft_type == MLX5DV_FLOW_TABLE_TYPE_FDB)
+		domain = sh->fdb_domain;
+	else if (resource->ft_type == MLX5DV_FLOW_TABLE_TYPE_NIC_RX)
+		domain = sh->rx_domain;
+	else
+		domain = sh->tx_domain;
+	cache_resource->action =
+		mlx5_glue->dr_create_flow_action_push_vlan(domain,
+							   resource->vlan_tag);
+	if (!cache_resource->action) {
+		rte_free(cache_resource);
+		return rte_flow_error_set(error, ENOMEM,
+					  RTE_FLOW_ERROR_TYPE_UNSPECIFIED,
+					  NULL, "cannot create action");
+	}
+	rte_atomic32_init(&cache_resource->refcnt);
+	rte_atomic32_inc(&cache_resource->refcnt);
+	LIST_INSERT_HEAD(&sh->push_vlan_action_list, cache_resource, next);
+	dev_flow->dv.push_vlan_res = cache_resource;
+	DRV_LOG(DEBUG, "new push vlan action resource %p: refcnt %d++",
+		(void *)cache_resource,
+		rte_atomic32_read(&cache_resource->refcnt));
+	return 0;
+}
+/**
  * Get the size of specific rte_flow_item_type
  *
  * @param[in] item_type
@@ -1710,6 +1878,47 @@ flow_dv_create_action_raw_encap(struct rte_eth_dev *dev,
 					  RTE_FLOW_ERROR_TYPE_ACTION,
 					  NULL, "can't create encap action");
 	return 0;
+}
+
+/**
+ * Create action push VLAN.
+ *
+ * @param[in] dev
+ *   Pointer to rte_eth_dev structure.
+ * @param[in] vlan_tag
+ *   the vlan tag to push to the Ethernet header.
+ * @param[in, out] dev_flow
+ *   Pointer to the mlx5_flow.
+ * @param[in] attr
+ *   Pointer to the flow attributes.
+ * @param[out] error
+ *   Pointer to the error structure.
+ *
+ * @return
+ *   0 on success, a negative errno value otherwise and rte_errno is set.
+ */
+static int
+flow_dv_create_action_push_vlan(struct rte_eth_dev *dev,
+				const struct rte_flow_attr *attr,
+				const struct flow_dv_vlan_be *vlan,
+				struct mlx5_flow *dev_flow,
+				struct rte_flow_error *error)
+{
+	struct mlx5_flow_dv_push_vlan_action_resource res;
+	union {
+		struct flow_dv_vlan_be vlan;
+		rte_be32_t tag;
+	} hdr;
+
+	hdr.vlan = *vlan;
+	res.vlan_tag = hdr.tag;
+	if (attr->transfer)
+		res.ft_type = MLX5DV_FLOW_TABLE_TYPE_FDB;
+	else
+		res.ft_type = attr->egress ? MLX5DV_FLOW_TABLE_TYPE_NIC_TX :
+					     MLX5DV_FLOW_TABLE_TYPE_NIC_RX;
+	return flow_dv_push_vlan_action_resource_register
+					    (dev, &res, dev_flow, error);
 }
 
 /**
@@ -3157,6 +3366,15 @@ flow_dv_validate(struct rte_eth_dev *dev, const struct rte_flow_attr *attr,
 							     error))
 				return -rte_errno;
 			action_flags |= MLX5_FLOW_ACTION_OF_POP_VLAN;
+			++actions_n;
+			break;
+		case RTE_FLOW_ACTION_TYPE_OF_PUSH_VLAN:
+			ret = flow_dv_validate_action_push_vlan(action_flags,
+								actions, attr,
+								error);
+			if (ret < 0)
+				return ret;
+			action_flags |= MLX5_FLOW_ACTION_OF_PUSH_VLAN;
 			++actions_n;
 			break;
 		case RTE_FLOW_ACTION_TYPE_VXLAN_ENCAP:
@@ -4749,7 +4967,9 @@ flow_dv_translate(struct rte_eth_dev *dev,
 	void *match_mask = matcher.mask.buf;
 	void *match_value = dev_flow->dv.value.buf;
 	uint8_t next_protocol = 0xff;
+	struct flow_dv_vlan_be vlan = { 0 };
 
+	flow_dev_get_vlan_info_from_items(items, &vlan);
 	flow->group = attr->group;
 	if (attr->transfer)
 		res.ft_type = MLX5DV_FLOW_TABLE_TYPE_FDB;
@@ -4862,6 +5082,17 @@ cnt_err:
 			dev_flow->dv.actions[actions_n++] =
 						priv->sh->pop_vlan_action;
 			action_flags |= MLX5_FLOW_ACTION_OF_POP_VLAN;
+			break;
+		case RTE_FLOW_ACTION_TYPE_OF_PUSH_VLAN:
+			vlan.tpid =
+			     (((const struct rte_flow_action_of_push_vlan *)
+						     actions->conf)->ethertype);
+			if (flow_dv_create_action_push_vlan
+					    (dev, attr, &vlan, dev_flow, error))
+				return -rte_errno;
+			dev_flow->dv.actions[actions_n++] =
+					   dev_flow->dv.push_vlan_res->action;
+			action_flags |= MLX5_FLOW_ACTION_OF_PUSH_VLAN;
 			break;
 		case RTE_FLOW_ACTION_TYPE_VXLAN_ENCAP:
 		case RTE_FLOW_ACTION_TYPE_NVGRE_ENCAP:
@@ -5511,6 +5742,37 @@ flow_dv_port_id_action_resource_release(struct mlx5_flow *flow)
 }
 
 /**
+ * Release push vlan action resource.
+ *
+ * @param flow
+ *   Pointer to mlx5_flow.
+ *
+ * @return
+ *   1 while a reference on it exists, 0 when freed.
+ */
+static int
+flow_dv_push_vlan_action_resource_release(struct mlx5_flow *flow)
+{
+	struct mlx5_flow_dv_push_vlan_action_resource *cache_resource =
+		flow->dv.push_vlan_res;
+
+	assert(cache_resource->action);
+	DRV_LOG(DEBUG, "push VLAN action resource %p: refcnt %d--",
+		(void *)cache_resource,
+		rte_atomic32_read(&cache_resource->refcnt));
+	if (rte_atomic32_dec_and_test(&cache_resource->refcnt)) {
+		claim_zero(mlx5_glue->destroy_flow_action
+				(cache_resource->action));
+		LIST_REMOVE(cache_resource, next);
+		rte_free(cache_resource);
+		DRV_LOG(DEBUG, "push vlan action resource %p: removed",
+			(void *)cache_resource);
+		return 0;
+	}
+	return 1;
+}
+
+/**
  * Remove the flow from the NIC but keeps it in memory.
  *
  * @param[in] dev
@@ -5582,6 +5844,8 @@ flow_dv_destroy(struct rte_eth_dev *dev, struct rte_flow *flow)
 			flow_dv_jump_tbl_resource_release(dev_flow);
 		if (dev_flow->dv.port_id_action)
 			flow_dv_port_id_action_resource_release(dev_flow);
+		if (dev_flow->dv.push_vlan_res)
+			flow_dv_push_vlan_action_resource_release(dev_flow);
 		rte_free(dev_flow);
 	}
 }
