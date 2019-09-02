@@ -270,6 +270,7 @@ struct ice_pf {
 	struct ice_eth_stats internal_stats;
 	bool offset_loaded;
 	bool adapter_stopped;
+	bool adapter_closed;
 	struct ice_flow_list flow_list;
 };
 
