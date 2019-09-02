@@ -503,6 +503,8 @@ struct ixgbe_adapter {
 	 * mailbox status) link status.
 	 */
 	uint8_t pflink_fullchk;
+
+	bool closed;
 };
 
 struct ixgbe_vf_representor {
