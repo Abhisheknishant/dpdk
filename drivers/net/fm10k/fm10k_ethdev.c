@@ -1054,9 +1054,12 @@ static int
 fm10k_dev_start(struct rte_eth_dev *dev)
 {
 	struct fm10k_hw *hw = FM10K_DEV_PRIVATE_TO_HW(dev->data->dev_private);
+	struct fm10k_adapter *adapter = dev->data->dev_private;
 	int i, diag;
 
 	PMD_INIT_FUNC_TRACE();
+
+	adapter->stopped = 0;
 
 	/* stop, init, then start the hw */
 	diag = fm10k_stop_hw(hw);
@@ -1140,9 +1143,13 @@ static void
 fm10k_dev_stop(struct rte_eth_dev *dev)
 {
 	struct fm10k_hw *hw = FM10K_DEV_PRIVATE_TO_HW(dev->data->dev_private);
+	struct fm10k_adapter *adapter = dev->data->dev_private;
 	struct rte_pci_device *pdev = RTE_ETH_DEV_TO_PCI(dev);
 	struct rte_intr_handle *intr_handle = &pdev->intr_handle;
 	int i;
+
+	if (adapter->stopped == 1)
+		return;
 
 	PMD_INIT_FUNC_TRACE();
 
@@ -1171,6 +1178,8 @@ fm10k_dev_stop(struct rte_eth_dev *dev)
 	rte_intr_efd_disable(intr_handle);
 	rte_free(intr_handle->intr_vec);
 	intr_handle->intr_vec = NULL;
+
+	adapter->stopped = 1;
 }
 
 static void
@@ -1192,28 +1201,6 @@ fm10k_dev_queue_release(struct rte_eth_dev *dev)
 		for (i = 0; i < dev->data->nb_rx_queues; i++)
 			fm10k_rx_queue_release(dev->data->rx_queues[i]);
 	}
-}
-
-static void
-fm10k_dev_close(struct rte_eth_dev *dev)
-{
-	struct fm10k_hw *hw = FM10K_DEV_PRIVATE_TO_HW(dev->data->dev_private);
-
-	PMD_INIT_FUNC_TRACE();
-
-	fm10k_mbx_lock(hw);
-	hw->mac.ops.update_lport_state(hw, hw->mac.dglort_map,
-		MAX_LPORT_NUM, false);
-	fm10k_mbx_unlock(hw);
-
-	/* allow 100ms for device to quiesce */
-	rte_delay_us(FM10K_SWITCH_QUIESCE_US);
-
-	/* Stop mailbox service first */
-	fm10k_close_mbx_service(hw);
-	fm10k_dev_stop(dev);
-	fm10k_dev_queue_release(dev);
-	fm10k_stop_hw(hw);
 }
 
 static int
@@ -2799,6 +2786,56 @@ fm10k_close_mbx_service(struct fm10k_hw *hw)
 	hw->mbx.ops.disconnect(hw, &hw->mbx);
 }
 
+static void
+fm10k_dev_close(struct rte_eth_dev *dev)
+{
+	struct fm10k_hw *hw = FM10K_DEV_PRIVATE_TO_HW(dev->data->dev_private);
+	struct rte_pci_device *pdev = RTE_ETH_DEV_TO_PCI(dev);
+	struct rte_intr_handle *intr_handle = &pdev->intr_handle;
+	struct fm10k_adapter *adapter = dev->data->dev_private;
+
+	PMD_INIT_FUNC_TRACE();
+
+	fm10k_mbx_lock(hw);
+	hw->mac.ops.update_lport_state(hw, hw->mac.dglort_map,
+		MAX_LPORT_NUM, false);
+	fm10k_mbx_unlock(hw);
+
+	/* allow 100ms for device to quiesce */
+	rte_delay_us(FM10K_SWITCH_QUIESCE_US);
+
+	/* Stop mailbox service first */
+	fm10k_close_mbx_service(hw);
+	fm10k_dev_stop(dev);
+	fm10k_dev_queue_release(dev);
+	fm10k_stop_hw(hw);
+
+	dev->dev_ops = NULL;
+	dev->rx_pkt_burst = NULL;
+	dev->tx_pkt_burst = NULL;
+
+	/* disable uio/vfio intr */
+	rte_intr_disable(intr_handle);
+
+	/*PF/VF has different interrupt handling mechanism */
+	if (hw->mac.type == fm10k_mac_pf) {
+		/* disable interrupt */
+		fm10k_dev_disable_intr_pf(dev);
+
+		/* unregister callback func to eal lib */
+		rte_intr_callback_unregister(intr_handle,
+			fm10k_dev_interrupt_handler_pf, (void *)dev);
+	} else {
+		/* disable interrupt */
+		fm10k_dev_disable_intr_vf(dev);
+
+		rte_intr_callback_unregister(intr_handle,
+			fm10k_dev_interrupt_handler_vf, (void *)dev);
+	}
+
+	adapter->closed = 1;
+}
+
 static const struct eth_dev_ops fm10k_eth_dev_ops = {
 	.dev_configure		= fm10k_dev_configure,
 	.dev_start		= fm10k_dev_start,
@@ -3022,6 +3059,7 @@ eth_fm10k_dev_init(struct rte_eth_dev *dev)
 	struct fm10k_hw *hw = FM10K_DEV_PRIVATE_TO_HW(dev->data->dev_private);
 	struct rte_pci_device *pdev = RTE_ETH_DEV_TO_PCI(dev);
 	struct rte_intr_handle *intr_handle = &pdev->intr_handle;
+	struct fm10k_adapter *adapter = dev->data->dev_private;
 	int diag, i;
 	struct fm10k_macvlan_filter_info *macvlan;
 
@@ -3102,6 +3140,11 @@ eth_fm10k_dev_init(struct rte_eth_dev *dev)
 		rte_ether_addr_copy((const struct rte_ether_addr *)hw->mac.addr,
 		&dev->data->mac_addrs[0]);
 	}
+
+	/* Pass the information to the rte_eth_dev_close() that it should also
+	 * release the private port resources.
+	 */
+	dev->data->dev_flags |= RTE_ETH_DEV_CLOSE_REMOVE;
 
 	/* Reset the hw statistics */
 	fm10k_stats_reset(dev);
@@ -3199,46 +3242,25 @@ eth_fm10k_dev_init(struct rte_eth_dev *dev)
 	fm10k_MAC_filter_set(dev, hw->mac.addr, true,
 		MAIN_VSI_POOL_NUMBER);
 
+	adapter->closed = 0;
+	adapter->stopped = 0;
+
 	return 0;
 }
 
 static int
 eth_fm10k_dev_uninit(struct rte_eth_dev *dev)
 {
-	struct fm10k_hw *hw = FM10K_DEV_PRIVATE_TO_HW(dev->data->dev_private);
-	struct rte_pci_device *pdev = RTE_ETH_DEV_TO_PCI(dev);
-	struct rte_intr_handle *intr_handle = &pdev->intr_handle;
+	struct fm10k_adapter *adapter = dev->data->dev_private;
+
 	PMD_INIT_FUNC_TRACE();
 
 	/* only uninitialize in the primary process */
 	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
 		return 0;
 
-	/* safe to close dev here */
-	fm10k_dev_close(dev);
-
-	dev->dev_ops = NULL;
-	dev->rx_pkt_burst = NULL;
-	dev->tx_pkt_burst = NULL;
-
-	/* disable uio/vfio intr */
-	rte_intr_disable(intr_handle);
-
-	/*PF/VF has different interrupt handling mechanism */
-	if (hw->mac.type == fm10k_mac_pf) {
-		/* disable interrupt */
-		fm10k_dev_disable_intr_pf(dev);
-
-		/* unregister callback func to eal lib */
-		rte_intr_callback_unregister(intr_handle,
-			fm10k_dev_interrupt_handler_pf, (void *)dev);
-	} else {
-		/* disable interrupt */
-		fm10k_dev_disable_intr_vf(dev);
-
-		rte_intr_callback_unregister(intr_handle,
-			fm10k_dev_interrupt_handler_vf, (void *)dev);
-	}
+	if (adapter->closed == 0)
+		fm10k_dev_close(dev);
 
 	return 0;
 }

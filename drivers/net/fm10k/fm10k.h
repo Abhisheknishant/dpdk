@@ -133,6 +133,9 @@ struct fm10k_adapter {
 	struct fm10k_hw             hw;
 	struct fm10k_hw_stats       stats;
 	struct fm10k_dev_info       info;
+
+	bool stopped;
+	bool closed;
 };
 
 #define FM10K_DEV_PRIVATE_TO_HW(adapter) \
