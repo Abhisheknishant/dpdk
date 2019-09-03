@@ -254,6 +254,14 @@ Display information for a given port's RX/TX queue::
 
    testpmd> show (rxq|txq) info (port_id) (queue_id)
 
+show desc status(rxq|txq)
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Display information for a given port's RX/TX descriptor status::
+
+   testpmd> show port (port_id) (rx|tx) (queue_id) (desc_id) status
+
+
 show config
 ~~~~~~~~~~~
 
