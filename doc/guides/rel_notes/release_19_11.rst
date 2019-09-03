@@ -56,6 +56,11 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Added eBPF JIT support for arm64.**
+
+  Added eBPF JIT support for arm64 architecture to improve the eBPF program
+  performance.
+
 
 Removed Items
 -------------
