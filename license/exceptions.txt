@@ -12,7 +12,9 @@ Note that following licenses are not exceptions:-
 -----------------------------------------------------------------
 SPDX Identifier     TB Approval Date  GB Approval Date  File name
 -----------------------------------------------------------------
-1.
+1.GPL-2.0	TBD	 TBD		buildtools/pmdinfogen/pmdinfogen.c
+1.GPL-2.0	TBD	 TBD		buildtools/pmdinfogen/pmdinfogen.h
+
 
 -----------------------------------------------------------------
 
