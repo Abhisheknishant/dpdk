@@ -1008,6 +1008,47 @@ flow_dv_validate_action_set_vlan_pcp(uint64_t action_flags,
 }
 
 /**
+ * Validate the set VLAN VID.
+ *
+ * @param[in] action_flags
+ *   Holds the actions detected until now.
+ * @param[in] actions
+ *   Pointer to the list of actions remaining in the flow rule.
+ * @param[in] attr
+ *   Pointer to flow attributes
+ * @param[out] error
+ *   Pointer to error structure.
+ *
+ * @return
+ *   0 on success, a negative errno value otherwise and rte_errno is set.
+ */
+static int
+flow_dv_validate_action_set_vlan_vid(uint64_t action_flags,
+				     const struct rte_flow_action actions[],
+				     struct rte_flow_error *error)
+{
+	const struct rte_flow_action *action = actions;
+	const struct rte_flow_action_of_set_vlan_vid *conf = action->conf;
+
+	if (conf->vlan_vid > RTE_BE16(0xFFE))
+		return rte_flow_error_set(error, EINVAL,
+					  RTE_FLOW_ERROR_TYPE_ACTION, action,
+					  "VLAN VID value is too big");
+	if (mlx5_flow_find_action(actions,
+				  RTE_FLOW_ACTION_TYPE_OF_PUSH_VLAN) == NULL)
+		return rte_flow_error_set(error, ENOTSUP,
+					  RTE_FLOW_ERROR_TYPE_ACTION, action,
+					  "set VLAN VID can only be used "
+					  "with push VLAN action");
+	if (action_flags & MLX5_FLOW_ACTION_OF_PUSH_VLAN)
+		return rte_flow_error_set(error, ENOTSUP,
+					  RTE_FLOW_ERROR_TYPE_ACTION, action,
+					  "set VLAN VID action must precede "
+					  "the push VLAN action");
+	return 0;
+}
+
+/**
  * Validate count action.
  *
  * @param[in] dev
@@ -3425,6 +3466,13 @@ flow_dv_validate(struct rte_eth_dev *dev, const struct rte_flow_attr *attr,
 				return ret;
 			/* Count PCP with push_vlan command. */
 			break;
+		case RTE_FLOW_ACTION_TYPE_OF_SET_VLAN_VID:
+			ret = flow_dv_validate_action_set_vlan_vid
+						(action_flags, actions, error);
+			if (ret < 0)
+				return ret;
+			/* Count VID with push_vlan command. */
+			break;
 		case RTE_FLOW_ACTION_TYPE_VXLAN_ENCAP:
 		case RTE_FLOW_ACTION_TYPE_NVGRE_ENCAP:
 			ret = flow_dv_validate_action_l2_encap(action_flags,
@@ -5150,6 +5198,13 @@ cnt_err:
 			vlan_tci = vlan_tci << FLOW_DV_VLAN_PCP_SHIFT;
 			vlan.tci &= ~FLOW_DV_VLAN_PCP_MASK;
 			vlan.tci |= rte_cpu_to_be_16(vlan_tci);
+			/* Push VLAN command will use this value */
+			break;
+		case RTE_FLOW_ACTION_TYPE_OF_SET_VLAN_VID:
+			vlan.tci &= ~FLOW_DV_VLAN_VID_MASK;
+			vlan.tci |=
+			    ((const struct rte_flow_action_of_set_vlan_vid *)
+						       actions->conf)->vlan_vid;
 			/* Push VLAN command will use this value */
 			break;
 		case RTE_FLOW_ACTION_TYPE_VXLAN_ENCAP:
