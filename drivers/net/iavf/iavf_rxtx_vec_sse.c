@@ -655,3 +655,15 @@ iavf_rxq_vec_setup(struct iavf_rx_queue *rxq)
 	rxq->ops = &sse_vec_rxq_ops;
 	return iavf_rxq_vec_setup_default(rxq);
 }
+
+int __attribute__((cold))
+iavf_rx_vec_dev_check(struct rte_eth_dev *dev)
+{
+	return iavf_rx_vec_dev_check_default(dev);
+}
+
+int __attribute__((cold))
+iavf_tx_vec_dev_check(struct rte_eth_dev *dev)
+{
+	return iavf_tx_vec_dev_check_default(dev);
+}
