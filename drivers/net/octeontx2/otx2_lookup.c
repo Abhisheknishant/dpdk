@@ -138,6 +138,7 @@ nix_create_non_tunnel_ptype_array(uint16_t *ptype)
 			val |= RTE_PTYPE_L4_SCTP;
 			break;
 		case NPC_LT_LD_ICMP:
+		case NPC_LT_LD_ICMP6:
 			val |= RTE_PTYPE_L4_ICMP;
 			break;
 		case NPC_LT_LD_IGMP:
@@ -222,6 +223,7 @@ nix_create_tunnel_ptype_array(uint16_t *ptype)
 			val |= TU_SHIFT(RTE_PTYPE_INNER_L4_SCTP);
 			break;
 		case NPC_LT_LH_TU_ICMP:
+		case NPC_LT_LH_TU_ICMP6:
 			val |= TU_SHIFT(RTE_PTYPE_INNER_L4_ICMP);
 			break;
 		}
