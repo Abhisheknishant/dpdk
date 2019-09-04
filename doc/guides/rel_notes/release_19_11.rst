@@ -56,6 +56,13 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Updated the AF_XDP PMD.**
+
+  Updated the AF_XDP PMD. The new features include:
+
+  * Support for pinning netdev queue IRQs to cores specified by the user.
+    Available for ixgbe, i40e and mlx5 drivers.
+
 
 Removed Items
 -------------

@@ -36,6 +36,7 @@ The following options can be provided to set up an af_xdp port in DPDK.
 *   ``start_queue`` - starting netdev queue id (optional, default 0);
 *   ``queue_count`` - total netdev queue number (optional, default 1);
 *   ``pmd_zero_copy`` - enable zero copy or not (optional, default 0);
+*   ``queue_irq`` - pin queue irqs to specified core <queue:core> (optional, default no pinning). The queue argument refers to the ethdev queue as opposed to the netdev queue. ixgbe, i40e and mlx5 drivers supported;
 
 Prerequisites
 -------------

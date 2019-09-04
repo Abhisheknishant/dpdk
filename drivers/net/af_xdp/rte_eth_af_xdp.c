@@ -3,6 +3,7 @@
  */
 #include <unistd.h>
 #include <errno.h>
+#include <regex.h>
 #include <stdlib.h>
 #include <string.h>
 #include <poll.h>
@@ -10,6 +11,7 @@
 #include <net/if.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <sys/sysinfo.h>
 #include <linux/if_ether.h>
 #include <linux/if_xdp.h>
 #include <linux/if_link.h>
@@ -116,6 +118,7 @@ struct pmd_internals {
 	int queue_cnt;
 	int max_queue_cnt;
 	int combined_queue_cnt;
+	int queue_irqs[RTE_MAX_QUEUES_PER_PORT];
 
 	int pmd_zc;
 	struct rte_ether_addr eth_addr;
@@ -128,12 +131,14 @@ struct pmd_internals {
 #define ETH_AF_XDP_START_QUEUE_ARG		"start_queue"
 #define ETH_AF_XDP_QUEUE_COUNT_ARG		"queue_count"
 #define ETH_AF_XDP_PMD_ZC_ARG			"pmd_zero_copy"
+#define ETH_AF_XDP_QUEUE_IRQ_ARG		"queue_irq"
 
 static const char * const valid_arguments[] = {
 	ETH_AF_XDP_IFACE_ARG,
 	ETH_AF_XDP_START_QUEUE_ARG,
 	ETH_AF_XDP_QUEUE_COUNT_ARG,
 	ETH_AF_XDP_PMD_ZC_ARG,
+	ETH_AF_XDP_QUEUE_IRQ_ARG,
 	NULL
 };
 
@@ -660,6 +665,168 @@ err:
 	return ret;
 }
 
+static void
+configure_irqs(struct pmd_internals *internals, uint16_t rx_queue_id)
+{
+	FILE *f_int_proc, *f_int_uevent, *f_int_smp_affinity;
+	int i, found = 0, interrupt;
+	char smp_affinity_filename[NAME_MAX];
+	char uevent_path[PATH_MAX];
+	char bitmask[128];
+	char iface_regex_str[128];
+	char line[4096];
+	char driver[128];
+	char *driver_line;
+	regex_t r;
+	uint16_t netdev_qid = rx_queue_id + internals->start_queue_idx;
+	int coreid = internals->queue_irqs[rx_queue_id];
+
+	if (coreid < 0)
+		return;
+
+	if (coreid > (get_nprocs() - 1)) {
+		AF_XDP_LOG(ERR, "Affinitisation failed - invalid coreid\n");
+		return;
+	}
+
+	/* Retrieve driver name to determine expected /proc/interrupts format */
+	snprintf(uevent_path, sizeof(uevent_path),
+			"/sys/class/net/%s/device/uevent", internals->if_name);
+	f_int_uevent = fopen(uevent_path, "r");
+	if (f_int_uevent == NULL) {
+		AF_XDP_LOG(ERR, "Failed to open %s.\n", uevent_path);
+		return;
+	}
+
+	while (!feof(f_int_uevent) && !found) {
+		/* Make sure to read a full line at a time */
+		if (fgets(line, sizeof(line), f_int_uevent) == NULL ||
+				line[strlen(line) - 1] != '\n') {
+			AF_XDP_LOG(ERR, "Error reading %s\n", uevent_path);
+			break;
+		}
+
+		if (!(strstr(line, "DRIVER=")))
+			continue;
+
+		driver_line = &line[7];
+		strtok(driver_line, "\n");
+		if (driver_line != NULL && (strlen(driver_line))) {
+			found = 1;
+			strlcpy(driver, driver_line, sizeof(driver));
+		}
+		break;
+	}
+
+	if (!found) {
+		AF_XDP_LOG(ERR, "Error retrieving driver info for %s\n",
+					internals->if_name);
+		return;
+	}
+
+	/* Generate /proc/interrupts search regex based on driver type */
+	if (!strncmp(driver, "i40e", RTE_MAX(strlen(driver), strlen("i40e"))) ||
+			!strncmp(driver, "ixgbe",
+				RTE_MAX(strlen(driver), strlen("ixgbe")))) {
+		if (snprintf(iface_regex_str, sizeof(iface_regex_str),
+				"-%s.*-%d", internals->if_name, netdev_qid) >=
+				(int)sizeof(iface_regex_str)) {
+			AF_XDP_LOG(INFO, "Cannot get interrupt for %s q %i\n",
+						internals->if_name, netdev_qid);
+			return;
+		}
+	} else if (!strncmp(driver, "mlx5_core", RTE_MAX(strlen(driver),
+				strlen("mlx5_core")))) {
+		char pci[13];
+
+		rewind(f_int_uevent);
+		found = 0;
+
+		while (!feof(f_int_uevent) && !found) {
+			/* Make sure to read a full line at a time */
+			if (fgets(line, sizeof(line), f_int_uevent) == NULL ||
+					line[strlen(line) - 1] != '\n') {
+				AF_XDP_LOG(ERR, "Error reading %s\n",
+						uevent_path);
+				break;
+			}
+
+			if (!(strstr(line, "PCI_SLOT_NAME=")))
+				continue;
+
+			found = 1;
+			strlcpy(pci, &line[14], sizeof(pci));
+			if (snprintf(iface_regex_str, sizeof(iface_regex_str),
+					".*p%i@pci:%s", netdev_qid, pci) >=
+					(int)sizeof(iface_regex_str)) {
+				AF_XDP_LOG(INFO, "Cannot get interrupt for %s "
+							"q %i\n",
+							internals->if_name,
+							netdev_qid);
+				return;
+			}
+		}
+	} else {
+		AF_XDP_LOG(ERR, "Unsupported driver %s.\n", driver);
+		return;
+	}
+
+	if (regcomp(&r, iface_regex_str, 0))
+		AF_XDP_LOG(ERR, "Error computing regex %s\n", iface_regex_str);
+
+	f_int_proc = fopen("/proc/interrupts", "r");
+	if (f_int_proc == NULL) {
+		AF_XDP_LOG(ERR, "Failed to open /proc/interrupts.\n");
+		return;
+	}
+
+	/* Create affinity bitmask. Every 32 bits are separated by a comma */
+	snprintf(bitmask, sizeof(bitmask), "%x", 1 << (coreid % 32));
+	for (i = 0; i < coreid / 32; i++)
+		strlcat(bitmask, ",00000000", sizeof(bitmask));
+
+	found = 0;
+
+	/* Find interrupt number for given interface qid */
+	while (!feof(f_int_proc) && !found) {
+		/* Make sure to read a full line at a time */
+		if (fgets(line, sizeof(line), f_int_proc) == NULL ||
+				line[strlen(line) - 1] != '\n') {
+			AF_XDP_LOG(ERR, "Error reading from interrupts file\n");
+			break;
+		}
+
+		/* Extract interrupt number from line */
+		if (regexec(&r, line, 0, NULL, 0) == 0) {
+			interrupt = atoi(line);
+			found = true;
+			AF_XDP_LOG(INFO, "Got interrupt %d for %s\n",
+						interrupt, internals->if_name);
+		}
+
+		if (!found)
+			continue;
+
+		/* Write the new affinity bitmask */
+		snprintf(smp_affinity_filename, sizeof(smp_affinity_filename),
+				"/proc/irq/%d/smp_affinity", interrupt);
+		f_int_smp_affinity = fopen(smp_affinity_filename, "w");
+		if (f_int_smp_affinity == NULL) {
+			AF_XDP_LOG(ERR, "Error opening %s\n",
+					smp_affinity_filename);
+			continue;
+		}
+		fwrite(bitmask, strlen(bitmask), 1, f_int_smp_affinity);
+		fclose(f_int_smp_affinity);
+		AF_XDP_LOG(INFO, "IRQs for %s ethdev queue %i (netdev queue %i)"
+					" affinitised to core %i\n",
+					internals->if_name, rx_queue_id,
+					netdev_qid, coreid);
+	}
+
+	fclose(f_int_proc);
+}
+
 static int
 eth_rx_queue_setup(struct rte_eth_dev *dev,
 		   uint16_t rx_queue_id,
@@ -696,6 +863,8 @@ eth_rx_queue_setup(struct rte_eth_dev *dev,
 		ret = -EINVAL;
 		goto err;
 	}
+
+	configure_irqs(internals, rx_queue_id);
 
 	rxq->fds[0].fd = xsk_socket__fd(rxq->xsk);
 	rxq->fds[0].events = POLLIN;
@@ -834,6 +1003,39 @@ parse_name_arg(const char *key __rte_unused,
 	return 0;
 }
 
+/** parse queue irq argument */
+static int
+parse_queue_irq_arg(const char *key __rte_unused,
+		   const char *value, void *extra_args)
+{
+	int (*queue_irqs)[RTE_MAX_QUEUES_PER_PORT] = extra_args;
+	char *parse_str = strdup(value);
+	char delimiter[] = ":";
+	char *queue_str;
+
+	queue_str = strtok(parse_str, delimiter);
+	if (queue_str != NULL && strncmp(queue_str, value, strlen(value))) {
+		char *end;
+		long queue = strtol(queue_str, &end, 10);
+
+		if (*end == '\0' && queue >= 0 &&
+				queue < RTE_MAX_QUEUES_PER_PORT) {
+			char *core_str = strtok(NULL, delimiter);
+			long core = strtol(core_str, &end, 10);
+
+			if (*end == '\0' && core >= 0 && core < get_nprocs()) {
+				(*queue_irqs)[queue] = core;
+				free(parse_str);
+				return 0;
+			}
+		}
+	}
+
+	AF_XDP_LOG(ERR, "Invalid queue_irq argument.\n");
+	free(parse_str);
+	return -1;
+}
+
 static int
 xdp_get_channels_info(const char *if_name, int *max_queues,
 				int *combined_queues)
@@ -877,7 +1079,8 @@ xdp_get_channels_info(const char *if_name, int *max_queues,
 
 static int
 parse_parameters(struct rte_kvargs *kvlist, char *if_name, int *start_queue,
-			int *queue_cnt, int *pmd_zc)
+			int *queue_cnt, int *pmd_zc,
+			int (*queue_irqs)[RTE_MAX_QUEUES_PER_PORT])
 {
 	int ret;
 
@@ -900,6 +1103,11 @@ parse_parameters(struct rte_kvargs *kvlist, char *if_name, int *start_queue,
 
 	ret = rte_kvargs_process(kvlist, ETH_AF_XDP_PMD_ZC_ARG,
 				 &parse_integer_arg, pmd_zc);
+	if (ret < 0)
+		goto free_kvlist;
+
+	ret = rte_kvargs_process(kvlist, ETH_AF_XDP_QUEUE_IRQ_ARG,
+				 &parse_queue_irq_arg, queue_irqs);
 	if (ret < 0)
 		goto free_kvlist;
 
@@ -940,7 +1148,8 @@ error:
 
 static struct rte_eth_dev *
 init_internals(struct rte_vdev_device *dev, const char *if_name,
-			int start_queue_idx, int queue_cnt, int pmd_zc)
+			int start_queue_idx, int queue_cnt, int pmd_zc,
+			int queue_irqs[RTE_MAX_QUEUES_PER_PORT])
 {
 	const char *name = rte_vdev_device_name(dev);
 	const unsigned int numa_node = dev->device.numa_node;
@@ -957,6 +1166,8 @@ init_internals(struct rte_vdev_device *dev, const char *if_name,
 	internals->queue_cnt = queue_cnt;
 	internals->pmd_zc = pmd_zc;
 	strlcpy(internals->if_name, if_name, IFNAMSIZ);
+	memcpy(internals->queue_irqs, queue_irqs,
+		sizeof(int) * RTE_MAX_QUEUES_PER_PORT);
 
 	if (xdp_get_channels_info(if_name, &internals->max_queue_cnt,
 				  &internals->combined_queue_cnt)) {
@@ -1035,6 +1246,9 @@ rte_pmd_af_xdp_probe(struct rte_vdev_device *dev)
 	struct rte_eth_dev *eth_dev = NULL;
 	const char *name;
 	int pmd_zc = 0;
+	int queue_irqs[RTE_MAX_QUEUES_PER_PORT];
+
+	memset(queue_irqs, -1, sizeof(int) * RTE_MAX_QUEUES_PER_PORT);
 
 	AF_XDP_LOG(INFO, "Initializing pmd_af_xdp for %s\n",
 		rte_vdev_device_name(dev));
@@ -1062,7 +1276,7 @@ rte_pmd_af_xdp_probe(struct rte_vdev_device *dev)
 		dev->device.numa_node = rte_socket_id();
 
 	if (parse_parameters(kvlist, if_name, &xsk_start_queue_idx,
-			     &xsk_queue_cnt, &pmd_zc) < 0) {
+			     &xsk_queue_cnt, &pmd_zc, &queue_irqs) < 0) {
 		AF_XDP_LOG(ERR, "Invalid kvargs value\n");
 		return -EINVAL;
 	}
@@ -1073,7 +1287,7 @@ rte_pmd_af_xdp_probe(struct rte_vdev_device *dev)
 	}
 
 	eth_dev = init_internals(dev, if_name, xsk_start_queue_idx,
-					xsk_queue_cnt, pmd_zc);
+					xsk_queue_cnt, pmd_zc, queue_irqs);
 	if (eth_dev == NULL) {
 		AF_XDP_LOG(ERR, "Failed to init internals\n");
 		return -1;
@@ -1117,7 +1331,8 @@ RTE_PMD_REGISTER_PARAM_STRING(net_af_xdp,
 			      "iface=<string> "
 			      "start_queue=<int> "
 			      "queue_count=<int> "
-			      "pmd_zero_copy=<0|1>");
+			      "pmd_zero_copy=<0|1> "
+			      "queue_irq=<int>:<int>");
 
 RTE_INIT(af_xdp_init_log)
 {
