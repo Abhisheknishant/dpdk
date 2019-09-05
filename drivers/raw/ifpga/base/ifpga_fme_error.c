@@ -257,6 +257,45 @@ static void fme_global_error_uinit(struct ifpga_feature *feature)
 	UNUSED(feature);
 }
 
+static int fme_err_check_seu(struct feature_fme_err *fme_err)
+{
+	struct feature_fme_error_capability error_cap;
+
+	error_cap.csr = readq(&fme_err->fme_err_capability);
+
+	return error_cap.seu_support ? 1 : 0;
+}
+
+static int fme_err_get_seu_emr_low(struct ifpga_fme_hw *fme,
+		u64 *val)
+{
+	struct feature_fme_err *fme_err
+		= get_fme_feature_ioaddr_by_index(fme,
+						  FME_FEATURE_ID_GLOBAL_ERR);
+
+	if (!fme_err_check_seu(fme_err))
+		return -ENODEV;
+
+	*val = readq(&fme_err->seu_emr_l);
+
+	return 0;
+}
+
+static int fme_err_get_seu_emr_high(struct ifpga_fme_hw *fme,
+		u64 *val)
+{
+	struct feature_fme_err *fme_err
+		= get_fme_feature_ioaddr_by_index(fme,
+						  FME_FEATURE_ID_GLOBAL_ERR);
+
+	if (!fme_err_check_seu(fme_err))
+		return -ENODEV;
+
+	*val = readq(&fme_err->seu_emr_h);
+
+	return 0;
+}
+
 static int fme_err_fme_err_get_prop(struct ifpga_feature *feature,
 				    struct feature_prop *prop)
 {
@@ -270,6 +309,10 @@ static int fme_err_fme_err_get_prop(struct ifpga_feature *feature,
 		return fme_err_get_first_error(fme, &prop->data);
 	case 0x3: /* NEXT_ERROR */
 		return fme_err_get_next_error(fme, &prop->data);
+	case 0x5: /* SEU EMR LOW */
+		return fme_err_get_seu_emr_low(fme, &prop->data);
+	case 0x6: /* SEU EMR HIGH */
+		return fme_err_get_seu_emr_high(fme, &prop->data);
 	}
 
 	return -ENOENT;
