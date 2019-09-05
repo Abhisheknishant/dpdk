@@ -80,11 +80,8 @@ config_remote_iface()
 
 	ssh ${REMOTE_HOST} ip neigh flush dev ${REMOTE_IFACE}
 
-	# by some reason following ip neigh doesn't work for me here properly:
-	#ssh ${REMOTE_HOST} ip neigh add ${LOCAL_IPV4} \
-	#		dev ${REMOTE_IFACE} lladr ${LOCAL_MAC}
-	# so used arp instead.
-	ssh ${REMOTE_HOST} arp -i ${REMOTE_IFACE} -s ${LOCAL_IPV4} ${LOCAL_MAC}
+	ssh ${REMOTE_HOST} ip neigh add ${LOCAL_IPV4} \
+			dev ${REMOTE_IFACE} lladdr ${LOCAL_MAC}
 	ssh ${REMOTE_HOST} ip neigh show dev ${REMOTE_IFACE}
 
 	ssh ${REMOTE_HOST} iptables --flush

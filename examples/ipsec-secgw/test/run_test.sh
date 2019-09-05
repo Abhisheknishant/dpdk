@@ -1,7 +1,7 @@
 #! /bin/bash
 
-# usage: /bin/bash run_test.sh [-46]
-# Run all defined linux_test[4,6].sh test-cases one by one
+# usage: /bin/bash run_test.sh [-46mp]
+# Run all defined linux_test.sh test-cases one by one
 # user has to setup properly the following environment variables:
 #  SGW_PATH - path to the ipsec-secgw binary to test
 #  REMOTE_HOST - ip/hostname of the DUT
@@ -13,7 +13,7 @@
 #  if none specified appropriate vdevs will be created by the scrit
 #  MULTI_SEG_TEST - ipsec-secgw option to enable reassembly support and
 #  specify size of reassembly table (i.e. MULTI_SEG_TEST="--reassemble 128")
-# refer to linux_test[4,6].sh for more information
+# refer to linux_test.sh for more information
 
 
 # All supported modes to test.
@@ -24,9 +24,11 @@
 usage()
 {
 	echo "Usage:"
-	echo -e "\t$0 -[46p]"
+	echo -e "\t$0 -[46mp]"
 	echo -e "\t\t-4 Perform Linux IPv4 network tests"
 	echo -e "\t\t-6 Perform Linux IPv6 network tests"
+	echo -e "\t\t-m Add mixed IP protocol tests to IPv4/IPv6 \
+(only with option [-46])"
 	echo -e "\t\t-p Perform packet validation tests"
 	echo -e "\t\t-h Display this help"
 }
@@ -73,7 +75,8 @@ DIR=$(dirname $0)
 run4=0
 run6=0
 runpkt=0
-while getopts ":46ph" opt
+mixed=0
+while getopts ":46mph" opt
 do
 	case $opt in
 		4)
@@ -81,6 +84,9 @@ do
 			;;
 		6)
 			run6=1
+			;;
+		m)
+			mixed=1
 			;;
 		p)
 			runpkt=1
@@ -124,20 +130,36 @@ if [[ ${run4} -eq 1 || ${run6} -eq 1 ]]; then
 		echo "starting test ${i}"
 
 		st4=0
+		st4m=0
 		if [[ ${run4} -ne 0 ]]; then
-			/bin/bash ${DIR}/linux_test4.sh ${i}
+			/bin/bash ${DIR}/linux_test.sh ipv4-ipv4 ${i}
 			st4=$?
-			echo "test4 ${i} finished with status ${st4}"
+			echo "test IPv4 ${i} finished with status ${st4}"
+
+			if [[ ${mixed} -ne 0 ]] && [[ ${i} = "tun"* ]]; then
+				/bin/bash ${DIR}/linux_test.sh ipv4-ipv6 ${i}
+				st4m=$?
+				echo "test IPv4-IPv6 ${i} finished with \
+status ${st4m}"
+			fi
 		fi
 
 		st6=0
+		st6m=0
 		if [[ ${run6} -ne 0 ]]; then
-			/bin/bash ${DIR}/linux_test6.sh ${i}
+			/bin/bash ${DIR}/linux_test.sh ipv6-ipv6 ${i}
 			st6=$?
-			echo "test6 ${i} finished with status ${st6}"
+			echo "test IPv6 ${i} finished with status ${st6}"
+
+			if [[ ${mixed} -ne 0 ]] && [[ ${i} = "tun"* ]]; then
+				/bin/bash ${DIR}/linux_test.sh ipv6-ipv4 ${i}
+				st6m=$?
+				echo "test IPv6-IPv4 ${i} finished with \
+status ${st6m}"
+			fi
 		fi
 
-		let "st = st4 + st6"
+		let "st = st4 + st6 + st4m + st6m"
 		if [[ $st -ne 0 ]]; then
 			echo "ERROR test ${i} FAILED"
 			exit $st
