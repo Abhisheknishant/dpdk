@@ -581,7 +581,7 @@ ipsec_inbound(struct ipsec_ctx *ctx, struct rte_mbuf *pkts[],
 {
 	struct ipsec_sa *sas[nb_pkts];
 
-	inbound_sa_lookup(ctx->sa_ctx, pkts, sas, nb_pkts);
+	inbound_sa_lookup(ctx->sa4_ctx, ctx->sa6_ctx, pkts, sas, nb_pkts);
 
 	ipsec_enqueue(esp_inbound, ctx, pkts, sas, nb_pkts);
 
@@ -601,7 +601,8 @@ ipsec_outbound(struct ipsec_ctx *ctx, struct rte_mbuf *pkts[],
 {
 	struct ipsec_sa *sas[nb_pkts];
 
-	outbound_sa_lookup(ctx->sa_ctx, sa_idx, sas, nb_pkts);
+	outbound_sa_lookup(ctx->sa4_ctx, ctx->sa6_ctx, sa_idx, sas, pkts,
+			nb_pkts);
 
 	ipsec_enqueue(esp_outbound, ctx, pkts, sas, nb_pkts);
 

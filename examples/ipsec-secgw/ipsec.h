@@ -174,7 +174,8 @@ struct ipsec_ctx {
 	struct rte_hash *cdev_map;
 	struct sp_ctx *sp4_ctx;
 	struct sp_ctx *sp6_ctx;
-	struct sa_ctx *sa_ctx;
+	struct sa_ctx *sa4_ctx;
+	struct sa_ctx *sa6_ctx;
 	uint16_t nb_qps;
 	uint16_t last_qp;
 	struct cdev_qp tbl[MAX_QP_PER_LCORE];
@@ -194,8 +195,10 @@ struct cdev_key {
 };
 
 struct socket_ctx {
-	struct sa_ctx *sa_in;
-	struct sa_ctx *sa_out;
+	struct sa_ctx *sa_ip4_in;
+	struct sa_ctx *sa_ip4_out;
+	struct sa_ctx *sa_ip6_in;
+	struct sa_ctx *sa_ip6_out;
 	struct sp_ctx *sp_ip4_in;
 	struct sp_ctx *sp_ip4_out;
 	struct sp_ctx *sp_ip6_in;
@@ -285,15 +288,17 @@ get_sym_cop(struct rte_crypto_op *cop)
 }
 
 int
-inbound_sa_check(struct sa_ctx *sa_ctx, struct rte_mbuf *m, uint32_t sa_idx);
+inbound_sa_check(struct rte_mbuf *m, uint32_t sa_idx);
 
 void
-inbound_sa_lookup(struct sa_ctx *sa_ctx, struct rte_mbuf *pkts[],
-		struct ipsec_sa *sa[], uint16_t nb_pkts);
+inbound_sa_lookup(struct sa_ctx *sa4_ctx, struct sa_ctx *sa6_ctx,
+		struct rte_mbuf *pkts[], struct ipsec_sa *sa[],
+		uint16_t nb_pkts);
 
 void
-outbound_sa_lookup(struct sa_ctx *sa_ctx, uint32_t sa_idx[],
-		struct ipsec_sa *sa[], uint16_t nb_pkts);
+outbound_sa_lookup(struct sa_ctx *sa4_ctx, struct sa_ctx *sa6_ctx,
+		uint32_t sa_idx[], struct ipsec_sa *sa[],
+		struct rte_mbuf *pkts[], uint16_t nb_pkts);
 
 void
 sp4_init(struct socket_ctx *ctx, int32_t socket_id);
