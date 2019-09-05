@@ -45,6 +45,24 @@ to use, i.e. igb_uio, vfio. The ``dpdk-devbind.py`` script can be used to
 show devices status and to bind them to a suitable kernel driver. They will
 appear under the category of "Misc (rawdev) devices".
 
+Prerequisites
+-------------
+NTB PMD needs kernel PCI driver to support write combining (WC) to get
+better performance. The difference will be more than 10 times.
+To enable WC, there are 2 ways.
+- Insert igb_uio with ``wc_active=1`` flag if use igb_uio driver.
+     insmod igb_uio.ko wc_active=1
+- Enable WC for NTB device's Bar 2 and Bar 4 (Mapped memory) manually.
+     Get bar base address using ``lspci -vvv -s ae:00.0 | grep Region``.
+        Region 0: Memory at 39bfe0000000 (64-bit, prefetchable) [size=64K]
+        Region 2: Memory at 39bfa0000000 (64-bit, prefetchable) [size=512M]
+        Region 4: Memory at 39bfc0000000 (64-bit, prefetchable) [size=512M]
+     Using the following command to enable WC.
+     echo "base=0x39bfa0000000 size=0x400000 type=write-combining" >> /proc/mtrr
+     echo "base=0x39bfc0000000 size=0x400000 type=write-combining" >> /proc/mtrr
+     To disable WC for these regions, using the following.
+     echo "disable=1" >> /proc/mtrr
+
 Ring Layout
 -----------
 
@@ -82,6 +100,16 @@ like the following:
       | System A   +---------+ |   | System B   +---------+ |
       +------------------------+   +------------------------+
                     <---------traffic---------
+
+- Enqueue and Dequeue
+  Based on this ring layout, enqueue reads rx_tail to get how many free
+  buffers and writes used_ring and tx_tail to tell the peer which buffers
+  are filled with data.
+  And dequeue reads tx_tail to get how many packets are arrived, and
+  writes desc_ring and rx_tail to tell the peer about the new allocated
+  buffers.
+  So in this way, only remote write happens and remote read can be avoid
+  to get better performance.
 
 Limitation
 ----------
