@@ -196,3 +196,12 @@ add_project_arguments('-D_GNU_SOURCE', language: 'c')
 if is_freebsd
 	add_project_arguments('-D__BSD_VISIBLE', language: 'c')
 endif
+
+if get_option('enable_lto')
+	if cc.has_argument('-flto -ffat-lto-objects')
+		add_project_arguments('-flto -ffat-lto-objects', language: 'c')
+		add_project_link_arguments('-flto', language: 'c')
+	else
+		message('compiler does not support LTO')
+	endif
+endif

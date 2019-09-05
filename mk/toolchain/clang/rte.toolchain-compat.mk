@@ -20,3 +20,7 @@ CLANG_MINOR_VERSION := $(shell echo $(CLANG_VERSION) | cut -f2 -d.)
 ifeq ($(shell test $(CLANG_MAJOR_VERSION)$(CLANG_MINOR_VERSION) -lt 35 && echo 1), 1)
 	CC_SUPPORTS_Z := false
 endif
+
+ifeq ($(shell test $(CLANG_MAJOR_VERSION)$(CLANG_MINOR_VERSION) -lt 60 && echo 1), 1)
+	CONFIG_RTE_ENABLE_LTO=n
+endif

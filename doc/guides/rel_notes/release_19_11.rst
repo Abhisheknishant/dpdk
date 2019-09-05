@@ -56,6 +56,14 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+**Added build support for Link Time Optimization.**
+
+ LTO is an optimization technique used by the compiler to perform whole
+ program analysis and optimization at link time.  In order to do that
+ compilers store their internal representation of the source code that
+ the linker uses at the final stage of compilation process.
+
+ See :doc:`../prog_guide/lto` for more information:
 
 Removed Items
 -------------

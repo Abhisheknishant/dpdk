@@ -48,6 +48,14 @@ endif
 # process cpu flags
 include $(RTE_SDK)/mk/toolchain/$(RTE_TOOLCHAIN)/rte.toolchain-compat.mk
 
+ifeq ($(CONFIG_RTE_ENABLE_LTO),y)
+# 'fat-lto' is used since pmdinfogen needs to have 'this_pmd_nameX'
+# exported in symbol table and without this option only internal
+# representation is present.
+TOOLCHAIN_CFLAGS += -flto -ffat-lto-objects
+TOOLCHAIN_LDFLAGS += -flto
+endif
+
 # workaround clang bug with warning "missing field initializer" for "= {0}"
 WERROR_FLAGS += -Wno-missing-field-initializers
 
