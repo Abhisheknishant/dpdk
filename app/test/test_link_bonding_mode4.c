@@ -224,7 +224,7 @@ configure_ethdev(uint16_t port_id, uint8_t start)
 static int
 add_slave(struct slave_conf *slave, uint8_t start)
 {
-	struct rte_ether_addr addr, addr_check;
+	struct rte_ether_addr addr, addr_check = { { 0 } };
 
 	/* Some sanity check */
 	RTE_VERIFY(test_params.slave_ports <= slave &&
@@ -578,7 +578,9 @@ bond_get_update_timeout_ms(void)
 {
 	struct rte_eth_bond_8023ad_conf conf;
 
-	rte_eth_bond_8023ad_conf_get(test_params.bonded_port_id, &conf);
+	if (rte_eth_bond_8023ad_conf_get(test_params.bonded_port_id, &conf) < 0)
+		return 0;
+
 	return conf.update_timeout_ms;
 }
 
