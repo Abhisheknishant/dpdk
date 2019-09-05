@@ -1488,6 +1488,11 @@ ice_dev_init(struct rte_eth_dev *dev)
 		goto err_init_mac;
 	}
 
+	/* Pass the information to the rte_eth_dev_close() that it should also
+	 * release the private port resources.
+	 */
+	dev->data->dev_flags |= RTE_ETH_DEV_CLOSE_REMOVE;
+
 	ret = ice_res_pool_init(&pf->msix_pool, 1,
 				hw->func_caps.common_cap.num_msix_vectors - 1);
 	if (ret) {
@@ -1535,6 +1540,8 @@ ice_dev_init(struct rte_eth_dev *dev)
 	ice_base_queue_get(pf);
 
 	TAILQ_INIT(&pf->flow_list);
+
+	pf->adapter_stopped = 0;
 
 	return 0;
 
@@ -1653,6 +1660,9 @@ ice_dev_close(struct rte_eth_dev *dev)
 {
 	struct ice_pf *pf = ICE_DEV_PRIVATE_TO_PF(dev->data->dev_private);
 	struct ice_hw *hw = ICE_DEV_PRIVATE_TO_HW(dev->data->dev_private);
+	struct rte_pci_device *pci_dev = RTE_ETH_DEV_TO_PCI(dev);
+	struct rte_intr_handle *intr_handle = &pci_dev->intr_handle;
+	struct rte_flow *p_flow;
 
 	/* Since stop will make link down, then the link event will be
 	 * triggered, disable the irq firstly to avoid the port_infoe etc
@@ -1672,17 +1682,6 @@ ice_dev_close(struct rte_eth_dev *dev)
 	rte_free(hw->port_info);
 	hw->port_info = NULL;
 	ice_shutdown_all_ctrlq(hw);
-}
-
-static int
-ice_dev_uninit(struct rte_eth_dev *dev)
-{
-	struct rte_pci_device *pci_dev = RTE_ETH_DEV_TO_PCI(dev);
-	struct rte_intr_handle *intr_handle = &pci_dev->intr_handle;
-	struct ice_pf *pf = ICE_DEV_PRIVATE_TO_PF(dev->data->dev_private);
-	struct rte_flow *p_flow;
-
-	ice_dev_close(dev);
 
 	dev->dev_ops = NULL;
 	dev->rx_pkt_burst = NULL;
@@ -1704,6 +1703,12 @@ ice_dev_uninit(struct rte_eth_dev *dev)
 		ice_free_switch_filter_rule(p_flow->rule);
 		rte_free(p_flow);
 	}
+}
+
+static int
+ice_dev_uninit(struct rte_eth_dev *dev)
+{
+	ice_dev_close(dev);
 
 	return 0;
 }
