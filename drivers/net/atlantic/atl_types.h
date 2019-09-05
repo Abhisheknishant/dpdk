@@ -137,6 +137,8 @@ struct aq_hw_s {
 	u32 rpc_addr;
 	u32 rpc_tid;
 	struct hw_aq_atl_utils_fw_rpc rpc;
+
+	pthread_mutex_t mbox_mutex;
 };
 
 struct aq_fw_ops {
