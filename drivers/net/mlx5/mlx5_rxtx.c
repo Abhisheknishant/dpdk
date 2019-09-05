@@ -2042,7 +2042,7 @@ mlx5_tx_comp_flush(struct mlx5_txq_data *restrict txq,
 	} else {
 		return;
 	}
-	rte_compiler_barrier();
+	rte_cio_wmb();
 	*txq->cq_db = rte_cpu_to_be_32(txq->cq_ci);
 	if (likely(tail != txq->elts_tail)) {
 		mlx5_tx_free_elts(txq, tail, olx);
