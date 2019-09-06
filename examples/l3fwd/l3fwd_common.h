@@ -183,6 +183,16 @@ send_packetsx4(struct lcore_conf *qconf, uint16_t port, struct rte_mbuf *m[],
 {
 	uint32_t len, j, n;
 
+	/* Check whether packet is to be Tx on eventdev */
+	if (pkt_transfer_mode == PACKET_TRANSFER_MODE_EVENTDEV) {
+		for (j = 0; j < num; j++)
+			m[j]->port = port;
+
+		port = qconf->tx_port_id[0];
+		eventdev_rsrc.send_burst_eventdev(m, num, port);
+		return;
+	}
+
 	len = qconf->tx_mbufs[port].len;
 
 	/*

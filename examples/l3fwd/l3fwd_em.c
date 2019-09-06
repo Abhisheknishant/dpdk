@@ -699,6 +699,75 @@ em_main_loop(__attribute__((unused)) void *dummy)
 	return 0;
 }
 
+/* main eventdev processing loop */
+int em_main_loop_eventdev(__attribute__((unused)) void *dummy)
+{
+	struct rte_mbuf *pkts_burst[MAX_PKT_BURST];
+	struct rte_event events[MAX_PKT_BURST];
+	struct lcore_conf *lconf;
+	int32_t i, j = 0, nb_rx;
+	uint16_t event_d_id;
+	uint16_t event_p_id;
+	uint32_t lcore_id;
+	uint16_t deq_len;
+	uint32_t portid;
+
+	/* Assign dedicated event port for enqueue/dequeue operation */
+	deq_len = event_d_conf.nb_event_port_dequeue_depth;
+	event_d_id = eventdev_rsrc.event_d_id;
+	event_p_id = get_free_event_port();
+	lcore_id = rte_lcore_id();
+
+	lconf = &lcore_conf[lcore_id];
+	lconf->n_rx_queue = 1;
+	lconf->rx_queue_list[0].port_id = event_p_id;
+	lconf->n_tx_port = 1;
+	lconf->tx_port_id[0] = event_p_id;
+
+	RTE_LOG(INFO, L3FWD, "entering eventdev main loop on lcore %u\n",
+		lcore_id);
+
+	while (!force_quit) {
+		/* Read packet from RX queues */
+		nb_rx = rte_event_dequeue_burst(event_d_id, event_p_id,
+						events, deq_len, 0);
+		if (nb_rx == 0) {
+			rte_pause();
+			continue;
+		}
+
+		for (i = 0; i < nb_rx; i++)
+			pkts_burst[i] = events[i].mbuf;
+
+		portid = pkts_burst[0]->port;
+		for (i = 1; i < nb_rx; i++) {
+			if (portid != pkts_burst[i]->port) {
+
+#if defined RTE_ARCH_X86 || defined RTE_MACHINE_CPUFLAG_NEON
+				l3fwd_em_send_packets(i - j, &pkts_burst[j],
+						      portid, lconf);
+#else
+				l3fwd_em_no_opt_send_packets(i - j,
+							     &pkts_burst[j],
+							     portid, lconf);
+#endif
+				j = i;
+				portid = pkts_burst[i]->port;
+			}
+		}
+
+		/* Send remaining packets */
+#if defined RTE_ARCH_X86 || defined RTE_MACHINE_CPUFLAG_NEON
+		l3fwd_em_send_packets(i - j, &pkts_burst[j], portid, lconf);
+#else
+		l3fwd_em_no_opt_send_packets(i - j, &pkts_burst[j], portid,
+					     lconf);
+#endif
+	}
+
+	return 0;
+}
+
 /*
  * Initialize exact match (hash) parameters.
  */

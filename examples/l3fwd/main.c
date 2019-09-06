@@ -41,11 +41,13 @@
 #include <rte_udp.h>
 #include <rte_string_fns.h>
 #include <rte_cpuflags.h>
+#include <rte_eventdev.h>
 
 #include <cmdline_parse.h>
 #include <cmdline_parse_etheraddr.h>
 
 #include "l3fwd.h"
+#include "l3fwd_eventdev.h"
 
 /*
  * Configurable number of RX/TX ring descriptors
@@ -135,7 +137,7 @@ static struct rte_eth_conf port_conf = {
 	},
 };
 
-static struct rte_mempool *pktmbuf_pool[RTE_MAX_ETHPORTS][NB_SOCKETS];
+struct rte_mempool *pktmbuf_pool[RTE_MAX_ETHPORTS][NB_SOCKETS];
 static uint8_t lkp_per_socket[NB_SOCKETS];
 
 struct l3fwd_lkp_mode {
@@ -172,15 +174,20 @@ static struct l3fwd_lkp_mode l3fwd_lpm_lkp = {
  * Currently exact-match and longest-prefix-match
  * are supported ones.
  */
-static void
+void
 setup_l3fwd_lookup_tables(void)
 {
 	/* Setup HASH lookup functions. */
-	if (l3fwd_em_on)
+	if (l3fwd_em_on) {
+		if (pkt_transfer_mode == PACKET_TRANSFER_MODE_EVENTDEV)
+			l3fwd_em_lkp.main_loop = em_main_loop_eventdev;
 		l3fwd_lkp = l3fwd_em_lkp;
 	/* Setup LPM lookup functions. */
-	else
+	} else {
+		if (pkt_transfer_mode == PACKET_TRANSFER_MODE_EVENTDEV)
+			l3fwd_lpm_lkp.main_loop = lpm_main_loop_eventdev;
 		l3fwd_lkp = l3fwd_lpm_lkp;
+	}
 }
 
 static int
@@ -289,7 +296,9 @@ print_usage(const char *prgname)
 		" [--hash-entry-num]"
 		" [--ipv6]"
 		" [--parse-ptype]"
-		" [--per-port-pool]\n\n"
+		" [--per-port-pool]"
+		" [--mode]"
+		" [--eventq-sync]\n\n"
 
 		"  -p PORTMASK: Hexadecimal bitmask of ports to configure\n"
 		"  -P : Enable promiscuous mode\n"
@@ -304,7 +313,12 @@ print_usage(const char *prgname)
 		"  --hash-entry-num: Specify the hash entry number in hexadecimal to be setup\n"
 		"  --ipv6: Set if running ipv6 packets\n"
 		"  --parse-ptype: Set to use software to analyze packet type\n"
-		"  --per-port-pool: Use separate buffer pool per port\n\n",
+		"  --per-port-pool: Use separate buffer pool per port\n"
+		"  --mode: Packet transfer mode for I/O, poll or eventdev\n"
+		"	   Default mode = poll\n"
+		"  --eventq-sync:Event queue synchronization method,\n"
+		"		 ordered or atomic. \nDefault: atomic\n"
+		"		 Valid only if --mode=eventdev\n\n",
 		prgname);
 }
 
@@ -509,6 +523,8 @@ parse_args(int argc, char **argv)
 	int option_index;
 	char *prgname = argv[0];
 
+	evd_argv[0] = argv[0];
+	evd_argc++;
 	argvopt = argv;
 
 	/* Error or normal output strings. */
@@ -536,6 +552,14 @@ parse_args(int argc, char **argv)
 
 		case 'L':
 			l3fwd_lpm_on = 1;
+			break;
+
+		case '?':
+			/* May be eventdev options are encountered. skip for
+			 * now. Will be processed later.
+			 */
+			evd_argv[evd_argc] = argv[optind - 1];
+			evd_argc++;
 			break;
 
 		/* long options */
@@ -646,7 +670,7 @@ parse_args(int argc, char **argv)
 	return ret;
 }
 
-static void
+void
 print_ethaddr(const char *name, const struct rte_ether_addr *eth_addr)
 {
 	char buf[RTE_ETHER_ADDR_FMT_SIZE];
@@ -654,7 +678,7 @@ print_ethaddr(const char *name, const struct rte_ether_addr *eth_addr)
 	printf("%s%s", name, buf);
 }
 
-static int
+int
 init_mem(uint16_t portid, unsigned int nb_mbuf)
 {
 	struct lcore_conf *qconf;
@@ -836,6 +860,11 @@ main(int argc, char **argv)
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "Invalid L3FWD parameters\n");
 
+	/* Configure eventdev parameters if user has requested */
+	ret = eventdev_resource_setup(evd_argc, evd_argv);
+	if (ret == EVENT_DEV_PARAM_PRESENT)
+		goto skip_port_config;
+
 	if (check_lcore_params() < 0)
 		rte_exit(EXIT_FAILURE, "check_lcore_params failed\n");
 
@@ -1005,6 +1034,7 @@ main(int argc, char **argv)
 		}
 	}
 
+skip_port_config:
 	printf("\n");
 
 	/* start ports */
