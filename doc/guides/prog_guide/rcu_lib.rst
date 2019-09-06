@@ -186,3 +186,55 @@ However, when ``CONFIG_RTE_LIBRTE_RCU_DEBUG`` is enabled, these APIs aid
 in debugging issues. One can mark the access to shared data structures on the
 reader side using these APIs. The ``rte_rcu_qsbr_quiescent()`` will check if
 all the locks are unlocked.
+
+Integrating QSBR RCU with other libraries
+-----------------------------------------
+
+Lock-free algorithms place additional burden on the application to reclaim
+memory. Integrating memory reclamation mechanisms in the libraries help
+remove some of the burden. Though QSBR method presents flexibility to
+achieve performance, it presents challenges while integrating with libraries.
+
+The memory reclamation process using QSBR can be split into 4 parts:
+
+#. Initialization
+#. Quiescent State Reporting
+#. Reclaiming Resources
+#. Shutdown
+
+The design proposed here assigns different parts of this process to client libraries and applications. The term 'client library' refers to data structure libraries such at rte_hash, rte_lpm etc. in DPDK or similar libraries outside of DPDK. The term 'application' refers to the packet processing application that makes use of DPDK such as L3 Forwarding example application, OVS, VPP etc..
+
+The application has to handle 'Initialization' and 'Quiescent State Reporting'. So,
+
+* the application has to create the RCU variable and register the reader threads to report their quiescent state.
+* the application has to register the same RCU variable with the client library.
+* reader threads in the application have to report the quiescent state. This allows for the application to control the length of the critical section/how frequently the application wants to report the quiescent state.
+
+The client library will handle 'Reclaiming Resources' part of the process. The
+client libraries will make use of the writer thread context to execute the memory
+reclamation algorithm. So,
+
+* client library should provide an API to register a RCU variable that it will use.
+* client library should trigger the readers to report quiescent state status upon deleting the resources by calling ``rte_rcu_qsbr_start``.
+
+* client library should store the token and deleted resources for later use to free them after the readers have reported their quiescent state. Since the readers will report the quiescent state status in the order of deletion, the library must store the tokens/resources in the order in which the resources were deleted. A FIFO data structure would achieve the desired results. The length of the FIFO would depend on the rate of deletion and the rate at which the readers report their quiescent state. In the worst case the length of FIFO would be equal to the maximum number of resources the data structure supports. However, in most cases, the length will be much smaller. But, the client library should not take the length of FIFO as an input from the application. Instead, it should implement a data structure which should be able to grow/shrink dynamically. Overhead introduced by such a data structure on delete operations should be considered as well.
+
+* client library should query the quiescent state and free the resources. It should make use of non-blocking ``rte_rcu_qsbr_check`` API to query the quiescent state. This allows the application to do useful work while the readers report their quiescent state. If there are tokens/resources present in the FIFO already, the delete API should peek the head of the FIFO and check the quiescent state status. If the status is success, the token/resource should be dequeued and the resource should be freed. This process can be repeated till the quiescent state status for a token returns failure indicating that subsequent tokens will also fail quiescent state status query. The same process can be incorporated while adding new entries in the data structure if the client library runs out of resources.
+
+The 'Shutdown' process needs to be shared between the application and the
+client library.
+
+* the application should make sure that the reader threads are not using the shared data structure, unregister the reader threads from the QSBR variable before calling the client library's shutdown function.
+
+* client library should check the quiescent state status of all the tokens that may be present in the FIFO and free the resources. It should make use of non-blocking ``rte_rcu_qsbr_check`` API to query the quiescent state. If any of the tokens do not pass the quiescent state check, the client library should print an error and stop the memory reclamation process.
+
+Integrating the resource reclamation with client libraries removes the burden from
+the application and makes it easy to use lock-free algorithms.
+
+This design has several advantages over currently known methods.
+
+#. Application does not need a dedicated thread to reclaim resources. Memory
+   reclamation happens as part of the writer thread with little impact on
+   performance.
+#. The client library has better control over the resources. For ex: the client
+   library can attempt to reclaim when it has run out of resources.
