@@ -21,6 +21,7 @@
 #include <rte_ethdev.h>
 #include <rte_cycles.h>
 #include <rte_mbuf.h>
+#include <rte_malloc.h>
 #include <rte_ip.h>
 #include <rte_tcp.h>
 #include <rte_udp.h>
@@ -77,6 +78,9 @@ static struct ipv6_l3fwd_lpm_route ipv6_l3fwd_lpm_route_array[] = {
 
 struct rte_lpm *ipv4_l3fwd_lpm_lookup_struct[NB_SOCKETS];
 struct rte_lpm6 *ipv6_l3fwd_lpm_lookup_struct[NB_SOCKETS];
+struct rte_rcu_qsbr *lpm4_qsv[NB_SOCKETS];	/* RCU QSBR variable for LPM4 */
+extern int numa_on;
+extern int rw_lf;
 
 static inline uint16_t
 lpm_get_ipv4_dst_port(void *ipv4_hdr, uint16_t portid, void *lookup_struct)
@@ -178,7 +182,7 @@ lpm_main_loop(__attribute__((unused)) void *dummy)
 	struct rte_mbuf *pkts_burst[MAX_PKT_BURST];
 	unsigned lcore_id;
 	uint64_t prev_tsc, diff_tsc, cur_tsc;
-	int i, nb_rx;
+	int i, nb_rx, socketid = 0;
 	uint16_t portid;
 	uint8_t queueid;
 	struct lcore_conf *qconf;
@@ -204,6 +208,22 @@ lpm_main_loop(__attribute__((unused)) void *dummy)
 		RTE_LOG(INFO, L3FWD,
 			" -- lcoreid=%u portid=%u rxqueueid=%hhu\n",
 			lcore_id, portid, queueid);
+	}
+
+	if (rw_lf) {
+		if (numa_on)
+			socketid = rte_lcore_to_socket_id(lcore_id);
+		else
+			socketid = 0;
+
+		if (rte_rcu_qsbr_thread_register(lpm4_qsv[socketid],
+						lcore_id) != 0) {
+			RTE_LOG(ERR, L3FWD,
+				"lcore %u failed RCU QSBR register\n",
+				lcore_id);
+			return -1;
+		}
+		rte_rcu_qsbr_thread_online(lpm4_qsv[socketid], lcore_id);
 	}
 
 	while (!force_quit) {
@@ -237,8 +257,12 @@ lpm_main_loop(__attribute__((unused)) void *dummy)
 			queueid = qconf->rx_queue_list[i].queue_id;
 			nb_rx = rte_eth_rx_burst(portid, queueid, pkts_burst,
 				MAX_PKT_BURST);
-			if (nb_rx == 0)
+			if (nb_rx == 0) {
+				if (rw_lf)
+					rte_rcu_qsbr_quiescent(
+						lpm4_qsv[socketid], lcore_id);
 				continue;
+			}
 
 #if defined RTE_ARCH_X86 || defined RTE_MACHINE_CPUFLAG_NEON \
 			 || defined RTE_ARCH_PPC_64
@@ -248,6 +272,20 @@ lpm_main_loop(__attribute__((unused)) void *dummy)
 			l3fwd_lpm_no_opt_send_packets(nb_rx, pkts_burst,
 							portid, qconf);
 #endif /* X86 */
+			if (rw_lf)
+				rte_rcu_qsbr_quiescent(lpm4_qsv[socketid],
+							lcore_id);
+		}
+	}
+
+	if (rw_lf) {
+		rte_rcu_qsbr_thread_offline(lpm4_qsv[socketid], lcore_id);
+		if (rte_rcu_qsbr_thread_unregister(lpm4_qsv[socketid],
+						lcore_id) != 0) {
+			RTE_LOG(ERR, L3FWD,
+				"lcore %u failed RCU QSBR unregister\n",
+				lcore_id);
+			return -1;
 		}
 	}
 
@@ -301,6 +339,34 @@ setup_lpm(const int socketid, __rte_unused const unsigned int flags)
 		       inet_ntop(AF_INET, &in, abuf, sizeof(abuf)),
 			ipv4_l3fwd_lpm_route_array[i].depth,
 			ipv4_l3fwd_lpm_route_array[i].if_out);
+	}
+
+	if (rw_lf) {
+		size_t sz;
+
+		/* create RCU QSBR variable */
+		sz = rte_rcu_qsbr_get_memsize(RTE_MAX_LCORE);
+		lpm4_qsv[socketid] = (struct rte_rcu_qsbr *)rte_zmalloc_socket(
+						NULL, sz, RTE_CACHE_LINE_SIZE,
+						socketid);
+		if (lpm4_qsv[socketid] == NULL)
+			rte_exit(EXIT_FAILURE,
+				"RCU QSBR alloc fails on socket %d\n",
+				socketid);
+		else {
+			if (rte_rcu_qsbr_init(lpm4_qsv[socketid],
+						RTE_MAX_LCORE) != 0)
+				rte_exit(EXIT_FAILURE,
+					"RCU QSBR init fails on socket %d\n",
+					socketid);
+		}
+
+		/* attach RCU QSBR to LPM table */
+		if (rte_lpm_rcu_qsbr_add(ipv4_l3fwd_lpm_lookup_struct[socketid],
+					lpm4_qsv[socketid]) != 0)
+			rte_exit(EXIT_FAILURE,
+				"RCU QSBR attach to LPM fails on socket %d\n",
+				socketid);
 	}
 
 	/* create the LPM6 table */

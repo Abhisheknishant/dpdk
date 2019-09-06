@@ -72,12 +72,12 @@ static int l3fwd_em_on;
 
 /* Global variables. */
 
-static int numa_on = 1; /**< NUMA is enabled by default. */
+int numa_on = 1;	/**< NUMA is enabled by default. */
 static int parse_ptype; /**< Parse packet type using rx callback, and */
 			/**< disabled by default */
 static int per_port_pool; /**< Use separate buffer pools per port; disabled */
 			  /**< by default */
-static int rw_lf;	/**< Enable lock-free read-write concurrency, */
+int rw_lf;		/**< Enable lock-free read-write concurrency, */
 			/**< disabled by default */
 
 /* Global variables. */
@@ -619,6 +619,7 @@ parse_args(int argc, char **argv)
 			break;
 
 		case CMD_LINE_OPT_LOCK_FREE_NUM:
+			printf("RCU lock-free is enabled\n");
 			rw_lf = 1;
 			break;
 
