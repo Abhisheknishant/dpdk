@@ -286,7 +286,12 @@ desc_is_used(struct vring_packed_desc *desc, struct virtqueue *vq)
 {
 	uint16_t used, avail, flags;
 
-	flags = desc->flags;
+	if (vq->hw->weak_barriers)
+		flags = __atomic_load_n(&desc->flags, __ATOMIC_ACQUIRE);
+	else {
+		flags = desc->flags;
+		rte_cio_rmb();
+	}
 	used = !!(flags & VRING_PACKED_DESC_F_USED);
 	avail = !!(flags & VRING_PACKED_DESC_F_AVAIL);
 
