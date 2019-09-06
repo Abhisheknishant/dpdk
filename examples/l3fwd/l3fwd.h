@@ -5,7 +5,10 @@
 #ifndef __L3_FWD_H__
 #define __L3_FWD_H__
 
+#include <rte_eventdev.h>
 #include <rte_vect.h>
+
+#include "l3fwd_eventdev.h"
 
 #define DO_RFC_1812_CHECKS
 
@@ -64,12 +67,14 @@ struct lcore_conf {
 	uint16_t n_tx_port;
 	uint16_t tx_port_id[RTE_MAX_ETHPORTS];
 	uint16_t tx_queue_id[RTE_MAX_ETHPORTS];
-	struct mbuf_table tx_mbufs[RTE_MAX_ETHPORTS];
+	struct mbuf_table tx_mbufs[RTE_MAX_LCORE];
 	void *ipv4_lookup_struct;
 	void *ipv6_lookup_struct;
 } __rte_cache_aligned;
 
 extern volatile bool force_quit;
+
+extern struct rte_mempool *pktmbuf_pool[RTE_MAX_ETHPORTS][NB_SOCKETS];
 
 /* ethernet addresses of ports */
 extern uint64_t dest_eth_addr[RTE_MAX_ETHPORTS];
@@ -85,6 +90,12 @@ extern uint32_t hash_entry_number;
 extern xmm_t val_eth[RTE_MAX_ETHPORTS];
 
 extern struct lcore_conf lcore_conf[RTE_MAX_LCORE];
+
+int init_mem(uint16_t portid, unsigned int nb_mbuf);
+
+void setup_l3fwd_lookup_tables(void);
+
+void print_ethaddr(const char *name, const struct rte_ether_addr *eth_addr);
 
 /* Send burst of packets on an output interface */
 static inline int
@@ -113,6 +124,14 @@ send_single_packet(struct lcore_conf *qconf,
 		   struct rte_mbuf *m, uint16_t port)
 {
 	uint16_t len;
+
+	if (pkt_transfer_mode == PACKET_TRANSFER_MODE_EVENTDEV) {
+		m->port = port;
+		port = qconf->tx_port_id[0];
+		eventdev_rsrc.send_burst_eventdev((struct rte_mbuf **)m,
+						  1, port);
+		return 0;
+	}
 
 	len = qconf->tx_mbufs[port].len;
 	qconf->tx_mbufs[port].m_table[len] = m;
