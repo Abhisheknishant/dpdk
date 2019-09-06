@@ -56,6 +56,9 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Updated the Intel QuickAssist Technology (QAT) asymmetric crypto PMD.**
+
+  Added support for session-less operations.
 
 Removed Items
 -------------
