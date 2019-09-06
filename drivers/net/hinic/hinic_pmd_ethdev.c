@@ -741,6 +741,27 @@ hinic_dev_infos_get(struct rte_eth_dev *dev, struct rte_eth_dev_info *info)
 	info->tx_desc_lim = hinic_tx_desc_lim;
 }
 
+static int hinic_fw_version_get(struct rte_eth_dev *dev, char *fw_version,
+				size_t fw_size)
+{
+	struct hinic_nic_dev *nic_dev = HINIC_ETH_DEV_TO_PRIVATE_NIC_DEV(dev);
+	char fw_ver[HINIC_MGMT_VERSION_MAX_LEN] = {0};
+	int err;
+
+	err = hinic_get_fw_version(nic_dev->hwdev, fw_ver);
+	if (err) {
+		PMD_DRV_LOG(ERR, "Failed to get fw version\n");
+		return -EINVAL;
+	}
+
+	if (fw_size < strlen(fw_ver) + 1)
+		return (strlen(fw_ver) + 1);
+
+	snprintf(fw_version, fw_size, "%s", fw_ver);
+
+	return 0;
+}
+
 static int hinic_config_rx_mode(struct hinic_nic_dev *nic_dev, u32 rx_mode_ctrl)
 {
 	int err;
@@ -869,6 +890,52 @@ static int hinic_link_update(struct rte_eth_dev *dev, int wait_to_complete)
 out:
 	rc = rte_eth_linkstatus_set(dev, &link);
 	return rc;
+}
+
+/**
+ * DPDK callback to bring the link UP.
+ *
+ * @param dev
+ *   Pointer to Ethernet device structure.
+ *
+ * @return
+ *   0 on success, negative errno value on failure.
+ */
+static int hinic_dev_set_link_up(struct rte_eth_dev *dev)
+{
+	struct hinic_nic_dev *nic_dev = HINIC_ETH_DEV_TO_PRIVATE_NIC_DEV(dev);
+	int ret;
+
+	/* link status follow phy port status */
+	ret = hinic_set_port_enable(nic_dev->hwdev, true);
+	if (ret)
+		PMD_DRV_LOG(ERR, "Set mac link up failed, dev_name: %s, port_id: %d",
+			    nic_dev->proc_dev_name, dev->data->port_id);
+
+	return ret;
+}
+
+/**
+ * DPDK callback to bring the link DOWN.
+ *
+ * @param dev
+ *   Pointer to Ethernet device structure.
+ *
+ * @return
+ *   0 on success, negative errno value on failure.
+ */
+static int hinic_dev_set_link_down(struct rte_eth_dev *dev)
+{
+	struct hinic_nic_dev *nic_dev = HINIC_ETH_DEV_TO_PRIVATE_NIC_DEV(dev);
+	int ret;
+
+	/* link status follow phy port status */
+	ret = hinic_set_port_enable(nic_dev->hwdev, false);
+	if (ret)
+		PMD_DRV_LOG(ERR, "Set mac link down failed, dev_name: %s, port_id: %d",
+			    nic_dev->proc_dev_name, dev->data->port_id);
+
+	return ret;
 }
 
 /**
@@ -2707,9 +2774,12 @@ static void hinic_dev_close(struct rte_eth_dev *dev)
 static const struct eth_dev_ops hinic_pmd_ops = {
 	.dev_configure                 = hinic_dev_configure,
 	.dev_infos_get                 = hinic_dev_infos_get,
+	.fw_version_get                = hinic_fw_version_get,
 	.rx_queue_setup                = hinic_rx_queue_setup,
 	.tx_queue_setup                = hinic_tx_queue_setup,
 	.dev_start                     = hinic_dev_start,
+	.dev_set_link_up               = hinic_dev_set_link_up,
+	.dev_set_link_down             = hinic_dev_set_link_down,
 	.link_update                   = hinic_link_update,
 	.rx_queue_release              = hinic_rx_queue_release,
 	.tx_queue_release              = hinic_tx_queue_release,
@@ -2741,6 +2811,7 @@ static const struct eth_dev_ops hinic_pmd_ops = {
 static const struct eth_dev_ops hinic_pmd_vf_ops = {
 	.dev_configure                 = hinic_dev_configure,
 	.dev_infos_get                 = hinic_dev_infos_get,
+	.fw_version_get		       = hinic_fw_version_get,
 	.rx_queue_setup                = hinic_rx_queue_setup,
 	.tx_queue_setup                = hinic_tx_queue_setup,
 	.dev_start                     = hinic_dev_start,
