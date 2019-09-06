@@ -209,6 +209,43 @@ int hinic_get_default_mac(void *hwdev, u8 *mac_addr)
 	return 0;
 }
 
+int hinic_update_mac(void *hwdev, u8 *old_mac, u8 *new_mac, u16 vlan_id,
+		     u16 func_id)
+{
+	struct hinic_port_mac_update mac_info;
+	u16 out_size = sizeof(mac_info);
+	int err;
+
+	if (!hwdev || !old_mac || !new_mac) {
+		PMD_DRV_LOG(ERR, "Hwdev, old_mac or new_mac is NULL\n");
+		return -EINVAL;
+	}
+
+	memset(&mac_info, 0, sizeof(mac_info));
+	mac_info.mgmt_msg_head.resp_aeq_num = HINIC_AEQ1;
+	mac_info.func_id = func_id;
+	mac_info.vlan_id = vlan_id;
+	memcpy(mac_info.old_mac, old_mac, ETH_ALEN);
+	memcpy(mac_info.new_mac, new_mac, ETH_ALEN);
+
+	err = l2nic_msg_to_mgmt_sync(hwdev, HINIC_PORT_CMD_UPDATE_MAC,
+				     &mac_info, sizeof(mac_info),
+				     &mac_info, &out_size);
+	if (err || !out_size ||
+	    (mac_info.mgmt_msg_head.status &&
+	     mac_info.mgmt_msg_head.status != HINIC_PF_SET_VF_ALREADY)) {
+		PMD_DRV_LOG(ERR, "Failed to update MAC, err: %d, status: 0x%x, out size: 0x%x\n",
+			    err, mac_info.mgmt_msg_head.status, out_size);
+		return -EINVAL;
+	}
+	if (mac_info.mgmt_msg_head.status == HINIC_PF_SET_VF_ALREADY) {
+		PMD_DRV_LOG(WARNING, "PF has already set vf mac, Ignore update operation.\n");
+		return HINIC_PF_SET_VF_ALREADY;
+	}
+
+	return 0;
+}
+
 int hinic_set_port_mtu(void *hwdev, u32 new_mtu)
 {
 	struct hinic_mtu mtu_info;

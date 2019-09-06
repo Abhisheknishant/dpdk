@@ -45,8 +45,8 @@
 #define NR_MAX_COS			8
 
 #define HINIC_MIN_RX_BUF_SIZE		1024
-#define HINIC_MAX_MAC_ADDRS		1
-
+#define HINIC_MAX_UC_MAC_ADDRS		128
+#define HINIC_MAX_MC_MAC_ADDRS		2048
 /*
  * vlan_id is a 12 bit number.
  * The VFTA array is actually a 4096 bit array, 128 of 32bit elements.
@@ -709,7 +709,7 @@ hinic_dev_infos_get(struct rte_eth_dev *dev, struct rte_eth_dev_info *info)
 	info->max_tx_queues  = nic_dev->nic_cap.max_sqs;
 	info->min_rx_bufsize = HINIC_MIN_RX_BUF_SIZE;
 	info->max_rx_pktlen  = HINIC_MAX_JUMBO_FRAME_SIZE;
-	info->max_mac_addrs  = HINIC_MAX_MAC_ADDRS;
+	info->max_mac_addrs  = HINIC_MAX_UC_MAC_ADDRS;
 
 	hinic_get_speed_capa(dev, &info->speed_capa);
 	info->rx_queue_offload_capa = 0;
@@ -1327,7 +1327,26 @@ static int hinic_init_mac_addr(struct rte_eth_dev *eth_dev)
 	if (rc && rc != HINIC_PF_SET_VF_ALREADY)
 		return rc;
 
+	rte_ether_addr_copy(eth_dev->data->mac_addrs, &nic_dev->default_addr);
+
 	return 0;
+}
+
+static void hinic_delete_mc_addr_list(struct hinic_nic_dev *nic_dev)
+{
+	u16 func_id;
+	u32 i;
+
+	func_id = hinic_global_func_id(nic_dev->hwdev);
+
+	for (i = 0; i < HINIC_MAX_MC_MAC_ADDRS; i++) {
+		if (rte_is_zero_ether_addr(&nic_dev->mc_list[i]))
+			break;
+
+		hinic_del_mac(nic_dev->hwdev, nic_dev->mc_list[i].addr_bytes,
+			      0, func_id);
+		memset(&nic_dev->mc_list[i], 0, sizeof(struct rte_ether_addr));
+	}
 }
 
 /**
@@ -1344,19 +1363,29 @@ static void hinic_deinit_mac_addr(struct rte_eth_dev *eth_dev)
 {
 	struct hinic_nic_dev *nic_dev =
 				HINIC_ETH_DEV_TO_PRIVATE_NIC_DEV(eth_dev);
-	int rc;
 	u16 func_id = 0;
-
-	if (rte_is_zero_ether_addr(eth_dev->data->mac_addrs))
-		return;
+	int rc;
+	int i;
 
 	func_id = hinic_global_func_id(nic_dev->hwdev);
-	rc = hinic_del_mac(nic_dev->hwdev,
-			   eth_dev->data->mac_addrs->addr_bytes,
-			   0, func_id);
-	if (rc && rc != HINIC_PF_SET_VF_ALREADY)
-		PMD_DRV_LOG(ERR, "Delete mac table failed, dev_name: %s",
-			    eth_dev->data->name);
+
+	for (i = 0; i < HINIC_MAX_UC_MAC_ADDRS; i++) {
+		if (rte_is_zero_ether_addr(&eth_dev->data->mac_addrs[i]))
+			continue;
+
+		rc = hinic_del_mac(nic_dev->hwdev,
+				   eth_dev->data->mac_addrs[i].addr_bytes,
+				   0, func_id);
+		if (rc && rc != HINIC_PF_SET_VF_ALREADY)
+			PMD_DRV_LOG(ERR, "Delete mac table failed, dev_name: %s",
+				    eth_dev->data->name);
+
+		memset(&eth_dev->data->mac_addrs[i], 0,
+		       sizeof(struct rte_ether_addr));
+	}
+
+	/* delete multicast mac addrs */
+	hinic_delete_mc_addr_list(nic_dev);
 }
 
 static int hinic_dev_set_mtu(struct rte_eth_dev *dev, uint16_t mtu)
@@ -2046,6 +2075,169 @@ static int hinic_dev_xstats_get_names(struct rte_eth_dev *dev,
 
 	return count;
 }
+/**
+ *  DPDK callback to set mac address
+ *
+ * @param dev
+ *   Pointer to Ethernet device structure.
+ * @param addr
+ *   Pointer to mac address
+ * @return
+ *   0 on success, negative error value otherwise.
+ */
+static int hinic_set_mac_addr(struct rte_eth_dev *dev,
+			      struct rte_ether_addr *addr)
+{
+	struct hinic_nic_dev *nic_dev = HINIC_ETH_DEV_TO_PRIVATE_NIC_DEV(dev);
+	u16 func_id;
+	int err;
+
+	func_id = hinic_global_func_id(nic_dev->hwdev);
+	err = hinic_update_mac(nic_dev->hwdev, nic_dev->default_addr.addr_bytes,
+			       addr->addr_bytes, 0, func_id);
+	if (err)
+		return err;
+
+	rte_ether_addr_copy(addr, &nic_dev->default_addr);
+
+	PMD_DRV_LOG(INFO, "Set new mac address %02x:%02x:%02x:%02x:%02x:%02x\n",
+		    addr->addr_bytes[0], addr->addr_bytes[1],
+		    addr->addr_bytes[2], addr->addr_bytes[3],
+		    addr->addr_bytes[4], addr->addr_bytes[5]);
+
+	return 0;
+}
+
+/**
+ * DPDK callback to remove a MAC address.
+ *
+ * @param dev
+ *   Pointer to Ethernet device structure.
+ * @param index
+ *   MAC address index.
+ */
+static void hinic_mac_addr_remove(struct rte_eth_dev *dev, uint32_t index)
+{
+	struct hinic_nic_dev *nic_dev = HINIC_ETH_DEV_TO_PRIVATE_NIC_DEV(dev);
+	u16 func_id;
+	int ret;
+
+	if (index >= HINIC_MAX_UC_MAC_ADDRS) {
+		PMD_DRV_LOG(INFO, "Remove mac index(%u) is out of range",
+			    index);
+		return;
+	}
+
+	func_id = hinic_global_func_id(nic_dev->hwdev);
+	ret = hinic_del_mac(nic_dev->hwdev,
+			    dev->data->mac_addrs[index].addr_bytes, 0, func_id);
+	if (ret)
+		return;
+
+	memset(&dev->data->mac_addrs[index], 0, sizeof(struct rte_ether_addr));
+}
+
+/**
+ * DPDK callback to add a MAC address.
+ *
+ * @param dev
+ *   Pointer to Ethernet device structure.
+ * @param mac_addr
+ *   MAC address to register.
+ * @param index
+ *   MAC address index.
+ * @param vmdq
+ *   VMDq pool index to associate address with (ignored).
+ *
+ * @return
+ *   0 on success, a negative errno value otherwise and rte_errno is set.
+ */
+
+static int hinic_mac_addr_add(struct rte_eth_dev *dev,
+			      struct rte_ether_addr *mac_addr, uint32_t index,
+			      __rte_unused uint32_t vmdq)
+{
+	struct hinic_nic_dev  *nic_dev = HINIC_ETH_DEV_TO_PRIVATE_NIC_DEV(dev);
+	unsigned int i;
+	u16 func_id;
+	int ret;
+
+	if (index >= HINIC_MAX_UC_MAC_ADDRS) {
+		PMD_DRV_LOG(INFO, "Add mac index(%u) is out of range,", index);
+		return -EINVAL;
+	}
+
+	/* First, make sure this address isn't already configured. */
+	for (i = 0; (i != HINIC_MAX_UC_MAC_ADDRS); ++i) {
+		/* Skip this index, it's going to be reconfigured. */
+		if (i == index)
+			continue;
+
+		if (memcmp(&dev->data->mac_addrs[i],
+			mac_addr, sizeof(*mac_addr)))
+			continue;
+
+		PMD_DRV_LOG(INFO, "MAC address already configured");
+		return -EADDRINUSE;
+	}
+
+	func_id = hinic_global_func_id(nic_dev->hwdev);
+	ret = hinic_set_mac(nic_dev->hwdev, mac_addr->addr_bytes, 0, func_id);
+	if (ret)
+		return ret;
+
+	dev->data->mac_addrs[index] = *mac_addr;
+	return 0;
+}
+
+/**
+ *  DPDK callback to set multicast mac address
+ *
+ * @param dev
+ *   Pointer to Ethernet device structure.
+ * @param mc_addr_set
+ *   Pointer to multicast mac address
+ * @param nb_mc_addr
+ *   mc addr count
+ * @return
+ *   0 on success, negative error value otherwise.
+ */
+static int hinic_set_mc_addr_list(struct rte_eth_dev *dev,
+				  struct rte_ether_addr *mc_addr_set,
+				  uint32_t nb_mc_addr)
+{
+	struct hinic_nic_dev *nic_dev = HINIC_ETH_DEV_TO_PRIVATE_NIC_DEV(dev);
+	u16 func_id;
+	int ret;
+	u32 i;
+
+	func_id = hinic_global_func_id(nic_dev->hwdev);
+
+	/* delete old multi_cast addrs firstly */
+	hinic_delete_mc_addr_list(nic_dev);
+
+	if (nb_mc_addr > HINIC_MAX_MC_MAC_ADDRS)
+		goto allmulti;
+
+	for (i = 0; i < nb_mc_addr; i++) {
+		ret = hinic_set_mac(nic_dev->hwdev, mc_addr_set[i].addr_bytes,
+				    0, func_id);
+		/* if add mc addr failed, set all multi_cast */
+		if (ret) {
+			hinic_delete_mc_addr_list(nic_dev);
+			goto allmulti;
+		}
+
+		rte_ether_addr_copy(&mc_addr_set[i], &nic_dev->mc_list[i]);
+	}
+
+	return 0;
+
+allmulti:
+	hinic_dev_allmulticast_enable(dev);
+
+	return 0;
+}
 
 static int hinic_set_default_pause_feature(struct hinic_nic_dev *nic_dev)
 {
@@ -2494,6 +2686,10 @@ static const struct eth_dev_ops hinic_pmd_ops = {
 	.xstats_get                    = hinic_dev_xstats_get,
 	.xstats_reset                  = hinic_dev_xstats_reset,
 	.xstats_get_names              = hinic_dev_xstats_get_names,
+	.mac_addr_set                  = hinic_set_mac_addr,
+	.mac_addr_remove               = hinic_mac_addr_remove,
+	.mac_addr_add                  = hinic_mac_addr_add,
+	.set_mc_addr_list              = hinic_set_mc_addr_list,
 };
 
 static const struct eth_dev_ops hinic_pmd_vf_ops = {
@@ -2521,6 +2717,10 @@ static const struct eth_dev_ops hinic_pmd_vf_ops = {
 	.xstats_get                    = hinic_dev_xstats_get,
 	.xstats_reset                  = hinic_dev_xstats_reset,
 	.xstats_get_names              = hinic_dev_xstats_get_names,
+	.mac_addr_set                  = hinic_set_mac_addr,
+	.mac_addr_remove               = hinic_mac_addr_remove,
+	.mac_addr_add                  = hinic_mac_addr_add,
+	.set_mc_addr_list              = hinic_set_mc_addr_list,
 };
 
 static int hinic_func_init(struct rte_eth_dev *eth_dev)
@@ -2528,6 +2728,7 @@ static int hinic_func_init(struct rte_eth_dev *eth_dev)
 	struct rte_pci_device *pci_dev;
 	struct rte_ether_addr *eth_addr;
 	struct hinic_nic_dev *nic_dev;
+	u32 mac_size;
 	int rc;
 
 	pci_dev = RTE_ETH_DEV_TO_PCI(eth_dev);
@@ -2554,7 +2755,8 @@ static int hinic_func_init(struct rte_eth_dev *eth_dev)
 		 pci_dev->addr.devid, pci_dev->addr.function);
 
 	/* alloc mac_addrs */
-	eth_addr = rte_zmalloc("hinic_mac", sizeof(*eth_addr), 0);
+	mac_size = HINIC_MAX_UC_MAC_ADDRS * sizeof(struct rte_ether_addr);
+	eth_addr = rte_zmalloc("hinic_mac", mac_size, 0);
 	if (!eth_addr) {
 		PMD_DRV_LOG(ERR, "Allocate ethernet addresses' memory failed, dev_name: %s",
 			    eth_dev->data->name);
@@ -2562,6 +2764,15 @@ static int hinic_func_init(struct rte_eth_dev *eth_dev)
 		goto eth_addr_fail;
 	}
 	eth_dev->data->mac_addrs = eth_addr;
+
+	mac_size = HINIC_MAX_MC_MAC_ADDRS * sizeof(struct rte_ether_addr);
+	nic_dev->mc_list = rte_zmalloc("hinic_mc", mac_size, 0);
+	if (!nic_dev->mc_list) {
+		PMD_DRV_LOG(ERR, "Allocate mcast address' memory failed, dev_name: %s",
+			    eth_dev->data->name);
+		rc = -ENOMEM;
+		goto mc_addr_fail;
+	}
 
 	/*
 	 * Pass the information to the rte_eth_dev_close() that it should also
@@ -2627,6 +2838,10 @@ init_mac_fail:
 	hinic_nic_dev_destroy(eth_dev);
 
 create_nic_dev_fail:
+	rte_free(nic_dev->mc_list);
+	nic_dev->mc_list = NULL;
+
+mc_addr_fail:
 	rte_free(eth_addr);
 	eth_dev->data->mac_addrs = NULL;
 
@@ -2670,6 +2885,8 @@ static int hinic_dev_uninit(struct rte_eth_dev *dev)
 	dev->dev_ops = NULL;
 	dev->rx_pkt_burst = NULL;
 	dev->tx_pkt_burst = NULL;
+
+	rte_free(nic_dev->mc_list);
 
 	rte_free(dev->data->mac_addrs);
 	dev->data->mac_addrs = NULL;
