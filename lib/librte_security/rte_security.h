@@ -18,6 +18,7 @@ extern "C" {
 #endif
 
 #include <sys/types.h>
+#include <sys/uio.h>
 
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -272,6 +273,20 @@ struct rte_security_pdcp_xform {
 	uint32_t hfn_threshold;
 };
 
+struct rte_security_cpu_crypto_xform {
+	/** For cipher/authentication crypto operation the authentication may
+	 * cover more content then the cipher. E.g., for IPSec ESP encryption
+	 * with AES-CBC and SHA1-HMAC, the encryption happens after the ESP
+	 * header but whole packet (apart from MAC header) is authenticated.
+	 * The cipher_offset field is used to deduct the cipher data pointer
+	 * from the buffer to be processed.
+	 *
+	 * NOTE this parameter shall be ignored by AEAD algorithms, since it
+	 * uses the same offset for cipher and authentication.
+	 */
+	int32_t cipher_offset;
+};
+
 /**
  * Security session action type.
  */
@@ -286,9 +301,13 @@ enum rte_security_session_action_type {
 	/**< All security protocol processing is performed inline during
 	 * transmission
 	 */
-	RTE_SECURITY_ACTION_TYPE_LOOKASIDE_PROTOCOL
+	RTE_SECURITY_ACTION_TYPE_LOOKASIDE_PROTOCOL,
 	/**< All security protocol processing including crypto is performed
 	 * on a lookaside accelerator
+	 */
+	RTE_SECURITY_ACTION_TYPE_CPU_CRYPTO
+	/**< Crypto processing for security protocol is processed by CPU
+	 * synchronously
 	 */
 };
 
@@ -315,6 +334,7 @@ struct rte_security_session_conf {
 		struct rte_security_ipsec_xform ipsec;
 		struct rte_security_macsec_xform macsec;
 		struct rte_security_pdcp_xform pdcp;
+		struct rte_security_cpu_crypto_xform cpucrypto;
 	};
 	/**< Configuration parameters for security session */
 	struct rte_crypto_sym_xform *crypto_xform;
@@ -638,6 +658,35 @@ rte_security_capabilities_get(struct rte_security_ctx *instance);
 const struct rte_security_capability *
 rte_security_capability_get(struct rte_security_ctx *instance,
 			    struct rte_security_capability_idx *idx);
+
+/**
+ * Security vector structure, contains pointer to vector array and the length
+ * of the array
+ */
+struct rte_security_vec {
+	struct iovec *vec;
+	uint32_t num;
+};
+
+/**
+ * Processing bulk crypto workload with CPU
+ *
+ * @param	instance	security instance.
+ * @param	sess		security session
+ * @param	buf		array of buffer SGL vectors
+ * @param	iv		array of IV pointers
+ * @param	aad		array of AAD pointers
+ * @param	digest		array of digest pointers
+ * @param	status		array of status for the function to return
+ * @param	num		number of elements in each array
+ *
+ */
+__rte_experimental
+void
+rte_security_process_cpu_crypto_bulk(struct rte_security_ctx *instance,
+		struct rte_security_session *sess,
+		struct rte_security_vec buf[], void *iv[], void *aad[],
+		void *digest[], int status[], uint32_t num);
 
 #ifdef __cplusplus
 }

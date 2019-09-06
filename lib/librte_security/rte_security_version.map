@@ -18,4 +18,5 @@ EXPERIMENTAL {
 	rte_security_get_userdata;
 	rte_security_session_stats_get;
 	rte_security_session_update;
+	rte_security_process_cpu_crypto_bulk;
 };

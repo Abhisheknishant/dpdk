@@ -132,6 +132,23 @@ typedef int (*security_get_userdata_t)(void *device,
 typedef const struct rte_security_capability *(*security_capabilities_get_t)(
 		void *device);
 
+/**
+ * Process security operations in bulk using CPU accelerated method.
+ *
+ * @param	sess		Security session structure.
+ * @param	buf		Buffer to the vectors to be processed.
+ * @param	iv		IV pointers.
+ * @param	aad		AAD pointers.
+ * @param	digest		Digest pointers.
+ * @param	status		Array of status value.
+ * @param	num		Number of elements in each array.
+ */
+
+typedef void (*security_process_cpu_crypto_bulk_t)(
+		struct rte_security_session *sess,
+		struct rte_security_vec buf[], void *iv[], void *aad[],
+		void *digest[], int status[], uint32_t num);
+
 /** Security operations function pointer table */
 struct rte_security_ops {
 	security_session_create_t session_create;
@@ -150,6 +167,8 @@ struct rte_security_ops {
 	/**< Get userdata associated with session which processed the packet. */
 	security_capabilities_get_t capabilities_get;
 	/**< Get security capabilities. */
+	security_process_cpu_crypto_bulk_t process_cpu_crypto_bulk;
+	/**< Process data in bulk. */
 };
 
 #ifdef __cplusplus

@@ -141,3 +141,19 @@ rte_security_capability_get(struct rte_security_ctx *instance,
 
 	return NULL;
 }
+
+void
+rte_security_process_cpu_crypto_bulk(struct rte_security_ctx *instance,
+		struct rte_security_session *sess,
+		struct rte_security_vec buf[], void *iv[], void *aad[],
+		void *digest[], int status[], uint32_t num)
+{
+	uint32_t i;
+
+	for (i = 0; i < num; i++)
+		status[i] = -1;
+
+	RTE_FUNC_PTR_OR_RET(*instance->ops->process_cpu_crypto_bulk);
+	instance->ops->process_cpu_crypto_bulk(sess, buf, iv,
+			aad, digest, status, num);
+}
