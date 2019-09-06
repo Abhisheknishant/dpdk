@@ -1522,7 +1522,7 @@ int hinic_set_fdir_filter(void *hwdev, u8 filter_type, u8 qid, u8 type_enable,
 
 	if (hinic_func_type(hwdev) == TYPE_VF) {
 		PMD_DRV_LOG(WARNING, "VF don't support FDIR");
-		return 0;
+		return -EINVAL;
 	}
 
 	memset(&port_filer_cmd, 0, sizeof(port_filer_cmd));
@@ -1560,7 +1560,7 @@ int hinic_set_normal_filter(void *hwdev, u8 qid, u8 normal_type_enable,
 
 	if (hinic_func_type(hwdev) == TYPE_VF) {
 		PMD_DRV_LOG(WARNING, "VF don't support FDIR");
-		return 0;
+		return -EINVAL;
 	}
 
 	memset(&port_filer_cmd, 0, sizeof(port_filer_cmd));
@@ -1599,7 +1599,7 @@ int hinic_set_fdir_tcam(void *hwdev, u16 type_mask,
 
 	if (hinic_func_type(hwdev) == TYPE_VF) {
 		PMD_DRV_LOG(WARNING, "VF don't support set Tcam table");
-		return 0;
+		return -EINVAL;
 	}
 
 	memset(&port_tcam_cmd, 0, sizeof(port_tcam_cmd));
@@ -1631,6 +1631,11 @@ int hinic_clear_fdir_tcam(void *hwdev, u16 type_mask)
 
 	if (!hwdev)
 		return -EINVAL;
+
+	if (hinic_func_type(hwdev) == TYPE_VF) {
+		PMD_DRV_LOG(WARNING, "VF don't support FDIR");
+		return -EINVAL;
+	}
 
 	memset(&port_tcam_cmd, 0, sizeof(port_tcam_cmd));
 	port_tcam_cmd.mgmt_msg_head.resp_aeq_num = HINIC_AEQ1;

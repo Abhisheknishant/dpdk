@@ -141,6 +141,7 @@ TAILQ_HEAD(hinic_ntuple_filter_list, hinic_ntuple_filter_ele);
 TAILQ_HEAD(hinic_ethertype_filter_list, hinic_ethertype_filter_ele);
 TAILQ_HEAD(hinic_fdir_rule_filter_list, hinic_fdir_rule_ele);
 TAILQ_HEAD(hinic_flow_mem_list, hinic_flow_mem);
+
 extern const struct rte_flow_ops hinic_flow_ops;
 
 /* hinic nic_device */
@@ -182,5 +183,7 @@ struct hinic_nic_dev {
 	struct hinic_fdir_rule_filter_list filter_fdir_rule_list;
 	struct hinic_flow_mem_list hinic_flow_list;
 };
+
+void hinic_free_fdir_filter(struct hinic_nic_dev *nic_dev);
 
 #endif /* _HINIC_PMD_ETHDEV_H_ */

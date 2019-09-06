@@ -103,7 +103,7 @@ struct hinic_fdir_info {
  */
 static inline const struct rte_flow_item *
 next_no_void_pattern(const struct rte_flow_item pattern[],
-			const struct rte_flow_item *cur)
+		     const struct rte_flow_item *cur)
 {
 	const struct rte_flow_item *next =
 		cur ? cur + 1 : &pattern[0];
@@ -116,7 +116,7 @@ next_no_void_pattern(const struct rte_flow_item pattern[],
 
 static inline const struct rte_flow_action *
 next_no_void_action(const struct rte_flow_action actions[],
-			const struct rte_flow_action *cur)
+		    const struct rte_flow_action *cur)
 {
 	const struct rte_flow_action *next =
 		cur ? cur + 1 : &actions[0];
@@ -128,7 +128,7 @@ next_no_void_action(const struct rte_flow_action actions[],
 }
 
 static int hinic_check_ethertype_attr_ele(const struct rte_flow_attr *attr,
-					struct rte_flow_error *error)
+					  struct rte_flow_error *error)
 {
 	/* Must be input direction */
 	if (!attr->ingress) {
@@ -163,9 +163,9 @@ static int hinic_check_ethertype_attr_ele(const struct rte_flow_attr *attr,
 }
 
 static int hinic_check_filter_arg(const struct rte_flow_attr *attr,
-				const struct rte_flow_item *pattern,
-				const struct rte_flow_action *actions,
-				struct rte_flow_error *error)
+				  const struct rte_flow_item *pattern,
+				  const struct rte_flow_action *actions,
+				  struct rte_flow_error *error)
 {
 	if (!pattern) {
 		rte_flow_error_set(error, EINVAL, RTE_FLOW_ERROR_TYPE_ITEM_NUM,
@@ -190,7 +190,7 @@ static int hinic_check_filter_arg(const struct rte_flow_attr *attr,
 }
 
 static int hinic_check_ethertype_first_item(const struct rte_flow_item *item,
-					struct rte_flow_error *error)
+					    struct rte_flow_error *error)
 {
 	/* The first non-void item should be MAC */
 	if (item->type != RTE_FLOW_ITEM_TYPE_ETH) {
@@ -220,10 +220,10 @@ static int hinic_check_ethertype_first_item(const struct rte_flow_item *item,
 
 static int
 hinic_parse_ethertype_aciton(const struct rte_flow_action *actions,
-				const struct rte_flow_action *act,
-				const struct rte_flow_action_queue *act_q,
-				struct rte_eth_ethertype_filter *filter,
-				struct rte_flow_error *error)
+			     const struct rte_flow_action *act,
+			     const struct rte_flow_action_queue *act_q,
+			     struct rte_eth_ethertype_filter *filter,
+			     struct rte_flow_error *error)
 {
 	/* Parse action */
 	act = next_no_void_action(actions, NULL);
@@ -260,10 +260,10 @@ hinic_parse_ethertype_aciton(const struct rte_flow_action *actions,
  */
 static int
 cons_parse_ethertype_filter(const struct rte_flow_attr *attr,
-				const struct rte_flow_item *pattern,
-				const struct rte_flow_action *actions,
-				struct rte_eth_ethertype_filter *filter,
-				struct rte_flow_error *error)
+			    const struct rte_flow_item *pattern,
+			    const struct rte_flow_action *actions,
+			    struct rte_eth_ethertype_filter *filter,
+			    struct rte_flow_error *error)
 {
 	const struct rte_flow_item *item;
 	const struct rte_flow_action *act = NULL;
@@ -329,11 +329,11 @@ cons_parse_ethertype_filter(const struct rte_flow_attr *attr,
 
 static int
 hinic_parse_ethertype_filter(struct rte_eth_dev *dev,
-				const struct rte_flow_attr *attr,
-				const struct rte_flow_item pattern[],
-				const struct rte_flow_action actions[],
-				struct rte_eth_ethertype_filter *filter,
-				struct rte_flow_error *error)
+			     const struct rte_flow_attr *attr,
+			     const struct rte_flow_item pattern[],
+			     const struct rte_flow_action actions[],
+			     struct rte_eth_ethertype_filter *filter,
+			     struct rte_flow_error *error)
 {
 	if (cons_parse_ethertype_filter(attr, pattern, actions, filter, error))
 		return -rte_errno;
@@ -386,8 +386,8 @@ hinic_parse_ethertype_filter(struct rte_eth_dev *dev,
 }
 
 static int hinic_check_ntuple_attr_ele(const struct rte_flow_attr *attr,
-					struct rte_eth_ntuple_filter *filter,
-					struct rte_flow_error *error)
+				       struct rte_eth_ntuple_filter *filter,
+				       struct rte_flow_error *error)
 {
 	/* must be input direction */
 	if (!attr->ingress) {
@@ -425,9 +425,9 @@ static int hinic_check_ntuple_attr_ele(const struct rte_flow_attr *attr,
 
 static int
 hinic_check_ntuple_act_ele(__rte_unused const struct rte_flow_item *item,
-			const struct rte_flow_action actions[],
-			struct rte_eth_ntuple_filter *filter,
-			struct rte_flow_error *error)
+			   const struct rte_flow_action actions[],
+			   struct rte_eth_ntuple_filter *filter,
+			   struct rte_flow_error *error)
 {
 	const struct rte_flow_action *act;
 	/**
@@ -459,8 +459,8 @@ hinic_check_ntuple_act_ele(__rte_unused const struct rte_flow_item *item,
 }
 
 static int hinic_ntuple_item_check_ether(const struct rte_flow_item **ipv4_item,
-					const struct rte_flow_item pattern[],
-					struct rte_flow_error *error)
+					 const struct rte_flow_item pattern[],
+					 struct rte_flow_error *error)
 {
 	const struct rte_flow_item *item;
 
@@ -508,9 +508,9 @@ static int hinic_ntuple_item_check_ether(const struct rte_flow_item **ipv4_item,
 
 static int
 hinic_ntuple_item_check_ipv4(const struct rte_flow_item **in_out_item,
-			const struct rte_flow_item pattern[],
-			struct rte_eth_ntuple_filter *filter,
-			struct rte_flow_error *error)
+			     const struct rte_flow_item pattern[],
+			     struct rte_eth_ntuple_filter *filter,
+			     struct rte_flow_error *error)
 {
 	const struct rte_flow_item_ipv4 *ipv4_spec;
 	const struct rte_flow_item_ipv4 *ipv4_mask;
@@ -564,9 +564,9 @@ hinic_ntuple_item_check_ipv4(const struct rte_flow_item **in_out_item,
 }
 
 static int hinic_ntuple_item_check_l4(const struct rte_flow_item **in_out_item,
-					const struct rte_flow_item pattern[],
-					struct rte_eth_ntuple_filter *filter,
-					struct rte_flow_error *error)
+				      const struct rte_flow_item pattern[],
+				      struct rte_eth_ntuple_filter *filter,
+				      struct rte_flow_error *error)
 {
 	const struct rte_flow_item_tcp *tcp_spec;
 	const struct rte_flow_item_tcp *tcp_mask;
@@ -664,8 +664,8 @@ static int hinic_ntuple_item_check_l4(const struct rte_flow_item **in_out_item,
 }
 
 static int hinic_ntuple_item_check_end(const struct rte_flow_item *item,
-					struct rte_eth_ntuple_filter *filter,
-					struct rte_flow_error *error)
+				       struct rte_eth_ntuple_filter *filter,
+				       struct rte_flow_error *error)
 {
 	/* Check if the next not void item is END */
 	if (item->type != RTE_FLOW_ITEM_TYPE_END) {
@@ -679,9 +679,9 @@ static int hinic_ntuple_item_check_end(const struct rte_flow_item *item,
 }
 
 static int hinic_check_ntuple_item_ele(const struct rte_flow_item *item,
-					const struct rte_flow_item pattern[],
-					struct rte_eth_ntuple_filter *filter,
-					struct rte_flow_error *error)
+				       const struct rte_flow_item pattern[],
+				       struct rte_eth_ntuple_filter *filter,
+				       struct rte_flow_error *error)
 {
 	if (hinic_ntuple_item_check_ether(&item, pattern, error) ||
 		hinic_ntuple_item_check_ipv4(&item, pattern, filter, error) ||
@@ -722,10 +722,10 @@ static int hinic_check_ntuple_item_ele(const struct rte_flow_item *item,
  */
 static int
 cons_parse_ntuple_filter(const struct rte_flow_attr *attr,
-			const struct rte_flow_item pattern[],
-			const struct rte_flow_action actions[],
-			struct rte_eth_ntuple_filter *filter,
-			struct rte_flow_error *error)
+			 const struct rte_flow_item pattern[],
+			 const struct rte_flow_action actions[],
+			 struct rte_eth_ntuple_filter *filter,
+			 struct rte_flow_error *error)
 {
 	const struct rte_flow_item *item = NULL;
 
@@ -746,11 +746,11 @@ cons_parse_ntuple_filter(const struct rte_flow_attr *attr,
 
 static int
 hinic_parse_ntuple_filter(struct rte_eth_dev *dev,
-			const struct rte_flow_attr *attr,
-			const struct rte_flow_item pattern[],
-			const struct rte_flow_action actions[],
-			struct rte_eth_ntuple_filter *filter,
-			struct rte_flow_error *error)
+			  const struct rte_flow_attr *attr,
+			  const struct rte_flow_item pattern[],
+			  const struct rte_flow_action actions[],
+			  struct rte_eth_ntuple_filter *filter,
+			  struct rte_flow_error *error)
 {
 	int ret;
 
@@ -786,8 +786,8 @@ hinic_parse_ntuple_filter(struct rte_eth_dev *dev,
 }
 
 static int hinic_normal_item_check_ether(const struct rte_flow_item **ip_item,
-					const struct rte_flow_item pattern[],
-					struct rte_flow_error *error)
+					 const struct rte_flow_item pattern[],
+					 struct rte_flow_error *error)
 {
 	const struct rte_flow_item *item;
 
@@ -836,9 +836,9 @@ static int hinic_normal_item_check_ether(const struct rte_flow_item **ip_item,
 }
 
 static int hinic_normal_item_check_ip(const struct rte_flow_item **in_out_item,
-					const struct rte_flow_item pattern[],
-					struct hinic_fdir_rule *rule,
-					struct rte_flow_error *error)
+				      const struct rte_flow_item pattern[],
+				      struct hinic_fdir_rule *rule,
+				      struct rte_flow_error *error)
 {
 	const struct rte_flow_item_ipv4 *ipv4_spec;
 	const struct rte_flow_item_ipv4 *ipv4_mask;
@@ -912,9 +912,9 @@ static int hinic_normal_item_check_ip(const struct rte_flow_item **in_out_item,
 }
 
 static int hinic_normal_item_check_l4(const struct rte_flow_item **in_out_item,
-					const struct rte_flow_item pattern[],
-					struct hinic_fdir_rule *rule,
-					struct rte_flow_error *error)
+				      const struct rte_flow_item pattern[],
+				      struct hinic_fdir_rule *rule,
+				      struct rte_flow_error *error)
 {
 	const struct rte_flow_item_tcp *tcp_spec;
 	const struct rte_flow_item_tcp *tcp_mask;
@@ -1023,8 +1023,8 @@ static int hinic_normal_item_check_l4(const struct rte_flow_item **in_out_item,
 }
 
 static int hinic_normal_item_check_end(const struct rte_flow_item *item,
-					struct hinic_fdir_rule *rule,
-					struct rte_flow_error *error)
+				       struct hinic_fdir_rule *rule,
+				       struct rte_flow_error *error)
 {
 	/* check if the next not void item is END */
 	if (item->type != RTE_FLOW_ITEM_TYPE_END) {
@@ -1039,9 +1039,9 @@ static int hinic_normal_item_check_end(const struct rte_flow_item *item,
 }
 
 static int hinic_check_normal_item_ele(const struct rte_flow_item *item,
-					const struct rte_flow_item pattern[],
-					struct hinic_fdir_rule *rule,
-					struct rte_flow_error *error)
+				       const struct rte_flow_item pattern[],
+				       struct hinic_fdir_rule *rule,
+				       struct rte_flow_error *error)
 {
 	if (hinic_normal_item_check_ether(&item, pattern, error) ||
 		hinic_normal_item_check_ip(&item, pattern, rule, error) ||
@@ -1053,8 +1053,8 @@ static int hinic_check_normal_item_ele(const struct rte_flow_item *item,
 }
 
 static int hinic_check_normal_attr_ele(const struct rte_flow_attr *attr,
-					struct hinic_fdir_rule *rule,
-					struct rte_flow_error *error)
+				       struct hinic_fdir_rule *rule,
+				       struct rte_flow_error *error)
 {
 	/* must be input direction */
 	if (!attr->ingress) {
@@ -1087,9 +1087,9 @@ static int hinic_check_normal_attr_ele(const struct rte_flow_attr *attr,
 }
 
 static int hinic_check_normal_act_ele(const struct rte_flow_item *item,
-					const struct rte_flow_action actions[],
-					struct hinic_fdir_rule *rule,
-					struct rte_flow_error *error)
+				      const struct rte_flow_action actions[],
+				      struct hinic_fdir_rule *rule,
+				      struct rte_flow_error *error)
 {
 	const struct rte_flow_action *act;
 
@@ -1191,10 +1191,10 @@ hinic_parse_fdir_filter(struct rte_eth_dev *dev,
  * the HW. Because there can be no enough room for the rule.
  */
 static int hinic_flow_validate(struct rte_eth_dev *dev,
-				const struct rte_flow_attr *attr,
-				const struct rte_flow_item pattern[],
-				const struct rte_flow_action actions[],
-				struct rte_flow_error *error)
+			       const struct rte_flow_attr *attr,
+			       const struct rte_flow_item pattern[],
+			       const struct rte_flow_action actions[],
+			       struct rte_flow_error *error)
 {
 	struct rte_eth_ethertype_filter ethertype_filter;
 	struct rte_eth_ntuple_filter ntuple_filter;
@@ -1447,6 +1447,35 @@ static int hinic_set_vrrp_tcam(struct hinic_nic_dev *nic_dev)
 
 	return hinic_set_fdir_tcam(nic_dev->hwdev, TCAM_PKT_VRRP,
 					&vrrp_rule, &vrrp_action);
+}
+
+void hinic_free_fdir_filter(struct hinic_nic_dev *nic_dev)
+{
+	struct hinic_filter_info *filter_info =
+		HINIC_DEV_PRIVATE_TO_FILTER_INFO(nic_dev);
+
+	if (hinic_func_type(nic_dev->hwdev) == TYPE_VF) {
+		PMD_DRV_LOG(WARNING, "VF don't support set Tcam table");
+		return;
+	}
+
+	if (filter_info->type_mask &
+	    (1 << HINIC_PKT_TYPE_FIND_ID(PKT_BGPD_DPORT_TYPE)))
+		hinic_clear_fdir_tcam(nic_dev->hwdev, TCAM_PKT_BGP_DPORT);
+
+	if (filter_info->type_mask &
+	    (1 << HINIC_PKT_TYPE_FIND_ID(PKT_BGPD_SPORT_TYPE)))
+		hinic_clear_fdir_tcam(nic_dev->hwdev, TCAM_PKT_BGP_SPORT);
+
+	if (filter_info->type_mask &
+	    (1 << HINIC_PKT_TYPE_FIND_ID(PKT_VRRP_TYPE)))
+		hinic_clear_fdir_tcam(nic_dev->hwdev, TCAM_PKT_VRRP);
+
+	if (filter_info->type_mask &
+	    (1 << HINIC_PKT_TYPE_FIND_ID(PKT_LACP_TYPE)))
+		hinic_clear_fdir_tcam(nic_dev->hwdev, TCAM_PKT_LACP);
+
+	hinic_set_fdir_filter(nic_dev->hwdev, 0, 0, 0, false);
 }
 
 static int
@@ -2234,10 +2263,116 @@ static int hinic_flow_destroy(struct rte_eth_dev *dev,
 	return ret;
 }
 
+/* remove all the n-tuple filters */
+static void hinic_clear_all_ntuple_filter(struct rte_eth_dev *dev)
+{
+	struct hinic_filter_info *filter_info =
+		HINIC_DEV_PRIVATE_TO_FILTER_INFO(dev->data->dev_private);
+	struct hinic_5tuple_filter *p_5tuple;
+
+	while ((p_5tuple = TAILQ_FIRST(&filter_info->fivetuple_list)))
+		hinic_remove_5tuple_filter(dev, p_5tuple);
+}
+
+/* remove all the ether type filters */
+static void hinic_clear_all_ethertype_filter(struct rte_eth_dev *dev)
+{
+	struct hinic_nic_dev *nic_dev = HINIC_ETH_DEV_TO_PRIVATE_NIC_DEV(dev);
+	struct hinic_filter_info *filter_info =
+		HINIC_DEV_PRIVATE_TO_FILTER_INFO(nic_dev);
+	int ret = 0;
+
+	if (filter_info->type_mask &
+		(1 << HINIC_PKT_TYPE_FIND_ID(PKT_LACP_TYPE))) {
+		(void)hinic_ethertype_filter_remove(filter_info,
+			HINIC_PKT_TYPE_FIND_ID(PKT_LACP_TYPE));
+		ret = hinic_set_fdir_filter(nic_dev->hwdev, PKT_LACP_TYPE,
+					filter_info->qid, false, true);
+
+		(void)hinic_clear_fdir_tcam(nic_dev->hwdev, TCAM_PKT_LACP);
+	}
+
+	if (filter_info->type_mask &
+		(1 << HINIC_PKT_TYPE_FIND_ID(PKT_ARP_TYPE))) {
+		(void)hinic_ethertype_filter_remove(filter_info,
+			HINIC_PKT_TYPE_FIND_ID(PKT_ARP_TYPE));
+		ret = hinic_set_fdir_filter(nic_dev->hwdev, PKT_ARP_TYPE,
+			filter_info->qid, false, true);
+	}
+
+	if (ret)
+		PMD_DRV_LOG(ERR, "Clear ethertype failed, filter type: 0x%x",
+				filter_info->pkt_type);
+}
+
+/* remove all the ether type filters */
+static void hinic_clear_all_fdir_filter(struct rte_eth_dev *dev)
+{
+	struct hinic_nic_dev *nic_dev = HINIC_ETH_DEV_TO_PRIVATE_NIC_DEV(dev);
+
+	(void)hinic_set_fdir_filter(nic_dev->hwdev, 0, 0, 0, false);
+}
+
+static void hinic_filterlist_flush(struct rte_eth_dev *dev)
+{
+	struct hinic_ntuple_filter_ele *ntuple_filter_ptr;
+	struct hinic_ethertype_filter_ele *ethertype_filter_ptr;
+	struct hinic_fdir_rule_ele *fdir_rule_ptr;
+	struct hinic_flow_mem *hinic_flow_mem_ptr;
+	struct hinic_nic_dev *nic_dev = HINIC_ETH_DEV_TO_PRIVATE_NIC_DEV(dev);
+
+	while ((ntuple_filter_ptr =
+			TAILQ_FIRST(&nic_dev->filter_ntuple_list))) {
+		TAILQ_REMOVE(&nic_dev->filter_ntuple_list, ntuple_filter_ptr,
+				 entries);
+		rte_free(ntuple_filter_ptr);
+	}
+
+	while ((ethertype_filter_ptr =
+			TAILQ_FIRST(&nic_dev->filter_ethertype_list))) {
+		TAILQ_REMOVE(&nic_dev->filter_ethertype_list,
+				ethertype_filter_ptr,
+				entries);
+		rte_free(ethertype_filter_ptr);
+	}
+
+	while ((fdir_rule_ptr =
+			TAILQ_FIRST(&nic_dev->filter_fdir_rule_list))) {
+		TAILQ_REMOVE(&nic_dev->filter_fdir_rule_list, fdir_rule_ptr,
+				 entries);
+		rte_free(fdir_rule_ptr);
+	}
+
+	while ((hinic_flow_mem_ptr =
+			TAILQ_FIRST(&nic_dev->hinic_flow_list))) {
+		TAILQ_REMOVE(&nic_dev->hinic_flow_list, hinic_flow_mem_ptr,
+				 entries);
+		rte_free(hinic_flow_mem_ptr->flow);
+		rte_free(hinic_flow_mem_ptr);
+	}
+}
+
+/*  Destroy all flow rules associated with a port on hinic. */
+static int hinic_flow_flush(struct rte_eth_dev *dev,
+				__rte_unused struct rte_flow_error *error)
+{
+	struct hinic_nic_dev *nic_dev = HINIC_ETH_DEV_TO_PRIVATE_NIC_DEV(dev);
+
+	hinic_clear_all_ntuple_filter(dev);
+	hinic_clear_all_ethertype_filter(dev);
+	hinic_clear_all_fdir_filter(dev);
+	hinic_filterlist_flush(dev);
+
+	PMD_DRV_LOG(INFO, "Flush flow succed, func_id: 0x%x",
+			hinic_global_func_id(nic_dev->hwdev));
+	return 0;
+}
+
 const struct rte_flow_ops hinic_flow_ops = {
 	.validate = hinic_flow_validate,
 	.create = hinic_flow_create,
 	.destroy = hinic_flow_destroy,
+	.flush = hinic_flow_flush,
 };
 
 /*lint -e{10}*/
