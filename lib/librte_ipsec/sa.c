@@ -544,9 +544,9 @@ lksd_proto_prepare(const struct rte_ipsec_session *ss,
  * - inbound/outbound for RTE_SECURITY_ACTION_TYPE_LOOKASIDE_PROTOCOL
  * - outbound for RTE_SECURITY_ACTION_TYPE_NONE when ESN is disabled
  */
-static uint16_t
-pkt_flag_process(const struct rte_ipsec_session *ss, struct rte_mbuf *mb[],
-	uint16_t num)
+uint16_t
+esp_outb_pkt_flag_process(const struct rte_ipsec_session *ss,
+		struct rte_mbuf *mb[], uint16_t num)
 {
 	uint32_t i, k;
 	uint32_t dr[num];
@@ -599,12 +599,48 @@ lksd_none_pkt_func_select(const struct rte_ipsec_sa *sa,
 	case (RTE_IPSEC_SATP_DIR_OB | RTE_IPSEC_SATP_MODE_TUNLV6):
 		pf->prepare = esp_outb_tun_prepare;
 		pf->process = (sa->sqh_len != 0) ?
-			esp_outb_sqh_process : pkt_flag_process;
+			esp_outb_sqh_process : esp_outb_pkt_flag_process;
 		break;
 	case (RTE_IPSEC_SATP_DIR_OB | RTE_IPSEC_SATP_MODE_TRANS):
 		pf->prepare = esp_outb_trs_prepare;
 		pf->process = (sa->sqh_len != 0) ?
-			esp_outb_sqh_process : pkt_flag_process;
+			esp_outb_sqh_process : esp_outb_pkt_flag_process;
+		break;
+	default:
+		rc = -ENOTSUP;
+	}
+
+	return rc;
+}
+
+static int
+lksd_sync_crypto_pkt_func_select(const struct rte_ipsec_sa *sa,
+		struct rte_ipsec_sa_pkt_func *pf)
+{
+	int32_t rc;
+
+	static const uint64_t msk = RTE_IPSEC_SATP_DIR_MASK |
+			RTE_IPSEC_SATP_MODE_MASK;
+
+	rc = 0;
+	switch (sa->type & msk) {
+	case (RTE_IPSEC_SATP_DIR_IB | RTE_IPSEC_SATP_MODE_TUNLV4):
+	case (RTE_IPSEC_SATP_DIR_IB | RTE_IPSEC_SATP_MODE_TUNLV6):
+		pf->process = esp_inb_tun_sync_crypto_pkt_process;
+		break;
+	case (RTE_IPSEC_SATP_DIR_IB | RTE_IPSEC_SATP_MODE_TRANS):
+		pf->process = esp_inb_trs_sync_crypto_pkt_process;
+		break;
+	case (RTE_IPSEC_SATP_DIR_OB | RTE_IPSEC_SATP_MODE_TUNLV4):
+	case (RTE_IPSEC_SATP_DIR_OB | RTE_IPSEC_SATP_MODE_TUNLV6):
+		pf->process = (sa->sqh_len != 0) ?
+			esp_outb_tun_sync_crpyto_sqh_process :
+			esp_outb_tun_sync_crpyto_flag_process;
+		break;
+	case (RTE_IPSEC_SATP_DIR_OB | RTE_IPSEC_SATP_MODE_TRANS):
+		pf->process = (sa->sqh_len != 0) ?
+			esp_outb_trs_sync_crpyto_sqh_process :
+			esp_outb_trs_sync_crpyto_flag_process;
 		break;
 	default:
 		rc = -ENOTSUP;
@@ -672,13 +708,16 @@ ipsec_sa_pkt_func_select(const struct rte_ipsec_session *ss,
 	case RTE_SECURITY_ACTION_TYPE_INLINE_PROTOCOL:
 		if ((sa->type & RTE_IPSEC_SATP_DIR_MASK) ==
 				RTE_IPSEC_SATP_DIR_IB)
-			pf->process = pkt_flag_process;
+			pf->process = esp_outb_pkt_flag_process;
 		else
 			pf->process = inline_proto_outb_pkt_process;
 		break;
 	case RTE_SECURITY_ACTION_TYPE_LOOKASIDE_PROTOCOL:
 		pf->prepare = lksd_proto_prepare;
-		pf->process = pkt_flag_process;
+		pf->process = esp_outb_pkt_flag_process;
+		break;
+	case RTE_SECURITY_ACTION_TYPE_CPU_CRYPTO:
+		rc = lksd_sync_crypto_pkt_func_select(sa, pf);
 		break;
 	default:
 		rc = -ENOTSUP;

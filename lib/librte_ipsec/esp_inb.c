@@ -105,6 +105,73 @@ inb_cop_prepare(struct rte_crypto_op *cop,
 	}
 }
 
+static inline int
+inb_sync_crypto_proc_prepare(const struct rte_ipsec_sa *sa, struct rte_mbuf *mb,
+	const union sym_op_data *icv, uint32_t pofs, uint32_t plen,
+	struct rte_security_vec *buf, struct iovec *cur_vec,
+	void *iv, void **aad, void **digest)
+{
+	struct rte_mbuf *ms;
+	struct iovec *vec = cur_vec;
+	struct aead_gcm_iv *gcm;
+	struct aesctr_cnt_blk *ctr;
+	uint64_t *ivp;
+	uint32_t algo, left, off = 0, n_seg = 0;
+
+	ivp = rte_pktmbuf_mtod_offset(mb, uint64_t *,
+		pofs + sizeof(struct rte_esp_hdr));
+	algo = sa->algo_type;
+
+	switch (algo) {
+	case ALGO_TYPE_AES_GCM:
+		gcm = (struct aead_gcm_iv *)iv;
+		aead_gcm_iv_fill(gcm, ivp[0], sa->salt);
+		*aad = icv->va + sa->icv_len;
+		off = sa->ctp.cipher.offset + pofs;
+		break;
+	case ALGO_TYPE_AES_CBC:
+	case ALGO_TYPE_3DES_CBC:
+		off = sa->ctp.auth.offset + pofs;
+		break;
+	case ALGO_TYPE_AES_CTR:
+		off = sa->ctp.auth.offset + pofs;
+		ctr = (struct aesctr_cnt_blk *)iv;
+		aes_ctr_cnt_blk_fill(ctr, ivp[0], sa->salt);
+		break;
+	case ALGO_TYPE_NULL:
+		break;
+	}
+
+	*digest = icv->va;
+
+	left = plen - sa->ctp.cipher.length;
+
+	ms = mbuf_get_seg_ofs(mb, &off);
+	if (!ms)
+		return -1;
+
+	while (n_seg < RTE_LIBRTE_IP_FRAG_MAX_FRAG && left && ms) {
+		uint32_t len = RTE_MIN(left, ms->data_len - off);
+
+		vec->iov_base = rte_pktmbuf_mtod_offset(ms, void *, off);
+		vec->iov_len = len;
+
+		left -= len;
+		vec++;
+		n_seg++;
+		ms = ms->next;
+		off = 0;
+	}
+
+	if (left)
+		return -1;
+
+	buf->vec = cur_vec;
+	buf->num = n_seg;
+
+	return n_seg;
+}
+
 /*
  * Helper function for prepare() to deal with situation when
  * ICV is spread by two segments. Tries to move ICV completely into the
@@ -512,7 +579,6 @@ tun_process(const struct rte_ipsec_sa *sa, struct rte_mbuf *mb[],
 	return k;
 }
 
-
 /*
  * *process* function for tunnel packets
  */
@@ -623,6 +689,112 @@ esp_inb_pkt_process(struct rte_ipsec_sa *sa, struct rte_mbuf *mb[],
 		rte_errno = EBADMSG;
 
 	return n;
+}
+
+/*
+ * process packets using sync crypto engine
+ */
+static uint16_t
+esp_inb_sync_crypto_pkt_process(const struct rte_ipsec_session *ss,
+		struct rte_mbuf *mb[], uint16_t num, uint8_t sqh_len,
+		esp_inb_process_t process)
+{
+	int32_t rc;
+	uint32_t i, k, hl, n, p;
+	struct rte_ipsec_sa *sa;
+	struct replay_sqn *rsn;
+	union sym_op_data icv;
+	uint32_t sqn[num];
+	uint32_t dr[num];
+	struct rte_security_vec buf[num];
+	struct iovec vec[RTE_LIBRTE_IP_FRAG_MAX_FRAG * num];
+	uint32_t vec_idx = 0;
+	uint8_t ivs[num][IPSEC_MAX_IV_SIZE];
+	void *iv[num];
+	void *aad[num];
+	void *digest[num];
+	int status[num];
+
+	sa = ss->sa;
+	rsn = rsn_acquire(sa);
+
+	k = 0;
+	for (i = 0; i != num; i++) {
+		hl = mb[i]->l2_len + mb[i]->l3_len;
+		rc = inb_pkt_prepare(sa, rsn, mb[i], hl, &icv);
+		if (rc >= 0) {
+			iv[k] = (void *)ivs[k];
+			rc = inb_sync_crypto_proc_prepare(sa, mb[i], &icv, hl,
+					rc, &buf[k], &vec[vec_idx], iv[k],
+					&aad[k], &digest[k]);
+			if (rc < 0) {
+				dr[i - k] = i;
+				continue;
+			}
+
+			vec_idx += rc;
+			k++;
+		} else
+			dr[i - k] = i;
+	}
+
+	/* copy not prepared mbufs beyond good ones */
+	if (k != num) {
+		rte_errno = EBADMSG;
+
+		if (unlikely(k == 0))
+			return 0;
+
+		move_bad_mbufs(mb, dr, num, num - k);
+	}
+
+	/* process the packets */
+	n = 0;
+	rte_security_process_cpu_crypto_bulk(ss->security.ctx,
+			ss->security.ses, buf, iv, aad, digest, status,
+			k);
+	/* move failed process packets to dr */
+	for (i = 0; i < k; i++) {
+		if (status[i]) {
+			dr[n++] = i;
+			rte_errno = EBADMSG;
+		}
+	}
+
+	/* move bad packets to the back */
+	if (n)
+		move_bad_mbufs(mb, dr, k, n);
+
+	/* process packets */
+	p = process(sa, mb, sqn, dr, k - n, sqh_len);
+
+	if (p != k - n && p != 0)
+		move_bad_mbufs(mb, dr, k - n, k - n - p);
+
+	if (p != num)
+		rte_errno = EBADMSG;
+
+	return p;
+}
+
+uint16_t
+esp_inb_tun_sync_crypto_pkt_process(const struct rte_ipsec_session *ss,
+		struct rte_mbuf *mb[], uint16_t num)
+{
+	struct rte_ipsec_sa *sa = ss->sa;
+
+	return esp_inb_sync_crypto_pkt_process(ss, mb, num, sa->sqh_len,
+			tun_process);
+}
+
+uint16_t
+esp_inb_trs_sync_crypto_pkt_process(const struct rte_ipsec_session *ss,
+		struct rte_mbuf *mb[], uint16_t num)
+{
+	struct rte_ipsec_sa *sa = ss->sa;
+
+	return esp_inb_sync_crypto_pkt_process(ss, mb, num, sa->sqh_len,
+			trs_process);
 }
 
 /*

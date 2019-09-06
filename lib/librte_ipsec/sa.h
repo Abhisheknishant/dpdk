@@ -156,6 +156,14 @@ uint16_t
 inline_inb_trs_pkt_process(const struct rte_ipsec_session *ss,
 	struct rte_mbuf *mb[], uint16_t num);
 
+uint16_t
+esp_inb_tun_sync_crypto_pkt_process(const struct rte_ipsec_session *ss,
+		struct rte_mbuf *mb[], uint16_t num);
+
+uint16_t
+esp_inb_trs_sync_crypto_pkt_process(const struct rte_ipsec_session *ss,
+		struct rte_mbuf *mb[], uint16_t num);
+
 /* outbound processing */
 
 uint16_t
@@ -171,6 +179,10 @@ esp_outb_sqh_process(const struct rte_ipsec_session *ss, struct rte_mbuf *mb[],
 	uint16_t num);
 
 uint16_t
+esp_outb_pkt_flag_process(const struct rte_ipsec_session *ss,
+	struct rte_mbuf *mb[], uint16_t num);
+
+uint16_t
 inline_outb_tun_pkt_process(const struct rte_ipsec_session *ss,
 	struct rte_mbuf *mb[], uint16_t num);
 
@@ -181,5 +193,22 @@ inline_outb_trs_pkt_process(const struct rte_ipsec_session *ss,
 uint16_t
 inline_proto_outb_pkt_process(const struct rte_ipsec_session *ss,
 	struct rte_mbuf *mb[], uint16_t num);
+
+uint16_t
+esp_outb_tun_sync_crpyto_sqh_process(const struct rte_ipsec_session *ss,
+		struct rte_mbuf *mb[], uint16_t num);
+
+uint16_t
+esp_outb_tun_sync_crpyto_flag_process(const struct rte_ipsec_session *ss,
+		struct rte_mbuf *mb[], uint16_t num);
+
+uint16_t
+esp_outb_trs_sync_crpyto_sqh_process(const struct rte_ipsec_session *ss,
+		struct rte_mbuf *mb[], uint16_t num);
+
+uint16_t
+esp_outb_trs_sync_crpyto_flag_process(const struct rte_ipsec_session *ss,
+		struct rte_mbuf *mb[], uint16_t num);
+
 
 #endif /* _SA_H_ */

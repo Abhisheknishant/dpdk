@@ -19,7 +19,9 @@ session_check(struct rte_ipsec_session *ss)
 			return -EINVAL;
 		if ((ss->type == RTE_SECURITY_ACTION_TYPE_INLINE_CRYPTO ||
 				ss->type ==
-				RTE_SECURITY_ACTION_TYPE_INLINE_PROTOCOL) &&
+				RTE_SECURITY_ACTION_TYPE_INLINE_PROTOCOL ||
+				ss->type ==
+				RTE_SECURITY_ACTION_TYPE_CPU_CRYPTO) &&
 				ss->security.ctx == NULL)
 			return -EINVAL;
 	}

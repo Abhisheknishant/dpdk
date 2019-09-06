@@ -403,6 +403,292 @@ esp_outb_trs_prepare(const struct rte_ipsec_session *ss, struct rte_mbuf *mb[],
 	return k;
 }
 
+
+static inline int
+outb_sync_crypto_proc_prepare(struct rte_mbuf *m, const struct rte_ipsec_sa *sa,
+		const uint64_t ivp[IPSEC_MAX_IV_QWORD],
+		const union sym_op_data *icv, uint32_t hlen, uint32_t plen,
+		struct rte_security_vec *buf, struct iovec *cur_vec, void *iv,
+		void **aad, void **digest)
+{
+	struct rte_mbuf *ms;
+	struct aead_gcm_iv *gcm;
+	struct aesctr_cnt_blk *ctr;
+	struct iovec *vec = cur_vec;
+	uint32_t left, off = 0, n_seg = 0;
+	uint32_t algo;
+
+	algo = sa->algo_type;
+
+	switch (algo) {
+	case ALGO_TYPE_AES_GCM:
+		gcm = iv;
+		aead_gcm_iv_fill(gcm, ivp[0], sa->salt);
+		*aad = (void *)(icv->va + sa->icv_len);
+		off = sa->ctp.cipher.offset + hlen;
+		break;
+	case ALGO_TYPE_AES_CBC:
+	case ALGO_TYPE_3DES_CBC:
+		off = sa->ctp.auth.offset + hlen;
+		break;
+	case ALGO_TYPE_AES_CTR:
+		ctr = iv;
+		aes_ctr_cnt_blk_fill(ctr, ivp[0], sa->salt);
+		break;
+	case ALGO_TYPE_NULL:
+		break;
+	}
+
+	*digest = (void *)icv->va;
+
+	left = sa->ctp.cipher.length + plen;
+
+	ms = mbuf_get_seg_ofs(m, &off);
+	if (!ms)
+		return -1;
+
+	while (n_seg < RTE_LIBRTE_IP_FRAG_MAX_FRAG && left && ms) {
+		uint32_t len = RTE_MIN(left, ms->data_len - off);
+
+		vec->iov_base = rte_pktmbuf_mtod_offset(ms, void *, off);
+		vec->iov_len = len;
+
+		left -= len;
+		vec++;
+		n_seg++;
+		ms = ms->next;
+		off = 0;
+	}
+
+	if (left)
+		return -1;
+
+	buf->vec = cur_vec;
+	buf->num = n_seg;
+
+	return n_seg;
+}
+
+/**
+ * Local post process function prototype that same as process function prototype
+ * as rte_ipsec_sa_pkt_func's process().
+ */
+typedef uint16_t (*sync_crypto_post_process)(const struct rte_ipsec_session *ss,
+				struct rte_mbuf *mb[],
+				uint16_t num);
+static uint16_t
+esp_outb_tun_sync_crypto_process(const struct rte_ipsec_session *ss,
+		struct rte_mbuf *mb[], uint16_t num,
+		sync_crypto_post_process post_process)
+{
+	uint64_t sqn;
+	rte_be64_t sqc;
+	struct rte_ipsec_sa *sa;
+	struct rte_security_ctx *ctx;
+	struct rte_security_session *rss;
+	union sym_op_data icv;
+	struct rte_security_vec buf[num];
+	struct iovec vec[RTE_LIBRTE_IP_FRAG_MAX_FRAG * num];
+	uint32_t vec_idx = 0;
+	void *aad[num];
+	void *digest[num];
+	void *iv[num];
+	uint8_t ivs[num][IPSEC_MAX_IV_SIZE];
+	uint64_t ivp[IPSEC_MAX_IV_QWORD];
+	int status[num];
+	uint32_t dr[num];
+	uint32_t i, n, k;
+	int32_t rc;
+
+	sa = ss->sa;
+	ctx = ss->security.ctx;
+	rss = ss->security.ses;
+
+	k = 0;
+	n = num;
+	sqn = esn_outb_update_sqn(sa, &n);
+	if (n != num)
+		rte_errno = EOVERFLOW;
+
+	for (i = 0; i != n; i++) {
+		sqc = rte_cpu_to_be_64(sqn + i);
+		gen_iv(ivp, sqc);
+
+		/* try to update the packet itself */
+		rc = outb_tun_pkt_prepare(sa, sqc, ivp, mb[i], &icv,
+				sa->sqh_len);
+
+		/* success, setup crypto op */
+		if (rc >= 0) {
+			outb_pkt_xprepare(sa, sqc, &icv);
+
+			iv[k] = (void *)ivs[k];
+			rc = outb_sync_crypto_proc_prepare(mb[i], sa, ivp, &icv,
+					0, rc, &buf[k], &vec[vec_idx], iv[k],
+					&aad[k], &digest[k]);
+			if (rc < 0) {
+				dr[i - k] = i;
+				rte_errno = -rc;
+				continue;
+			}
+
+			vec_idx += rc;
+			k++;
+		/* failure, put packet into the death-row */
+		} else {
+			dr[i - k] = i;
+			rte_errno = -rc;
+		}
+	}
+
+	 /* copy not prepared mbufs beyond good ones */
+	if (k != n && k != 0)
+		move_bad_mbufs(mb, dr, n, n - k);
+
+	if (unlikely(k == 0)) {
+		rte_errno = EBADMSG;
+		return 0;
+	}
+
+	/* process the packets */
+	n = 0;
+	rte_security_process_cpu_crypto_bulk(ctx, rss, buf, iv, aad, digest,
+			status, k);
+	/* move failed process packets to dr */
+	for (i = 0; i < n; i++) {
+		if (status[i])
+			dr[n++] = i;
+	}
+
+	if (n)
+		move_bad_mbufs(mb, dr, k, n);
+
+	return post_process(ss, mb, k - n);
+}
+
+static uint16_t
+esp_outb_trs_sync_crypto_process(const struct rte_ipsec_session *ss,
+		struct rte_mbuf *mb[], uint16_t num,
+		sync_crypto_post_process post_process)
+
+{
+	uint64_t sqn;
+	rte_be64_t sqc;
+	struct rte_ipsec_sa *sa;
+	struct rte_security_ctx *ctx;
+	struct rte_security_session *rss;
+	union sym_op_data icv;
+	struct rte_security_vec buf[num];
+	struct iovec vec[RTE_LIBRTE_IP_FRAG_MAX_FRAG * num];
+	uint32_t vec_idx = 0;
+	void *aad[num];
+	void *digest[num];
+	uint8_t ivs[num][IPSEC_MAX_IV_SIZE];
+	void *iv[num];
+	int status[num];
+	uint64_t ivp[IPSEC_MAX_IV_QWORD];
+	uint32_t dr[num];
+	uint32_t i, n, k;
+	uint32_t l2, l3;
+	int32_t rc;
+
+	sa = ss->sa;
+	ctx = ss->security.ctx;
+	rss = ss->security.ses;
+
+	k = 0;
+	n = num;
+	sqn = esn_outb_update_sqn(sa, &n);
+	if (n != num)
+		rte_errno = EOVERFLOW;
+
+	for (i = 0; i != n; i++) {
+		l2 = mb[i]->l2_len;
+		l3 = mb[i]->l3_len;
+
+		sqc = rte_cpu_to_be_64(sqn + i);
+		gen_iv(ivp, sqc);
+
+		/* try to update the packet itself */
+		rc = outb_trs_pkt_prepare(sa, sqc, ivp, mb[i], l2, l3, &icv,
+				sa->sqh_len);
+
+		/* success, setup crypto op */
+		if (rc >= 0) {
+			outb_pkt_xprepare(sa, sqc, &icv);
+
+			iv[k] = (void *)ivs[k];
+
+			rc = outb_sync_crypto_proc_prepare(mb[i], sa, ivp, &icv,
+					l2 + l3, rc, &buf[k], &vec[vec_idx],
+					iv[k], &aad[k], &digest[k]);
+			if (rc < 0) {
+				dr[i - k] = i;
+				rte_errno = -rc;
+				continue;
+			}
+
+			vec_idx += rc;
+			k++;
+		/* failure, put packet into the death-row */
+		} else {
+			dr[i - k] = i;
+			rte_errno = -rc;
+		}
+	}
+
+	 /* copy not prepared mbufs beyond good ones */
+	if (k != n && k != 0)
+		move_bad_mbufs(mb, dr, n, n - k);
+
+	/* process the packets */
+	n = 0;
+	rte_security_process_cpu_crypto_bulk(ctx, rss, buf, iv, aad, digest,
+			status, k);
+	/* move failed process packets to dr */
+	for (i = 0; i < k; i++) {
+		if (status[i])
+			dr[n++] = i;
+	}
+
+	if (n)
+		move_bad_mbufs(mb, dr, k, n);
+
+	return post_process(ss, mb, k - n);
+}
+
+uint16_t
+esp_outb_tun_sync_crpyto_sqh_process(const struct rte_ipsec_session *ss,
+		struct rte_mbuf *mb[], uint16_t num)
+{
+	return esp_outb_tun_sync_crypto_process(ss, mb, num,
+			esp_outb_sqh_process);
+}
+
+uint16_t
+esp_outb_tun_sync_crpyto_flag_process(const struct rte_ipsec_session *ss,
+		struct rte_mbuf *mb[], uint16_t num)
+{
+	return esp_outb_tun_sync_crypto_process(ss, mb, num,
+			esp_outb_pkt_flag_process);
+}
+
+uint16_t
+esp_outb_trs_sync_crpyto_sqh_process(const struct rte_ipsec_session *ss,
+		struct rte_mbuf *mb[], uint16_t num)
+{
+	return esp_outb_trs_sync_crypto_process(ss, mb, num,
+			esp_outb_sqh_process);
+}
+
+uint16_t
+esp_outb_trs_sync_crpyto_flag_process(const struct rte_ipsec_session *ss,
+		struct rte_mbuf *mb[], uint16_t num)
+{
+	return esp_outb_trs_sync_crypto_process(ss, mb, num,
+			esp_outb_pkt_flag_process);
+}
+
 /*
  * process outbound packets for SA with ESN support,
  * for algorithms that require SQN.hibits to be implictly included
@@ -410,8 +696,8 @@ esp_outb_trs_prepare(const struct rte_ipsec_session *ss, struct rte_mbuf *mb[],
  * In that case we have to move ICV bytes back to their proper place.
  */
 uint16_t
-esp_outb_sqh_process(const struct rte_ipsec_session *ss, struct rte_mbuf *mb[],
-	uint16_t num)
+esp_outb_sqh_process(const struct rte_ipsec_session *ss,
+	struct rte_mbuf *mb[], uint16_t num)
 {
 	uint32_t i, k, icv_len, *icv;
 	struct rte_mbuf *ml;
