@@ -1346,8 +1346,6 @@ vhost_user_set_vring_enable(struct virtio_net **pdev,
 
 	did = dev->vdpa_dev_id;
 	vdpa_dev = rte_vdpa_get_device(did);
-	if (vdpa_dev && vdpa_dev->ops->set_vring_state)
-		vdpa_dev->ops->set_vring_state(dev->vid, index, enable);
 
 	if (dev->notify_ops->vring_state_changed)
 		dev->notify_ops->vring_state_changed(dev->vid,
@@ -1358,6 +1356,9 @@ vhost_user_set_vring_enable(struct virtio_net **pdev,
 		drain_zmbuf_list(dev->virtqueue[index]);
 
 	dev->virtqueue[index]->enabled = enable;
+
+	if (vdpa_dev && vdpa_dev->ops->set_vring_state)
+		vdpa_dev->ops->set_vring_state(dev->vid);
 
 	return RTE_VHOST_MSG_RESULT_OK;
 }
