@@ -44,3 +44,9 @@ DPDK_17.05 {
 	rte_lpm6_lookup_bulk_func;
 
 } DPDK_16.04;
+
+EXPERIMENTAL {
+	global:
+
+	rte_lpm_rcu_qsbr_add;
+};

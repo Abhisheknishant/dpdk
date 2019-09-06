@@ -11,6 +11,7 @@
 libraries = [
 	'kvargs', # eal depends on kvargs
 	'eal', # everything depends on eal
+	'rcu', # hash and lpm depends on this
 	'ring', 'mempool', 'mbuf', 'net', 'meter', 'ethdev', 'pci', # core
 	'cmdline',
 	'metrics', # bitrate/latency stats depends on this
@@ -22,7 +23,7 @@ libraries = [
 	'gro', 'gso', 'ip_frag', 'jobstats',
 	'kni', 'latencystats', 'lpm', 'member',
 	'power', 'pdump', 'rawdev',
-	'rcu', 'reorder', 'sched', 'security', 'stack', 'vhost',
+	'reorder', 'sched', 'security', 'stack', 'vhost',
 	# ipsec lib depends on net, crypto and security
 	'ipsec',
 	# add pkt framework libs which use other libs from above

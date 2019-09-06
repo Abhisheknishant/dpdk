@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: BSD-3-Clause
  * Copyright(c) 2010-2014 Intel Corporation
+ * Copyright(c) 2019 Arm Limited
  */
 
 #include <string.h>
@@ -22,6 +23,7 @@
 #include <rte_rwlock.h>
 #include <rte_spinlock.h>
 #include <rte_tailq.h>
+#include <rte_ring.h>
 
 #include "rte_lpm.h"
 
@@ -37,6 +39,11 @@ EAL_REGISTER_TAILQ(rte_lpm_tailq)
 enum valid_flag {
 	INVALID = 0,
 	VALID
+};
+
+struct __rte_lpm_qs_item {
+	uint64_t token;	/**< QSBR token.*/
+	uint32_t index;	/**< tbl8 group index.*/
 };
 
 /* Macro to enable/disable run-time checks. */
@@ -381,6 +388,7 @@ rte_lpm_free_v1604(struct rte_lpm *lpm)
 
 	rte_mcfg_tailq_write_unlock();
 
+	rte_ring_free(lpm->qs_fifo);
 	rte_free(lpm->tbl8);
 	rte_free(lpm->rules_tbl);
 	rte_free(lpm);
@@ -389,6 +397,147 @@ rte_lpm_free_v1604(struct rte_lpm *lpm)
 BIND_DEFAULT_SYMBOL(rte_lpm_free, _v1604, 16.04);
 MAP_STATIC_SYMBOL(void rte_lpm_free(struct rte_lpm *lpm),
 		rte_lpm_free_v1604);
+
+/* Add an item into FIFO.
+ * return: 0 - success
+ */
+static int
+__rte_lpm_rcu_qsbr_fifo_push(struct rte_ring *fifo,
+	struct __rte_lpm_qs_item *item)
+{
+	if (rte_ring_free_count(fifo) < 2) {
+		RTE_LOG(ERR, LPM, "QS FIFO full\n");
+		rte_errno = ENOSPC;
+		return 1;
+	}
+
+	(void)rte_ring_sp_enqueue(fifo, (void *)(uintptr_t)item->token);
+	(void)rte_ring_sp_enqueue(fifo, (void *)(uintptr_t)item->index);
+
+	return 0;
+}
+
+/* Remove item from FIFO.
+ * Used when data observed by rte_ring_peek.
+ */
+static void
+__rte_lpm_rcu_qsbr_fifo_pop(struct rte_ring *fifo,
+	struct __rte_lpm_qs_item *item)
+{
+	void *obj_token = NULL;
+	void *obj_index = NULL;
+
+	(void)rte_ring_sc_dequeue(fifo, &obj_token);
+	(void)rte_ring_sc_dequeue(fifo, &obj_index);
+
+	if (item) {
+		item->token = (uint64_t)((uintptr_t)obj_token);
+		item->index = (uint32_t)((uintptr_t)obj_index);
+	}
+}
+
+/* Max number of tbl8 groups to reclaim at one time. */
+#define RCU_QSBR_RECLAIM_SIZE	8
+
+/* When RCU QSBR FIFO usage is above 1/(2^RCU_QSBR_RECLAIM_LEVEL),
+ * reclaim will be triggered by tbl8_free.
+ */
+#define RCU_QSBR_RECLAIM_LEVEL	3
+
+/* Reclaim some tbl8 groups based on quiescent state check.
+ * RCU_QSBR_RECLAIM_SIZE groups will be reclaimed at max.
+ * Params: lpm   - lpm object handle
+ *         index - (onput) one of successfully reclaimed tbl8 groups
+ * return: 0 - success, 1 - no group reclaimed.
+ */
+static uint32_t
+__rte_lpm_rcu_qsbr_reclaim_chunk(struct rte_lpm *lpm, uint32_t *index)
+{
+	struct __rte_lpm_qs_item qs_item;
+	struct rte_lpm_tbl_entry *tbl8_entry = NULL;
+	void *obj_token;
+	uint32_t cnt = 0;
+
+	RTE_LOG(DEBUG, LPM, "RCU QSBR reclaimation triggered.\n");
+	/* Check reader threads quiescent state and
+	 * reclaim as much tbl8 groups as possible.
+	 */
+	while ((cnt < RCU_QSBR_RECLAIM_SIZE) &&
+		(rte_ring_peek(lpm->qs_fifo, &obj_token) == 0) &&
+		(rte_rcu_qsbr_check(lpm->qsv, (uint64_t)((uintptr_t)obj_token),
+					false) == 1)) {
+		__rte_lpm_rcu_qsbr_fifo_pop(lpm->qs_fifo, &qs_item);
+
+		tbl8_entry = &lpm->tbl8[qs_item.index *
+					RTE_LPM_TBL8_GROUP_NUM_ENTRIES];
+		memset(&tbl8_entry[0], 0,
+				RTE_LPM_TBL8_GROUP_NUM_ENTRIES *
+				sizeof(tbl8_entry[0]));
+		cnt++;
+	}
+
+	RTE_LOG(DEBUG, LPM, "RCU QSBR reclaimed %u groups.\n", cnt);
+	if (cnt) {
+		if (index)
+			*index = qs_item.index;
+		return 0;
+	}
+	return 1;
+}
+
+/* Trigger tbl8 group reclaim when necessary.
+ * Reclaim happens when RCU QSBR queue usage
+ * is over 1/(2^RCU_QSBR_RECLAIM_LEVEL).
+ */
+static void
+__rte_lpm_rcu_qsbr_try_reclaim(struct rte_lpm *lpm)
+{
+	if (lpm->qsv == NULL)
+		return;
+
+	if (rte_ring_count(lpm->qs_fifo) <
+		(rte_ring_get_capacity(lpm->qs_fifo) >> RCU_QSBR_RECLAIM_LEVEL))
+		return;
+
+	(void)__rte_lpm_rcu_qsbr_reclaim_chunk(lpm, NULL);
+}
+
+/* Associate QSBR variable with an LPM object.
+ */
+int
+rte_lpm_rcu_qsbr_add(struct rte_lpm *lpm, struct rte_rcu_qsbr *v)
+{
+	uint32_t qs_fifo_size;
+	char rcu_ring_name[RTE_RING_NAMESIZE];
+
+	if ((lpm == NULL) || (v == NULL)) {
+		rte_errno = EINVAL;
+		return 1;
+	}
+
+	if (lpm->qsv) {
+		rte_errno = EEXIST;
+		return 1;
+	}
+
+	/* round up qs_fifo_size to next power of two that is not less than
+	 * number_tbl8s. Will store 'token' and 'index'.
+	 */
+	qs_fifo_size = rte_align32pow2((2 * lpm->number_tbl8s) + 1);
+
+	/* Init QSBR reclaiming FIFO. */
+	snprintf(rcu_ring_name, sizeof(rcu_ring_name), "LPM_RCU_%s", lpm->name);
+	lpm->qs_fifo = rte_ring_create(rcu_ring_name, qs_fifo_size,
+					SOCKET_ID_ANY, 0);
+	if (lpm->qs_fifo == NULL) {
+		RTE_LOG(ERR, LPM, "LPM QS FIFO memory allocation failed\n");
+		rte_errno = ENOMEM;
+		return 1;
+	}
+	lpm->qsv = v;
+
+	return 0;
+}
 
 /*
  * Adds a rule to the rule table.
@@ -640,6 +789,35 @@ rule_find_v1604(struct rte_lpm *lpm, uint32_t ip_masked, uint8_t depth)
 	return -EINVAL;
 }
 
+static int32_t
+tbl8_alloc_reclaimed(struct rte_lpm *lpm)
+{
+	struct rte_lpm_tbl_entry *tbl8_entry = NULL;
+	uint32_t index;
+
+	if (lpm->qsv != NULL) {
+		if (__rte_lpm_rcu_qsbr_reclaim_chunk(lpm, &index) == 0) {
+			/* Set the last reclaimed tbl8 group as VALID. */
+			struct rte_lpm_tbl_entry new_tbl8_entry = {
+				.next_hop = 0,
+				.valid = INVALID,
+				.depth = 0,
+				.valid_group = VALID,
+			};
+
+			tbl8_entry = &lpm->tbl8[index *
+					RTE_LPM_TBL8_GROUP_NUM_ENTRIES];
+			__atomic_store(tbl8_entry, &new_tbl8_entry,
+					__ATOMIC_RELAXED);
+
+			/* Return group index for reclaimed tbl8 group. */
+			return index;
+		}
+	}
+
+	return -ENOSPC;
+}
+
 /*
  * Find, clean and allocate a tbl8.
  */
@@ -679,14 +857,15 @@ tbl8_alloc_v20(struct rte_lpm_tbl_entry_v20 *tbl8)
 }
 
 static int32_t
-tbl8_alloc_v1604(struct rte_lpm_tbl_entry *tbl8, uint32_t number_tbl8s)
+tbl8_alloc_v1604(struct rte_lpm *lpm)
 {
 	uint32_t group_idx; /* tbl8 group index. */
 	struct rte_lpm_tbl_entry *tbl8_entry;
 
 	/* Scan through tbl8 to find a free (i.e. INVALID) tbl8 group. */
-	for (group_idx = 0; group_idx < number_tbl8s; group_idx++) {
-		tbl8_entry = &tbl8[group_idx * RTE_LPM_TBL8_GROUP_NUM_ENTRIES];
+	for (group_idx = 0; group_idx < lpm->number_tbl8s; group_idx++) {
+		tbl8_entry = &lpm->tbl8[group_idx *
+					RTE_LPM_TBL8_GROUP_NUM_ENTRIES];
 		/* If a free tbl8 group is found clean it and set as VALID. */
 		if (!tbl8_entry->valid_group) {
 			struct rte_lpm_tbl_entry new_tbl8_entry = {
@@ -708,8 +887,8 @@ tbl8_alloc_v1604(struct rte_lpm_tbl_entry *tbl8, uint32_t number_tbl8s)
 		}
 	}
 
-	/* If there are no tbl8 groups free then return error. */
-	return -ENOSPC;
+	/* If there are no tbl8 groups free then check reclaim queue. */
+	return tbl8_alloc_reclaimed(lpm);
 }
 
 static void
@@ -728,13 +907,31 @@ tbl8_free_v20(struct rte_lpm_tbl_entry_v20 *tbl8, uint32_t tbl8_group_start)
 }
 
 static void
-tbl8_free_v1604(struct rte_lpm_tbl_entry *tbl8, uint32_t tbl8_group_start)
+tbl8_free_v1604(struct rte_lpm *lpm, uint32_t tbl8_group_start)
 {
-	/* Set tbl8 group invalid*/
+	struct __rte_lpm_qs_item qs_item;
 	struct rte_lpm_tbl_entry zero_tbl8_entry = {0};
 
-	__atomic_store(&tbl8[tbl8_group_start], &zero_tbl8_entry,
-			__ATOMIC_RELAXED);
+	if (lpm->qsv != NULL) {
+		/* Push into QSBR FIFO. */
+		qs_item.token = rte_rcu_qsbr_start(lpm->qsv);
+		qs_item.index =
+			tbl8_group_start / RTE_LPM_TBL8_GROUP_NUM_ENTRIES;
+		if (__rte_lpm_rcu_qsbr_fifo_push(lpm->qs_fifo, &qs_item) != 0)
+			/* This should never happen as FIFO size is big enough
+			 * to hold all tbl8 groups.
+			 */
+			RTE_LOG(ERR, LPM, "Failed to push QSBR FIFO\n");
+
+		/* Speculatively reclaim tbl8 groups.
+		 * Help spread the reclaim work load across multiple calls.
+		 */
+		__rte_lpm_rcu_qsbr_try_reclaim(lpm);
+	} else {
+		/* Set tbl8 group invalid*/
+		__atomic_store(&lpm->tbl8[tbl8_group_start], &zero_tbl8_entry,
+				__ATOMIC_RELAXED);
+	}
 }
 
 static __rte_noinline int32_t
@@ -1037,7 +1234,7 @@ add_depth_big_v1604(struct rte_lpm *lpm, uint32_t ip_masked, uint8_t depth,
 
 	if (!lpm->tbl24[tbl24_index].valid) {
 		/* Search for a free tbl8 group. */
-		tbl8_group_index = tbl8_alloc_v1604(lpm->tbl8, lpm->number_tbl8s);
+		tbl8_group_index = tbl8_alloc_v1604(lpm);
 
 		/* Check tbl8 allocation was successful. */
 		if (tbl8_group_index < 0) {
@@ -1083,7 +1280,7 @@ add_depth_big_v1604(struct rte_lpm *lpm, uint32_t ip_masked, uint8_t depth,
 	} /* If valid entry but not extended calculate the index into Table8. */
 	else if (lpm->tbl24[tbl24_index].valid_group == 0) {
 		/* Search for free tbl8 group. */
-		tbl8_group_index = tbl8_alloc_v1604(lpm->tbl8, lpm->number_tbl8s);
+		tbl8_group_index = tbl8_alloc_v1604(lpm);
 
 		if (tbl8_group_index < 0) {
 			return tbl8_group_index;
@@ -1818,7 +2015,7 @@ delete_depth_big_v1604(struct rte_lpm *lpm, uint32_t ip_masked,
 		 */
 		lpm->tbl24[tbl24_index].valid = 0;
 		__atomic_thread_fence(__ATOMIC_RELEASE);
-		tbl8_free_v1604(lpm->tbl8, tbl8_group_start);
+		tbl8_free_v1604(lpm, tbl8_group_start);
 	} else if (tbl8_recycle_index > -1) {
 		/* Update tbl24 entry. */
 		struct rte_lpm_tbl_entry new_tbl24_entry = {
@@ -1834,7 +2031,7 @@ delete_depth_big_v1604(struct rte_lpm *lpm, uint32_t ip_masked,
 		__atomic_store(&lpm->tbl24[tbl24_index], &new_tbl24_entry,
 				__ATOMIC_RELAXED);
 		__atomic_thread_fence(__ATOMIC_RELEASE);
-		tbl8_free_v1604(lpm->tbl8, tbl8_group_start);
+		tbl8_free_v1604(lpm, tbl8_group_start);
 	}
 #undef group_idx
 	return 0;
