@@ -1122,6 +1122,197 @@ test_security_cpu_crypto_aesni_mb(void)
 	return unit_test_suite_runner(&security_cpu_crypto_aesni_mb_testsuite);
 }
 
+static inline void
+switch_blockcipher_enc_to_dec(struct blockcipher_test_data *tdata,
+		struct cpu_crypto_test_case *tcase, uint8_t *dst)
+{
+	memcpy(dst, tcase->seg_buf[0].seg, tcase->seg_buf[0].seg_len);
+	tdata->ciphertext.len = tcase->seg_buf[0].seg_len;
+	memcpy(tdata->digest.data, tcase->digest, tdata->digest.len);
+}
+
+static int
+cpu_crypto_test_blockcipher_perf(
+		const enum rte_crypto_cipher_algorithm cipher_algo,
+		uint32_t cipher_key_sz,
+		const enum rte_crypto_auth_algorithm auth_algo,
+		uint32_t auth_key_sz, uint32_t digest_sz,
+		uint32_t op_mask)
+{
+	struct blockcipher_test_data tdata = {0};
+	uint8_t plaintext[3000], ciphertext[3000];
+	struct cpu_crypto_testsuite_params *ts_params = &testsuite_params;
+	struct cpu_crypto_unittest_params *ut_params = &unittest_params;
+	struct cpu_crypto_test_obj *obj = &ut_params->test_obj;
+	struct cpu_crypto_test_case *tcase;
+	uint64_t hz = rte_get_tsc_hz(), time_start, time_now;
+	double rate, cycles_per_buf;
+	uint32_t test_data_szs[] = {64, 128, 256, 512, 1024, 2048};
+	uint32_t i, j;
+	uint32_t op_mask_opp = 0;
+	int ret;
+
+	if (op_mask & BLOCKCIPHER_TEST_OP_CIPHER)
+		op_mask_opp |= (~op_mask & BLOCKCIPHER_TEST_OP_CIPHER);
+	if (op_mask & BLOCKCIPHER_TEST_OP_AUTH)
+		op_mask_opp |= (~op_mask & BLOCKCIPHER_TEST_OP_AUTH);
+
+	tdata.plaintext.data = plaintext;
+	tdata.ciphertext.data = ciphertext;
+
+	tdata.cipher_key.len = cipher_key_sz;
+	tdata.auth_key.len = auth_key_sz;
+
+	gen_rand(tdata.cipher_key.data, cipher_key_sz / 8);
+	gen_rand(tdata.auth_key.data, auth_key_sz / 8);
+
+	tdata.crypto_algo = cipher_algo;
+	tdata.auth_algo = auth_algo;
+
+	tdata.digest.len = digest_sz;
+
+	ut_params->sess = create_blockcipher_session(ts_params->ctx,
+			ts_params->session_priv_mpool,
+			op_mask,
+			&tdata,
+			0);
+	if (!ut_params->sess)
+		return -1;
+
+	ret = allocate_buf(MAX_NUM_OPS_INFLIGHT);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < RTE_DIM(test_data_szs); i++) {
+		for (j = 0; j < MAX_NUM_OPS_INFLIGHT; j++) {
+			tdata.plaintext.len = test_data_szs[i];
+			gen_rand(plaintext, tdata.plaintext.len);
+
+			tdata.iv.len = 16;
+			gen_rand(tdata.iv.data, tdata.iv.len);
+
+			tcase = ut_params->test_datas[j];
+			ret = assemble_blockcipher_buf(tcase, obj, j,
+					op_mask,
+					&tdata,
+					0);
+			if (ret < 0) {
+				printf("Test is not supported by the driver\n");
+				return ret;
+			}
+		}
+
+		/* warm up cache */
+		for (j = 0; j < CACHE_WARM_ITER; j++)
+			run_test(ts_params->ctx, ut_params->sess, obj,
+					MAX_NUM_OPS_INFLIGHT);
+
+		time_start = rte_rdtsc();
+
+		run_test(ts_params->ctx, ut_params->sess, obj,
+				MAX_NUM_OPS_INFLIGHT);
+
+		time_now = rte_rdtsc();
+
+		rate = time_now - time_start;
+		cycles_per_buf = rate / MAX_NUM_OPS_INFLIGHT;
+
+		rate = ((hz / cycles_per_buf)) / 1000000;
+
+		printf("%s-%u-%s(%4uB) Enc %03.3fMpps (%03.3fGbps) ",
+			rte_crypto_cipher_algorithm_strings[cipher_algo],
+			cipher_key_sz * 8,
+			rte_crypto_auth_algorithm_strings[auth_algo],
+			test_data_szs[i],
+			rate, rate  * test_data_szs[i] * 8 / 1000);
+		printf("cycles per buf %03.3f per byte %03.3f\n",
+			cycles_per_buf, cycles_per_buf / test_data_szs[i]);
+
+		for (j = 0; j < MAX_NUM_OPS_INFLIGHT; j++) {
+			tcase = ut_params->test_datas[j];
+
+			switch_blockcipher_enc_to_dec(&tdata, tcase,
+					ciphertext);
+			ret = assemble_blockcipher_buf(tcase, obj, j,
+					op_mask_opp,
+					&tdata,
+					0);
+			if (ret < 0) {
+				printf("Test is not supported by the driver\n");
+				return ret;
+			}
+		}
+
+		time_start = rte_get_timer_cycles();
+
+		run_test(ts_params->ctx, ut_params->sess, obj,
+				MAX_NUM_OPS_INFLIGHT);
+
+		time_now = rte_get_timer_cycles();
+
+		rate = time_now - time_start;
+		cycles_per_buf = rate / MAX_NUM_OPS_INFLIGHT;
+
+		rate = ((hz / cycles_per_buf)) / 1000000;
+
+		printf("%s-%u-%s(%4uB) Dec %03.3fMpps (%03.3fGbps) ",
+			rte_crypto_cipher_algorithm_strings[cipher_algo],
+			cipher_key_sz * 8,
+			rte_crypto_auth_algorithm_strings[auth_algo],
+			test_data_szs[i],
+			rate, rate  * test_data_szs[i] * 8 / 1000);
+		printf("cycles per buf %03.3f per byte %03.3f\n",
+				cycles_per_buf,
+				cycles_per_buf / test_data_szs[i]);
+	}
+
+	return 0;
+}
+
+/* cipher-algo/cipher-key-len/auth-algo/auth-key-len/digest-len/op */
+#define all_block_cipher_perf_test_cases				\
+	TEST_EXPAND(_AES_CBC, 128, _NULL, 0, 0, TOP_ENC)		\
+	TEST_EXPAND(_NULL, 0, _SHA1_HMAC, 160, 20, TOP_AUTH_GEN)	\
+	TEST_EXPAND(_AES_CBC, 128, _SHA1_HMAC, 160, 20, TOP_ENC_AUTH)
+
+#define TEST_EXPAND(a, b, c, d, e, f)					\
+static int								\
+cpu_crypto_blockcipher_perf##a##_##b##c##_##f(void)			\
+{									\
+	return cpu_crypto_test_blockcipher_perf(RTE_CRYPTO_CIPHER##a,	\
+			b / 8, RTE_CRYPTO_AUTH##c, d / 8, e, f);	\
+}									\
+
+all_block_cipher_perf_test_cases
+#undef TEST_EXPAND
+
+static struct unit_test_suite security_cpu_crypto_aesni_mb_perf_testsuite  = {
+	.suite_name = "Security CPU Crypto AESNI-MB Perf Test Suite",
+	.setup = testsuite_setup,
+	.teardown = testsuite_teardown,
+	.unit_test_cases = {
+#define TEST_EXPAND(a, b, c, d, e, f)					\
+	TEST_CASE_ST(ut_setup, ut_teardown,				\
+		cpu_crypto_blockcipher_perf##a##_##b##c##_##f),	\
+
+	all_block_cipher_perf_test_cases
+#undef TEST_EXPAND
+
+	TEST_CASES_END() /**< NULL terminate unit test array */
+	},
+};
+
+static int
+test_security_cpu_crypto_aesni_mb_perf(void)
+{
+	gbl_driver_id =	rte_cryptodev_driver_id_get(
+			RTE_STR(CRYPTODEV_NAME_AESNI_MB_PMD));
+
+	return unit_test_suite_runner(
+			&security_cpu_crypto_aesni_mb_perf_testsuite);
+}
+
+
 REGISTER_TEST_COMMAND(security_aesni_gcm_autotest,
 		test_security_cpu_crypto_aesni_gcm);
 
@@ -1130,3 +1321,6 @@ REGISTER_TEST_COMMAND(security_aesni_gcm_perftest,
 
 REGISTER_TEST_COMMAND(security_aesni_mb_autotest,
 		test_security_cpu_crypto_aesni_mb);
+
+REGISTER_TEST_COMMAND(security_aesni_mb_perftest,
+		test_security_cpu_crypto_aesni_mb_perf);
