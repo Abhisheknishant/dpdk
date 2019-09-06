@@ -220,7 +220,6 @@ fast_test_names = [
         'eventdev_common_autotest',
         'fbarray_autotest',
         'hash_readwrite_func_autotest',
-        'hash_readwrite_lf_autotest',
         'ipsec_autotest',
         'kni_autotest',
         'kvargs_autotest',
@@ -263,6 +262,7 @@ perf_test_names = [
         'stack_lf_perf_autotest',
         'rand_perf_autotest',
         'hash_readwrite_perf_autotest',
+        'hash_readwrite_lf_autotest',
 ]
 
 driver_test_names = [
