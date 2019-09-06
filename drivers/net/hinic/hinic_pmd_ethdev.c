@@ -10,6 +10,7 @@
 #include <rte_memcpy.h>
 #include <rte_mempool.h>
 #include <rte_errno.h>
+#include <rte_ether.h>
 
 #include "base/hinic_compat.h"
 #include "base/hinic_pmd_hwdev.h"
@@ -45,6 +46,17 @@
 
 #define HINIC_MIN_RX_BUF_SIZE		1024
 #define HINIC_MAX_MAC_ADDRS		1
+
+/*
+ * vlan_id is a 12 bit number.
+ * The VFTA array is actually a 4096 bit array, 128 of 32bit elements.
+ * 2^5 = 32. The val of lower 5 bits specifies the bit in the 32bit element.
+ * The higher 7 bit val specifies VFTA array index.
+ */
+#define HINIC_VFTA_BIT(vlan_id)    (1 << ((vlan_id) & 0x1F))
+#define HINIC_VFTA_IDX(vlan_id)    ((vlan_id) >> 5)
+
+#define HINIC_VLAN_FILTER_EN		(1U << 0)
 
 /** Driver-specific log messages type. */
 int hinic_logtype;
@@ -224,6 +236,7 @@ static const struct rte_eth_desc_lim hinic_tx_desc_lim = {
 	.nb_align = HINIC_TXD_ALIGN,
 };
 
+static int hinic_init_vlan(struct rte_eth_dev *dev);
 
 /**
  * Interrupt handler triggered by NIC  for handling
@@ -304,6 +317,14 @@ static int hinic_dev_configure(struct rte_eth_dev *dev)
 	err = hinic_config_mq_mode(dev, TRUE);
 	if (err) {
 		PMD_DRV_LOG(ERR, "Config multi-queue failed");
+		return err;
+	}
+
+	/* init vlan offoad */
+	err = hinic_init_vlan(dev);
+	if (err) {
+		PMD_DRV_LOG(ERR, "Initialize vlan filter and strip failed\n");
+		(void)hinic_config_mq_mode(dev, FALSE);
 		return err;
 	}
 
@@ -689,7 +710,8 @@ hinic_dev_infos_get(struct rte_eth_dev *dev, struct rte_eth_dev_info *info)
 	info->rx_offload_capa = DEV_RX_OFFLOAD_VLAN_STRIP |
 				DEV_RX_OFFLOAD_IPV4_CKSUM |
 				DEV_RX_OFFLOAD_UDP_CKSUM |
-				DEV_RX_OFFLOAD_TCP_CKSUM;
+				DEV_RX_OFFLOAD_TCP_CKSUM |
+				DEV_RX_OFFLOAD_VLAN_FILTER;
 
 	info->tx_queue_offload_capa = 0;
 	info->tx_offload_capa = DEV_TX_OFFLOAD_VLAN_INSERT |
@@ -1329,6 +1351,173 @@ static void hinic_deinit_mac_addr(struct rte_eth_dev *eth_dev)
 			    eth_dev->data->name);
 }
 
+static void hinic_store_vlan_filter(struct hinic_nic_dev *nic_dev,
+					u16 vlan_id, bool on)
+{
+	u32 vid_idx, vid_bit;
+
+	vid_idx = HINIC_VFTA_IDX(vlan_id);
+	vid_bit = HINIC_VFTA_BIT(vlan_id);
+
+	if (on)
+		nic_dev->vfta[vid_idx] |= vid_bit;
+	else
+		nic_dev->vfta[vid_idx] &= ~vid_bit;
+}
+
+static bool hinic_find_vlan_filter(struct hinic_nic_dev *nic_dev,
+				uint16_t vlan_id)
+{
+	u32 vid_idx, vid_bit;
+
+	vid_idx = HINIC_VFTA_IDX(vlan_id);
+	vid_bit = HINIC_VFTA_BIT(vlan_id);
+
+	return (nic_dev->vfta[vid_idx] & vid_bit) ? TRUE : FALSE;
+}
+
+/**
+ * DPDK callback to set vlan filter.
+ *
+ * @param dev
+ *   Pointer to Ethernet device structure.
+ * @param vlan_id
+ *   vlan id is used to filter vlan packets
+ * @param enable
+ *   enable disable or enable vlan filter function
+ */
+static int hinic_vlan_filter_set(struct rte_eth_dev *dev,
+				uint16_t vlan_id, int enable)
+{
+	struct hinic_nic_dev *nic_dev = HINIC_ETH_DEV_TO_PRIVATE_NIC_DEV(dev);
+	int err = 0;
+	u16 func_id;
+
+	if (vlan_id > RTE_ETHER_MAX_VLAN_ID)
+		return -EINVAL;
+
+	func_id = hinic_global_func_id(nic_dev->hwdev);
+
+	if (enable) {
+		/* If vlanid is already set, just return */
+		if (hinic_find_vlan_filter(nic_dev, vlan_id)) {
+			PMD_DRV_LOG(INFO, "Vlan %u has been added, device: %s",
+				  vlan_id, nic_dev->proc_dev_name);
+			return 0;
+		}
+
+		err = hinic_add_vlan(nic_dev->hwdev, vlan_id, func_id);
+	} else {
+		/* If vlanid can't be found, just return */
+		if (!hinic_find_vlan_filter(nic_dev, vlan_id)) {
+			PMD_DRV_LOG(INFO, "Vlan %u does not in the vlan filter list, device: %s",
+				  vlan_id, nic_dev->proc_dev_name);
+			return 0;
+		}
+
+		err = hinic_del_vlan(nic_dev->hwdev, vlan_id, func_id);
+	}
+
+	if (err) {
+		PMD_DRV_LOG(ERR, "%s vlan failed, func_id: %d, vlan_id: %d",
+		      enable ? "Add" : "Remove", func_id, vlan_id);
+		return err;
+	}
+
+	hinic_store_vlan_filter(nic_dev, vlan_id, enable);
+
+	PMD_DRV_LOG(INFO, "%s vlan %u succeed, device: %s",
+		  enable ? "Add" : "Remove", vlan_id, nic_dev->proc_dev_name);
+	return 0;
+}
+
+/**
+ * DPDK callback to enable or disable vlan offload.
+ *
+ * @param dev
+ *   Pointer to Ethernet device structure.
+ * @param mask
+ *   Definitions used for VLAN setting
+ */
+static int hinic_vlan_offload_set(struct rte_eth_dev *dev, int mask)
+{
+	struct hinic_nic_dev *nic_dev = HINIC_ETH_DEV_TO_PRIVATE_NIC_DEV(dev);
+	struct rte_eth_rxmode *rxmode = &dev->data->dev_conf.rxmode;
+	bool on;
+	int err;
+
+	/* Enable or disable VLAN filter */
+	if (mask & ETH_VLAN_FILTER_MASK) {
+		on = (rxmode->offloads & DEV_RX_OFFLOAD_VLAN_FILTER) ?
+			TRUE : FALSE;
+		err = hinic_config_vlan_filter(nic_dev->hwdev, on);
+		if (err == HINIC_MGMT_CMD_UNSUPPORTED) {
+			PMD_DRV_LOG(WARNING,
+				"Current matching version does not support vlan filter configuration, device: %s, port_id: %d",
+				  nic_dev->proc_dev_name, dev->data->port_id);
+		} else if (err) {
+			PMD_DRV_LOG(ERR, "Failed to %s vlan filter, device: %s, port_id: %d",
+				  on ? "enable" : "disable",
+				  nic_dev->proc_dev_name, dev->data->port_id);
+			return err;
+		}
+
+		PMD_DRV_LOG(INFO, "%s vlan filter succeed, device: %s, port_id: %d",
+			  on ? "Enable" : "Disable",
+			  nic_dev->proc_dev_name, dev->data->port_id);
+	}
+
+	/* Enable or disable VLAN stripping */
+	if (mask & ETH_VLAN_STRIP_MASK) {
+		on = (rxmode->offloads & DEV_RX_OFFLOAD_VLAN_STRIP) ?
+			TRUE : FALSE;
+		err = hinic_set_rx_vlan_offload(nic_dev->hwdev, on);
+		if (err) {
+			PMD_DRV_LOG(ERR, "Failed to %s vlan strip, device: %s, port_id: %d",
+				  on ? "enable" : "disable",
+				  nic_dev->proc_dev_name, dev->data->port_id);
+			return err;
+		}
+
+		PMD_DRV_LOG(INFO, "%s vlan strip succeed, device: %s, port_id: %d",
+			  on ? "Enable" : "Disable",
+			  nic_dev->proc_dev_name, dev->data->port_id);
+	}
+
+	if (mask & ETH_VLAN_EXTEND_MASK) {
+		PMD_DRV_LOG(WARNING, "Don't support vlan qinq, device: %s, port_id: %d",
+			  nic_dev->proc_dev_name, dev->data->port_id);
+		return -ENOTSUP;
+	}
+
+	return 0;
+}
+
+static int hinic_init_vlan(struct rte_eth_dev *dev)
+{
+	int mask = 0;
+
+	mask = ETH_VLAN_STRIP_MASK | ETH_VLAN_FILTER_MASK;
+	return hinic_vlan_offload_set(dev, mask);
+}
+
+static void hinic_remove_all_vlanid(struct rte_eth_dev *eth_dev)
+{
+	struct hinic_nic_dev *nic_dev =
+		HINIC_ETH_DEV_TO_PRIVATE_NIC_DEV(eth_dev);
+	u16 func_id;
+	int i;
+
+	func_id = hinic_global_func_id(nic_dev->hwdev);
+	for (i = 0; i <= RTE_ETHER_MAX_VLAN_ID; i++) {
+		/* If can't find it, continue */
+		if (!hinic_find_vlan_filter(nic_dev, i))
+			continue;
+
+		(void)hinic_del_vlan(nic_dev->hwdev, i, func_id);
+		hinic_store_vlan_filter(nic_dev, i, false);
+	}
+}
 /**
  * DPDK callback to enable promiscuous mode.
  *
@@ -2178,6 +2367,7 @@ static void hinic_dev_close(struct rte_eth_dev *dev)
 
 	/* deinit mac vlan tbl */
 	hinic_deinit_mac_addr(dev);
+	hinic_remove_all_vlanid(dev);
 
 	/* disable hardware and uio interrupt */
 	hinic_disable_interrupt(dev);
@@ -2197,6 +2387,8 @@ static const struct eth_dev_ops hinic_pmd_ops = {
 	.tx_queue_release              = hinic_tx_queue_release,
 	.dev_stop                      = hinic_dev_stop,
 	.dev_close                     = hinic_dev_close,
+	.vlan_filter_set               = hinic_vlan_filter_set,
+	.vlan_offload_set              = hinic_vlan_offload_set,
 	.promiscuous_enable            = hinic_dev_promiscuous_enable,
 	.promiscuous_disable           = hinic_dev_promiscuous_disable,
 	.rss_hash_update               = hinic_rss_hash_update,
@@ -2221,6 +2413,8 @@ static const struct eth_dev_ops hinic_pmd_vf_ops = {
 	.tx_queue_release              = hinic_tx_queue_release,
 	.dev_stop                      = hinic_dev_stop,
 	.dev_close                     = hinic_dev_close,
+	.vlan_filter_set               = hinic_vlan_filter_set,
+	.vlan_offload_set              = hinic_vlan_offload_set,
 	.rss_hash_update               = hinic_rss_hash_update,
 	.rss_hash_conf_get             = hinic_rss_conf_get,
 	.reta_update                   = hinic_rss_indirtbl_update,
