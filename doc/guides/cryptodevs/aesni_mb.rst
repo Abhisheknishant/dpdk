@@ -12,6 +12,13 @@ support for utilizing Intel multi buffer library, see the white paper
 
 The AES-NI MB PMD has current only been tested on Fedora 21 64-bit with gcc.
 
+The AES-NI MB PMD also supports rte_security with security session create
+and ``rte_security_process_cpu_crypto_bulk`` function call to process
+symmetric crypto synchronously with all algorithms specified below. However
+it does not support scather-gather buffer so the ``num`` value in
+``rte_security_vec`` can only be ``1``. Please refer to ``rte_security``
+programmer's guide for more detail.
+
 Features
 --------
 

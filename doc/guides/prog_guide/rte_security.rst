@@ -296,6 +296,56 @@ Just like IPsec, in case of PDCP also header addition/deletion, cipher/
 de-cipher, integrity protection/verification is done based on the action
 type chosen.
 
+
+Synchronous CPU Crypto
+~~~~~~~~~~~~~~~~~~~~~~
+
+RTE_SECURITY_ACTION_TYPE_CPU_CRYPTO:
+This action type allows the burst of symmetric crypto workload using the same
+algorithm, key, and direction being processed by CPU cycles synchronously.
+
+The packet is sent to the crypto device for symmetric crypto
+processing. The device will encrypt or decrypt the buffer based on the key(s)
+and algorithm(s) specified and preprocessed in the security session. Different
+than the inline or lookaside modes, when the function exits, the user will
+expect the buffers are either processed successfully, or having the error number
+assigned to the appropriate index of the status array.
+
+E.g. in case of IPsec, the application will use CPU cycles to process both
+stack and crypto workload synchronously.
+
+.. code-block:: console
+
+         Egress Data Path
+                 |
+        +--------|--------+
+        |  egress IPsec   |
+        |        |        |
+        | +------V------+ |
+        | | SADB lookup | |
+        | +------|------+ |
+        | +------V------+ |
+        | |   Desc      | |
+        | +------|------+ |
+        +--------V--------+
+                 |
+        +--------V--------+
+        |    L2 Stack     |
+        +-----------------+
+        |                 |
+        |   Synchronous   |   <------ Using CPU instructions
+        |  Crypto Process |
+        |                 |
+        +--------V--------+
+        |  L2 Stack Post  |   <------ Add tunnel, ESP header etc header etc.
+        +--------|--------+
+                 |
+        +--------|--------+
+        |       NIC       |
+        +--------|--------+
+                 V
+
+
 Device Features and Capabilities
 ---------------------------------
 
@@ -491,6 +541,7 @@ Security Session configuration structure is defined as ``rte_security_session_co
                 struct rte_security_ipsec_xform ipsec;
                 struct rte_security_macsec_xform macsec;
                 struct rte_security_pdcp_xform pdcp;
+                struct rte_security_cpu_crypto_xform cpu_crypto;
         };
         /**< Configuration parameters for security session */
         struct rte_crypto_sym_xform *crypto_xform;
@@ -515,9 +566,12 @@ Offload.
         RTE_SECURITY_ACTION_TYPE_INLINE_PROTOCOL,
         /**< All security protocol processing is performed inline during
          * transmission */
-        RTE_SECURITY_ACTION_TYPE_LOOKASIDE_PROTOCOL
+        RTE_SECURITY_ACTION_TYPE_LOOKASIDE_PROTOCOL,
         /**< All security protocol processing including crypto is performed
          * on a lookaside accelerator */
+        RTE_SECURITY_ACTION_TYPE_CPU_CRYPTO
+        /**< Crypto processing for security protocol is processed by CPU
+         * synchronously
     };
 
 The ``rte_security_session_protocol`` is defined as
@@ -587,6 +641,10 @@ PDCP related configuration parameters are defined in ``rte_security_pdcp_xform``
         uint32_t hfn_threshold;
     };
 
+For CPU Crypto processing action, the application should attach the initialized
+`xform` to the security session configuration to specify the algorithm, key,
+direction, and other necessary fields required to perform crypto operation.
+
 
 Security API
 ~~~~~~~~~~~~
@@ -650,3 +708,55 @@ it is only valid to have a single flow to map to that security session.
         +-------+            +--------+    +-----+
         |  Eth  | ->  ... -> |   ESP  | -> | END |
         +-------+            +--------+    +-----+
+
+
+Process bulk crypto workload using CPU instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The inline and lookaside mode depends on the external HW to complete the
+workload, where the user has another option to use rte_security to process
+symmetric crypto synchronously with CPU instructions.
+
+When creating the security session the user need to fill the
+``rte_security_session_conf`` parameter with the ``action_type`` field as
+``RTE_SECURITY_ACTION_TYPE_CPU_CRYPTO``, and points ``crypto_xform`` to an
+properly initialized cryptodev xform. The user then passes the
+``rte_security_session_conf`` instance to ``rte_security_session_create()``
+along with the security context pointer belongs to a certain SW crypto device.
+The crypto device may or may not support this action type or the algorithm /
+key sizes specified in the ``crypto_xform``, but when everything is ok
+the function will return the created security session.
+
+The user then can use this session to process the crypto workload synchronously.
+Instead of using mbuf ``next`` pointers, synchronous CPU crypto processing uses
+a special structure ``rte_security_vec`` to describe scatter-gather buffers.
+
+.. code-block:: c
+
+    struct rte_security_vec {
+        struct iovec *vec;
+        uint32_t num;
+    };
+
+Where the structure ``rte_security_vec`` is used to store scatter-gather buffer
+pointers, where ``vec`` is the pointer to one buffer and ``num`` indicates the
+number of buffers.
+
+Please note not all crypto devices support scatter-gather buffer processing,
+please check ``cryptodev`` guide for more details.
+
+The API of the synchronous CPU crypto process is
+
+.. code-block:: c
+
+    void
+    rte_security_process_cpu_crypto_bulk(struct rte_security_ctx *instance,
+            struct rte_security_session *sess,
+            struct rte_security_vec buf[], void *iv[], void *aad[],
+            void *digest[], int status[], uint32_t num);
+
+This function will process ``num`` number of ``rte_security_vec`` buffers using
+the content stored in ``iv`` and ``aad`` arrays. The API only support in-place
+operation so ``buf`` will be overwritten the encrypted or decrypted values
+when successfully processed. Otherwise the error number of the status array's
+according index.

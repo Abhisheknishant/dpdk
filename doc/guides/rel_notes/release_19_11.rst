@@ -56,6 +56,13 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **RTE_SECURITY is added new synchronous Crypto burst API with CPU**
+
+  A new API rte_security_process_cpu_crypto_bulk is introduced in security
+  library to process crypto workload in bulk using CPU instructions. AESNI_MB
+  and AESNI_GCM PMD, as well as unit-test and ipsec-secgw sample applications
+  are updated to support this feature.
+
 
 Removed Items
 -------------
