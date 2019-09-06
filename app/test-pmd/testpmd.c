@@ -2344,6 +2344,9 @@ reset_port(portid_t pid)
 	if (port_id_is_invalid(pid, ENABLED_WARN))
 		return;
 
+	printf("Stopping ports...\n");
+	stop_port(pid);
+
 	printf("Resetting ports...\n");
 
 	RTE_ETH_FOREACH_DEV(pi) {
@@ -2371,6 +2374,9 @@ reset_port(portid_t pid)
 			printf("Failed to reset port %d. diag=%d\n", pi, diag);
 		}
 	}
+
+	printf("Starting ports...\n");
+	start_port(pid);
 
 	printf("Done\n");
 }
