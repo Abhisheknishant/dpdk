@@ -196,6 +196,7 @@ SRCS-$(CONFIG_RTE_LIBRTE_PMD_RING) += test_pmd_ring_perf.c
 SRCS-$(CONFIG_RTE_LIBRTE_CRYPTODEV) += test_cryptodev_blockcipher.c
 SRCS-$(CONFIG_RTE_LIBRTE_CRYPTODEV) += test_cryptodev.c
 SRCS-$(CONFIG_RTE_LIBRTE_CRYPTODEV) += test_cryptodev_asym.c
+SRCS-$(CONFIG_RTE_LIBRTE_CRYPTODEV) += test_security_cpu_crypto.c
 
 SRCS-$(CONFIG_RTE_LIBRTE_METRICS) += test_metrics.c
 
