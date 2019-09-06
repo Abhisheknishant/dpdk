@@ -18,6 +18,23 @@
 			buf_in, in_size,			\
 			buf_out, out_size, 0)
 
+
+#define TCAM_SET	0x1
+#define TCAM_CLEAR	0x2
+
+struct hinic_port_qfilter_info {
+	struct hinic_mgmt_msg_head mgmt_msg_head;
+
+	u16 func_id;
+	u8 normal_type_enable;
+	u8 filter_type_enable;
+	u8 filter_enable;
+	u8 filter_type;
+	u8 qid;
+	u8 fdir_flag;
+	u32 key;
+};
+
 int hinic_init_function_table(void *hwdev, u16 rx_buf_sz)
 {
 	struct hinic_function_table function_table;
@@ -1492,3 +1509,143 @@ int hinic_vf_get_default_cos(struct hinic_hwdev *hwdev, u8 *cos_id)
 
 	return 0;
 }
+
+int hinic_set_fdir_filter(void *hwdev, u8 filter_type, u8 qid, u8 type_enable,
+				bool enable)
+{
+	struct hinic_port_qfilter_info port_filer_cmd;
+	u16 out_size = sizeof(port_filer_cmd);
+	int err;
+
+	if (!hwdev)
+		return -EINVAL;
+
+	if (hinic_func_type(hwdev) == TYPE_VF) {
+		PMD_DRV_LOG(WARNING, "VF don't support FDIR");
+		return 0;
+	}
+
+	memset(&port_filer_cmd, 0, sizeof(port_filer_cmd));
+	port_filer_cmd.mgmt_msg_head.resp_aeq_num = HINIC_AEQ1;
+	port_filer_cmd.func_id = hinic_global_func_id(hwdev);
+	port_filer_cmd.filter_enable = (u8)enable;
+	port_filer_cmd.filter_type = filter_type;
+	port_filer_cmd.qid = qid;
+	port_filer_cmd.filter_type_enable = type_enable;
+	port_filer_cmd.fdir_flag = 0;
+
+	err = l2nic_msg_to_mgmt_sync(hwdev, HINIC_PORT_CMD_Q_FILTER,
+			&port_filer_cmd, sizeof(port_filer_cmd),
+			&port_filer_cmd, &out_size);
+	if (err || !out_size || port_filer_cmd.mgmt_msg_head.status) {
+		PMD_DRV_LOG(ERR, "Set port Q filter failed, err: %d, status: 0x%x, out size: 0x%x, type: 0x%x,"
+			" enable: 0x%x, qid: 0x%x, filter_type_enable: 0x%x\n",
+			err, port_filer_cmd.mgmt_msg_head.status, out_size,
+			filter_type, enable, qid, type_enable);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+int hinic_set_normal_filter(void *hwdev, u8 qid, u8 normal_type_enable,
+				u32 key, bool enable, u8 flag)
+{
+	struct hinic_port_qfilter_info port_filer_cmd;
+	u16 out_size = sizeof(port_filer_cmd);
+	int err;
+
+	if (!hwdev)
+		return -EINVAL;
+
+	if (hinic_func_type(hwdev) == TYPE_VF) {
+		PMD_DRV_LOG(WARNING, "VF don't support FDIR");
+		return 0;
+	}
+
+	memset(&port_filer_cmd, 0, sizeof(port_filer_cmd));
+	port_filer_cmd.mgmt_msg_head.resp_aeq_num = HINIC_AEQ1;
+	port_filer_cmd.func_id = hinic_global_func_id(hwdev);
+	port_filer_cmd.filter_enable = (u8)enable;
+	port_filer_cmd.qid = qid;
+	port_filer_cmd.normal_type_enable = normal_type_enable;
+	port_filer_cmd.fdir_flag = flag; /* fdir flag: support dip */
+	port_filer_cmd.key = key;
+
+	err = l2nic_msg_to_mgmt_sync(hwdev, HINIC_PORT_CMD_Q_FILTER,
+			&port_filer_cmd, sizeof(port_filer_cmd),
+			&port_filer_cmd, &out_size);
+	if (err || !out_size || port_filer_cmd.mgmt_msg_head.status) {
+		PMD_DRV_LOG(ERR, "Set normal filter failed, err: %d, status: 0x%x, out size: 0x%x, fdir_flag: 0x%x,"
+			" enable: 0x%x, qid: 0x%x, normal_type_enable: 0x%x, key:0x%x\n",
+			err, port_filer_cmd.mgmt_msg_head.status, out_size,
+			flag, enable, qid, normal_type_enable, key);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+int hinic_set_fdir_tcam(void *hwdev, u16 type_mask,
+			struct tag_pa_rule *filter_rule,
+			struct tag_pa_action *filter_action)
+{
+	struct hinic_fdir_tcam_info port_tcam_cmd;
+	u16 out_size = sizeof(port_tcam_cmd);
+	int err;
+
+	if (!hwdev)
+		return -EINVAL;
+
+	if (hinic_func_type(hwdev) == TYPE_VF) {
+		PMD_DRV_LOG(WARNING, "VF don't support set Tcam table");
+		return 0;
+	}
+
+	memset(&port_tcam_cmd, 0, sizeof(port_tcam_cmd));
+	port_tcam_cmd.mgmt_msg_head.resp_aeq_num = HINIC_AEQ1;
+	port_tcam_cmd.tcam_index = type_mask;
+	port_tcam_cmd.flag = TCAM_SET;
+	memcpy((void *)&port_tcam_cmd.filter_rule,
+		(void *)filter_rule, sizeof(struct tag_pa_rule));
+	memcpy((void *)&port_tcam_cmd.filter_action,
+		(void *)filter_action, sizeof(struct tag_pa_action));
+
+	err = l2nic_msg_to_mgmt_sync(hwdev, HINIC_PORT_CMD_TCAM_FILTER,
+			&port_tcam_cmd, sizeof(port_tcam_cmd),
+			&port_tcam_cmd, &out_size);
+	if (err || !out_size || port_tcam_cmd.mgmt_msg_head.status) {
+		PMD_DRV_LOG(ERR, "Set tcam table failed, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, port_tcam_cmd.mgmt_msg_head.status, out_size);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+int hinic_clear_fdir_tcam(void *hwdev, u16 type_mask)
+{
+	struct hinic_fdir_tcam_info port_tcam_cmd;
+	u16 out_size = sizeof(port_tcam_cmd);
+	int err;
+
+	if (!hwdev)
+		return -EINVAL;
+
+	memset(&port_tcam_cmd, 0, sizeof(port_tcam_cmd));
+	port_tcam_cmd.mgmt_msg_head.resp_aeq_num = HINIC_AEQ1;
+	port_tcam_cmd.tcam_index = type_mask;
+	port_tcam_cmd.flag = TCAM_CLEAR;
+
+	err = l2nic_msg_to_mgmt_sync(hwdev, HINIC_PORT_CMD_TCAM_FILTER,
+			&port_tcam_cmd, sizeof(port_tcam_cmd),
+			&port_tcam_cmd, &out_size);
+	if (err || !out_size || port_tcam_cmd.mgmt_msg_head.status) {
+		PMD_DRV_LOG(ERR, "Clear tcam table failed, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, port_tcam_cmd.mgmt_msg_head.status, out_size);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
