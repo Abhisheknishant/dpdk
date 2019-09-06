@@ -99,9 +99,14 @@ check_experimental_tags() { # <patch>
 			ret = 1;
 		}
 		if ($1 != "+__rte_experimental" || $2 != "") {
-			print "__rte_experimental must appear alone on the line" \
-				" immediately preceding the return type of a function."
-			ret = 1;
+			# code such as "#define XYZ __rte_experimental" is
+			# allowed
+			if ($1 != "+#define") {
+				print "__rte_experimental must appear alone " \
+				      "on the line immediately preceding the " \
+				      "return type of a function."
+				ret = 1;
+			}
 		}
 	}
 	END {
