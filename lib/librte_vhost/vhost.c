@@ -674,6 +674,25 @@ rte_vhost_get_vring_num(int vid)
 	return dev->nr_vring;
 }
 
+uint16_t
+rte_vhost_get_active_vring_num(int vid)
+{
+	struct virtio_net *dev = get_device(vid);
+	struct vhost_virtqueue *vq;
+	uint16_t qid;
+
+	if (dev == NULL)
+		return 0;
+
+	for (qid = 0; qid < dev->nr_vring; qid++) {
+		vq = dev->virtqueue[qid];
+		if (!vq->enabled)
+			break;
+	}
+
+	return qid;
+}
+
 int
 rte_vhost_get_ifname(int vid, char *buf, size_t len)
 {
