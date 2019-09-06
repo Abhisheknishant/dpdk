@@ -115,9 +115,6 @@ static int bnxt_hwrm_send_message(struct bnxt *bp, void *msg,
 		data = (uint32_t *)&short_input;
 		msg_len = sizeof(short_input);
 
-		/* Sync memory write before updating doorbell */
-		rte_wmb();
-
 		max_req_len = BNXT_HWRM_SHORT_REQ_LEN;
 	}
 
@@ -137,11 +134,12 @@ static int bnxt_hwrm_send_message(struct bnxt *bp, void *msg,
 	/* Ring channel doorbell */
 	bar = (uint8_t *)bp->bar0 + mb_trigger_offset;
 	rte_write32(1, bar);
+	rte_io_wmb();
 
 	/* Poll for the valid bit */
 	for (i = 0; i < HWRM_CMD_TIMEOUT; i++) {
 		/* Sanity check on the resp->resp_len */
-		rte_rmb();
+		rte_cio_rmb();
 		if (resp->resp_len && resp->resp_len <= bp->max_resp_len) {
 			/* Last byte of resp contains the valid key */
 			valid = (uint8_t *)resp + resp->resp_len - 1;
