@@ -171,10 +171,10 @@ is_valid_ipv4_pkt(struct rte_ipv4_hdr *pkt, uint32_t link_len)
 
 /* Function pointers for LPM or EM functionality. */
 void
-setup_lpm(const int socketid);
+setup_lpm(const int socketid, const unsigned int flags);
 
 void
-setup_hash(const int socketid);
+setup_hash(const int socketid, const unsigned int flags);
 
 int
 em_check_ptype(int portid);

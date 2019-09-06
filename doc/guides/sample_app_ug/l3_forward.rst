@@ -56,6 +56,7 @@ The application has a number of command line options::
                              [--ipv6]
                              [--parse-ptype]
                              [--per-port-pool]
+                             [--lock-free]
 
 Where,
 
@@ -85,6 +86,8 @@ Where,
 * ``--parse-ptype:`` Optional, set to use software to analyze packet type. Without this option, hardware will check the packet type.
 
 * ``--per-port-pool:`` Optional, set to use independent buffer pools per port. Without this option, single buffer pool is used for all ports.
+
+* ``--lock-free:`` Optional, set to enable lock-free table read-write concurrency.
 
 For example, consider a dual processor socket platform with 8 physical cores, where cores 0-7 and 16-23 appear on socket 0,
 while cores 8-15 and 24-31 appear on socket 1.

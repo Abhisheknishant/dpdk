@@ -703,7 +703,7 @@ em_main_loop(__attribute__((unused)) void *dummy)
  * Initialize exact match (hash) parameters.
  */
 void
-setup_hash(const int socketid)
+setup_hash(const int socketid, const unsigned int flags)
 {
 	struct rte_hash_parameters ipv4_l3fwd_hash_params = {
 		.name = NULL,
@@ -727,6 +727,10 @@ setup_hash(const int socketid)
 	snprintf(s, sizeof(s), "ipv4_l3fwd_hash_%d", socketid);
 	ipv4_l3fwd_hash_params.name = s;
 	ipv4_l3fwd_hash_params.socket_id = socketid;
+	/* enable lock free hash algorithm for ipv4 forward*/
+	if (flags & RTE_HASH_EXTRA_FLAGS_RW_CONCURRENCY_LF)
+		ipv4_l3fwd_hash_params.extra_flag |=
+			RTE_HASH_EXTRA_FLAGS_RW_CONCURRENCY_LF;
 	ipv4_l3fwd_em_lookup_struct[socketid] =
 		rte_hash_create(&ipv4_l3fwd_hash_params);
 	if (ipv4_l3fwd_em_lookup_struct[socketid] == NULL)
@@ -738,6 +742,10 @@ setup_hash(const int socketid)
 	snprintf(s, sizeof(s), "ipv6_l3fwd_hash_%d", socketid);
 	ipv6_l3fwd_hash_params.name = s;
 	ipv6_l3fwd_hash_params.socket_id = socketid;
+	/* enable lock free hash algorithm for ipv6 forward*/
+	if (flags & RTE_HASH_EXTRA_FLAGS_RW_CONCURRENCY_LF)
+		ipv6_l3fwd_hash_params.extra_flag |=
+			RTE_HASH_EXTRA_FLAGS_RW_CONCURRENCY_LF;
 	ipv6_l3fwd_em_lookup_struct[socketid] =
 		rte_hash_create(&ipv6_l3fwd_hash_params);
 	if (ipv6_l3fwd_em_lookup_struct[socketid] == NULL)

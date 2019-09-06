@@ -41,6 +41,7 @@
 #include <rte_udp.h>
 #include <rte_string_fns.h>
 #include <rte_cpuflags.h>
+#include <rte_hash.h>
 
 #include <cmdline_parse.h>
 #include <cmdline_parse_etheraddr.h>
@@ -76,6 +77,10 @@ static int parse_ptype; /**< Parse packet type using rx callback, and */
 			/**< disabled by default */
 static int per_port_pool; /**< Use separate buffer pools per port; disabled */
 			  /**< by default */
+static int rw_lf;	/**< Enable lock-free read-write concurrency, */
+			/**< disabled by default */
+
+/* Global variables. */
 
 volatile bool force_quit;
 
@@ -139,7 +144,7 @@ static struct rte_mempool *pktmbuf_pool[RTE_MAX_ETHPORTS][NB_SOCKETS];
 static uint8_t lkp_per_socket[NB_SOCKETS];
 
 struct l3fwd_lkp_mode {
-	void  (*setup)(int);
+	void  (*setup)(int, unsigned int);
 	int   (*check_ptype)(int);
 	rte_rx_callback_fn cb_parse_ptype;
 	int   (*main_loop)(void *);
@@ -290,6 +295,7 @@ print_usage(const char *prgname)
 		" [--ipv6]"
 		" [--parse-ptype]"
 		" [--per-port-pool]\n\n"
+		" [--lock-free]\n\n"
 
 		"  -p PORTMASK: Hexadecimal bitmask of ports to configure\n"
 		"  -P : Enable promiscuous mode\n"
@@ -304,7 +310,8 @@ print_usage(const char *prgname)
 		"  --hash-entry-num: Specify the hash entry number in hexadecimal to be setup\n"
 		"  --ipv6: Set if running ipv6 packets\n"
 		"  --parse-ptype: Set to use software to analyze packet type\n"
-		"  --per-port-pool: Use separate buffer pool per port\n\n",
+		"  --per-port-pool: Use separate buffer pool per port\n\n"
+		"  --lock-free: Set to enable lock-free table read-write concurrency\n\n",
 		prgname);
 }
 
@@ -458,6 +465,8 @@ static const char short_options[] =
 #define CMD_LINE_OPT_HASH_ENTRY_NUM "hash-entry-num"
 #define CMD_LINE_OPT_PARSE_PTYPE "parse-ptype"
 #define CMD_LINE_OPT_PER_PORT_POOL "per-port-pool"
+#define CMD_LINE_OPT_LOCK_FREE "lock-free"
+
 enum {
 	/* long options mapped to a short option */
 
@@ -472,6 +481,7 @@ enum {
 	CMD_LINE_OPT_HASH_ENTRY_NUM_NUM,
 	CMD_LINE_OPT_PARSE_PTYPE_NUM,
 	CMD_LINE_OPT_PARSE_PER_PORT_POOL,
+	CMD_LINE_OPT_LOCK_FREE_NUM,
 };
 
 static const struct option lgopts[] = {
@@ -483,6 +493,7 @@ static const struct option lgopts[] = {
 	{CMD_LINE_OPT_HASH_ENTRY_NUM, 1, 0, CMD_LINE_OPT_HASH_ENTRY_NUM_NUM},
 	{CMD_LINE_OPT_PARSE_PTYPE, 0, 0, CMD_LINE_OPT_PARSE_PTYPE_NUM},
 	{CMD_LINE_OPT_PER_PORT_POOL, 0, 0, CMD_LINE_OPT_PARSE_PER_PORT_POOL},
+	{CMD_LINE_OPT_LOCK_FREE, 0, 0, CMD_LINE_OPT_LOCK_FREE_NUM},
 	{NULL, 0, 0, 0}
 };
 
@@ -607,6 +618,10 @@ parse_args(int argc, char **argv)
 			per_port_pool = 1;
 			break;
 
+		case CMD_LINE_OPT_LOCK_FREE_NUM:
+			rw_lf = 1;
+			break;
+
 		default:
 			print_usage(prgname);
 			return -1;
@@ -661,6 +676,7 @@ init_mem(uint16_t portid, unsigned int nb_mbuf)
 	int socketid;
 	unsigned lcore_id;
 	char s[64];
+	unsigned int flags = 0;
 
 	for (lcore_id = 0; lcore_id < RTE_MAX_LCORE; lcore_id++) {
 		if (rte_lcore_is_enabled(lcore_id) == 0)
@@ -695,8 +711,10 @@ init_mem(uint16_t portid, unsigned int nb_mbuf)
 			/* Setup either LPM or EM(f.e Hash). But, only once per
 			 * available socket.
 			 */
+			if (rw_lf)
+				flags |= RTE_HASH_EXTRA_FLAGS_RW_CONCURRENCY_LF;
 			if (!lkp_per_socket[socketid]) {
-				l3fwd_lkp.setup(socketid);
+				l3fwd_lkp.setup(socketid, flags);
 				lkp_per_socket[socketid] = 1;
 			}
 		}

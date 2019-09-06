@@ -255,7 +255,7 @@ lpm_main_loop(__attribute__((unused)) void *dummy)
 }
 
 void
-setup_lpm(const int socketid)
+setup_lpm(const int socketid, __rte_unused const unsigned int flags)
 {
 	struct rte_lpm6_config config;
 	struct rte_lpm_config config_ipv4;
