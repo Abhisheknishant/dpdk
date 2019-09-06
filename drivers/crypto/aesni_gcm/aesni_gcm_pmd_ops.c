@@ -7,6 +7,7 @@
 #include <rte_common.h>
 #include <rte_malloc.h>
 #include <rte_cryptodev_pmd.h>
+#include <rte_security_driver.h>
 
 #include "aesni_gcm_pmd_private.h"
 
@@ -316,6 +317,85 @@ aesni_gcm_pmd_sym_session_clear(struct rte_cryptodev *dev,
 	}
 }
 
+static int
+aesni_gcm_security_session_create(void *dev,
+		struct rte_security_session_conf *conf,
+		struct rte_security_session *sess,
+		struct rte_mempool *mempool)
+{
+	struct rte_cryptodev *cdev = dev;
+	struct aesni_gcm_private *internals = cdev->data->dev_private;
+	struct aesni_gcm_security_session *sess_priv;
+	int ret;
+
+	if (!conf->crypto_xform) {
+		AESNI_GCM_LOG(ERR, "Invalid security session conf");
+		return -EINVAL;
+	}
+
+	if (conf->crypto_xform->type == RTE_CRYPTO_SYM_XFORM_AUTH) {
+		AESNI_GCM_LOG(ERR, "GMAC is not supported in security session");
+		return -EINVAL;
+	}
+
+
+	if (rte_mempool_get(mempool, (void **)(&sess_priv))) {
+		AESNI_GCM_LOG(ERR,
+				"Couldn't get object from session mempool");
+		return -ENOMEM;
+	}
+
+	ret = aesni_gcm_set_session_parameters(internals->ops,
+				&sess_priv->sess, conf->crypto_xform);
+	if (ret != 0) {
+		AESNI_GCM_LOG(ERR, "Failed configure session parameters");
+
+		/* Return session to mempool */
+		rte_mempool_put(mempool, (void *)sess_priv);
+		return ret;
+	}
+
+	sess_priv->pre = internals->ops[sess_priv->sess.key].pre;
+	sess_priv->init = internals->ops[sess_priv->sess.key].init;
+	if (sess_priv->sess.op == AESNI_GCM_OP_AUTHENTICATED_ENCRYPTION) {
+		sess_priv->update =
+			internals->ops[sess_priv->sess.key].update_enc;
+		sess_priv->finalize =
+			internals->ops[sess_priv->sess.key].finalize_enc;
+	} else {
+		sess_priv->update =
+			internals->ops[sess_priv->sess.key].update_dec;
+		sess_priv->finalize =
+			internals->ops[sess_priv->sess.key].finalize_dec;
+	}
+
+	sess->sess_private_data = sess_priv;
+
+	return 0;
+}
+
+static int
+aesni_gcm_security_session_destroy(void *dev __rte_unused,
+		struct rte_security_session *sess)
+{
+	void *sess_priv = get_sec_session_private_data(sess);
+
+	if (sess_priv) {
+		struct rte_mempool *sess_mp = rte_mempool_from_obj(sess_priv);
+
+		memset(sess, 0, sizeof(struct aesni_gcm_security_session));
+		set_sec_session_private_data(sess, NULL);
+		rte_mempool_put(sess_mp, sess_priv);
+	}
+	return 0;
+}
+
+static unsigned int
+aesni_gcm_sec_session_get_size(__rte_unused void *device)
+{
+	return sizeof(struct aesni_gcm_security_session);
+}
+
 struct rte_cryptodev_ops aesni_gcm_pmd_ops = {
 		.dev_configure		= aesni_gcm_pmd_config,
 		.dev_start		= aesni_gcm_pmd_start,
@@ -336,4 +416,19 @@ struct rte_cryptodev_ops aesni_gcm_pmd_ops = {
 		.sym_session_clear	= aesni_gcm_pmd_sym_session_clear
 };
 
+static struct rte_security_ops aesni_gcm_security_ops = {
+		.session_create = aesni_gcm_security_session_create,
+		.session_get_size = aesni_gcm_sec_session_get_size,
+		.session_update = NULL,
+		.session_stats_get = NULL,
+		.session_destroy = aesni_gcm_security_session_destroy,
+		.set_pkt_metadata = NULL,
+		.capabilities_get = NULL,
+		.process_cpu_crypto_bulk =
+				aesni_gcm_sec_crypto_process_bulk,
+};
+
 struct rte_cryptodev_ops *rte_aesni_gcm_pmd_ops = &aesni_gcm_pmd_ops;
+
+struct rte_security_ops *rte_aesni_gcm_pmd_security_ops =
+		&aesni_gcm_security_ops;

@@ -114,5 +114,28 @@ aesni_gcm_set_session_parameters(const struct aesni_gcm_ops *ops,
  * Device specific operations function pointer structure */
 extern struct rte_cryptodev_ops *rte_aesni_gcm_pmd_ops;
 
+/**
+ * Security session structure.
+ */
+struct aesni_gcm_security_session {
+	/** Temp digest for decryption */
+	uint8_t temp_digest[DIGEST_LENGTH_MAX];
+	/** GCM operations */
+	aesni_gcm_pre_t pre;
+	aesni_gcm_init_t init;
+	aesni_gcm_update_t update;
+	aesni_gcm_finalize_t finalize;
+	/** AESNI-GCM session */
+	struct aesni_gcm_session sess;
+	/** AESNI-GCM context */
+	struct gcm_context_data gdata_ctx;
+};
+
+extern void
+aesni_gcm_sec_crypto_process_bulk(struct rte_security_session *sess,
+		struct rte_security_vec buf[], void *iv[], void *aad[],
+		void *digest[], int status[], uint32_t num);
+
+extern struct rte_security_ops *rte_aesni_gcm_pmd_security_ops;
 
 #endif /* _RTE_AESNI_GCM_PMD_PRIVATE_H_ */

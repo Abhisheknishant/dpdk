@@ -6,6 +6,7 @@
 #include <rte_hexdump.h>
 #include <rte_cryptodev.h>
 #include <rte_cryptodev_pmd.h>
+#include <rte_security_driver.h>
 #include <rte_bus_vdev.h>
 #include <rte_malloc.h>
 #include <rte_cpuflags.h>
@@ -172,6 +173,56 @@ aesni_gcm_get_session(struct aesni_gcm_qp *qp, struct rte_crypto_op *op)
 		op->status = RTE_CRYPTO_OP_STATUS_INVALID_SESSION;
 
 	return sess;
+}
+
+static __rte_always_inline int
+process_gcm_security_sgl_buf(struct aesni_gcm_security_session *sess,
+		struct rte_security_vec *buf, uint8_t *iv,
+		uint8_t *aad, uint8_t *digest)
+{
+	struct aesni_gcm_session *session = &sess->sess;
+	uint8_t *tag;
+	uint32_t i;
+
+	sess->init(&session->gdata_key, &sess->gdata_ctx, iv, aad,
+			(uint64_t)session->aad_length);
+
+	for (i = 0; i < buf->num; i++) {
+		struct iovec *vec = &buf->vec[i];
+
+		sess->update(&session->gdata_key, &sess->gdata_ctx,
+				vec->iov_base, vec->iov_base, vec->iov_len);
+	}
+
+	switch (session->op) {
+	case AESNI_GCM_OP_AUTHENTICATED_ENCRYPTION:
+		if (session->req_digest_length != session->gen_digest_length)
+			tag = sess->temp_digest;
+		else
+			tag = digest;
+
+		sess->finalize(&session->gdata_key, &sess->gdata_ctx, tag,
+				session->gen_digest_length);
+
+		if (session->req_digest_length != session->gen_digest_length)
+			memcpy(digest, sess->temp_digest,
+					session->req_digest_length);
+		break;
+
+	case AESNI_GCM_OP_AUTHENTICATED_DECRYPTION:
+		tag = sess->temp_digest;
+
+		sess->finalize(&session->gdata_key, &sess->gdata_ctx, tag,
+				session->gen_digest_length);
+
+		if (memcmp(tag, digest,	session->req_digest_length) != 0)
+			return -1;
+		break;
+	default:
+		return -1;
+	}
+
+	return 0;
 }
 
 /**
@@ -488,8 +539,10 @@ aesni_gcm_create(const char *name,
 {
 	struct rte_cryptodev *dev;
 	struct aesni_gcm_private *internals;
+	struct rte_security_ctx *sec_ctx;
 	enum aesni_gcm_vector_mode vector_mode;
 	MB_MGR *mb_mgr;
+	char sec_name[RTE_DEV_NAME_MAX_LEN];
 
 	/* Check CPU for support for AES instruction set */
 	if (!rte_cpu_get_flag_enabled(RTE_CPUFLAG_AES)) {
@@ -524,7 +577,8 @@ aesni_gcm_create(const char *name,
 			RTE_CRYPTODEV_FF_SYM_OPERATION_CHAINING |
 			RTE_CRYPTODEV_FF_CPU_AESNI |
 			RTE_CRYPTODEV_FF_OOP_SGL_IN_LB_OUT |
-			RTE_CRYPTODEV_FF_OOP_LB_IN_LB_OUT;
+			RTE_CRYPTODEV_FF_OOP_LB_IN_LB_OUT |
+			RTE_CRYPTODEV_FF_SECURITY;
 
 	mb_mgr = alloc_mb_mgr(0);
 	if (mb_mgr == NULL)
@@ -587,6 +641,21 @@ aesni_gcm_create(const char *name,
 
 	internals->max_nb_queue_pairs = init_params->max_nb_queue_pairs;
 
+	/* setup security operations */
+	snprintf(sec_name, sizeof(sec_name) - 1, "aes_gcm_sec_%u",
+			dev->driver_id);
+	sec_ctx = rte_zmalloc_socket(sec_name,
+			sizeof(struct rte_security_ctx),
+			RTE_CACHE_LINE_SIZE, init_params->socket_id);
+	if (sec_ctx == NULL) {
+		AESNI_GCM_LOG(ERR, "memory allocation failed\n");
+		goto error_exit;
+	}
+
+	sec_ctx->device = (void *)dev;
+	sec_ctx->ops = rte_aesni_gcm_pmd_security_ops;
+	dev->security_ctx = sec_ctx;
+
 #if IMB_VERSION_NUM >= IMB_VERSION(0, 50, 0)
 	AESNI_GCM_LOG(INFO, "IPSec Multi-buffer library version used: %s\n",
 			imb_get_version_str());
@@ -641,11 +710,31 @@ aesni_gcm_remove(struct rte_vdev_device *vdev)
 	if (cryptodev == NULL)
 		return -ENODEV;
 
+	rte_free(cryptodev->security_ctx);
+
 	internals = cryptodev->data->dev_private;
 
 	free_mb_mgr(internals->mb_mgr);
 
 	return rte_cryptodev_pmd_destroy(cryptodev);
+}
+
+void
+aesni_gcm_sec_crypto_process_bulk(struct rte_security_session *sess,
+		struct rte_security_vec buf[], void *iv[], void *aad[],
+		void *digest[], int status[], uint32_t num)
+{
+	struct aesni_gcm_security_session *session =
+			get_sec_session_private_data(sess);
+	uint32_t i;
+
+	if (unlikely(!session))
+		return;
+
+	for (i = 0; i < num; i++)
+		status[i] = process_gcm_security_sgl_buf(session, &buf[i],
+				(uint8_t *)iv[i], (uint8_t *)aad[i],
+				(uint8_t *)digest[i]);
 }
 
 static struct rte_vdev_driver aesni_gcm_pmd_drv = {
