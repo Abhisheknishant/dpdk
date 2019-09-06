@@ -19,11 +19,22 @@
 
 #include "test.h"
 #include "test_cryptodev.h"
+#include "test_cryptodev_blockcipher.h"
+#include "test_cryptodev_aes_test_vectors.h"
 #include "test_cryptodev_aead_test_vectors.h"
+#include "test_cryptodev_des_test_vectors.h"
+#include "test_cryptodev_hash_test_vectors.h"
 
 #define CPU_CRYPTO_TEST_MAX_AAD_LENGTH	16
 #define MAX_NB_SIGMENTS			4
 #define CACHE_WARM_ITER			2048
+
+#define TOP_ENC		BLOCKCIPHER_TEST_OP_ENCRYPT
+#define TOP_DEC		BLOCKCIPHER_TEST_OP_DECRYPT
+#define TOP_AUTH_GEN	BLOCKCIPHER_TEST_OP_AUTH_GEN
+#define TOP_AUTH_VER	BLOCKCIPHER_TEST_OP_AUTH_VERIFY
+#define TOP_ENC_AUTH	BLOCKCIPHER_TEST_OP_ENC_AUTH_GEN
+#define TOP_AUTH_DEC	BLOCKCIPHER_TEST_OP_AUTH_VERIFY_DEC
 
 enum buffer_assemble_option {
 	SGL_MAX_SEG,
@@ -516,6 +527,11 @@ cpu_crypto_test_aead(const struct aead_test_data *tdata,
 	TEST_EXPAND(gcm_test_case_256_6, type)	\
 	TEST_EXPAND(gcm_test_case_256_7, type)
 
+/* test-vector/sgl-option */
+#define all_ccm_unit_test_cases \
+	TEST_EXPAND(ccm_test_case_128_1, SGL_ONE_SEG) \
+	TEST_EXPAND(ccm_test_case_128_2, SGL_ONE_SEG) \
+	TEST_EXPAND(ccm_test_case_128_3, SGL_ONE_SEG)
 
 #define TEST_EXPAND(t, o)						\
 static int								\
@@ -531,6 +547,7 @@ cpu_crypto_aead_dec_test_##t##_##o(void)				\
 
 all_gcm_unit_test_cases(SGL_ONE_SEG)
 all_gcm_unit_test_cases(SGL_MAX_SEG)
+all_ccm_unit_test_cases
 #undef TEST_EXPAND
 
 static struct unit_test_suite security_cpu_crypto_aesgcm_testsuite  = {
@@ -758,8 +775,358 @@ test_security_cpu_crypto_aesni_gcm_perf(void)
 			&security_cpu_crypto_aesgcm_perf_testsuite);
 }
 
+static struct rte_security_session *
+create_blockcipher_session(struct rte_security_ctx *ctx,
+		struct rte_mempool *sess_mp,
+		uint32_t op_mask,
+		const struct blockcipher_test_data *test_data,
+		uint32_t is_unit_test)
+{
+	struct rte_security_session_conf sess_conf = {0};
+	struct rte_crypto_sym_xform xforms[2] = { {0} };
+	struct rte_crypto_sym_xform *cipher_xform = NULL;
+	struct rte_crypto_sym_xform *auth_xform = NULL;
+	struct rte_crypto_sym_xform *xform;
+
+	if (op_mask & BLOCKCIPHER_TEST_OP_CIPHER) {
+		cipher_xform = &xforms[0];
+		cipher_xform->type = RTE_CRYPTO_SYM_XFORM_CIPHER;
+
+		if (op_mask & TOP_ENC)
+			cipher_xform->cipher.op =
+				RTE_CRYPTO_CIPHER_OP_ENCRYPT;
+		else
+			cipher_xform->cipher.op =
+				RTE_CRYPTO_CIPHER_OP_DECRYPT;
+
+		cipher_xform->cipher.algo = test_data->crypto_algo;
+		cipher_xform->cipher.key.data = test_data->cipher_key.data;
+		cipher_xform->cipher.key.length = test_data->cipher_key.len;
+		cipher_xform->cipher.iv.offset = 0;
+		cipher_xform->cipher.iv.length = test_data->iv.len;
+
+		if (is_unit_test)
+			debug_hexdump(stdout, "cipher key:",
+					test_data->cipher_key.data,
+					test_data->cipher_key.len);
+	}
+
+	if (op_mask & BLOCKCIPHER_TEST_OP_AUTH) {
+		auth_xform = &xforms[1];
+		auth_xform->type = RTE_CRYPTO_SYM_XFORM_AUTH;
+
+		if (op_mask & TOP_AUTH_GEN)
+			auth_xform->auth.op = RTE_CRYPTO_AUTH_OP_GENERATE;
+		else
+			auth_xform->auth.op = RTE_CRYPTO_AUTH_OP_VERIFY;
+
+		auth_xform->auth.algo = test_data->auth_algo;
+		auth_xform->auth.key.length = test_data->auth_key.len;
+		auth_xform->auth.key.data = test_data->auth_key.data;
+		auth_xform->auth.digest_length = test_data->digest.len;
+
+		if (is_unit_test)
+			debug_hexdump(stdout, "auth key:",
+					test_data->auth_key.data,
+					test_data->auth_key.len);
+	}
+
+	if (op_mask == TOP_ENC ||
+			op_mask == TOP_DEC)
+		xform = cipher_xform;
+	else if (op_mask == TOP_AUTH_GEN ||
+			op_mask == TOP_AUTH_VER)
+		xform = auth_xform;
+	else if (op_mask == TOP_ENC_AUTH) {
+		xform = cipher_xform;
+		xform->next = auth_xform;
+	} else if (op_mask == TOP_AUTH_DEC) {
+		xform = auth_xform;
+		xform->next = cipher_xform;
+	} else
+		return NULL;
+
+	if (test_data->cipher_offset < test_data->auth_offset)
+		return NULL;
+
+	sess_conf.action_type = RTE_SECURITY_ACTION_TYPE_CPU_CRYPTO;
+	sess_conf.crypto_xform = xform;
+	sess_conf.cpucrypto.cipher_offset = test_data->cipher_offset -
+			test_data->auth_offset;
+
+	return rte_security_session_create(ctx, &sess_conf, sess_mp);
+}
+
+static inline int
+assemble_blockcipher_buf(struct cpu_crypto_test_case *data,
+		struct cpu_crypto_test_obj *obj,
+		uint32_t obj_idx,
+		uint32_t op_mask,
+		const struct blockcipher_test_data *test_data,
+		uint32_t is_unit_test)
+{
+	const uint8_t *src;
+	uint32_t src_len;
+	uint32_t offset;
+
+	if (op_mask == TOP_ENC_AUTH ||
+			op_mask == TOP_AUTH_GEN ||
+			op_mask == BLOCKCIPHER_TEST_OP_AUTH_VERIFY)
+		offset = test_data->auth_offset;
+	else
+		offset = test_data->cipher_offset;
+
+	if (op_mask & TOP_ENC_AUTH) {
+		src = test_data->plaintext.data;
+		src_len = test_data->plaintext.len;
+		if (is_unit_test)
+			debug_hexdump(stdout, "plaintext:", src, src_len);
+	} else {
+		src = test_data->ciphertext.data;
+		src_len = test_data->ciphertext.len;
+		memcpy(data->digest, test_data->digest.data,
+				test_data->digest.len);
+		if (is_unit_test) {
+			debug_hexdump(stdout, "ciphertext:", src, src_len);
+			debug_hexdump(stdout, "digest:", test_data->digest.data,
+					test_data->digest.len);
+		}
+	}
+
+	if (src_len > MBUF_DATAPAYLOAD_SIZE)
+		return -ENOMEM;
+
+	memcpy(data->seg_buf[0].seg, src, src_len);
+	data->seg_buf[0].seg_len = src_len;
+	obj->vec[obj_idx][0].iov_base =
+			(void *)(data->seg_buf[0].seg + offset);
+	obj->vec[obj_idx][0].iov_len = src_len - offset;
+
+	obj->sec_buf[obj_idx].vec = obj->vec[obj_idx];
+	obj->sec_buf[obj_idx].num = 1;
+
+	memcpy(data->iv, test_data->iv.data, test_data->iv.len);
+	if (is_unit_test)
+		debug_hexdump(stdout, "iv:", test_data->iv.data,
+				test_data->iv.len);
+
+	obj->iv[obj_idx] = (void *)data->iv;
+	obj->digest[obj_idx] = (void *)data->digest;
+
+	return 0;
+}
+
+static int
+check_blockcipher_result(struct cpu_crypto_test_case *tcase,
+		uint32_t op_mask,
+		const struct blockcipher_test_data *test_data)
+{
+	int ret;
+
+	if (op_mask & BLOCKCIPHER_TEST_OP_CIPHER) {
+		const char *err_msg1, *err_msg2;
+		const uint8_t *src_pt_ct;
+		uint32_t src_len;
+
+		if (op_mask & TOP_ENC) {
+			src_pt_ct = test_data->ciphertext.data;
+			src_len = test_data->ciphertext.len;
+			err_msg1 = CPU_CRYPTO_ERR_EXP_CT;
+			err_msg2 = CPU_CRYPTO_ERR_GEN_CT;
+		} else {
+			src_pt_ct = test_data->plaintext.data;
+			src_len = test_data->plaintext.len;
+			err_msg1 = CPU_CRYPTO_ERR_EXP_PT;
+			err_msg2 = CPU_CRYPTO_ERR_GEN_PT;
+		}
+
+		ret = memcmp(tcase->seg_buf[0].seg, src_pt_ct, src_len);
+		if (ret != 0) {
+			debug_hexdump(stdout, err_msg1, src_pt_ct, src_len);
+			debug_hexdump(stdout, err_msg2,
+					tcase->seg_buf[0].seg,
+					test_data->ciphertext.len);
+			return -1;
+		}
+	}
+
+	if (op_mask & TOP_AUTH_GEN) {
+		ret = memcmp(tcase->digest, test_data->digest.data,
+				test_data->digest.len);
+		if (ret != 0) {
+			debug_hexdump(stdout, "expect digest:",
+					test_data->digest.data,
+					test_data->digest.len);
+			debug_hexdump(stdout, "gen digest:",
+					tcase->digest,
+					test_data->digest.len);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+static int
+cpu_crypto_test_blockcipher(const struct blockcipher_test_data *tdata,
+		uint32_t op_mask)
+{
+	struct cpu_crypto_testsuite_params *ts_params = &testsuite_params;
+	struct cpu_crypto_unittest_params *ut_params = &unittest_params;
+	struct cpu_crypto_test_obj *obj = &ut_params->test_obj;
+	struct cpu_crypto_test_case *tcase;
+	int ret;
+
+	ut_params->sess = create_blockcipher_session(ts_params->ctx,
+			ts_params->session_priv_mpool,
+			op_mask,
+			tdata,
+			1);
+	if (!ut_params->sess)
+		return -1;
+
+	ret = allocate_buf(1);
+	if (ret)
+		return ret;
+
+	tcase = ut_params->test_datas[0];
+	ret = assemble_blockcipher_buf(tcase, obj, 0, op_mask, tdata, 1);
+	if (ret < 0) {
+		printf("Test is not supported by the driver\n");
+		return ret;
+	}
+
+	run_test(ts_params->ctx, ut_params->sess, obj, 1);
+
+	ret = check_status(obj, 1);
+	if (ret < 0)
+		return ret;
+
+	ret = check_blockcipher_result(tcase, op_mask, tdata);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+/* Macro to save code for defining BlockCipher test cases */
+/* test-vector-name/op */
+#define all_blockcipher_test_cases \
+	TEST_EXPAND(aes_test_data_1, TOP_ENC) \
+	TEST_EXPAND(aes_test_data_1, TOP_DEC) \
+	TEST_EXPAND(aes_test_data_1, TOP_ENC_AUTH) \
+	TEST_EXPAND(aes_test_data_1, TOP_AUTH_DEC) \
+	TEST_EXPAND(aes_test_data_2, TOP_ENC) \
+	TEST_EXPAND(aes_test_data_2, TOP_DEC) \
+	TEST_EXPAND(aes_test_data_2, TOP_ENC_AUTH) \
+	TEST_EXPAND(aes_test_data_2, TOP_AUTH_DEC) \
+	TEST_EXPAND(aes_test_data_3, TOP_ENC) \
+	TEST_EXPAND(aes_test_data_3, TOP_DEC) \
+	TEST_EXPAND(aes_test_data_3, TOP_ENC_AUTH) \
+	TEST_EXPAND(aes_test_data_3, TOP_AUTH_DEC) \
+	TEST_EXPAND(aes_test_data_4, TOP_ENC) \
+	TEST_EXPAND(aes_test_data_4, TOP_DEC) \
+	TEST_EXPAND(aes_test_data_4, TOP_ENC_AUTH) \
+	TEST_EXPAND(aes_test_data_4, TOP_AUTH_DEC) \
+	TEST_EXPAND(aes_test_data_5, TOP_ENC) \
+	TEST_EXPAND(aes_test_data_5, TOP_DEC) \
+	TEST_EXPAND(aes_test_data_5, TOP_ENC_AUTH) \
+	TEST_EXPAND(aes_test_data_5, TOP_AUTH_DEC) \
+	TEST_EXPAND(aes_test_data_6, TOP_ENC) \
+	TEST_EXPAND(aes_test_data_6, TOP_DEC) \
+	TEST_EXPAND(aes_test_data_6, TOP_ENC_AUTH) \
+	TEST_EXPAND(aes_test_data_6, TOP_AUTH_DEC) \
+	TEST_EXPAND(aes_test_data_7, TOP_ENC) \
+	TEST_EXPAND(aes_test_data_7, TOP_DEC) \
+	TEST_EXPAND(aes_test_data_7, TOP_ENC_AUTH) \
+	TEST_EXPAND(aes_test_data_7, TOP_AUTH_DEC) \
+	TEST_EXPAND(aes_test_data_8, TOP_ENC) \
+	TEST_EXPAND(aes_test_data_8, TOP_DEC) \
+	TEST_EXPAND(aes_test_data_8, TOP_ENC_AUTH) \
+	TEST_EXPAND(aes_test_data_8, TOP_AUTH_DEC) \
+	TEST_EXPAND(aes_test_data_9, TOP_ENC) \
+	TEST_EXPAND(aes_test_data_9, TOP_DEC) \
+	TEST_EXPAND(aes_test_data_9, TOP_ENC_AUTH) \
+	TEST_EXPAND(aes_test_data_9, TOP_AUTH_DEC) \
+	TEST_EXPAND(aes_test_data_10, TOP_ENC) \
+	TEST_EXPAND(aes_test_data_10, TOP_DEC) \
+	TEST_EXPAND(aes_test_data_11, TOP_ENC) \
+	TEST_EXPAND(aes_test_data_11, TOP_DEC) \
+	TEST_EXPAND(aes_test_data_12, TOP_ENC) \
+	TEST_EXPAND(aes_test_data_12, TOP_DEC) \
+	TEST_EXPAND(aes_test_data_12, TOP_ENC_AUTH) \
+	TEST_EXPAND(aes_test_data_12, TOP_AUTH_DEC) \
+	TEST_EXPAND(aes_test_data_13, TOP_ENC) \
+	TEST_EXPAND(aes_test_data_13, TOP_DEC) \
+	TEST_EXPAND(aes_test_data_13, TOP_ENC_AUTH) \
+	TEST_EXPAND(aes_test_data_13, TOP_AUTH_DEC) \
+	TEST_EXPAND(des_test_data_1, TOP_ENC) \
+	TEST_EXPAND(des_test_data_1, TOP_DEC) \
+	TEST_EXPAND(des_test_data_2, TOP_ENC) \
+	TEST_EXPAND(des_test_data_2, TOP_DEC) \
+	TEST_EXPAND(des_test_data_3, TOP_ENC) \
+	TEST_EXPAND(des_test_data_3, TOP_DEC) \
+	TEST_EXPAND(triple_des128cbc_hmac_sha1_test_vector, TOP_ENC) \
+	TEST_EXPAND(triple_des128cbc_hmac_sha1_test_vector, TOP_DEC) \
+	TEST_EXPAND(triple_des128cbc_hmac_sha1_test_vector, TOP_ENC_AUTH) \
+	TEST_EXPAND(triple_des128cbc_hmac_sha1_test_vector, TOP_AUTH_DEC) \
+	TEST_EXPAND(triple_des64cbc_test_vector, TOP_ENC) \
+	TEST_EXPAND(triple_des64cbc_test_vector, TOP_DEC) \
+	TEST_EXPAND(triple_des128cbc_test_vector, TOP_ENC) \
+	TEST_EXPAND(triple_des128cbc_test_vector, TOP_DEC) \
+	TEST_EXPAND(triple_des192cbc_test_vector, TOP_ENC) \
+	TEST_EXPAND(triple_des192cbc_test_vector, TOP_DEC) \
+
+#define TEST_EXPAND(t, o)						\
+static int								\
+cpu_crypto_blockcipher_test_##t##_##o(void)				\
+{									\
+	return cpu_crypto_test_blockcipher(&t, o);			\
+}
+
+all_blockcipher_test_cases
+#undef TEST_EXPAND
+
+static struct unit_test_suite security_cpu_crypto_aesni_mb_testsuite  = {
+	.suite_name = "Security CPU Crypto AESNI-MB Unit Test Suite",
+	.setup = testsuite_setup,
+	.teardown = testsuite_teardown,
+	.unit_test_cases = {
+#define TEST_EXPAND(t, o)						\
+	TEST_CASE_ST(ut_setup, ut_teardown,				\
+			cpu_crypto_aead_enc_test_##t##_##o),		\
+	TEST_CASE_ST(ut_setup, ut_teardown,				\
+			cpu_crypto_aead_dec_test_##t##_##o),		\
+
+	all_gcm_unit_test_cases(SGL_ONE_SEG)
+	all_ccm_unit_test_cases
+#undef TEST_EXPAND
+
+#define TEST_EXPAND(t, o)						\
+	TEST_CASE_ST(ut_setup, ut_teardown,				\
+			cpu_crypto_blockcipher_test_##t##_##o),		\
+
+	all_blockcipher_test_cases
+#undef TEST_EXPAND
+
+	TEST_CASES_END() /**< NULL terminate unit test array */
+	},
+};
+
+static int
+test_security_cpu_crypto_aesni_mb(void)
+{
+	gbl_driver_id =	rte_cryptodev_driver_id_get(
+			RTE_STR(CRYPTODEV_NAME_AESNI_MB_PMD));
+
+	return unit_test_suite_runner(&security_cpu_crypto_aesni_mb_testsuite);
+}
+
 REGISTER_TEST_COMMAND(security_aesni_gcm_autotest,
 		test_security_cpu_crypto_aesni_gcm);
 
 REGISTER_TEST_COMMAND(security_aesni_gcm_perftest,
 		test_security_cpu_crypto_aesni_gcm_perf);
+
+REGISTER_TEST_COMMAND(security_aesni_mb_autotest,
+		test_security_cpu_crypto_aesni_mb);
