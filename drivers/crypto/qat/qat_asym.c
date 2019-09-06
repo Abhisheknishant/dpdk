@@ -228,6 +228,170 @@ qat_asym_fill_arrays(struct rte_crypto_asym_op *asym_op,
 				cookie->input_array[1],
 				alg_size_in_bytes);
 #endif
+	} else if (xform->xform_type == RTE_CRYPTO_ASYM_XFORM_RSA) {
+		err = qat_asym_check_nonzero(xform->rsa.n);
+		if (err) {
+			QAT_LOG(ERR, "Empty modulus in RSA"
+					" inverse, aborting this operation");
+			return err;
+		}
+
+		alg_size_in_bytes = xform->rsa.n.length;
+		alg_size = alg_size_in_bytes << 3;
+
+		qat_req->input_param_count =
+				QAT_ASYM_RSA_NUM_IN_PARAMS;
+		qat_req->output_param_count =
+				QAT_ASYM_RSA_NUM_OUT_PARAMS;
+
+		if (asym_op->rsa.op_type == RTE_CRYPTO_ASYM_OP_ENCRYPT ||
+				asym_op->rsa.op_type ==
+						RTE_CRYPTO_ASYM_OP_VERIFY) {
+
+			if (qat_asym_get_sz_and_func_id(RSA_MODEXP_ENC_IDS,
+					sizeof(RSA_MODEXP_ENC_IDS)/
+					sizeof(*RSA_MODEXP_ENC_IDS),
+					&alg_size, &func_id)) {
+				err = QAT_ASYM_ERROR_INVALID_PARAM;
+				QAT_LOG(ERR,
+					"Not supported RSA parameter size (key)");
+				return err;
+			}
+			alg_size_in_bytes = alg_size >> 3;
+			if (asym_op->rsa.op_type == RTE_CRYPTO_ASYM_OP_ENCRYPT) {
+				switch (asym_op->rsa.pad) {
+				case RTE_CRYPTO_RSA_PADDING_NONE:
+					rte_memcpy(cookie->input_array[0] +
+						alg_size_in_bytes -
+						asym_op->rsa.message.length
+						, asym_op->rsa.message.data,
+						asym_op->rsa.message.length);
+					break;
+				default:
+					err = QAT_ASYM_ERROR_INVALID_PARAM;
+					QAT_LOG(ERR,
+						"Invalid RSA padding (Encryption)");
+					return err;
+				}
+#if RTE_LOG_DP_LEVEL >= RTE_LOG_DEBUG
+				QAT_DP_HEXDUMP_LOG(DEBUG, "Message",
+						cookie->input_array[0],
+						alg_size_in_bytes);
+#endif
+			} else {
+				switch (asym_op->rsa.pad) {
+				case RTE_CRYPTO_RSA_PADDING_NONE:
+					rte_memcpy(cookie->input_array[0],
+						asym_op->rsa.sign.data,
+						asym_op->rsa.sign.length);
+					break;
+				default:
+					err = QAT_ASYM_ERROR_INVALID_PARAM;
+					QAT_LOG(ERR,
+						"Invalid RSA padding (Verify)");
+					return err;
+				}
+
+#if RTE_LOG_DP_LEVEL >= RTE_LOG_DEBUG
+				QAT_DP_HEXDUMP_LOG(DEBUG, "Signature",
+						cookie->input_array[0],
+						alg_size_in_bytes);
+#endif
+
+			}
+			rte_memcpy(cookie->input_array[1] +
+					alg_size_in_bytes -
+					xform->rsa.e.length
+					, xform->rsa.e.data,
+					xform->rsa.e.length);
+			rte_memcpy(cookie->input_array[2] +
+					alg_size_in_bytes -
+					xform->rsa.n.length,
+					xform->rsa.n.data,
+					xform->rsa.n.length);
+
+			cookie->alg_size = alg_size;
+			qat_req->pke_hdr.cd_pars.func_id = func_id;
+
+#if RTE_LOG_DP_LEVEL >= RTE_LOG_DEBUG
+			QAT_DP_HEXDUMP_LOG(DEBUG, "Public Key",
+					cookie->input_array[1], alg_size_in_bytes);
+			QAT_DP_HEXDUMP_LOG(DEBUG, "Modulus",
+					cookie->input_array[2], alg_size_in_bytes);
+#endif
+		} else {
+			if (asym_op->rsa.op_type ==
+					RTE_CRYPTO_ASYM_OP_DECRYPT) {
+				switch (asym_op->rsa.pad) {
+				case RTE_CRYPTO_RSA_PADDING_NONE:
+					rte_memcpy(cookie->input_array[0]
+						+ alg_size_in_bytes -
+						asym_op->rsa.cipher.length,
+						asym_op->rsa.cipher.data,
+						asym_op->rsa.cipher.length);
+					break;
+				default:
+					QAT_LOG(ERR,
+						"Invalid padding of RSA (Decrypt)");
+					return QAT_ASYM_ERROR_INVALID_PARAM;
+				}
+
+			} else if (asym_op->rsa.op_type ==
+					RTE_CRYPTO_ASYM_OP_SIGN) {
+				switch (asym_op->rsa.pad) {
+				case RTE_CRYPTO_RSA_PADDING_NONE:
+					rte_memcpy(cookie->input_array[0]
+						+ alg_size_in_bytes -
+						asym_op->rsa.message.length,
+						asym_op->rsa.message.data,
+						asym_op->rsa.message.length);
+					break;
+				default:
+					QAT_LOG(ERR,
+						"Invalid padding of RSA (Signature)");
+					return QAT_ASYM_ERROR_INVALID_PARAM;
+				}
+			}
+
+			if (xform->rsa.key_type == RTE_RSA_KET_TYPE_QT) {
+				QAT_LOG(ERR, "RSA CRT not implemented");
+				return QAT_ASYM_ERROR_INVALID_PARAM;
+			} else if (xform->rsa.key_type ==
+					RTE_RSA_KEY_TYPE_EXP) {
+				if (qat_asym_get_sz_and_func_id(
+						RSA_MODEXP_DEC_IDS,
+						sizeof(RSA_MODEXP_DEC_IDS)/
+						sizeof(*RSA_MODEXP_DEC_IDS),
+						&alg_size, &func_id)) {
+					return QAT_ASYM_ERROR_INVALID_PARAM;
+				}
+				alg_size_in_bytes = alg_size >> 3;
+				rte_memcpy(cookie->input_array[1] +
+						alg_size_in_bytes -
+						xform->rsa.d.length,
+						xform->rsa.d.data,
+						xform->rsa.d.length);
+				rte_memcpy(cookie->input_array[2] +
+						alg_size_in_bytes -
+						xform->rsa.n.length,
+						xform->rsa.n.data,
+						xform->rsa.n.length);
+#if RTE_LOG_DP_LEVEL >= RTE_LOG_DEBUG
+			QAT_DP_HEXDUMP_LOG(DEBUG, "C", cookie->input_array[0],
+					alg_size_in_bytes);
+			QAT_DP_HEXDUMP_LOG(DEBUG, "d", cookie->input_array[1],
+					alg_size_in_bytes);
+			QAT_DP_HEXDUMP_LOG(DEBUG, "n", cookie->input_array[2],
+					alg_size_in_bytes);
+#endif
+
+				cookie->alg_size = alg_size;
+				qat_req->pke_hdr.cd_pars.func_id = func_id;
+			} else {
+				QAT_LOG(ERR, "Invalid RSA key type");
+				return QAT_ASYM_ERROR_INVALID_PARAM;
+			}
+		}
 	}
 	return 0;
 }
@@ -252,8 +416,10 @@ qat_asym_build_request(void *in_op,
 		ctx = (struct qat_asym_session *)
 			get_asym_session_private_data(
 			op->asym->session, cryptodev_qat_asym_driver_id);
-		rte_mov64((uint8_t *)qat_req, (const uint8_t *)&(ctx->req_tmpl));
-		err = qat_asym_fill_arrays(asym_op, qat_req, cookie, ctx->xform);
+		rte_mov64((uint8_t *)qat_req,
+				(const uint8_t *)&(ctx->req_tmpl));
+		err = qat_asym_fill_arrays(asym_op, qat_req,
+				cookie, ctx->xform);
 		if (err) {
 			op->status = RTE_CRYPTO_OP_STATUS_INVALID_ARGS;
 			goto error;
@@ -347,6 +513,81 @@ static void qat_asym_collect_response(struct rte_crypto_op *rx_op,
 					alg_size_in_bytes);
 #endif
 		}
+	} else if (xform->xform_type == RTE_CRYPTO_ASYM_XFORM_RSA) {
+		uint8_t *rsa_result = asym_op->rsa.cipher.data;
+
+		alg_size = cookie->alg_size;
+		alg_size_in_bytes = alg_size >> 3;
+		if (asym_op->rsa.op_type == RTE_CRYPTO_ASYM_OP_ENCRYPT ||
+				asym_op->rsa.op_type ==
+					RTE_CRYPTO_ASYM_OP_VERIFY) {
+			if (asym_op->rsa.op_type ==
+					RTE_CRYPTO_ASYM_OP_ENCRYPT) {
+				rte_memcpy(rsa_result,
+						cookie->output_array[0],
+						xform->rsa.n.length);
+				rx_op->status = RTE_CRYPTO_OP_STATUS_SUCCESS;
+#if RTE_LOG_DP_LEVEL >= RTE_LOG_DEBUG
+				QAT_DP_HEXDUMP_LOG(DEBUG, "Encrypted data",
+						cookie->output_array[0],
+						alg_size_in_bytes);
+				asym_op->rsa.cipher.length = alg_size_in_bytes;
+#endif
+			} else if (asym_op->rsa.op_type ==
+					RTE_CRYPTO_ASYM_OP_VERIFY) {
+				rsa_result = asym_op->rsa.message.data;
+				switch (asym_op->rsa.pad) {
+				case RTE_CRYPTO_RSA_PADDING_NONE:
+					rte_memcpy(rsa_result,
+							cookie->output_array[0],
+							xform->rsa.n.length);
+					rx_op->status =
+						RTE_CRYPTO_OP_STATUS_SUCCESS;
+					break;
+				default:
+					QAT_LOG(ERR, "Error during setting "
+							"Padding not supported");
+					rx_op->status =
+						RTE_CRYPTO_OP_STATUS_ERROR;
+					break;
+				}
+			}
+		} else {
+			rsa_result = asym_op->rsa.message.data;
+			if (asym_op->rsa.op_type ==
+					RTE_CRYPTO_ASYM_OP_DECRYPT) {
+				switch (asym_op->rsa.pad) {
+				case RTE_CRYPTO_RSA_PADDING_NONE:
+					rte_memcpy(rsa_result,
+						cookie->output_array[0],
+						xform->rsa.n.length
+						);
+					break;
+				default:
+					QAT_LOG(ERR, "Error during setting "
+							"Padding not supported");
+					rx_op->status =
+						RTE_CRYPTO_OP_STATUS_ERROR;
+					break;
+				}
+#if RTE_LOG_DP_LEVEL >= RTE_LOG_DEBUG
+				QAT_DP_HEXDUMP_LOG(DEBUG, "RSA Decrypted Message",
+						rsa_result, alg_size_in_bytes);
+#endif
+			} else if (asym_op->rsa.op_type == RTE_CRYPTO_ASYM_OP_SIGN) {
+				rsa_result = asym_op->rsa.sign.data;
+				rte_memcpy(rsa_result,
+						cookie->output_array[0],
+						xform->rsa.n.length
+						);
+				rx_op->status = RTE_CRYPTO_OP_STATUS_SUCCESS;
+#if RTE_LOG_DP_LEVEL >= RTE_LOG_DEBUG
+				QAT_DP_HEXDUMP_LOG(DEBUG, "RSA Signature",
+						cookie->output_array[0],
+						alg_size_in_bytes);
+#endif
+			}
+		}
 	}
 	qat_clear_arrays_by_alg(cookie, xform->xform_type, alg_size_in_bytes,
 			alg_size_in_bytes);
@@ -396,7 +637,7 @@ qat_asym_process_response(void **op, uint8_t *resp,
 
 	if (rx_op->sess_type == RTE_CRYPTO_OP_WITH_SESSION) {
 		ctx = (struct qat_asym_session *)get_asym_session_private_data(
-				rx_op->asym->session, cryptodev_qat_asym_driver_id);
+			rx_op->asym->session, cryptodev_qat_asym_driver_id);
 		qat_asym_collect_response(rx_op, cookie, ctx->xform);
 	} else if (rx_op->sess_type == RTE_CRYPTO_OP_SESSIONLESS) {
 		qat_asym_collect_response(rx_op, cookie, rx_op->asym->xform);
@@ -435,6 +676,12 @@ qat_asym_session_configure(struct rte_cryptodev *dev,
 	} else if (xform->xform_type == RTE_CRYPTO_ASYM_XFORM_MODINV) {
 		if (xform->modinv.modulus.length == 0) {
 			QAT_LOG(ERR, "Invalid mod inv input parameter");
+			err = -EINVAL;
+			goto error;
+		}
+	} else if (xform->xform_type == RTE_CRYPTO_ASYM_XFORM_RSA) {
+		if (xform->rsa.n.length == 0) {
+			QAT_LOG(ERR, "Invalid rsa input parameter");
 			err = -EINVAL;
 			goto error;
 		}
