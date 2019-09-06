@@ -8,6 +8,7 @@
 #include <rte_common.h>
 #include <rte_malloc.h>
 #include <rte_cryptodev_pmd.h>
+#include <rte_security_driver.h>
 
 #include "rte_aesni_mb_pmd_private.h"
 
@@ -732,7 +733,8 @@ aesni_mb_pmd_qp_count(struct rte_cryptodev *dev)
 static unsigned
 aesni_mb_pmd_sym_session_get_size(struct rte_cryptodev *dev __rte_unused)
 {
-	return sizeof(struct aesni_mb_session);
+	return RTE_ALIGN_CEIL(sizeof(struct aesni_mb_session),
+			RTE_CACHE_LINE_SIZE);
 }
 
 /** Configure a aesni multi-buffer session from a crypto xform chain */
@@ -810,4 +812,91 @@ struct rte_cryptodev_ops aesni_mb_pmd_ops = {
 		.sym_session_clear	= aesni_mb_pmd_sym_session_clear
 };
 
+/** Set session authentication parameters */
+
+static int
+aesni_mb_security_session_create(void *dev,
+		struct rte_security_session_conf *conf,
+		struct rte_security_session *sess,
+		struct rte_mempool *mempool)
+{
+	struct rte_cryptodev *cdev = dev;
+	struct aesni_mb_private *internals = cdev->data->dev_private;
+	struct aesni_mb_sec_session *sess_priv;
+	int ret;
+
+	if (!conf->crypto_xform) {
+		AESNI_MB_LOG(ERR, "Invalid security session conf");
+		return -EINVAL;
+	}
+
+	if (rte_mempool_get(mempool, (void **)(&sess_priv))) {
+		AESNI_MB_LOG(ERR,
+				"Couldn't get object from session mempool");
+		return -ENOMEM;
+	}
+
+	sess_priv->mb_mgr = internals->mb_mgr;
+	if (sess_priv->mb_mgr == NULL)
+		return -ENOMEM;
+
+	sess_priv->cipher_offset = conf->cpucrypto.cipher_offset;
+
+	ret = aesni_mb_set_session_parameters(sess_priv->mb_mgr,
+			&sess_priv->sess, conf->crypto_xform);
+	if (ret != 0) {
+		AESNI_MB_LOG(ERR, "failed configure session parameters");
+
+		rte_mempool_put(mempool, sess_priv);
+	}
+
+	sess->sess_private_data = (void *)sess_priv;
+
+	return ret;
+}
+
+static int
+aesni_mb_security_session_destroy(void *dev __rte_unused,
+		struct rte_security_session *sess)
+{
+	struct aesni_mb_sec_session *sess_priv =
+			get_sec_session_private_data(sess);
+
+	if (sess_priv) {
+		struct rte_mempool *sess_mp = rte_mempool_from_obj(
+				(void *)sess_priv);
+
+		memset(sess, 0, sizeof(struct aesni_mb_sec_session));
+		set_sec_session_private_data(sess, NULL);
+
+		if (sess_mp == NULL) {
+			AESNI_MB_LOG(ERR, "failed fetch session mempool");
+			return -EINVAL;
+		}
+
+		rte_mempool_put(sess_mp, sess_priv);
+	}
+
+	return 0;
+}
+
+static unsigned int
+aesni_mb_sec_session_get_size(__rte_unused void *device)
+{
+	return RTE_ALIGN_CEIL(sizeof(struct aesni_mb_sec_session),
+			RTE_CACHE_LINE_SIZE);
+}
+
+static struct rte_security_ops aesni_mb_security_ops = {
+		.session_create = aesni_mb_security_session_create,
+		.session_get_size = aesni_mb_sec_session_get_size,
+		.session_update = NULL,
+		.session_stats_get = NULL,
+		.session_destroy = aesni_mb_security_session_destroy,
+		.set_pkt_metadata = NULL,
+		.capabilities_get = NULL,
+		.process_cpu_crypto_bulk = aesni_mb_sec_crypto_process_bulk,
+};
+
 struct rte_cryptodev_ops *rte_aesni_mb_pmd_ops = &aesni_mb_pmd_ops;
+struct rte_security_ops *rte_aesni_mb_pmd_security_ops = &aesni_mb_security_ops;

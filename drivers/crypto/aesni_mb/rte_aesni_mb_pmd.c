@@ -8,6 +8,8 @@
 #include <rte_hexdump.h>
 #include <rte_cryptodev.h>
 #include <rte_cryptodev_pmd.h>
+#include <rte_security.h>
+#include <rte_security_driver.h>
 #include <rte_bus_vdev.h>
 #include <rte_malloc.h>
 #include <rte_cpuflags.h>
@@ -789,6 +791,167 @@ auth_start_offset(struct rte_crypto_op *op, struct aesni_mb_session *session,
 			(UINT64_MAX - u_src + u_dst + 1);
 }
 
+union sec_userdata_field {
+	int status;
+	struct {
+		uint16_t is_gen_digest;
+		uint16_t digest_len;
+	};
+};
+
+struct sec_udata_digest_field {
+	uint32_t is_digest_gen;
+	uint32_t digest_len;
+};
+
+static inline int
+set_mb_job_params_sec(JOB_AES_HMAC *job, struct aesni_mb_sec_session *sec_sess,
+		void *buf, uint32_t buf_len, void *iv, void *aad, void *digest,
+		int *status, uint8_t *digest_idx)
+{
+	struct aesni_mb_session *session = &sec_sess->sess;
+	uint32_t cipher_offset = sec_sess->cipher_offset;
+	void *user_digest = NULL;
+	union sec_userdata_field udata;
+
+	if (unlikely(cipher_offset > buf_len))
+		return -EINVAL;
+
+	/* Set crypto operation */
+	job->chain_order = session->chain_order;
+
+	/* Set cipher parameters */
+	job->cipher_direction = session->cipher.direction;
+	job->cipher_mode = session->cipher.mode;
+
+	job->aes_key_len_in_bytes = session->cipher.key_length_in_bytes;
+
+	/* Set authentication parameters */
+	job->hash_alg = session->auth.algo;
+	job->iv = iv;
+
+	switch (job->hash_alg) {
+	case AES_XCBC:
+		job->u.XCBC._k1_expanded = session->auth.xcbc.k1_expanded;
+		job->u.XCBC._k2 = session->auth.xcbc.k2;
+		job->u.XCBC._k3 = session->auth.xcbc.k3;
+
+		job->aes_enc_key_expanded =
+				session->cipher.expanded_aes_keys.encode;
+		job->aes_dec_key_expanded =
+				session->cipher.expanded_aes_keys.decode;
+		break;
+
+	case AES_CCM:
+		job->u.CCM.aad = (uint8_t *)aad + 18;
+		job->u.CCM.aad_len_in_bytes = session->aead.aad_len;
+		job->aes_enc_key_expanded =
+				session->cipher.expanded_aes_keys.encode;
+		job->aes_dec_key_expanded =
+				session->cipher.expanded_aes_keys.decode;
+		job->iv++;
+		break;
+
+	case AES_CMAC:
+		job->u.CMAC._key_expanded = session->auth.cmac.expkey;
+		job->u.CMAC._skey1 = session->auth.cmac.skey1;
+		job->u.CMAC._skey2 = session->auth.cmac.skey2;
+		job->aes_enc_key_expanded =
+				session->cipher.expanded_aes_keys.encode;
+		job->aes_dec_key_expanded =
+				session->cipher.expanded_aes_keys.decode;
+		break;
+
+	case AES_GMAC:
+		if (session->cipher.mode == GCM) {
+			job->u.GCM.aad = aad;
+			job->u.GCM.aad_len_in_bytes = session->aead.aad_len;
+		} else {
+			/* For GMAC */
+			job->u.GCM.aad = aad;
+			job->u.GCM.aad_len_in_bytes = buf_len;
+			job->cipher_mode = GCM;
+		}
+		job->aes_enc_key_expanded = &session->cipher.gcm_key;
+		job->aes_dec_key_expanded = &session->cipher.gcm_key;
+		break;
+
+	default:
+		job->u.HMAC._hashed_auth_key_xor_ipad =
+				session->auth.pads.inner;
+		job->u.HMAC._hashed_auth_key_xor_opad =
+				session->auth.pads.outer;
+
+		if (job->cipher_mode == DES3) {
+			job->aes_enc_key_expanded =
+				session->cipher.exp_3des_keys.ks_ptr;
+			job->aes_dec_key_expanded =
+				session->cipher.exp_3des_keys.ks_ptr;
+		} else {
+			job->aes_enc_key_expanded =
+				session->cipher.expanded_aes_keys.encode;
+			job->aes_dec_key_expanded =
+				session->cipher.expanded_aes_keys.decode;
+		}
+	}
+
+	/* Set digest output location */
+	if (job->hash_alg != NULL_HASH &&
+			session->auth.operation == RTE_CRYPTO_AUTH_OP_VERIFY) {
+		job->auth_tag_output = sec_sess->temp_digests[*digest_idx];
+		*digest_idx = (*digest_idx + 1) % MAX_JOBS;
+
+		udata.is_gen_digest = 0;
+		udata.digest_len = session->auth.req_digest_len;
+		user_digest = (void *)digest;
+	} else {
+		udata.is_gen_digest = 1;
+		udata.digest_len = session->auth.req_digest_len;
+
+		if (session->auth.req_digest_len !=
+				session->auth.gen_digest_len) {
+			job->auth_tag_output =
+					sec_sess->temp_digests[*digest_idx];
+			*digest_idx = (*digest_idx + 1) % MAX_JOBS;
+
+			user_digest = (void *)digest;
+		} else
+			job->auth_tag_output = digest;
+
+		/* A bit of hack here, since job structure only supports
+		 * 2 user data fields and we need 4 params to be passed
+		 * (status, direction, digest for verify, and length of
+		 * digest), we set the status value as digest length +
+		 * direction here temporarily to avoid creating longer
+		 * buffer to store all 4 params.
+		 */
+		*status = udata.status;
+	}
+	/*
+	 * Multi-buffer library current only support returning a truncated
+	 * digest length as specified in the relevant IPsec RFCs
+	 */
+
+	/* Set digest length */
+	job->auth_tag_output_len_in_bytes = session->auth.gen_digest_len;
+
+	/* Set IV parameters */
+	job->iv_len_in_bytes = session->iv.length;
+
+	/* Data Parameters */
+	job->src = buf;
+	job->dst = buf;
+	job->cipher_start_src_offset_in_bytes = cipher_offset;
+	job->msg_len_to_cipher_in_bytes = buf_len - cipher_offset;
+	job->hash_start_src_offset_in_bytes = 0;
+	job->msg_len_to_hash_in_bytes = buf_len;
+
+	job->user_data = (void *)status;
+	job->user_data2 = user_digest;
+
+	return 0;
+}
+
 /**
  * Process a crypto operation and complete a JOB_AES_HMAC job structure for
  * submission to the multi buffer library for processing.
@@ -1081,6 +1244,37 @@ post_process_mb_job(struct aesni_mb_qp *qp, JOB_AES_HMAC *job)
 	return op;
 }
 
+static inline void
+post_process_mb_sec_job(JOB_AES_HMAC *job)
+{
+	void *user_digest = job->user_data2;
+	int *status = job->user_data;
+	union sec_userdata_field udata;
+
+	switch (job->status) {
+	case STS_COMPLETED:
+		if (user_digest) {
+			udata.status = *status;
+
+			if (udata.is_gen_digest) {
+				*status = RTE_CRYPTO_OP_STATUS_SUCCESS;
+				memcpy(user_digest, job->auth_tag_output,
+						udata.digest_len);
+			} else {
+				verify_digest(job, user_digest,
+					udata.digest_len, (uint8_t *)status);
+
+				if (*status == RTE_CRYPTO_OP_STATUS_AUTH_FAILED)
+					*status = -1;
+			}
+		} else
+			*status = RTE_CRYPTO_OP_STATUS_SUCCESS;
+		break;
+	default:
+		*status = RTE_CRYPTO_OP_STATUS_ERROR;
+	}
+}
+
 /**
  * Process a completed JOB_AES_HMAC job and keep processing jobs until
  * get_completed_job return NULL
@@ -1115,6 +1309,32 @@ handle_completed_jobs(struct aesni_mb_qp *qp, JOB_AES_HMAC *job,
 	}
 
 	return processed_jobs;
+}
+
+static inline uint32_t
+handle_completed_sec_jobs(JOB_AES_HMAC *job, MB_MGR *mb_mgr)
+{
+	uint32_t processed = 0;
+
+	while (job != NULL) {
+		post_process_mb_sec_job(job);
+		job = IMB_GET_COMPLETED_JOB(mb_mgr);
+		processed++;
+	}
+
+	return processed;
+}
+
+static inline uint32_t
+flush_mb_sec_mgr(MB_MGR *mb_mgr)
+{
+	JOB_AES_HMAC *job = IMB_FLUSH_JOB(mb_mgr);
+	uint32_t processed = 0;
+
+	if (job)
+		processed = handle_completed_sec_jobs(job, mb_mgr);
+
+	return processed;
 }
 
 static inline uint16_t
@@ -1220,6 +1440,55 @@ aesni_mb_pmd_dequeue_burst(void *queue_pair, struct rte_crypto_op **ops,
 	return processed_jobs;
 }
 
+void
+aesni_mb_sec_crypto_process_bulk(struct rte_security_session *sess,
+		struct rte_security_vec buf[], void *iv[], void *aad[],
+		void *digest[], int status[], uint32_t num)
+{
+	struct aesni_mb_sec_session *sec_sess = sess->sess_private_data;
+	JOB_AES_HMAC *job;
+	uint8_t digest_idx = sec_sess->digest_idx;
+	uint32_t i, processed = 0;
+	int ret;
+
+	for (i = 0; i < num; i++) {
+		void *seg_buf = buf[i].vec[0].iov_base;
+		uint32_t buf_len = buf[i].vec[0].iov_len;
+
+		job = IMB_GET_NEXT_JOB(sec_sess->mb_mgr);
+		if (unlikely(job == NULL)) {
+			processed += flush_mb_sec_mgr(sec_sess->mb_mgr);
+
+			job = IMB_GET_NEXT_JOB(sec_sess->mb_mgr);
+			if (!job)
+				return;
+		}
+
+		ret = set_mb_job_params_sec(job, sec_sess, seg_buf, buf_len,
+				iv[i], aad[i], digest[i], &status[i],
+				&digest_idx);
+				/* Submit job to multi-buffer for processing */
+		if (ret) {
+			processed++;
+			status[i] = ret;
+			continue;
+		}
+
+#ifdef RTE_LIBRTE_PMD_AESNI_MB_DEBUG
+		job = IMB_SUBMIT_JOB(sec_sess->mb_mgr);
+#else
+		job = IMB_SUBMIT_JOB_NOCHECK(sec_sess->mb_mgr);
+#endif
+
+		if (job)
+			processed += handle_completed_sec_jobs(job,
+					sec_sess->mb_mgr);
+	}
+
+	while (processed < num)
+		processed += flush_mb_sec_mgr(sec_sess->mb_mgr);
+}
+
 static int cryptodev_aesni_mb_remove(struct rte_vdev_device *vdev);
 
 static int
@@ -1229,8 +1498,10 @@ cryptodev_aesni_mb_create(const char *name,
 {
 	struct rte_cryptodev *dev;
 	struct aesni_mb_private *internals;
+	struct rte_security_ctx *sec_ctx;
 	enum aesni_mb_vector_mode vector_mode;
 	MB_MGR *mb_mgr;
+	char sec_name[RTE_DEV_NAME_MAX_LEN];
 
 	/* Check CPU for support for AES instruction set */
 	if (!rte_cpu_get_flag_enabled(RTE_CPUFLAG_AES)) {
@@ -1264,7 +1535,8 @@ cryptodev_aesni_mb_create(const char *name,
 	dev->feature_flags = RTE_CRYPTODEV_FF_SYMMETRIC_CRYPTO |
 			RTE_CRYPTODEV_FF_SYM_OPERATION_CHAINING |
 			RTE_CRYPTODEV_FF_CPU_AESNI |
-			RTE_CRYPTODEV_FF_OOP_LB_IN_LB_OUT;
+			RTE_CRYPTODEV_FF_OOP_LB_IN_LB_OUT |
+			RTE_CRYPTODEV_FF_SECURITY;
 
 
 	mb_mgr = alloc_mb_mgr(0);
@@ -1303,11 +1575,28 @@ cryptodev_aesni_mb_create(const char *name,
 	AESNI_MB_LOG(INFO, "IPSec Multi-buffer library version used: %s\n",
 			imb_get_version_str());
 
+	/* setup security operations */
+	snprintf(sec_name, sizeof(sec_name) - 1, "aes_mb_sec_%u",
+			dev->driver_id);
+	sec_ctx = rte_zmalloc_socket(sec_name,
+			sizeof(struct rte_security_ctx),
+			RTE_CACHE_LINE_SIZE, init_params->socket_id);
+	if (sec_ctx == NULL) {
+		AESNI_MB_LOG(ERR, "memory allocation failed\n");
+		goto error_exit;
+	}
+
+	sec_ctx->device = (void *)dev;
+	sec_ctx->ops = rte_aesni_mb_pmd_security_ops;
+	dev->security_ctx = sec_ctx;
+
 	return 0;
 
 error_exit:
 	if (mb_mgr)
 		free_mb_mgr(mb_mgr);
+	if (sec_ctx)
+		rte_free(sec_ctx);
 
 	rte_cryptodev_pmd_destroy(dev);
 

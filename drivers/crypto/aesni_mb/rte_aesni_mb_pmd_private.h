@@ -176,7 +176,6 @@ struct aesni_mb_qp {
 	 */
 } __rte_cache_aligned;
 
-/** AES-NI multi-buffer private session structure */
 struct aesni_mb_session {
 	JOB_CHAIN_ORDER chain_order;
 	struct {
@@ -265,16 +264,32 @@ struct aesni_mb_session {
 		/** AAD data length */
 		uint16_t aad_len;
 	} aead;
-} __rte_cache_aligned;
+};
+
+/** AES-NI multi-buffer private security session structure */
+struct aesni_mb_sec_session {
+	/**< Unique Queue Pair Name */
+	struct aesni_mb_session sess;
+	uint8_t temp_digests[MAX_JOBS][DIGEST_LENGTH_MAX];
+	uint16_t digest_idx;
+	uint32_t cipher_offset;
+	MB_MGR *mb_mgr;
+};
 
 extern int
 aesni_mb_set_session_parameters(const MB_MGR *mb_mgr,
 		struct aesni_mb_session *sess,
 		const struct rte_crypto_sym_xform *xform);
 
+extern void
+aesni_mb_sec_crypto_process_bulk(struct rte_security_session *sess,
+		struct rte_security_vec buf[], void *iv[], void *aad[],
+		void *digest[], int status[], uint32_t num);
+
 /** device specific operations function pointer structure */
 extern struct rte_cryptodev_ops *rte_aesni_mb_pmd_ops;
 
-
+/** device specific operations function pointer structure for rte_security */
+extern struct rte_security_ops *rte_aesni_mb_pmd_security_ops;
 
 #endif /* _RTE_AESNI_MB_PMD_PRIVATE_H_ */
