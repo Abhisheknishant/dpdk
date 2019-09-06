@@ -222,39 +222,6 @@ static inline u16 ilog2(u32 n)
 
 	return res;
 }
-
-/**
- * hinic_cpu_to_be32 - convert data to big endian 32 bit format
- * @data: the data to convert
- * @len: length of data to convert, must be Multiple of 4B
- **/
-static inline void hinic_cpu_to_be32(void *data, u32 len)
-{
-	u32 i;
-	u32 *mem = (u32 *)data;
-
-	for (i = 0; i < (len >> 2); i++) {
-		*mem = cpu_to_be32(*mem);
-		mem++;
-	}
-}
-
-/**
- * hinic_be32_to_cpu - convert data from big endian 32 bit format
- * @data: the data to convert
- * @len: length of data to convert, must be Multiple of 4B
- **/
-static inline void hinic_be32_to_cpu(void *data, u32 len)
-{
-	u32 i;
-	u32 *mem = (u32 *)data;
-
-	for (i = 0; i < (len >> 2); i++) {
-		*mem = be32_to_cpu(*mem);
-		mem++;
-	}
-}
-
 static inline int hinic_mutex_init(pthread_mutex_t *pthreadmutex,
 					const pthread_mutexattr_t *mattr)
 {

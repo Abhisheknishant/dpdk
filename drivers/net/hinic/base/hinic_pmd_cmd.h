@@ -25,6 +25,12 @@ enum hinic_mod_type {
 	HINIC_MOD_MAX	= 15
 };
 
+/* only used by VFD communicating with PFD to register or unregister,
+ * command mode type is HINIC_MOD_L2NIC
+ */
+#define HINIC_PORT_CMD_VF_REGISTER	0x0
+#define HINIC_PORT_CMD_VF_UNREGISTER	0x1
+
 /* cmd of mgmt CPU message for NIC module */
 enum hinic_port_cmd {
 	HINIC_PORT_CMD_MGMT_RESET		= 0x0,

@@ -618,6 +618,12 @@ static int hinic_init_nic_hwdev(struct hinic_hwdev *hwdev)
 		goto err_init_nic_hwdev;
 	}
 
+	err = hinic_vf_func_init(hwdev);
+	if (err) {
+		PMD_DRV_LOG(ERR, "Failed to init nic mbox");
+		goto err_init_nic_hwdev;
+	}
+
 	err = hinic_set_fast_recycle_mode(hwdev, RECYCLE_MODE_DPDK);
 	if (err) {
 		PMD_DRV_LOG(ERR, "Failed to set fast recycle mode");
@@ -632,6 +638,7 @@ err_init_nic_hwdev:
 
 static void hinic_free_nic_hwdev(struct hinic_hwdev *hwdev)
 {
+	hinic_vf_func_free(hwdev);
 	hwdev->nic_io = NULL;
 }
 

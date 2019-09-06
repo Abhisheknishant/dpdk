@@ -10,6 +10,7 @@
 #include "hinic_pmd_mgmt.h"
 #include "hinic_pmd_cmdq.h"
 #include "hinic_pmd_niccfg.h"
+#include "hinic_pmd_mbox.h"
 
 #define l2nic_msg_to_mgmt_sync(hwdev, cmd, buf_in,		\
 			       in_size, buf_out, out_size)	\
@@ -318,6 +319,9 @@ int hinic_set_port_enable(void *hwdev, bool enable)
 		return -EINVAL;
 	}
 
+	if (HINIC_IS_VF((struct hinic_hwdev *)hwdev))
+		return 0;
+
 	memset(&en_state, 0, sizeof(en_state));
 	en_state.mgmt_msg_head.resp_aeq_num = HINIC_AEQ1;
 	en_state.state = (enable ? HINIC_PORT_ENABLE : HINIC_PORT_DISABLE);
@@ -432,7 +436,7 @@ int hinic_dcb_set_ets(void *hwdev, u8 *up_tc, u8 *pg_bw,
 
 	memset(&ets, 0, sizeof(ets));
 	ets.mgmt_msg_head.resp_aeq_num = HINIC_AEQ1;
-	ets.port_id = 0;    /* reserved */
+	ets.port_id = 0;	/* reserved */
 	memcpy(ets.up_tc, up_tc, HINIC_DCB_TC_MAX);
 	memcpy(ets.pg_bw, pg_bw, HINIC_DCB_UP_MAX);
 	memcpy(ets.pgid, pgid, HINIC_DCB_UP_MAX);
@@ -1100,6 +1104,38 @@ int hinic_reset_port_link_cfg(void *hwdev)
 	return 0;
 }
 
+int hinic_vf_func_init(struct hinic_hwdev *hwdev)
+{
+	int err, state = 0;
+
+	if (!HINIC_IS_VF(hwdev))
+		return 0;
+
+	err = hinic_mbox_to_pf(hwdev, HINIC_MOD_L2NIC,
+			HINIC_PORT_CMD_VF_REGISTER, &state, sizeof(state),
+			NULL, NULL, 0);
+	if (err) {
+		PMD_DRV_LOG(ERR, "Fail to register vf");
+		return err;
+	}
+
+	return 0;
+}
+
+void hinic_vf_func_free(struct hinic_hwdev *hwdev)
+{
+	int err;
+
+	if (hinic_func_type(hwdev) != TYPE_VF)
+		return;
+
+	err = hinic_mbox_to_pf(hwdev, HINIC_MOD_L2NIC,
+				HINIC_PORT_CMD_VF_UNREGISTER, &err, sizeof(err),
+				NULL, NULL, 0);
+	if (err)
+		PMD_DRV_LOG(ERR, "Fail to unregister VF, err: %d", err);
+}
+
 int hinic_set_fast_recycle_mode(void *hwdev, u8 mode)
 {
 	struct hinic_fast_recycled_mode fast_recycled_mode;
@@ -1193,6 +1229,9 @@ int hinic_set_link_status_follow(void *hwdev,
 	if (!hwdev)
 		return -EINVAL;
 
+	if (HINIC_IS_VF((struct hinic_hwdev *)hwdev))
+		return 0;
+
 	if (status >= HINIC_LINK_FOLLOW_STATUS_MAX) {
 		PMD_DRV_LOG(ERR,
 			"Invalid link follow status: %d", status);
@@ -1271,6 +1310,29 @@ int hinic_flush_qp_res(void *hwdev)
 			err, qp_res.mgmt_msg_head.status, out_size);
 		return -EINVAL;
 	}
+
+	return 0;
+}
+
+int hinic_vf_get_default_cos(struct hinic_hwdev *hwdev, u8 *cos_id)
+{
+	struct hinic_vf_default_cos vf_cos;
+	u16 out_size = sizeof(vf_cos);
+	int err;
+
+	memset(&vf_cos, 0, sizeof(vf_cos));
+	vf_cos.mgmt_msg_head.resp_aeq_num = HINIC_AEQ1;
+
+	err = hinic_msg_to_mgmt_sync(hwdev, HINIC_MOD_L2NIC,
+				     HINIC_PORT_CMD_GET_VF_COS, &vf_cos,
+				     sizeof(vf_cos), &vf_cos,
+				     &out_size, 0);
+	if (err || !out_size || vf_cos.mgmt_msg_head.status) {
+		PMD_DRV_LOG(ERR, "Get VF default cos failed, err: %d, status: 0x%x, out size: 0x%x",
+			err, vf_cos.mgmt_msg_head.status, out_size);
+		return -EFAULT;
+	}
+	*cos_id = vf_cos.state.default_cos;
 
 	return 0;
 }

@@ -7,6 +7,7 @@
 #include "hinic_pmd_hwdev.h"
 #include "hinic_pmd_hwif.h"
 #include "hinic_pmd_mgmt.h"
+#include "hinic_pmd_mbox.h"
 
 #define BUF_OUT_DEFAULT_SIZE		1
 
@@ -464,6 +465,9 @@ static int hinic_get_mgmt_channel_status(void *hwdev)
 	struct hinic_hwif *hwif = ((struct hinic_hwdev *)hwdev)->hwif;
 	u32 val;
 
+	if (hinic_func_type((struct hinic_hwdev *)hwdev) == TYPE_VF)
+		return false;
+
 	val = hinic_hwif_read_reg(hwif, HINIC_ICPL_RESERVD_ADDR);
 
 	return HINIC_GET_MGMT_CHANNEL_STATUS(val, MGMT_CHANNEL_STATUS);
@@ -482,9 +486,13 @@ int hinic_msg_to_mgmt_sync(void *hwdev, enum hinic_mod_type mod, u8 cmd,
 	if (hinic_get_mgmt_channel_status(hwdev))
 		return -EPERM;
 
-	rc = hinic_pf_to_mgmt_sync(hwdev, mod, cmd, buf_in,
-				   in_size, buf_out, out_size,
-				   timeout);
+	if (hinic_func_type(hwdev) == TYPE_VF) {
+		rc = hinic_mbox_to_pf(hwdev, mod, cmd, buf_in, in_size,
+					buf_out, out_size, timeout);
+	} else {
+		rc = hinic_pf_to_mgmt_sync(hwdev, mod, cmd, buf_in, in_size,
+						buf_out, out_size, timeout);
+	}
 
 	return rc;
 }
@@ -667,6 +675,9 @@ static int hinic_handle_aeqe(void *handle, enum hinic_aeq_type event,
 	case HINIC_MSG_FROM_MGMT_CPU:
 		rc = hinic_mgmt_msg_aeqe_handler(handle, data, size, param);
 		break;
+	case HINIC_MBX_FROM_FUNC:
+		rc = hinic_mbox_func_aeqe_handler(handle, data, size, param);
+		break;
 	default:
 		PMD_DRV_LOG(ERR, "Unknown event type: 0x%x, size: %d",
 			    event, size);
@@ -753,6 +764,10 @@ int hinic_comm_pf_to_mgmt_init(struct hinic_hwdev *hwdev)
 {
 	int rc;
 
+	/* VF do not support send msg to mgmt directly */
+	if (hinic_func_type(hwdev) == TYPE_VF)
+		return 0;
+
 	rc = hinic_pf_to_mgmt_init(hwdev);
 	if (rc)
 		return rc;
@@ -764,6 +779,10 @@ int hinic_comm_pf_to_mgmt_init(struct hinic_hwdev *hwdev)
 
 void hinic_comm_pf_to_mgmt_free(struct hinic_hwdev *hwdev)
 {
+	/* VF do not support send msg to mgmt directly */
+	if (hinic_func_type(hwdev) == TYPE_VF)
+		return;
+
 	hinic_pf_to_mgmt_free(hwdev);
 }
 

@@ -27,12 +27,17 @@
  **/
 static int hwif_ready(struct hinic_hwdev *hwdev)
 {
-	u32 addr, attr1;
+	u32 addr, attr0, attr1;
 
 	addr   = HINIC_CSR_FUNC_ATTR1_ADDR;
 	attr1  = hinic_hwif_read_reg(hwdev->hwif, addr);
-
 	if (!HINIC_AF1_GET(attr1, MGMT_INIT_STATUS))
+		return -EBUSY;
+
+	addr   = HINIC_CSR_FUNC_ATTR0_ADDR;
+	attr0  = hinic_hwif_read_reg(hwdev->hwif, addr);
+	if ((HINIC_AF0_GET(attr0, FUNC_TYPE) == TYPE_VF) &&
+	     !HINIC_AF1_GET(attr1, PF_INIT_STATUS))
 		return -EBUSY;
 
 	return 0;
@@ -89,6 +94,9 @@ void hinic_set_pf_status(struct hinic_hwif *hwif, enum hinic_pf_status status)
 {
 	u32 attr5 = HINIC_AF5_SET(status, PF_STATUS);
 	u32 addr  = HINIC_CSR_FUNC_ATTR5_ADDR;
+
+	if (hwif->attr.func_type == TYPE_VF)
+		return;
 
 	hinic_hwif_write_reg(hwif, addr, attr5);
 }
@@ -285,6 +293,25 @@ static void disable_all_msix(struct hinic_hwdev *hwdev)
 		hinic_set_msix_state(hwdev, i, HINIC_MSIX_DISABLE);
 }
 
+int wait_until_doorbell_flush_states(struct hinic_hwif *hwif,
+					enum hinic_doorbell_ctrl states)
+{
+	unsigned long end;
+	enum hinic_doorbell_ctrl db_ctrl;
+
+	end = jiffies +
+		msecs_to_jiffies(HINIC_WAIT_DOORBELL_AND_OUTBOUND_TIMEOUT);
+	do {
+		db_ctrl = hinic_get_doorbell_ctrl_status(hwif);
+		if (db_ctrl == states)
+			return 0;
+
+		rte_delay_ms(1);
+	} while (time_before(jiffies, end));
+
+	return -EFAULT;
+}
+
 static int wait_until_doorbell_and_outbound_enabled(struct hinic_hwif *hwif)
 {
 	unsigned long end;
@@ -321,11 +348,23 @@ enum func_type hinic_func_type(void *hwdev)
 	return hwif->attr.func_type;
 }
 
+u8 hinic_pf_id_of_vf(void *hwdev)
+{
+	struct hinic_hwif *hwif = ((struct hinic_hwdev *)hwdev)->hwif;
+	return hwif->attr.port_to_port_idx;
+}
+
 u8 hinic_ppf_idx(void *hwdev)
 {
 	struct hinic_hwif *hwif = ((struct hinic_hwdev *)hwdev)->hwif;
 
 	return hwif->attr.ppf_idx;
+}
+
+u8 hinic_dma_attr_entry_num(void *hwdev)
+{
+	struct hinic_hwif *hwif = ((struct hinic_hwdev *)hwdev)->hwif;
+	return hwif->attr.num_dma_attr;
 }
 
 /**
@@ -370,6 +409,9 @@ static int hinic_init_hwif(struct hinic_hwdev *hwdev, void *cfg_reg_base,
 
 	if (!HINIC_IS_VF(hwdev))
 		set_ppf(hwif);
+
+	/* disable mgmt cpu report any event */
+	hinic_set_pf_status(hwdev->hwif, HINIC_PF_STATUS_INIT);
 
 	return 0;
 

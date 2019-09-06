@@ -104,6 +104,9 @@ int hinic_alloc_db_addr(void *hwdev, void __iomem **db_base);
 
 void hinic_free_db_addr(void *hwdev, void __iomem *db_base);
 
+int wait_until_doorbell_flush_states(struct hinic_hwif *hwif,
+					enum hinic_doorbell_ctrl states);
+
 void hinic_set_msix_state(void *hwdev, u16 msix_idx,
 			  enum hinic_msix_state flag);
 
@@ -115,5 +118,9 @@ u8 hinic_ppf_idx(void *hwdev);
 int hinic_hwif_res_init(struct hinic_hwdev *hwdev);
 
 void hinic_hwif_res_free(struct hinic_hwdev *hwdev);
+
+u8 hinic_pf_id_of_vf(void *hwdev);
+
+u8 hinic_dma_attr_entry_num(void *hwdev);
 
 #endif /* _HINIC_PMD_HWIF_H_ */
