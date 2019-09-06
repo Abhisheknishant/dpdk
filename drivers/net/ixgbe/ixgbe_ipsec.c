@@ -9,6 +9,7 @@
 #include <rte_security_driver.h>
 #include <rte_cryptodev.h>
 #include <rte_flow.h>
+#include <rte_hash_crc.h>
 
 #include "base/ixgbe_type.h"
 #include "base/ixgbe_api.h"
@@ -94,6 +95,7 @@ ixgbe_crypto_add_sa(struct ixgbe_crypto_session *ic_session)
 			dev->data->dev_private);
 	uint32_t reg_val;
 	int sa_index = -1;
+	struct ixgbe_crypto_sess_htable_key tbl_key = {0};
 
 	if (ic_session->op == IXGBE_OP_AUTHENTICATED_DECRYPTION) {
 		int i, ip_index = -1;
@@ -158,9 +160,14 @@ ixgbe_crypto_add_sa(struct ixgbe_crypto_session *ic_session)
 		if (ic_session->dst_ip.type == IPv6) {
 			priv->rx_sa_tbl[sa_index].mode |= IPSRXMOD_IPV6;
 			priv->rx_ip_tbl[ip_index].ip.type = IPv6;
-		} else if (ic_session->dst_ip.type == IPv4)
+			memcpy(&tbl_key.ip.ipv6, &ic_session->dst_ip.ipv6,
+					sizeof(ic_session->dst_ip.ipv6));
+		} else if (ic_session->dst_ip.type == IPv4) {
 			priv->rx_ip_tbl[ip_index].ip.type = IPv4;
+			tbl_key.ip.ipv4 = ic_session->dst_ip.ipv4;
+		}
 
+		tbl_key.spi = priv->rx_sa_tbl[sa_index].spi;
 		priv->rx_sa_tbl[sa_index].used = 1;
 
 		/* write IP table entry*/
@@ -238,6 +245,7 @@ ixgbe_crypto_add_sa(struct ixgbe_crypto_session *ic_session)
 
 		priv->tx_sa_tbl[sa_index].spi =
 			rte_cpu_to_be_32(ic_session->spi);
+		tbl_key.spi = priv->tx_sa_tbl[sa_index].spi;
 		priv->tx_sa_tbl[i].used = 1;
 		ic_session->sa_index = sa_index;
 
@@ -264,6 +272,7 @@ ixgbe_crypto_add_sa(struct ixgbe_crypto_session *ic_session)
 		free(key);
 	}
 
+	rte_hash_add_key_data(priv->session_tbl, &tbl_key, ic_session);
 	return 0;
 }
 
@@ -276,6 +285,7 @@ ixgbe_crypto_remove_sa(struct rte_eth_dev *dev,
 			IXGBE_DEV_PRIVATE_TO_IPSEC(dev->data->dev_private);
 	uint32_t reg_val;
 	int sa_index = -1;
+	struct ixgbe_crypto_sess_htable_key tbl_key = {0};
 
 	if (ic_session->op == IXGBE_OP_AUTHENTICATED_DECRYPTION) {
 		int i, ip_index = -1;
@@ -324,6 +334,13 @@ ixgbe_crypto_remove_sa(struct rte_eth_dev *dev,
 		IXGBE_WRITE_REG(hw, IXGBE_IPSRXMOD, 0);
 		IXGBE_WAIT_RWRITE;
 		priv->rx_sa_tbl[sa_index].used = 0;
+		if (priv->rx_sa_tbl[sa_index].mode & IPSRXMOD_IPV6) {
+			memcpy(&tbl_key.ip.ipv6, &ic_session->dst_ip.ipv6,
+					sizeof(ic_session->dst_ip.ipv6));
+		} else {
+			tbl_key.ip.ipv4 = ic_session->dst_ip.ipv4;
+		}
+		tbl_key.spi = priv->rx_sa_tbl[sa_index].spi;
 
 		/* If last used then clear the IP table entry*/
 		priv->rx_ip_tbl[ip_index].ref_count--;
@@ -361,8 +378,10 @@ ixgbe_crypto_remove_sa(struct rte_eth_dev *dev,
 		IXGBE_WAIT_TWRITE;
 
 		priv->tx_sa_tbl[sa_index].used = 0;
+		tbl_key.spi = priv->tx_sa_tbl[sa_index].spi;
 	}
 
+	rte_hash_del_key(priv->session_tbl, &tbl_key);
 	return 0;
 }
 
@@ -376,6 +395,8 @@ ixgbe_crypto_create_session(void *device,
 	struct ixgbe_crypto_session *ic_session = NULL;
 	struct rte_crypto_aead_xform *aead_xform;
 	struct rte_eth_conf *dev_conf = &eth_dev->data->dev_conf;
+	struct ixgbe_ipsec *priv =
+			IXGBE_DEV_PRIVATE_TO_IPSEC(eth_dev->data->dev_private);
 
 	if (rte_mempool_get(mempool, (void **)&ic_session)) {
 		PMD_DRV_LOG(ERR, "Cannot get object from ic_session mempool");
@@ -426,6 +447,40 @@ ixgbe_crypto_create_session(void *device,
 		}
 	}
 
+	if (conf->ipsec.options.stats) {
+		ic_session->stats_enabled = 1;
+		priv->per_session_stats_active++;
+	}
+
+	return 0;
+}
+
+static int
+ixgbe_crypto_stats_get(__rte_unused void *device,
+		struct rte_security_session *sess,
+		struct rte_security_stats *stats)
+{
+	struct rte_eth_dev *eth_dev = device;
+	struct ixgbe_ipsec *priv =
+			IXGBE_DEV_PRIVATE_TO_IPSEC(eth_dev->data->dev_private);
+	volatile struct rte_security_ipsec_stats *ixgbe_stats;
+
+	if (sess) {
+		struct ixgbe_crypto_session *ic_session =
+			(struct ixgbe_crypto_session *)
+			get_sec_session_private_data(sess);
+		ixgbe_stats = &ic_session->stats;
+	} else {
+		ixgbe_stats = &priv->stats;
+	}
+
+	stats->ipsec.ipackets = ixgbe_stats->ipackets;
+	stats->ipsec.opackets = ixgbe_stats->opackets;
+	stats->ipsec.ibytes = ixgbe_stats->ibytes;
+	stats->ipsec.obytes = ixgbe_stats->obytes;
+	stats->ipsec.ierrors = ixgbe_stats->ierrors;
+	stats->ipsec.oerrors = ixgbe_stats->oerrors;
+
 	return 0;
 }
 
@@ -444,6 +499,8 @@ ixgbe_crypto_remove_session(void *device,
 		(struct ixgbe_crypto_session *)
 		get_sec_session_private_data(session);
 	struct rte_mempool *mempool = rte_mempool_from_obj(ic_session);
+	struct ixgbe_ipsec *priv =
+			IXGBE_DEV_PRIVATE_TO_IPSEC(eth_dev->data->dev_private);
 
 	if (eth_dev != ic_session->dev) {
 		PMD_DRV_LOG(ERR, "Session not bound to this device\n");
@@ -455,7 +512,40 @@ ixgbe_crypto_remove_session(void *device,
 		return -EFAULT;
 	}
 
+	if (ic_session->stats_enabled && priv->per_session_stats_active > 0)
+		priv->per_session_stats_active--;
+
 	rte_mempool_put(mempool, (void *)ic_session);
+
+	return 0;
+}
+
+static int
+ixgbe_crypto_update_session(void *device,
+		struct rte_security_session *session,
+		struct rte_security_session_conf *conf)
+{
+	struct rte_eth_dev *eth_dev = device;
+	struct ixgbe_crypto_session *ic_session =
+		(struct ixgbe_crypto_session *)
+		get_sec_session_private_data(session);
+	struct ixgbe_ipsec *priv =
+			IXGBE_DEV_PRIVATE_TO_IPSEC(eth_dev->data->dev_private);
+
+	if (eth_dev != ic_session->dev) {
+		PMD_DRV_LOG(ERR, "Session not bound to this device\n");
+		return -ENODEV;
+	}
+
+	/* Enable/disable per session stats */
+	if (ic_session->stats_enabled && !conf->ipsec.options.stats) {
+		ic_session->stats_enabled = 0;
+		if (priv->per_session_stats_active > 0)
+			priv->per_session_stats_active--;
+	} else if (!ic_session->stats_enabled && conf->ipsec.options.stats) {
+		ic_session->stats_enabled = 1;
+		priv->per_session_stats_active++;
+	}
 
 	return 0;
 }
@@ -624,6 +714,8 @@ int
 ixgbe_crypto_enable_ipsec(struct rte_eth_dev *dev)
 {
 	struct ixgbe_hw *hw = IXGBE_DEV_PRIVATE_TO_HW(dev->data->dev_private);
+	struct ixgbe_ipsec *priv =
+			IXGBE_DEV_PRIVATE_TO_IPSEC(dev->data->dev_private);
 	uint32_t reg;
 	uint64_t rx_offloads;
 	uint64_t tx_offloads;
@@ -676,6 +768,23 @@ ixgbe_crypto_enable_ipsec(struct rte_eth_dev *dev)
 
 	ixgbe_crypto_clear_ipsec_tables(dev);
 
+	if (priv->session_tbl == NULL) {
+		char session_tbl_hash_name[RTE_HASH_NAMESIZE];
+		struct rte_hash_parameters params = {
+			.name = session_tbl_hash_name,
+			.entries = IPSEC_MAX_SA_COUNT * 2,
+			.key_len = sizeof(struct ixgbe_crypto_sess_htable_key),
+			.hash_func = rte_hash_crc,
+			.socket_id = rte_socket_id(),
+		};
+		snprintf(session_tbl_hash_name, RTE_HASH_NAMESIZE,
+			 "session_tbl_hash_%s", dev->device->name);
+
+		priv->session_tbl = rte_hash_create(&params);
+	} else {
+		rte_hash_reset(priv->session_tbl);
+	}
+
 	return 0;
 }
 
@@ -709,11 +818,140 @@ ixgbe_crypto_add_ingress_sa_from_flow(const void *sess,
 	return 0;
 }
 
+void
+ixgbe_crypto_update_rx_stats(struct ixgbe_ipsec *ixgbe_ipsec,
+			     struct rte_mbuf **mbufs,
+			     uint16_t count)
+{
+	uint16_t i;
+	uint32_t ipackets = 0, ibytes = 0, ierrors = 0;
+
+	if (ixgbe_ipsec->per_session_stats_active) {
+		struct ip *ip;
+		struct rte_esp_hdr *esp;
+		struct ixgbe_crypto_session *sess;
+		struct ixgbe_crypto_sess_htable_key tbl_key = {0};
+
+		for (i = 0; i < count; i++) {
+			if ((mbufs[i]->ol_flags & PKT_RX_SEC_OFFLOAD) == 0)
+				continue;
+			ip = rte_pktmbuf_mtod_offset(mbufs[i],
+					struct ip *,
+					sizeof(struct rte_ether_hdr));
+			if (ip->ip_v == IPVERSION) {
+				tbl_key.ip.ipv4 = ip->ip_dst.s_addr;
+				esp = rte_pktmbuf_mtod_offset(mbufs[i],
+						struct rte_esp_hdr *,
+						sizeof(struct rte_ether_hdr) +
+						ip->ip_hl * 4);
+			} else {
+				struct ip6_hdr *ip6 = (struct ip6_hdr *)ip;
+				memcpy(&tbl_key.ip.ipv6, &ip6->ip6_dst, 16);
+				esp = rte_pktmbuf_mtod_offset(mbufs[i],
+						struct rte_esp_hdr *,
+						sizeof(struct rte_ether_hdr) +
+						sizeof(struct ip6_hdr));
+			}
+			tbl_key.spi = esp->spi;
+			if (rte_hash_lookup_data(ixgbe_ipsec->session_tbl,
+					&tbl_key, (void **)&sess) < 0)
+				sess = NULL;
+			if (mbufs[i]->ol_flags & PKT_RX_SEC_OFFLOAD_FAILED) {
+				if (sess && sess->stats_enabled)
+					sess->stats.ierrors++;
+				ierrors++;
+			} else {
+				if (sess && sess->stats_enabled) {
+					sess->stats.ipackets++;
+					sess->stats.ibytes +=
+						rte_pktmbuf_pkt_len(mbufs[i]);
+				}
+				ipackets++;
+				ibytes += rte_pktmbuf_pkt_len(mbufs[i]);
+			}
+		}
+	} else { /* Global stats only */
+		for (i = 0; i < count; i++) {
+			if (mbufs[i]->ol_flags & PKT_RX_SEC_OFFLOAD) {
+				if (mbufs[i]->ol_flags &
+						PKT_RX_SEC_OFFLOAD_FAILED) {
+					ierrors++;
+				} else {
+					ipackets++;
+					ibytes += rte_pktmbuf_pkt_len(mbufs[i]);
+				}
+			}
+		}
+	}
+
+	/* Update global stats */
+	ixgbe_ipsec->stats.ipackets += ipackets;
+	ixgbe_ipsec->stats.ibytes += ibytes;
+	ixgbe_ipsec->stats.ierrors += ierrors;
+}
+
+void
+ixgbe_crypto_update_tx_stats(struct ixgbe_ipsec *ixgbe_ipsec,
+			     struct rte_mbuf **mbufs,
+			     uint16_t count)
+{
+	uint16_t i;
+	uint32_t opackets = 0, obytes = 0;
+
+	if (ixgbe_ipsec->per_session_stats_active) {
+		struct ip *ip;
+		struct rte_esp_hdr *esp;
+		struct ixgbe_crypto_session *sess;
+		struct ixgbe_crypto_sess_htable_key tbl_key = {0};
+
+		for (i = 0; i < count; i++) {
+			if ((mbufs[i]->ol_flags & PKT_TX_SEC_OFFLOAD) == 0)
+				continue;
+			ip = rte_pktmbuf_mtod_offset(mbufs[i],
+					struct ip *,
+					sizeof(struct rte_ether_hdr));
+			if (ip->ip_v == IPVERSION) {
+				esp = rte_pktmbuf_mtod_offset(mbufs[i],
+						struct rte_esp_hdr *,
+						sizeof(struct rte_ether_hdr) +
+						ip->ip_hl * 4);
+			} else {
+				esp = rte_pktmbuf_mtod_offset(mbufs[i],
+						struct rte_esp_hdr *,
+						sizeof(struct rte_ether_hdr) +
+						sizeof(struct ip6_hdr));
+			}
+			tbl_key.spi = esp->spi;
+			if (rte_hash_lookup_data(ixgbe_ipsec->session_tbl,
+					&tbl_key, (void **)&sess) < 0)
+				sess = NULL;
+			if (sess && sess->stats_enabled) {
+				sess->stats.opackets++;
+				sess->stats.obytes +=
+					rte_pktmbuf_pkt_len(mbufs[i]);
+			}
+			opackets++;
+			obytes += rte_pktmbuf_pkt_len(mbufs[i]);
+		}
+	} else { /* Global stats only */
+		for (i = 0; i < count; i++) {
+			if (mbufs[i]->ol_flags & PKT_RX_SEC_OFFLOAD) {
+				opackets++;
+				obytes += rte_pktmbuf_pkt_len(mbufs[i]);
+			}
+		}
+	}
+
+	/* Update global stats */
+	ixgbe_ipsec->stats.opackets += opackets;
+	ixgbe_ipsec->stats.obytes += obytes;
+}
+
 static struct rte_security_ops ixgbe_security_ops = {
 	.session_create = ixgbe_crypto_create_session,
-	.session_update = NULL,
+	.session_update = ixgbe_crypto_update_session,
 	.session_get_size = ixgbe_crypto_session_get_size,
-	.session_stats_get = NULL,
+	.session_stats_get = ixgbe_crypto_stats_get,
 	.session_destroy = ixgbe_crypto_remove_session,
 	.set_pkt_metadata = ixgbe_crypto_update_mb,
 	.capabilities_get = ixgbe_crypto_capabilities_get

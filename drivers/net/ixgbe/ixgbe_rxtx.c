@@ -956,6 +956,12 @@ end_of_tx:
 	IXGBE_PCI_REG_WRITE_RELAXED(txq->tdt_reg_addr, tx_id);
 	txq->tx_tail = tx_id;
 
+#ifdef RTE_LIBRTE_SECURITY
+		if (unlikely(txq->using_ipsec))
+			ixgbe_crypto_update_tx_stats(txq->ixgbe_ipsec,
+					&tx_pkts[-nb_tx], nb_tx);
+#endif
+
 	return nb_tx;
 }
 
@@ -1642,6 +1648,12 @@ ixgbe_rx_fill_from_stage(struct ixgbe_rx_queue *rxq, struct rte_mbuf **rx_pkts,
 	/* update internal queue state */
 	rxq->rx_nb_avail = (uint16_t)(rxq->rx_nb_avail - nb_pkts);
 	rxq->rx_next_avail = (uint16_t)(rxq->rx_next_avail + nb_pkts);
+
+#ifdef RTE_LIBRTE_SECURITY
+	if (unlikely(rxq->using_ipsec))
+		ixgbe_crypto_update_rx_stats(rxq->ixgbe_ipsec,
+				rx_pkts, nb_pkts);
+#endif
 
 	return nb_pkts;
 }
@@ -2618,6 +2630,9 @@ ixgbe_dev_tx_queue_setup(struct rte_eth_dev *dev,
 #ifdef RTE_LIBRTE_SECURITY
 	txq->using_ipsec = !!(dev->data->dev_conf.txmode.offloads &
 			DEV_TX_OFFLOAD_SECURITY);
+	if (txq->using_ipsec)
+		txq->ixgbe_ipsec =
+			IXGBE_DEV_PRIVATE_TO_IPSEC(dev->data->dev_private);
 #endif
 
 	/*
@@ -4730,6 +4745,9 @@ ixgbe_set_rx_function(struct rte_eth_dev *dev)
 #ifdef RTE_LIBRTE_SECURITY
 		rxq->using_ipsec = !!(dev->data->dev_conf.rxmode.offloads &
 				DEV_RX_OFFLOAD_SECURITY);
+		if (rxq->using_ipsec)
+			rxq->ixgbe_ipsec =
+			IXGBE_DEV_PRIVATE_TO_IPSEC(dev->data->dev_private);
 #endif
 	}
 }

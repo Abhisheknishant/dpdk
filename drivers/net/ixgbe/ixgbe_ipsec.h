@@ -70,6 +70,8 @@ struct ixgbe_crypto_session {
 	struct ipaddr src_ip;
 	struct ipaddr dst_ip;
 	struct rte_eth_dev *dev;
+	volatile struct rte_security_ipsec_stats stats;
+	uint8_t stats_enabled;
 } __rte_cache_aligned;
 
 struct ixgbe_crypto_rx_ip_table {
@@ -100,10 +102,18 @@ union ixgbe_crypto_tx_desc_md {
 	};
 };
 
+struct ixgbe_crypto_sess_htable_key {
+	uint32_t spi;
+	struct ipaddr ip;
+};
+
 struct ixgbe_ipsec {
 	struct ixgbe_crypto_rx_ip_table rx_ip_tbl[IPSEC_MAX_RX_IP_COUNT];
 	struct ixgbe_crypto_rx_sa_table rx_sa_tbl[IPSEC_MAX_SA_COUNT];
 	struct ixgbe_crypto_tx_sa_table tx_sa_tbl[IPSEC_MAX_SA_COUNT];
+	volatile struct rte_security_ipsec_stats stats;
+	volatile uint16_t per_session_stats_active;
+	struct rte_hash *session_tbl;
 };
 
 
@@ -112,7 +122,12 @@ int ixgbe_crypto_enable_ipsec(struct rte_eth_dev *dev);
 int ixgbe_crypto_add_ingress_sa_from_flow(const void *sess,
 					  const void *ip_spec,
 					  uint8_t is_ipv6);
-
+void ixgbe_crypto_update_rx_stats(struct ixgbe_ipsec *ixgbe_ipsec,
+				  struct rte_mbuf **mbufs,
+				  uint16_t count);
+void ixgbe_crypto_update_tx_stats(struct ixgbe_ipsec *ixgbe_ipsec,
+				  struct rte_mbuf **mbufs,
+				  uint16_t count);
 
 
 #endif /*IXGBE_IPSEC_H_*/

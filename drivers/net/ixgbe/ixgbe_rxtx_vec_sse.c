@@ -553,6 +553,12 @@ _recv_raw_pkts_vec(struct ixgbe_rx_queue *rxq, struct rte_mbuf **rx_pkts,
 	rxq->rx_tail = (uint16_t)(rxq->rx_tail & (rxq->nb_rx_desc - 1));
 	rxq->rxrearm_nb = (uint16_t)(rxq->rxrearm_nb + nb_pkts_recd);
 
+#ifdef RTE_LIBRTE_SECURITY
+		if (unlikely(use_ipsec))
+			ixgbe_crypto_update_rx_stats(rxq->ixgbe_ipsec,
+					rx_pkts, nb_pkts_recd);
+#endif
+
 	return nb_pkts_recd;
 }
 

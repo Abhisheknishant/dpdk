@@ -114,6 +114,8 @@ struct ixgbe_rx_queue {
 #ifdef RTE_LIBRTE_SECURITY
 	uint8_t            using_ipsec;
 	/**< indicates that IPsec RX feature is in use */
+	struct ixgbe_ipsec *ixgbe_ipsec;
+	/**< IXGBE IPsec internals */
 #endif
 #ifdef RTE_IXGBE_INC_VECTOR
 	uint16_t            rxrearm_nb;     /**< number of remaining to be re-armed */
@@ -231,6 +233,8 @@ struct ixgbe_tx_queue {
 #ifdef RTE_LIBRTE_SECURITY
 	uint8_t		    using_ipsec;
 	/**< indicates that IPsec TX feature is in use */
+	struct ixgbe_ipsec *ixgbe_ipsec;
+	/**< IXGBE IPsec internals */
 #endif
 };
 
