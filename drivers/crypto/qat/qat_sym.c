@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause
- * Copyright(c) 2015-2018 Intel Corporation
+ * Copyright(c) 2015-2019 Intel Corporation
  */
 
 #include <openssl/evp.h>
@@ -11,6 +11,14 @@
 #include <rte_byteorder.h>
 
 #include "qat_sym.h"
+
+/* 96-bit case of IV for CCP/GCM single pass algorithm */
+#define LAC_CIPHER_SPC_IV_SIZE 12
+
+/* Macro to check if the algorithm is single pass */
+#define LAC_CIPHER_IS_SPC(session)                                             \
+		(session->qat_mode == ICP_QAT_HW_CIPHER_CTR_MODE &&            \
+		session->qat_hash_alg == ICP_QAT_HW_AUTH_ALGO_GALOIS_128)
 
 /** Decrypt a single partial block
  *  Depends on openssl libcrypto
@@ -151,6 +159,7 @@ qat_sym_build_request(void *in_op, uint8_t *out_msg,
 	struct icp_qat_fw_la_cipher_req_params *cipher_param;
 	struct icp_qat_fw_la_auth_req_params *auth_param;
 	register struct icp_qat_fw_la_bulk_req *qat_req;
+	rte_iova_t aad_phys_addr_aead = 0;
 	uint8_t do_auth = 0, do_cipher = 0, do_aead = 0;
 	uint32_t cipher_len = 0, cipher_ofs = 0;
 	uint32_t auth_len = 0, auth_ofs = 0;
@@ -195,7 +204,8 @@ qat_sym_build_request(void *in_op, uint8_t *out_msg,
 	rte_mov128((uint8_t *)qat_req, (const uint8_t *)&(ctx->fw_req));
 	qat_req->comn_mid.opaque_data = (uint64_t)(uintptr_t)op;
 	cipher_param = (void *)&qat_req->serv_specif_rqpars;
-	auth_param = (void *)((uint8_t *)cipher_param + sizeof(*cipher_param));
+	auth_param = (void *)((uint8_t *)cipher_param +
+			ICP_QAT_FW_HASH_REQUEST_PARAMETERS_OFFSET);
 
 	if (ctx->qat_cmd == ICP_QAT_FW_LA_CMD_HASH_CIPHER ||
 			ctx->qat_cmd == ICP_QAT_FW_LA_CMD_CIPHER_HASH) {
@@ -318,7 +328,7 @@ qat_sym_build_request(void *in_op, uint8_t *out_msg,
 		 * This address may used for setting AAD physical pointer
 		 * into IV offset from op
 		 */
-		rte_iova_t aad_phys_addr_aead = op->sym->aead.aad.phys_addr;
+		aad_phys_addr_aead = op->sym->aead.aad.phys_addr;
 		if (ctx->qat_hash_alg ==
 				ICP_QAT_HW_AUTH_ALGO_GALOIS_128 ||
 				ctx->qat_hash_alg ==
@@ -591,6 +601,26 @@ qat_sym_build_request(void *in_op, uint8_t *out_msg,
 	} else {
 		qat_req->comn_mid.src_data_addr = src_buf_start;
 		qat_req->comn_mid.dest_data_addr = dst_buf_start;
+	}
+
+	/* Handle single pass GCM */
+	if (do_aead && qat_dev_gen == QAT_GEN3 && LAC_CIPHER_IS_SPC(ctx) &&
+			ctx->cipher_iv.length == LAC_CIPHER_SPC_IV_SIZE) {
+		/* New bit position (13) for SINGLE PASS.
+		 * The FW provides a specific macro to use
+		 * to set the proto flag.
+		 */
+		ICP_QAT_FW_LA_SINGLE_PASS_PROTO_FLAG_SET(
+			qat_req->comn_hdr.serv_specif_flags,
+			ICP_QAT_FW_LA_SINGLE_PASS_PROTO);
+		ICP_QAT_FW_LA_PROTO_SET(
+			qat_req->comn_hdr.serv_specif_flags,
+			ICP_QAT_FW_LA_NO_PROTO);
+		cipher_param->spc_aad_addr = aad_phys_addr_aead;
+		cipher_param->spc_auth_res_addr =
+				op->sym->auth.digest.phys_addr;
+		cipher_param->spc_aad_sz = ctx->aad_len;
+		cipher_param->spc_auth_res_sz = ctx->digest_length;
 	}
 
 #if RTE_LOG_DP_LEVEL >= RTE_LOG_DEBUG

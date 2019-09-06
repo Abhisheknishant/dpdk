@@ -1444,7 +1444,7 @@ int qat_sym_session_aead_create_cd_auth(struct qat_sym_session *cdesc,
 	struct icp_qat_fw_la_auth_req_params *auth_param =
 		(struct icp_qat_fw_la_auth_req_params *)
 		((char *)&req_tmpl->serv_specif_rqpars +
-		sizeof(struct icp_qat_fw_la_cipher_req_params));
+		ICP_QAT_FW_HASH_REQUEST_PARAMETERS_OFFSET);
 	uint16_t state1_size = 0, state2_size = 0;
 	uint16_t hash_offset, cd_size;
 	uint32_t *aad_len = NULL;
