@@ -123,6 +123,29 @@ struct rte_ring {
 #define __IS_MC 0
 
 /**
+ * @warning
+ * @b EXPERIMENTAL: this API may change without prior notice
+ *
+ * Calculate the memory size needed for a ring with given element size
+ *
+ * This function returns the number of bytes needed for a ring, given
+ * the number of elements in it and the size of the element. This value
+ * is the sum of the size of the structure rte_ring and the size of the
+ * memory needed for storing the elements. The value is aligned to a cache
+ * line size.
+ *
+ * @param count
+ *   The number of elements in the ring (must be a power of 2).
+ * @param esize
+ *   The size of elements in the ring (recommended to be a power of 2).
+ * @return
+ *   - The memory size needed for the ring on success.
+ *   - -EINVAL if count is not a power of 2.
+ */
+__rte_experimental
+ssize_t rte_ring_get_memsize_elem(unsigned count, size_t esize);
+
+/**
  * Calculate the memory size needed for a ring
  *
  * This function returns the number of bytes needed for a ring, given
@@ -176,6 +199,54 @@ int rte_ring_init(struct rte_ring *r, const char *name, unsigned count,
 	unsigned flags);
 
 /**
+ * @warning
+ * @b EXPERIMENTAL: this API may change without prior notice
+ *
+ * Create a new ring named *name* that stores elements with given size.
+ *
+ * This function uses ``memzone_reserve()`` to allocate memory. Then it
+ * calls rte_ring_init() to initialize an empty ring.
+ *
+ * The new ring size is set to *count*, which must be a power of
+ * two. Water marking is disabled by default. The real usable ring size
+ * is *count-1* instead of *count* to differentiate a free ring from an
+ * empty ring.
+ *
+ * The ring is added in RTE_TAILQ_RING list.
+ *
+ * @param name
+ *   The name of the ring.
+ * @param count
+ *   The number of elements in the ring (must be a power of 2).
+ * @param esize
+ *   The size of elements in the ring (recommended to be a power of 2).
+ * @param socket_id
+ *   The *socket_id* argument is the socket identifier in case of
+ *   NUMA. The value can be *SOCKET_ID_ANY* if there is no NUMA
+ *   constraint for the reserved zone.
+ * @param flags
+ *   An OR of the following:
+ *    - RING_F_SP_ENQ: If this flag is set, the default behavior when
+ *      using ``rte_ring_enqueue()`` or ``rte_ring_enqueue_bulk()``
+ *      is "single-producer". Otherwise, it is "multi-producers".
+ *    - RING_F_SC_DEQ: If this flag is set, the default behavior when
+ *      using ``rte_ring_dequeue()`` or ``rte_ring_dequeue_bulk()``
+ *      is "single-consumer". Otherwise, it is "multi-consumers".
+ * @return
+ *   On success, the pointer to the new allocated ring. NULL on error with
+ *    rte_errno set appropriately. Possible errno values include:
+ *    - E_RTE_NO_CONFIG - function could not get pointer to rte_config structure
+ *    - E_RTE_SECONDARY - function was called from a secondary process instance
+ *    - EINVAL - count provided is not a power of 2
+ *    - ENOSPC - the maximum number of memzones has already been allocated
+ *    - EEXIST - a memzone with the same name already exists
+ *    - ENOMEM - no appropriate memory area found in which to create memzone
+ */
+__rte_experimental
+struct rte_ring *rte_ring_create_elem(const char *name, unsigned count,
+				size_t esize, int socket_id, unsigned flags);
+
+/**
  * Create a new ring named *name* in memory.
  *
  * This function uses ``memzone_reserve()`` to allocate memory. Then it
@@ -216,6 +287,7 @@ int rte_ring_init(struct rte_ring *r, const char *name, unsigned count,
  */
 struct rte_ring *rte_ring_create(const char *name, unsigned count,
 				 int socket_id, unsigned flags);
+
 /**
  * De-allocate all memory used by the ring.
  *
