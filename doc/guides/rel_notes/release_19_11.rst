@@ -60,6 +60,7 @@ New Features
 
   Added support for session-less operations.
   Added support for RSA algorithm with pair (n, d) private key representation.
+  Added support for RSA algorithm with quintuple private key representation.
 
 Removed Items
 -------------
