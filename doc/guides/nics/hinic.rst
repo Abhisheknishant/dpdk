@@ -24,6 +24,12 @@ Features
 - Link state information
 - Link flow control
 - Scattered and gather for TX and RX
+- SR¨CIOV - Partially supported at this point, VFIO only
+- Allmulticast mode
+- Unicast MAC filter
+- Multicast MAC filter
+- FW version
+- Flow director
 
 Prerequisites
 -------------

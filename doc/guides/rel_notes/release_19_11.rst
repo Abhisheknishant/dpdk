@@ -56,6 +56,15 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Updated the Huawei hinic driver.**
+
+  Updated the Huawei hinic driver with new features and improvements, including:
+
+  * Enabled SRâ€“IOV  - Partially supported at this point, VFIO only.
+  * Supported VLAN filter and VLAN offload.
+  * Supported Unicast MAC filter and Multicast MAC filter.
+  * Supported FW version get.
+  * Supported Flow director for LACP, VRRP, BGP and so on.
 
 Removed Items
 -------------
