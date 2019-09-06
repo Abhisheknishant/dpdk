@@ -14,7 +14,7 @@ import platform
 import string
 import sys
 from elftools.common.exceptions import ELFError
-from elftools.common.py3compat import (byte2int, bytes2str, str2bytes)
+from elftools.common.py3compat import (byte2int, bytes2str)
 from elftools.elf.elffile import ELFFile
 from optparse import OptionParser
 
@@ -267,7 +267,7 @@ class ReadElf(object):
                 return None
         except ValueError:
             # Not a number. Must be a name then
-            return self.elffile.get_section_by_name(str2bytes(spec))
+            return self.elffile.get_section_by_name(spec)
 
     def pretty_print_pmdinfo(self, pmdinfo):
         global pcidb
@@ -439,7 +439,7 @@ class ReadElf(object):
 
         for tag in dynsec.iter_tags():
             if tag.entry.d_tag == 'DT_NEEDED':
-                rc = tag.needed.find(b"librte_pmd")
+                rc = tag.needed.find("librte_pmd")
                 if (rc != -1):
                     library = search_file(tag.needed,
                                           runpath + ":" + ldlibpath +
