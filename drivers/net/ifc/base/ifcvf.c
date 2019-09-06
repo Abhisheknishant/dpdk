@@ -310,6 +310,14 @@ ifcvf_disable_logging(struct ifcvf_hw *hw)
 	*(u32 *)(lm_cfg + IFCVF_LM_LOGGING_CTRL) = IFCVF_LM_DISABLE;
 }
 
+void ifcvf_enable_multiqueue(struct ifcvf_hw *hw, u16 nr_queue_pair)
+{
+	u8 *mq_cfg;
+
+	mq_cfg = hw->mq_cfg;
+	*(u32 *)mq_cfg = nr_queue_pair;
+}
+
 void
 ifcvf_notify_queue(struct ifcvf_hw *hw, u16 qid)
 {
