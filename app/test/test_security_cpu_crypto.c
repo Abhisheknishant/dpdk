@@ -23,6 +23,7 @@
 
 #define CPU_CRYPTO_TEST_MAX_AAD_LENGTH	16
 #define MAX_NB_SIGMENTS			4
+#define CACHE_WARM_ITER			2048
 
 enum buffer_assemble_option {
 	SGL_MAX_SEG,
@@ -560,5 +561,205 @@ test_security_cpu_crypto_aesni_gcm(void)
 	return unit_test_suite_runner(&security_cpu_crypto_aesgcm_testsuite);
 }
 
+
+static inline void
+gen_rand(uint8_t *data, uint32_t len)
+{
+	uint32_t i;
+
+	for (i = 0; i < len; i++)
+		data[i] = (uint8_t)rte_rand();
+}
+
+static inline void
+switch_aead_enc_to_dec(struct aead_test_data *tdata,
+		struct cpu_crypto_test_case *tcase,
+		enum buffer_assemble_option sgl_option)
+{
+	uint32_t i;
+	uint8_t *dst = tdata->ciphertext.data;
+
+	switch (sgl_option) {
+	case SGL_ONE_SEG:
+		memcpy(dst, tcase->seg_buf[0].seg, tcase->seg_buf[0].seg_len);
+		tdata->ciphertext.len = tcase->seg_buf[0].seg_len;
+		break;
+	case SGL_MAX_SEG:
+		tdata->ciphertext.len = 0;
+		for (i = 0; i < MAX_NB_SIGMENTS; i++) {
+			memcpy(dst, tcase->seg_buf[i].seg,
+					tcase->seg_buf[i].seg_len);
+			tdata->ciphertext.len += tcase->seg_buf[i].seg_len;
+		}
+		break;
+	}
+
+	memcpy(tdata->auth_tag.data, tcase->digest, tdata->auth_tag.len);
+}
+
+static int
+cpu_crypto_test_aead_perf(enum buffer_assemble_option sgl_option,
+		uint32_t key_sz)
+{
+	struct aead_test_data tdata = {0};
+	struct cpu_crypto_testsuite_params *ts_params = &testsuite_params;
+	struct cpu_crypto_unittest_params *ut_params = &unittest_params;
+	struct cpu_crypto_test_obj *obj = &ut_params->test_obj;
+	struct cpu_crypto_test_case *tcase;
+	uint64_t hz = rte_get_tsc_hz(), time_start, time_now;
+	double rate, cycles_per_buf;
+	uint32_t test_data_szs[] = {64, 128, 256, 512, 1024, 2048};
+	uint32_t i, j;
+	uint8_t aad[16];
+	int ret;
+
+	tdata.key.len = key_sz;
+	gen_rand(tdata.key.data, tdata.key.len);
+	tdata.algo = RTE_CRYPTO_AEAD_AES_GCM;
+	tdata.aad.data = aad;
+
+	ut_params->sess = create_aead_session(ts_params->ctx,
+			ts_params->session_priv_mpool,
+			RTE_CRYPTO_AEAD_OP_DECRYPT,
+			&tdata,
+			0);
+	if (!ut_params->sess)
+		return -1;
+
+	ret = allocate_buf(MAX_NUM_OPS_INFLIGHT);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < RTE_DIM(test_data_szs); i++) {
+		for (j = 0; j < MAX_NUM_OPS_INFLIGHT; j++) {
+			tdata.plaintext.len = test_data_szs[i];
+			gen_rand(tdata.plaintext.data,
+					tdata.plaintext.len);
+
+			tdata.aad.len = 12;
+			gen_rand(tdata.aad.data, tdata.aad.len);
+
+			tdata.auth_tag.len = 16;
+
+			tdata.iv.len = 16;
+			gen_rand(tdata.iv.data, tdata.iv.len);
+
+			tcase = ut_params->test_datas[j];
+			ret = assemble_aead_buf(tcase, obj, j,
+					RTE_CRYPTO_AEAD_OP_ENCRYPT,
+					&tdata, sgl_option, 0);
+			if (ret < 0) {
+				printf("Test is not supported by the driver\n");
+				return ret;
+			}
+		}
+
+		/* warm up cache */
+		for (j = 0; j < CACHE_WARM_ITER; j++)
+			run_test(ts_params->ctx, ut_params->sess, obj,
+					MAX_NUM_OPS_INFLIGHT);
+
+		time_start = rte_rdtsc();
+
+		run_test(ts_params->ctx, ut_params->sess, obj,
+				MAX_NUM_OPS_INFLIGHT);
+
+		time_now = rte_rdtsc();
+
+		rate = time_now - time_start;
+		cycles_per_buf = rate / MAX_NUM_OPS_INFLIGHT;
+
+		rate = ((hz / cycles_per_buf)) / 1000000;
+
+		printf("AES-GCM-%u(%4uB) Enc %03.3fMpps (%03.3fGbps) ",
+				key_sz * 8, test_data_szs[i], rate,
+				rate  * test_data_szs[i] * 8 / 1000);
+		printf("cycles per buf %03.3f per byte %03.3f\n",
+				cycles_per_buf,
+				cycles_per_buf / test_data_szs[i]);
+
+		for (j = 0; j < MAX_NUM_OPS_INFLIGHT; j++) {
+			tcase = ut_params->test_datas[j];
+
+			switch_aead_enc_to_dec(&tdata, tcase, sgl_option);
+			ret = assemble_aead_buf(tcase, obj, j,
+					RTE_CRYPTO_AEAD_OP_DECRYPT,
+					&tdata, sgl_option, 0);
+			if (ret < 0) {
+				printf("Test is not supported by the driver\n");
+				return ret;
+			}
+		}
+
+		time_start = rte_get_timer_cycles();
+
+		run_test(ts_params->ctx, ut_params->sess, obj,
+				MAX_NUM_OPS_INFLIGHT);
+
+		time_now = rte_get_timer_cycles();
+
+		rate = time_now - time_start;
+		cycles_per_buf = rate / MAX_NUM_OPS_INFLIGHT;
+
+		rate = ((hz / cycles_per_buf)) / 1000000;
+
+		printf("AES-GCM-%u(%4uB) Dec %03.3fMpps (%03.3fGbps) ",
+				key_sz * 8, test_data_szs[i], rate,
+				rate  * test_data_szs[i] * 8 / 1000);
+		printf("cycles per buf %03.3f per byte %03.3f\n",
+				cycles_per_buf,
+				cycles_per_buf / test_data_szs[i]);
+	}
+
+	return 0;
+}
+
+/* test-perfix/key-size/sgl-type */
+#define all_gcm_perf_test_cases(type)					\
+	TEST_EXPAND(_128, 16, type)					\
+	TEST_EXPAND(_192, 24, type)					\
+	TEST_EXPAND(_256, 32, type)
+
+#define TEST_EXPAND(a, b, c)						\
+static int								\
+cpu_crypto_gcm_perf##a##_##c(void)					\
+{									\
+	return cpu_crypto_test_aead_perf(c, b);				\
+}									\
+
+all_gcm_perf_test_cases(SGL_ONE_SEG)
+all_gcm_perf_test_cases(SGL_MAX_SEG)
+#undef TEST_EXPAND
+
+static struct unit_test_suite security_cpu_crypto_aesgcm_perf_testsuite  = {
+		.suite_name = "Security CPU Crypto AESNI-GCM Perf Test Suite",
+		.setup = testsuite_setup,
+		.teardown = testsuite_teardown,
+		.unit_test_cases = {
+#define TEST_EXPAND(a, b, c)						\
+		TEST_CASE_ST(ut_setup, ut_teardown,			\
+				cpu_crypto_gcm_perf##a##_##c),		\
+
+		all_gcm_perf_test_cases(SGL_ONE_SEG)
+		all_gcm_perf_test_cases(SGL_MAX_SEG)
+#undef TEST_EXPAND
+
+		TEST_CASES_END() /**< NULL terminate unit test array */
+		},
+};
+
+static int
+test_security_cpu_crypto_aesni_gcm_perf(void)
+{
+	gbl_driver_id =	rte_cryptodev_driver_id_get(
+			RTE_STR(CRYPTODEV_NAME_AESNI_GCM_PMD));
+
+	return unit_test_suite_runner(
+			&security_cpu_crypto_aesgcm_perf_testsuite);
+}
+
 REGISTER_TEST_COMMAND(security_aesni_gcm_autotest,
 		test_security_cpu_crypto_aesni_gcm);
+
+REGISTER_TEST_COMMAND(security_aesni_gcm_perftest,
+		test_security_cpu_crypto_aesni_gcm_perf);
