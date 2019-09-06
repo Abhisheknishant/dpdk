@@ -101,7 +101,8 @@ fill_ipsec_session(struct rte_ipsec_session *ss, struct ipsec_ctx *ctx,
 		}
 		ss->crypto.ses = sa->crypto_session;
 	/* setup session action type */
-	} else if (sa->type == RTE_SECURITY_ACTION_TYPE_LOOKASIDE_PROTOCOL) {
+	} else if (sa->type == RTE_SECURITY_ACTION_TYPE_LOOKASIDE_PROTOCOL ||
+			sa->type == RTE_SECURITY_ACTION_TYPE_CPU_CRYPTO) {
 		if (sa->sec_session == NULL) {
 			rc = create_lookaside_session(ctx, sa);
 			if (rc != 0)
@@ -227,8 +228,8 @@ ipsec_process(struct ipsec_ctx *ctx, struct ipsec_traffic *trf)
 
 		/* process packets inline */
 		else if (sa->type == RTE_SECURITY_ACTION_TYPE_INLINE_CRYPTO ||
-				sa->type ==
-				RTE_SECURITY_ACTION_TYPE_INLINE_PROTOCOL) {
+			sa->type == RTE_SECURITY_ACTION_TYPE_INLINE_PROTOCOL ||
+			sa->type == RTE_SECURITY_ACTION_TYPE_CPU_CRYPTO) {
 
 			satp = rte_ipsec_sa_type(ips->sa);
 

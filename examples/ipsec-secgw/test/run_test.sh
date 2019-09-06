@@ -32,15 +32,21 @@ usage()
 }
 
 LINUX_TEST="tun_aescbc_sha1 \
+tun_aescbc_sha1_cpu_crypto \
 tun_aescbc_sha1_esn \
 tun_aescbc_sha1_esn_atom \
 tun_aesgcm \
+tun_aesgcm_cpu_crypto \
+tun_aesgcm_mb_cpu_crypto \
 tun_aesgcm_esn \
 tun_aesgcm_esn_atom \
 trs_aescbc_sha1 \
+trs_aescbc_sha1_cpu_crypto \
 trs_aescbc_sha1_esn \
 trs_aescbc_sha1_esn_atom \
 trs_aesgcm \
+trs_aesgcm_cpu_crypto \
+trs_aesgcm_mb_cpu_crypto \
 trs_aesgcm_esn \
 trs_aesgcm_esn_atom \
 tun_aescbc_sha1_old \
@@ -49,16 +55,20 @@ trs_aescbc_sha1_old \
 trs_aesgcm_old \
 tun_aesctr_sha1 \
 tun_aesctr_sha1_old \
+tun_aesctr_cpu_crypto \
 tun_aesctr_sha1_esn \
 tun_aesctr_sha1_esn_atom \
 trs_aesctr_sha1 \
+trs_aesctr_sha1_cpu_crypto \
 trs_aesctr_sha1_old \
 trs_aesctr_sha1_esn \
 trs_aesctr_sha1_esn_atom \
 tun_3descbc_sha1 \
+tun_3descbc_sha1_cpu_crypto \
 tun_3descbc_sha1_old \
 tun_3descbc_sha1_esn \
 tun_3descbc_sha1_esn_atom \
+trs_3descbc_sha1 \
 trs_3descbc_sha1 \
 trs_3descbc_sha1_old \
 trs_3descbc_sha1_esn \

@@ -570,6 +570,9 @@ parse_sa_tokens(char **tokens, uint32_t n_tokens,
 				RTE_SECURITY_ACTION_TYPE_LOOKASIDE_PROTOCOL;
 			else if (strcmp(tokens[ti], "no-offload") == 0)
 				rule->type = RTE_SECURITY_ACTION_TYPE_NONE;
+			else if (strcmp(tokens[ti], "cpu-crypto") == 0)
+				rule->type =
+					RTE_SECURITY_ACTION_TYPE_CPU_CRYPTO;
 			else {
 				APP_CHECK(0, status, "Invalid input \"%s\"",
 						tokens[ti]);
@@ -624,10 +627,13 @@ parse_sa_tokens(char **tokens, uint32_t n_tokens,
 	if (status->status < 0)
 		return;
 
-	if ((rule->type != RTE_SECURITY_ACTION_TYPE_NONE) && (portid_p == 0))
+	if ((rule->type != RTE_SECURITY_ACTION_TYPE_NONE && rule->type !=
+			RTE_SECURITY_ACTION_TYPE_CPU_CRYPTO) &&
+			(portid_p == 0))
 		printf("Missing portid option, falling back to non-offload\n");
 
-	if (!type_p || !portid_p) {
+	if (!type_p || (!portid_p && rule->type !=
+			RTE_SECURITY_ACTION_TYPE_CPU_CRYPTO)) {
 		rule->type = RTE_SECURITY_ACTION_TYPE_NONE;
 		rule->portid = -1;
 	}
@@ -708,6 +714,9 @@ print_one_sa_rule(const struct ipsec_sa *sa, int inbound)
 		break;
 	case RTE_SECURITY_ACTION_TYPE_LOOKASIDE_PROTOCOL:
 		printf("lookaside-protocol-offload ");
+		break;
+	case RTE_SECURITY_ACTION_TYPE_CPU_CRYPTO:
+		printf("cpu-crypto-accelerated");
 		break;
 	}
 	printf("\n");

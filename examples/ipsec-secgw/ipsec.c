@@ -10,6 +10,7 @@
 #include <rte_crypto.h>
 #include <rte_security.h>
 #include <rte_cryptodev.h>
+#include <rte_ipsec.h>
 #include <rte_ethdev.h>
 #include <rte_mbuf.h>
 #include <rte_hash.h>
@@ -100,6 +101,26 @@ create_lookaside_session(struct ipsec_ctx *ipsec_ctx, struct ipsec_sa *sa)
 
 			sa->sec_session = rte_security_session_create(ctx,
 					&sess_conf, ipsec_ctx->session_priv_pool);
+			if (sa->sec_session == NULL) {
+				RTE_LOG(ERR, IPSEC,
+				"SEC Session init failed: err: %d\n", ret);
+				return -1;
+			}
+		} else if (sa->type == RTE_SECURITY_ACTION_TYPE_CPU_CRYPTO) {
+			struct rte_security_ctx *ctx =
+				(struct rte_security_ctx *)
+				rte_cryptodev_get_sec_ctx(
+					ipsec_ctx->tbl[cdev_id_qp].id);
+			int32_t offset = sizeof(struct rte_esp_hdr) +
+					sa->iv_len;
+
+			/* Set IPsec parameters in conf */
+			sess_conf.cpucrypto.cipher_offset = offset;
+
+			set_ipsec_conf(sa, &(sess_conf.ipsec));
+			sa->security_ctx = ctx;
+			sa->sec_session = rte_security_session_create(ctx,
+				&sess_conf, ipsec_ctx->session_priv_pool);
 			if (sa->sec_session == NULL) {
 				RTE_LOG(ERR, IPSEC,
 				"SEC Session init failed: err: %d\n", ret);
@@ -473,6 +494,7 @@ ipsec_enqueue(ipsec_xform_fn xform_func, struct ipsec_ctx *ipsec_ctx,
 						sa->sec_session, pkts[i], NULL);
 			continue;
 		case RTE_SECURITY_ACTION_TYPE_INLINE_CRYPTO:
+		case RTE_SECURITY_ACTION_TYPE_CPU_CRYPTO:
 			RTE_ASSERT(sa->sec_session != NULL);
 			priv->cop.type = RTE_CRYPTO_OP_TYPE_SYMMETRIC;
 			priv->cop.status = RTE_CRYPTO_OP_STATUS_NOT_PROCESSED;
