@@ -64,6 +64,9 @@
 #define HINIC_PKTLEN_TO_MTU(pktlen)	\
 	((pktlen) - (ETH_HLEN + ETH_CRC_LEN))
 
+/* lro numer limit for one packet */
+#define HINIC_LRO_WQE_NUM_DEFAULT	8
+
 /** Driver-specific log messages type. */
 int hinic_logtype;
 
@@ -722,7 +725,8 @@ hinic_dev_infos_get(struct rte_eth_dev *dev, struct rte_eth_dev_info *info)
 				DEV_RX_OFFLOAD_TCP_CKSUM |
 				DEV_RX_OFFLOAD_VLAN_FILTER |
 				DEV_RX_OFFLOAD_SCATTER |
-				DEV_RX_OFFLOAD_JUMBO_FRAME;
+				DEV_RX_OFFLOAD_JUMBO_FRAME |
+				DEV_RX_OFFLOAD_TCP_LRO;
 
 	info->tx_queue_offload_capa = 0;
 	info->tx_offload_capa = DEV_TX_OFFLOAD_VLAN_INSERT |
@@ -781,6 +785,7 @@ static int hinic_rxtx_configure(struct rte_eth_dev *dev)
 {
 	int err;
 	struct hinic_nic_dev *nic_dev = HINIC_ETH_DEV_TO_PRIVATE_NIC_DEV(dev);
+	bool lro_en;
 
 	/* rx configure, if rss enable, need to init default configuration */
 	err = hinic_rx_configure(dev);
@@ -794,6 +799,18 @@ static int hinic_rxtx_configure(struct rte_eth_dev *dev)
 	if (err) {
 		PMD_DRV_LOG(ERR, "Configure rx_mode:0x%x failed",
 			HINIC_DEFAULT_RX_MODE);
+		goto set_rx_mode_fail;
+	}
+
+	/* config lro */
+	lro_en = dev->data->dev_conf.rxmode.offloads & DEV_RX_OFFLOAD_TCP_LRO ?
+			true : false;
+
+	err = hinic_set_rx_lro(nic_dev->hwdev, lro_en, lro_en,
+				HINIC_LRO_WQE_NUM_DEFAULT);
+	if (err) {
+		PMD_DRV_LOG(ERR, "%s lro failed, err: %d",
+			lro_en ? "Enable" : "Disable", err);
 		goto set_rx_mode_fail;
 	}
 
@@ -2418,11 +2435,6 @@ static int hinic_set_default_hw_feature(struct hinic_nic_dev *nic_dev)
 	if (err)
 		return err;
 
-	/* disable LRO */
-	err = hinic_set_rx_lro(nic_dev->hwdev, 0, 0, (u8)0);
-	if (err)
-		return err;
-
 	/* Set pause enable, and up will disable pfc. */
 	err = hinic_set_default_pause_feature(nic_dev);
 	if (err)
@@ -2811,7 +2823,7 @@ static const struct eth_dev_ops hinic_pmd_ops = {
 static const struct eth_dev_ops hinic_pmd_vf_ops = {
 	.dev_configure                 = hinic_dev_configure,
 	.dev_infos_get                 = hinic_dev_infos_get,
-	.fw_version_get		       = hinic_fw_version_get,
+	.fw_version_get                = hinic_fw_version_get,
 	.rx_queue_setup                = hinic_rx_queue_setup,
 	.tx_queue_setup                = hinic_tx_queue_setup,
 	.dev_start                     = hinic_dev_start,
