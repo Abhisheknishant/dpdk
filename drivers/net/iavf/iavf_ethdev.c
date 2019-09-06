@@ -360,7 +360,7 @@ static int iavf_config_rx_queues_irqs(struct rte_eth_dev *dev,
 			for (i = 0; i < dev->data->nb_rx_queues; i++) {
 				vf->rxq_map[vec] |= 1 << i;
 				intr_handle->intr_vec[i] = vec++;
-				if (vec >= vf->nb_msix)
+				if (vec > vf->nb_msix)
 					vec = IAVF_RX_VEC_START;
 			}
 			PMD_DRV_LOG(DEBUG,
