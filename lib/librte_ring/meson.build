@@ -2,8 +2,10 @@
 # Copyright(c) 2017 Intel Corporation
 
 version = 2
-sources = files('rte_ring.c')
+sources = files('rte_ring.c',
+		'rte_ring_32.c')
 headers = files('rte_ring.h',
+		'rte_ring_32.h',
 		'rte_ring_c11_mem.h',
 		'rte_ring_generic.h',
 		'rte_ring_template.h',

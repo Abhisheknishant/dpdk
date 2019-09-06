@@ -14,10 +14,11 @@ EXPORT_MAP := rte_ring_version.map
 LIBABIVER := 2
 
 # all source are stored in SRCS-y
-SRCS-$(CONFIG_RTE_LIBRTE_RING) := rte_ring.c
+SRCS-$(CONFIG_RTE_LIBRTE_RING) := rte_ring.c rte_ring_32.c
 
 # install includes
 SYMLINK-$(CONFIG_RTE_LIBRTE_RING)-include := rte_ring.h \
+					rte_ring_32.h \
 					rte_ring_generic.h \
 					rte_ring_c11_mem.h \
 					rte_ring_template.h \
