@@ -43,6 +43,7 @@ Programmer's Guide
     pdump_lib
     multi_proc_support
     kernel_nic_interface
+    vfio_pf
     thread_safety_dpdk_functions
     eventdev
     event_ethernet_rx_adapter

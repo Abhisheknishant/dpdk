@@ -1,0 +1,2 @@
+ccflags-y := $(MODULE_CFLAGS)
+obj-m := vfio_pf.o
