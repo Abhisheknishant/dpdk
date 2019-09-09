@@ -12,6 +12,7 @@
 
 #include "cpt_pmd_logs.h"
 #include "cpt_ucode.h"
+#include "cpt_ucode_asym.h"
 
 #include "otx_cryptodev.h"
 #include "otx_cryptodev_capabilities.h"
@@ -283,6 +284,65 @@ otx_cpt_session_clear(struct rte_cryptodev *dev,
 		set_sym_session_private_data(sess, dev->driver_id, NULL);
 		rte_mempool_put(sess_mp, sess_priv);
 	}
+}
+
+static unsigned int
+otx_cpt_asym_session_size_get(struct rte_cryptodev *dev __rte_unused)
+{
+	return sizeof(struct cpt_asym_sess_misc);
+}
+
+static int
+otx_cpt_asym_session_cfg(struct rte_cryptodev *dev,
+			 struct rte_crypto_asym_xform *xform __rte_unused,
+			 struct rte_cryptodev_asym_session *sess,
+			 struct rte_mempool *pool)
+{
+	struct cpt_asym_sess_misc *priv;
+	int ret;
+
+	CPT_PMD_INIT_FUNC_TRACE();
+
+	if (rte_mempool_get(pool, (void **)&priv)) {
+		CPT_LOG_ERR("Could not allocate session private data");
+		return -ENOMEM;
+	}
+
+	memset(priv, 0, sizeof(struct cpt_asym_sess_misc));
+
+	ret = cpt_fill_asym_session_parameters(priv, xform);
+	if (ret) {
+		CPT_LOG_ERR("Could not configure session parameters");
+
+		/* Return session to mempool */
+		rte_mempool_put(pool, priv);
+		return ret;
+	}
+
+	set_asym_session_private_data(sess, dev->driver_id, priv);
+	return 0;
+}
+
+static void
+otx_cpt_asym_session_clear(struct rte_cryptodev *dev,
+			   struct rte_cryptodev_asym_session *sess)
+{
+	struct cpt_asym_sess_misc *priv;
+	struct rte_mempool *sess_mp;
+
+	CPT_PMD_INIT_FUNC_TRACE();
+
+	priv = get_asym_session_private_data(sess, dev->driver_id);
+
+	if (priv == NULL)
+		return;
+
+	/* Free resources allocated during session configure */
+	cpt_free_asym_session_parameters(priv);
+	memset(priv, 0, otx_cpt_asym_session_size_get(dev));
+	sess_mp = rte_mempool_from_obj(priv);
+	set_asym_session_private_data(sess, dev->driver_id, NULL);
+	rte_mempool_put(sess_mp, priv);
 }
 
 static __rte_always_inline int32_t __hot
@@ -584,7 +644,11 @@ static struct rte_cryptodev_ops cptvf_ops = {
 	/* Crypto related operations */
 	.sym_session_get_size = otx_cpt_get_session_size,
 	.sym_session_configure = otx_cpt_session_cfg,
-	.sym_session_clear = otx_cpt_session_clear
+	.sym_session_clear = otx_cpt_session_clear,
+
+	.asym_session_get_size = otx_cpt_asym_session_size_get,
+	.asym_session_configure = otx_cpt_asym_session_cfg,
+	.asym_session_clear = otx_cpt_asym_session_clear,
 };
 
 int
