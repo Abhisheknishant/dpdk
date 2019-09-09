@@ -54,6 +54,17 @@ virtio_wmb(uint8_t weak_barriers)
 		rte_cio_wmb();
 }
 
+static inline void
+virtqueue_store_flags_packed(struct vring_packed_desc *dp,
+			      uint16_t flags, uint8_t weak_barriers)
+{
+	if (weak_barriers) {
+		__atomic_store_n(&dp->flags, flags, __ATOMIC_RELEASE);
+	} else {
+		rte_cio_wmb();
+		dp->flags = flags;
+	}
+}
 #ifdef RTE_PMD_PACKET_PREFETCH
 #define rte_packet_prefetch(p)  rte_prefetch1(p)
 #else
