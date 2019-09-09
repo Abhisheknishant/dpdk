@@ -105,7 +105,7 @@ otx_cpt_dev_info_get(struct rte_cryptodev *dev, struct rte_cryptodev_info *info)
 	if (info != NULL) {
 		info->max_nb_queue_pairs = CPT_NUM_QS_PER_VF;
 		info->feature_flags = dev->feature_flags;
-		info->capabilities = otx_get_capabilities();
+		info->capabilities = otx_get_capabilities(info->feature_flags);
 		info->sym.max_nb_sessions = 0;
 		info->driver_id = otx_cryptodev_driver_id;
 		info->min_mbuf_headroom_req = OTX_CPT_MIN_HEADROOM_REQ;
@@ -635,7 +635,8 @@ otx_cpt_dev_create(struct rte_cryptodev *c_dev)
 	case OTX_CPT_VF_TYPE_AE:
 		/* Set asymmetric cpt feature flags */
 		c_dev->feature_flags = RTE_CRYPTODEV_FF_ASYMMETRIC_CRYPTO |
-				RTE_CRYPTODEV_FF_HW_ACCELERATED;
+				RTE_CRYPTODEV_FF_HW_ACCELERATED |
+				RTE_CRYPTODEV_FF_RSA_PRIV_OP_KEY_QT;
 		break;
 	case OTX_CPT_VF_TYPE_SE:
 		/* Set symmetric cpt feature flags */
