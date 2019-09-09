@@ -64,6 +64,11 @@ typedef cpuset_t rte_cpuset_t;
 	CPU_NAND(&tmp, src); \
 	CPU_COPY(&tmp, dst); \
 } while (0)
+#elif defined(_WIN64)
+#define RTE_CPU_AND(dst, src1, src2) CPU_AND(dst, src1, src2)
+#define RTE_CPU_OR(dst, src1, src2) CPU_OR(dst, src1, src2)
+#define RTE_CPU_FILL(set) CPU_FILL(set)
+#define RTE_CPU_NOT(dst, src) CPU_NOT(dst, src)
 #endif
 
 /**
