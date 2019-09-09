@@ -284,16 +284,6 @@ enum rte_sched_subport_array {
 	e_RTE_SCHED_SUBPORT_ARRAY_TOTAL,
 };
 
-#ifdef RTE_SCHED_COLLECT_STATS
-
-static inline uint32_t
-rte_sched_port_queues_per_subport(struct rte_sched_port *port)
-{
-	return RTE_SCHED_QUEUES_PER_PIPE * port->n_pipes_per_subport;
-}
-
-#endif
-
 static inline uint32_t
 rte_sched_subport_pipe_queues(struct rte_sched_subport *subport)
 {
@@ -322,7 +312,12 @@ struct rte_sched_subport *subport, uint32_t qindex)
 static inline uint32_t
 rte_sched_port_queues_per_port(struct rte_sched_port *port)
 {
-	return RTE_SCHED_QUEUES_PER_PIPE * port->n_pipes_per_subport * port->n_subports_per_port;
+	uint32_t n_queues = 0, i;
+
+	for (i = 0; i < port->n_subports_per_port; i++)
+		n_queues += rte_sched_subport_pipe_queues(port->subports[i]);
+
+	return n_queues;
 }
 
 static inline uint16_t
@@ -1487,8 +1482,10 @@ rte_sched_queue_read_stats(struct rte_sched_port *port,
 	struct rte_sched_queue_stats *stats,
 	uint16_t *qlen)
 {
+	struct rte_sched_subport *s;
 	struct rte_sched_queue *q;
 	struct rte_sched_queue_extra *qe;
+	uint32_t subport_id, subport_qmask, subport_qindex;
 
 	/* Check user parameters */
 	if (port == NULL) {
@@ -1514,8 +1511,13 @@ rte_sched_queue_read_stats(struct rte_sched_port *port,
 			"%s: Incorrect value for parameter qlen\n", __func__);
 		return -EINVAL;
 	}
-	q = port->queue + queue_id;
-	qe = port->queue_extra + queue_id;
+	subport_qmask = port->n_max_pipes_per_subport_log2 + 4;
+	subport_id = (queue_id >> subport_qmask) & (port->n_subports_per_port - 1);
+
+	s = port->subports[subport_id];
+	subport_qindex = ((1 << subport_qmask) - 1) & queue_id;
+	q = s->queue + subport_qindex;
+	qe = s->queue_extra + subport_qindex;
 
 	/* Copy queue stats and clear */
 	memcpy(stats, &qe->stats, sizeof(struct rte_sched_queue_stats));
