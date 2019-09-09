@@ -379,6 +379,74 @@ otx_cpt_request_enqueue(struct cpt_instance *instance,
 }
 
 static __rte_always_inline int __hot
+otx_cpt_enq_single_asym(struct cpt_instance *instance,
+			struct rte_crypto_op *op,
+			struct pending_queue *pqueue)
+{
+	struct cpt_qp_meta_info *minfo = &instance->meta_info;
+	struct rte_crypto_asym_op *asym_op = op->asym;
+	struct asym_op_params params = {0};
+	struct cpt_asym_sess_misc *sess;
+	uintptr_t *cop;
+	void *mdata;
+	int ret;
+
+	if (unlikely(rte_mempool_get(minfo->pool, &mdata) < 0)) {
+		CPT_LOG_DP_ERR("Could not allocate meta buffer for request");
+		return -ENOMEM;
+	}
+
+	sess = get_asym_session_private_data(asym_op->session,
+					     otx_cryptodev_driver_id);
+
+	/* Store phys_addr of the mdata to meta_buf */
+	params.meta_buf = rte_mempool_virt2iova(mdata);
+
+	cop = mdata;
+	cop[0] = (uintptr_t)mdata;
+	cop[1] = (uintptr_t)op;
+	cop[2] = cop[3] = 0ULL;
+
+	params.req = RTE_PTR_ADD(cop, 4 * sizeof(uintptr_t));
+	params.req->op = cop;
+
+	/* Adjust meta_buf by crypto_op data  and request_info struct */
+	params.meta_buf += (4 * sizeof(uintptr_t)) +
+			   sizeof(struct cpt_request_info);
+
+	switch (sess->xfrm_type) {
+	case RTE_CRYPTO_ASYM_XFORM_MODEX:
+		ret = cpt_modex_prep(&params, &sess->mod_ctx);
+		if (unlikely(ret))
+			goto req_fail;
+		break;
+	case RTE_CRYPTO_ASYM_XFORM_RSA:
+		ret = cpt_enqueue_rsa_op(op, &params, sess);
+		if (unlikely(ret))
+			goto req_fail;
+		break;
+	default:
+		op->status = RTE_CRYPTO_OP_STATUS_INVALID_ARGS;
+		ret = -EINVAL;
+		goto req_fail;
+	}
+
+	ret = otx_cpt_request_enqueue(instance, pqueue, params.req);
+
+	if (unlikely(ret)) {
+		CPT_LOG_DP_ERR("Could not enqueue crypto req");
+		goto req_fail;
+	}
+
+	return 0;
+
+req_fail:
+	free_op_meta(mdata, minfo->pool);
+
+	return ret;
+}
+
+static __rte_always_inline int __hot
 otx_cpt_enq_single_sym(struct cpt_instance *instance,
 		       struct rte_crypto_op *op,
 		       struct pending_queue *pqueue)
@@ -484,6 +552,8 @@ otx_cpt_enq_single(struct cpt_instance *inst,
 {
 	/* Check for the type */
 
+	if (op->type == RTE_CRYPTO_OP_TYPE_ASYMMETRIC)
+		return otx_cpt_enq_single_asym(inst, op, pqueue);
 	if (op->sess_type == RTE_CRYPTO_OP_WITH_SESSION)
 		return otx_cpt_enq_single_sym(inst, op, pqueue);
 	else if (unlikely(op->sess_type == RTE_CRYPTO_OP_SESSIONLESS))
