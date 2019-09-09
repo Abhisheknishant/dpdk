@@ -17,4 +17,6 @@ env_sources = files('eal.c',
 	'eal_debug.c',
 	'eal_lcore.c',
 	'eal_thread.c',
+	'getopt.c',
+	'getopt_long.c'
 )
