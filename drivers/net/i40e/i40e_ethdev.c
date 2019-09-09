@@ -44,6 +44,7 @@
 #define ETH_I40E_SUPPORT_MULTI_DRIVER	"support-multi-driver"
 #define ETH_I40E_QUEUE_NUM_PER_VF_ARG	"queue-num-per-vf"
 #define ETH_I40E_USE_LATEST_VEC	"use-latest-supported-vec"
+#define ETH_I40E_MAX_VF_WRONG_MSG	"vf_max_wrong_msg"
 
 #define I40E_CLEAR_PXE_WAIT_MS     200
 
@@ -406,6 +407,7 @@ static const char *const valid_keys[] = {
 	ETH_I40E_SUPPORT_MULTI_DRIVER,
 	ETH_I40E_QUEUE_NUM_PER_VF_ARG,
 	ETH_I40E_USE_LATEST_VEC,
+	ETH_I40E_MAX_VF_WRONG_MSG,
 	NULL};
 
 static const struct rte_pci_id pci_id_i40e_map[] = {
@@ -1256,6 +1258,84 @@ i40e_use_latest_vec(struct rte_eth_dev *dev)
 	return 0;
 }
 
+static int
+read_vf_msg_check_info(__rte_unused const char *key,
+			       const char *value,
+			       void *opaque)
+{
+	struct i40e_wrong_vf_msg info;
+
+	memset(&info, 0, sizeof(info));
+	/*
+	 * VF message checking function need 3 parameters, max_invalid,
+	 * max_unsupported and silence_seconds.
+	 * When continuous invalid or unsupported message statistics
+	 * from a VF exceed the limitation of 'max_invalid' or
+	 * 'max_unsupported', PF will ignore any message from that VF for
+	 * 'silence_seconds' seconds.
+	 */
+	if (sscanf(value, "%u:%u:%u", &info.max_invalid,
+			&info.max_unsupported, &info.silence_seconds)
+			!= 3) {
+		PMD_DRV_LOG(ERR, "vf_max_wrong_msg error! format like: "
+				"vf_max_wrong_msg=4:6:60");
+		return -EINVAL;
+	}
+
+	/*
+	 * If invalid or unsupported message checking function is enabled
+	 * by setting max_invalid or max_unsupported variable to not zero,
+	 * 'slience_seconds' must be greater than zero.
+	 */
+	if ((info.max_invalid || info.max_unsupported) &&
+			!info.silence_seconds) {
+		PMD_DRV_LOG(ERR, "vf_max_wrong_msg error! last integer"
+				" must be larger than zero");
+		return -EINVAL;
+	}
+
+	memcpy(opaque, &info, sizeof(struct i40e_wrong_vf_msg));
+	return 0;
+}
+
+static int
+i40e_parse_vf_msg_check_info(struct rte_eth_dev *dev,
+		struct i40e_wrong_vf_msg *wrong_info)
+{
+	int ret = 0;
+	int kvargs_count;
+	struct rte_kvargs *kvlist;
+
+	/* reset all to zero */
+	memset(wrong_info, 0, sizeof(*wrong_info));
+
+	if (!dev->device->devargs)
+		return ret;
+
+	kvlist = rte_kvargs_parse(dev->device->devargs->args, valid_keys);
+	if (!kvlist)
+		return -EINVAL;
+
+	kvargs_count = rte_kvargs_count(kvlist, ETH_I40E_MAX_VF_WRONG_MSG);
+	if (!kvargs_count)
+		goto free_end;
+
+	if (kvargs_count > 1) {
+		PMD_DRV_LOG(ERR, "More than one argument \"%s\"!",
+				ETH_I40E_MAX_VF_WRONG_MSG);
+		ret = -EINVAL;
+		goto free_end;
+	}
+
+	if (rte_kvargs_process(kvlist, ETH_I40E_MAX_VF_WRONG_MSG,
+			read_vf_msg_check_info, wrong_info) < 0)
+		ret = -EINVAL;
+
+free_end:
+	rte_kvargs_free(kvlist);
+	return ret;
+}
+
 #define I40E_ALARM_INTERVAL 50000 /* us */
 
 static int
@@ -1328,6 +1408,8 @@ eth_i40e_dev_init(struct rte_eth_dev *dev, void *init_params __rte_unused)
 		return -EIO;
 	}
 
+	/* read VF message checking function parameters */
+	i40e_parse_vf_msg_check_info(dev, &pf->wrong_vf_msg_conf);
 	/* Check if need to support multi-driver */
 	i40e_support_multi_driver(dev);
 	/* Check if users want the latest supported vec path */
