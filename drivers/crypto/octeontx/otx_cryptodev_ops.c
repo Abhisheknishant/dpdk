@@ -591,6 +591,87 @@ otx_cpt_pkt_enqueue(void *qptr, struct rte_crypto_op **ops, uint16_t nb_ops)
 }
 
 static __rte_always_inline void
+otx_cpt_asym_rsa_op(struct rte_crypto_op *cop, struct cpt_request_info *req,
+		    struct rte_crypto_rsa_xform *rsa_ctx)
+
+{
+	struct rte_crypto_rsa_op_param *rsa = &cop->asym->rsa;
+
+	switch (rsa->op_type) {
+	case RTE_CRYPTO_ASYM_OP_ENCRYPT:
+		rsa->cipher.length = rsa_ctx->n.length;
+		memcpy(rsa->cipher.data, req->rptr, rsa->cipher.length);
+		break;
+	case RTE_CRYPTO_ASYM_OP_DECRYPT:
+		if (rsa->pad == RTE_CRYPTO_RSA_PADDING_NONE)
+			rsa->message.length = rsa_ctx->n.length;
+		else {
+			/* Get length of decrypted output */
+			rsa->message.length = rte_cpu_to_be_16
+					(*((uint16_t *)req->rptr));
+
+			/* Offset data pointer by length fields */
+			req->rptr += 2;
+		}
+		memcpy(rsa->message.data, req->rptr, rsa->message.length);
+		break;
+	case RTE_CRYPTO_ASYM_OP_SIGN:
+		rsa->sign.length = rsa_ctx->n.length;
+		memcpy(rsa->sign.data, req->rptr, rsa->sign.length);
+		break;
+	case RTE_CRYPTO_ASYM_OP_VERIFY:
+		if (rsa->pad == RTE_CRYPTO_RSA_PADDING_NONE)
+			rsa->sign.length = rsa_ctx->n.length;
+		else {
+			/* Get length of decrypted output */
+			rsa->sign.length = rte_cpu_to_be_16
+					(*((uint16_t *)req->rptr));
+
+			/* Offset data pointer by length fields */
+			req->rptr += 2;
+		}
+		memcpy(rsa->sign.data, req->rptr, rsa->sign.length);
+
+		if (memcmp(rsa->sign.data, rsa->message.data,
+			   rsa->message.length)) {
+			CPT_LOG_DP_ERR("RSA verification failed");
+			cop->status = RTE_CRYPTO_OP_STATUS_ERROR;
+		}
+		break;
+	default:
+		CPT_LOG_DP_DEBUG("Invalid RSA operation type");
+		cop->status = RTE_CRYPTO_OP_STATUS_INVALID_ARGS;
+		break;
+	}
+}
+
+static void
+otx_cpt_asym_post_process(struct rte_crypto_op *cop,
+			  struct cpt_request_info *req)
+{
+	struct rte_crypto_asym_op *op = cop->asym;
+	struct cpt_asym_sess_misc *sess;
+
+	sess = get_asym_session_private_data(op->session,
+					     otx_cryptodev_driver_id);
+
+	switch (sess->xfrm_type) {
+	case RTE_CRYPTO_ASYM_XFORM_RSA:
+		otx_cpt_asym_rsa_op(cop, req, &sess->rsa_ctx);
+		break;
+	case RTE_CRYPTO_ASYM_XFORM_MODEX:
+		op->modex.result.length = sess->mod_ctx.modulus.length;
+		memcpy(op->modex.result.data, req->rptr,
+		       op->modex.result.length);
+		break;
+	default:
+		CPT_LOG_DP_DEBUG("Invalid crypto xform type");
+		cop->status = RTE_CRYPTO_OP_STATUS_INVALID_ARGS;
+		break;
+	}
+}
+
+static __rte_always_inline void
 otx_cpt_dequeue_post_process(struct rte_crypto_op *cop, uintptr_t *rsp)
 {
 	/* H/w has returned success */
@@ -604,6 +685,13 @@ otx_cpt_dequeue_post_process(struct rte_crypto_op *cop, uintptr_t *rsp)
 			compl_auth_verify(cop, (uint8_t *)rsp[2], rsp[3]);
 		return;
 	}
+
+	if (cop->type == RTE_CRYPTO_OP_TYPE_ASYMMETRIC) {
+		rsp = RTE_PTR_ADD(rsp, 4 * sizeof(uintptr_t));
+		otx_cpt_asym_post_process(cop, (struct cpt_request_info *)rsp);
+	}
+
+	return;
 }
 
 static uint16_t
