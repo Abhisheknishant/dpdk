@@ -1990,6 +1990,7 @@ flow_null_validate(struct rte_eth_dev *dev __rte_unused,
 		   const struct rte_flow_attr *attr __rte_unused,
 		   const struct rte_flow_item items[] __rte_unused,
 		   const struct rte_flow_action actions[] __rte_unused,
+		   bool external __rte_unused,
 		   struct rte_flow_error *error)
 {
 	return rte_flow_error_set(error, ENOTSUP,
@@ -2102,6 +2103,8 @@ flow_get_drv_type(struct rte_eth_dev *dev, const struct rte_flow_attr *attr)
  *   Pointer to the list of items.
  * @param[in] actions
  *   Pointer to the list of actions.
+ * @param[in] external
+ *   This flow rule is created by request external to PMD.
  * @param[out] error
  *   Pointer to the error structure.
  *
@@ -2113,13 +2116,13 @@ flow_drv_validate(struct rte_eth_dev *dev,
 		  const struct rte_flow_attr *attr,
 		  const struct rte_flow_item items[],
 		  const struct rte_flow_action actions[],
-		  struct rte_flow_error *error)
+		  bool external, struct rte_flow_error *error)
 {
 	const struct mlx5_flow_driver_ops *fops;
 	enum mlx5_flow_drv_type type = flow_get_drv_type(dev, attr);
 
 	fops = flow_get_drv_ops(type);
-	return fops->validate(dev, attr, items, actions, error);
+	return fops->validate(dev, attr, items, actions, external, error);
 }
 
 /**
@@ -2291,7 +2294,7 @@ mlx5_flow_validate(struct rte_eth_dev *dev,
 {
 	int ret;
 
-	ret = flow_drv_validate(dev, attr, items, actions, error);
+	ret = flow_drv_validate(dev, attr, items, actions, true, error);
 	if (ret < 0)
 		return ret;
 	return 0;
@@ -2353,6 +2356,8 @@ find_graph_root(const struct rte_flow_item pattern[], uint32_t rss_level)
  *   Pattern specification (list terminated by the END pattern item).
  * @param[in] actions
  *   Associated actions (list terminated by the END action).
+ * @param[in] external
+ *   This flow rule is created by request external to PMD.
  * @param[out] error
  *   Perform verbose error reporting if not NULL.
  *
@@ -2364,7 +2369,7 @@ flow_list_create(struct rte_eth_dev *dev, struct mlx5_flows *list,
 		 const struct rte_flow_attr *attr,
 		 const struct rte_flow_item items[],
 		 const struct rte_flow_action actions[],
-		 struct rte_flow_error *error)
+		 bool external, struct rte_flow_error *error)
 {
 	struct rte_flow *flow = NULL;
 	struct mlx5_flow *dev_flow;
@@ -2378,7 +2383,7 @@ flow_list_create(struct rte_eth_dev *dev, struct mlx5_flows *list,
 	uint32_t i;
 	uint32_t flow_size;
 
-	ret = flow_drv_validate(dev, attr, items, actions, error);
+	ret = flow_drv_validate(dev, attr, items, actions, external, error);
 	if (ret < 0)
 		return NULL;
 	flow_size = sizeof(struct rte_flow);
@@ -2420,6 +2425,7 @@ flow_list_create(struct rte_eth_dev *dev, struct mlx5_flows *list,
 		if (!dev_flow)
 			goto error;
 		dev_flow->flow = flow;
+		dev_flow->external = external;
 		LIST_INSERT_HEAD(&flow->dev_flows, dev_flow, next);
 		ret = flow_drv_translate(dev, dev_flow, attr,
 					 buf->entry[i].pattern,
@@ -2445,6 +2451,55 @@ error:
 }
 
 /**
+ * Create a dedicated flow rule on e-switch table 0 (root table), to direct all
+ * incoming packets to table 1.
+ *
+ * Other flow rules, requested for group n, will be created in
+ * e-switch table n+1.
+ * Jump action to e-switch group n will be created to group n+1.
+ *
+ * Used when working in switchdev mode, to utilise advantages of table 1
+ * and above.
+ *
+ * @param dev
+ *   Pointer to Ethernet device.
+ *
+ * @return
+ *   Pointer to flow on success, NULL otherwise and rte_errno is set.
+ */
+struct rte_flow *
+mlx5_flow_create_esw_table_zero_flow(struct rte_eth_dev *dev)
+{
+	const struct rte_flow_attr attr = {
+		.group = 0,
+		.priority = 0,
+		.ingress = 1,
+		.egress = 0,
+		.transfer = 1,
+	};
+	const struct rte_flow_item pattern = {
+		.type = RTE_FLOW_ITEM_TYPE_END,
+	};
+	struct rte_flow_action_jump jump = {
+		.group = 1,
+	};
+	const struct rte_flow_action actions[] = {
+		{
+			.type = RTE_FLOW_ACTION_TYPE_JUMP,
+			.conf = &jump,
+		},
+		{
+			.type = RTE_FLOW_ACTION_TYPE_END,
+		},
+	};
+	struct mlx5_priv *priv = dev->data->dev_private;
+	struct rte_flow_error error;
+
+	return flow_list_create(dev, &priv->ctrl_flows, &attr, &pattern,
+				actions, false, &error);
+}
+
+/**
  * Create a flow.
  *
  * @see rte_flow_create()
@@ -2460,7 +2515,7 @@ mlx5_flow_create(struct rte_eth_dev *dev,
 	struct mlx5_priv *priv = dev->data->dev_private;
 
 	return flow_list_create(dev, &priv->flows,
-				attr, items, actions, error);
+				attr, items, actions, true, error);
 }
 
 /**
@@ -2657,7 +2712,7 @@ mlx5_ctrl_flow_vlan(struct rte_eth_dev *dev,
 	for (i = 0; i != priv->reta_idx_n; ++i)
 		queue[i] = (*priv->reta_idx)[i];
 	flow = flow_list_create(dev, &priv->ctrl_flows,
-				&attr, items, actions, &error);
+				&attr, items, actions, false, &error);
 	if (!flow)
 		return -rte_errno;
 	return 0;
@@ -3071,7 +3126,8 @@ flow_fdir_filter_add(struct rte_eth_dev *dev,
 		goto error;
 	}
 	flow = flow_list_create(dev, &priv->flows, &fdir_flow->attr,
-				fdir_flow->items, fdir_flow->actions, NULL);
+				fdir_flow->items, fdir_flow->actions, true,
+				NULL);
 	if (!flow)
 		goto error;
 	assert(!flow->fdir);
@@ -3418,4 +3474,40 @@ mlx5_flow_async_pool_query_handle(struct mlx5_ibv_shared *sh,
 	LIST_INSERT_HEAD(&sh->cmng.free_stat_raws, raw_to_free, next);
 	pool->raw_hw = NULL;
 	sh->cmng.pending_queries--;
+}
+
+/**
+ * Translate the rte_flow group index to HW table value.
+ *
+ * @param[in] attributes
+ *   Pointer to flow attributes
+ * @param[in] external
+ *   Value is part of flow rule created by request external to PMD.
+ * @param[in] group
+ *   rte_flow group index value.
+ * @param[out] table
+ *   HW table value.
+ * @param[out] error
+ *   Pointer to error structure.
+ *
+ * @return
+ *   0 on success, a negative errno value otherwise and rte_errno is set.
+ */
+int
+mlx5_flow_group_to_table(const struct rte_flow_attr *attributes, bool external,
+			 uint32_t group, uint32_t *table,
+			 struct rte_flow_error *error)
+{
+	if (attributes->transfer && external) {
+		if (group == UINT32_MAX)
+			return rte_flow_error_set
+						(error, EINVAL,
+						 RTE_FLOW_ERROR_TYPE_ATTR_GROUP,
+						 NULL,
+						 "group index not supported");
+		*table = group + 1;
+	} else {
+		*table = group;
+	}
+	return 0;
 }
