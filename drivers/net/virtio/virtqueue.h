@@ -54,6 +54,21 @@ virtio_wmb(uint8_t weak_barriers)
 		rte_cio_wmb();
 }
 
+static inline uint16_t
+virtqueue_fetch_flags_packed(struct vring_packed_desc *dp,
+			      uint8_t weak_barriers)
+{
+	uint16_t flags;
+
+	if (weak_barriers) {
+		flags = __atomic_load_n(&dp->flags, __ATOMIC_ACQUIRE);
+	} else {
+		flags = dp->flags;
+		rte_cio_rmb();
+	}
+	return flags;
+}
+
 static inline void
 virtqueue_store_flags_packed(struct vring_packed_desc *dp,
 			      uint16_t flags, uint8_t weak_barriers)
@@ -297,7 +312,7 @@ desc_is_used(struct vring_packed_desc *desc, struct virtqueue *vq)
 {
 	uint16_t used, avail, flags;
 
-	flags = desc->flags;
+	flags = virtqueue_fetch_flags_packed(desc, vq->hw->weak_barriers);
 	used = !!(flags & VRING_PACKED_DESC_F_USED);
 	avail = !!(flags & VRING_PACKED_DESC_F_AVAIL);
 
