@@ -2152,6 +2152,22 @@ virtio_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts, uint16_t nb_pkts)
 	return nb_tx;
 }
 
+static __rte_always_inline int
+virtio_xmit_try_cleanup_inorder(struct virtqueue *vq, uint16_t need)
+{
+	uint16_t nb_used, nb_clean, nb_descs;
+	struct virtio_hw *hw = vq->hw;
+
+	nb_descs = vq->vq_free_cnt + need;
+	nb_used = VIRTQUEUE_NUSED(vq);
+	virtio_rmb(hw->weak_barriers);
+	nb_clean = RTE_MIN(need, (int)nb_used);
+
+	virtio_xmit_cleanup_inorder(vq, nb_clean);
+
+	return (nb_descs - vq->vq_free_cnt);
+}
+
 uint16_t
 virtio_xmit_pkts_inorder(void *tx_queue,
 			struct rte_mbuf **tx_pkts,
@@ -2161,8 +2177,9 @@ virtio_xmit_pkts_inorder(void *tx_queue,
 	struct virtqueue *vq = txvq->vq;
 	struct virtio_hw *hw = vq->hw;
 	uint16_t hdr_size = hw->vtnet_hdr_size;
-	uint16_t nb_used, nb_avail, nb_tx = 0, nb_inorder_pkts = 0;
+	uint16_t nb_used, nb_tx = 0, nb_inorder_pkts = 0;
 	struct rte_mbuf *inorder_pkts[nb_pkts];
+	int need, nb_left;
 
 	if (unlikely(hw->started == 0 && tx_pkts != hw->inject_pkts))
 		return nb_tx;
@@ -2175,17 +2192,12 @@ virtio_xmit_pkts_inorder(void *tx_queue,
 	nb_used = VIRTQUEUE_NUSED(vq);
 
 	virtio_rmb(hw->weak_barriers);
-	if (likely(nb_used > vq->vq_nentries - vq->vq_free_thresh))
+	if (likely(nb_used > (vq->vq_nentries - vq->vq_free_thresh)))
 		virtio_xmit_cleanup_inorder(vq, nb_used);
 
-	if (unlikely(!vq->vq_free_cnt))
-		virtio_xmit_cleanup_inorder(vq, nb_used);
-
-	nb_avail = RTE_MIN(vq->vq_free_cnt, nb_pkts);
-
-	for (nb_tx = 0; nb_tx < nb_avail; nb_tx++) {
+	for (nb_tx = 0; nb_tx < nb_pkts; nb_tx++) {
 		struct rte_mbuf *txm = tx_pkts[nb_tx];
-		int slots, need;
+		int slots;
 
 		/* optimize ring usage */
 		if ((vtpci_with_feature(hw, VIRTIO_F_ANY_LAYOUT) ||
@@ -2199,11 +2211,25 @@ virtio_xmit_pkts_inorder(void *tx_queue,
 			inorder_pkts[nb_inorder_pkts] = txm;
 			nb_inorder_pkts++;
 
-			virtio_update_packet_stats(&txvq->stats, txm);
 			continue;
 		}
 
 		if (nb_inorder_pkts) {
+			need = nb_inorder_pkts - vq->vq_free_cnt;
+
+			if (unlikely(need > 0)) {
+				nb_left = virtio_xmit_try_cleanup_inorder(vq,
+									need);
+
+				if (unlikely(nb_left > 0)) {
+					PMD_TX_LOG(ERR,
+						"No free tx descriptors to "
+						"transmit");
+					nb_inorder_pkts = vq->vq_free_cnt;
+					break;
+				}
+			}
+
 			virtqueue_enqueue_xmit_inorder(txvq, inorder_pkts,
 							nb_inorder_pkts);
 			nb_inorder_pkts = 0;
@@ -2212,15 +2238,9 @@ virtio_xmit_pkts_inorder(void *tx_queue,
 		slots = txm->nb_segs + 1;
 		need = slots - vq->vq_free_cnt;
 		if (unlikely(need > 0)) {
-			nb_used = VIRTQUEUE_NUSED(vq);
-			virtio_rmb(hw->weak_barriers);
-			need = RTE_MIN(need, (int)nb_used);
+			nb_left = virtio_xmit_try_cleanup_inorder(vq, slots);
 
-			virtio_xmit_cleanup_inorder(vq, need);
-
-			need = slots - vq->vq_free_cnt;
-
-			if (unlikely(need > 0)) {
+			if (unlikely(nb_left > 0)) {
 				PMD_TX_LOG(ERR,
 					"No free tx descriptors to transmit");
 				break;
@@ -2233,9 +2253,24 @@ virtio_xmit_pkts_inorder(void *tx_queue,
 	}
 
 	/* Transmit all inorder packets */
-	if (nb_inorder_pkts)
+	if (nb_inorder_pkts) {
+		need = nb_inorder_pkts - vq->vq_free_cnt;
+
+		if (unlikely(need > 0)) {
+			nb_left = virtio_xmit_try_cleanup_inorder(vq,
+								  need);
+
+			if (unlikely(nb_left > 0)) {
+				PMD_TX_LOG(ERR,
+					"No free tx descriptors to transmit");
+				nb_inorder_pkts = vq->vq_free_cnt;
+				nb_tx -= nb_left;
+			}
+		}
+
 		virtqueue_enqueue_xmit_inorder(txvq, inorder_pkts,
 						nb_inorder_pkts);
+	}
 
 	txvq->stats.packets += nb_tx;
 
