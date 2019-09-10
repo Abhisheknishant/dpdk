@@ -59,6 +59,7 @@ New Features
 * **Updated the enic driver.**
 
   * Added support for Geneve with options offload.
+  * Added flow API implementation based on VIC Flow Manager API.
 
 
 Removed Items

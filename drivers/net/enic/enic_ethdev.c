@@ -143,7 +143,10 @@ enicpmd_dev_filter_ctrl(struct rte_eth_dev *dev,
 	case RTE_ETH_FILTER_GENERIC:
 		if (filter_op != RTE_ETH_FILTER_GET)
 			return -EINVAL;
-		*(const void **)arg = &enic_flow_ops;
+		if (enic->flow_filter_mode == FILTER_FLOWMAN)
+			*(const void **)arg = &enic_fm_flow_ops;
+		else
+			*(const void **)arg = &enic_flow_ops;
 		break;
 	case RTE_ETH_FILTER_FDIR:
 		ret = enicpmd_fdir_ctrl_func(dev, filter_op, arg);
@@ -1259,6 +1262,11 @@ static struct rte_pci_driver rte_enic_pmd = {
 	.probe = eth_enic_pci_probe,
 	.remove = eth_enic_pci_remove,
 };
+
+int dev_is_enic(struct rte_eth_dev *dev)
+{
+	return dev->device->driver == &rte_enic_pmd.driver;
+}
 
 RTE_PMD_REGISTER_PCI(net_enic, rte_enic_pmd);
 RTE_PMD_REGISTER_PCI_TABLE(net_enic, pci_id_enic_map);
