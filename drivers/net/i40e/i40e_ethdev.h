@@ -426,6 +426,25 @@ struct i40e_pf_vf {
 	/* version of the virtchnl from VF */
 	struct virtchnl_version_info version;
 	uint32_t request_caps; /* offload caps requested from VF */
+
+	/*
+	 * Counter of message from VF
+	 * invalid_cmd_cnt, invalid command since last valid command
+	 * unsupported_cmd_cnt, unsupported command since last valid command
+	 * invalid_total, total invalid command
+	 * unsupported_total, total unsupported command
+	 * ignored_cmd_cnt, ignored command in silence
+	 */
+	uint16_t invalid_cmd_cnt;
+	uint16_t unsupported_cmd_cnt;
+	uint32_t invalid_total;
+	uint32_t unsupported_total;
+	uint32_t ignored_cmd_cnt;
+
+	/* cycle of stop ignoring VF message */
+	uint64_t silence_end_cycle;
+	/* cycle of receive last invalid or unsupported message from VF*/
+	uint64_t last_wrong_msg_cycle;
 };
 
 /*
@@ -900,6 +919,17 @@ struct i40e_rte_flow_rss_conf {
 	uint16_t queue[I40E_MAX_Q_PER_TC]; /**< Queues indices to use. */
 };
 
+struct i40e_wrong_vf_msg {
+	uint32_t max_invalid; /* maximal continuous invalid message from VF */
+	/* maximal continuous unsupported message from VF */
+	uint32_t max_unsupported;
+	/*
+	 * silence seconds when VF send much more invalid or unsupported
+	 * message
+	 */
+	uint32_t silence_seconds;
+};
+
 /*
  * Structure to store private data specific for PF instance.
  */
@@ -975,6 +1005,8 @@ struct i40e_pf {
 	struct i40e_customized_pctype customized_pctype[I40E_CUSTOMIZED_MAX];
 	/* Switch Domain Id */
 	uint16_t switch_domain_id;
+
+	struct i40e_wrong_vf_msg wrong_vf_msg_conf;
 };
 
 enum pending_msg {

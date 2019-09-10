@@ -185,6 +185,18 @@ Runtime Config Options
 
   -w 84:00.0,use-latest-supported-vec=1
 
+- ``Enable validation for VF message`` (default ``not enabled``)
+
+  The i40e PF PMD supports message validation which from VFs. This will count the
+  numbers of continuous invalid and unsupported messages from VFs. If the counter of
+  statistics from a VF exceed maximum limitation, PF driver will ignore all of messages
+  from that VF for some seconds. Using the ``devargs`` option ``vf_max_wrong_msg``,
+  user can specify how many continuous invalid and unsupported message that PF driver
+  could tolerate and how many seconds during which PF driver will ignore all of
+  messages from a VF, for example::
+
+  -w 84:00.0,vf_max_wrong_msg=4:6:30
+
 Vector RX Pre-conditions
 ~~~~~~~~~~~~~~~~~~~~~~~~
 For Vector RX it is assumed that the number of descriptor rings will be a power
