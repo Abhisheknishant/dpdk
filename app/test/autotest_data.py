@@ -129,6 +129,12 @@ parallel_test_list = [
         "Report":  None,
     },
     {
+        "Name":    "FIB6 autotest",
+        "Command": "fib6_autotest",
+        "Func":    default_autotest,
+        "Report":  None,
+    },
+    {
         "Name":    "Memcpy autotest",
         "Command": "memcpy_autotest",
         "Func":    default_autotest,
