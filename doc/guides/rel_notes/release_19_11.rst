@@ -56,6 +56,11 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Support device-specific DDP package loading.**
+
+  Added support to load device-specific DDP package. The package file
+  with name including NIC's device serial number would be searched and
+  loaded (if existed) prior to the default package (ice.pkg).
 
 Removed Items
 -------------
