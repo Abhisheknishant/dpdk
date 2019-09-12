@@ -33,10 +33,14 @@ struct fsl_mc_io {
 #include <linux/byteorder/little_endian.h>
 
 #ifndef dmb
-#define dmb() {__asm__ __volatile__("" : : : "memory"); }
+#ifdef RTE_ARCH_ARM64
+#define dmb(opt) {asm volatile("dmb " #opt : : : "memory"); }
+#else
+#define dmb(opt)
 #endif
-#define __iormb()	dmb()
-#define __iowmb()	dmb()
+#endif
+#define __iormb()	dmb(ld)
+#define __iowmb()	dmb(st)
 #define __arch_getq(a)		(*(volatile uint64_t *)(a))
 #define __arch_putq(v, a)	(*(volatile uint64_t *)(a) = (v))
 #define __arch_putq32(v, a)	(*(volatile uint32_t *)(a) = (v))
