@@ -799,13 +799,6 @@ Set broadcast mode for a VF from the PF::
 
    testpmd> set vf broadcast (port_id) (vf_id) (on|off)
 
-vlan set strip
-~~~~~~~~~~~~~~
-
-Set the VLAN strip on a port::
-
-   testpmd> vlan set strip (on|off) (port_id)
-
 vlan set stripq
 ~~~~~~~~~~~~~~~
 
@@ -841,19 +834,11 @@ Set VLAN antispoof for a VF from the PF::
 
    testpmd> set vf vlan antispoof (port_id) (vf_id) (on|off)
 
-vlan set filter
-~~~~~~~~~~~~~~~
+vlan set (strip|filter|qinq|extend)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Set the VLAN strip/filter/QinQ strip/extend on for a port::
 
-Set the VLAN filter on a port::
-
-   testpmd> vlan set filter (on|off) (port_id)
-
-vlan set qinq
-~~~~~~~~~~~~~
-
-Set the VLAN QinQ (extended queue in queue) on for a port::
-
-   testpmd> vlan set qinq (on|off) (port_id)
+   testpmd> vlan set (strip|filter|qinq|extend) (on|off) (port_id)
 
 vlan set tpid
 ~~~~~~~~~~~~~
