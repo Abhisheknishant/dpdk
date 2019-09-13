@@ -198,6 +198,10 @@ The command line options are:
 
     Enable hardware VLAN extend.
 
+*   ``--enable-hw-qinq-strip``
+
+    Enable hardware QINQ strip.
+
 *   ``--enable-drop-en``
 
     Enable per-queue packet drop for packets with no descriptors.
@@ -383,6 +387,11 @@ The command line options are:
 *   ``--tx-offloads=0xXXXXXXXX``
 
     Set the hexadecimal bitmask of TX queue offloads.
+    The default value is 0.
+
+*   ``--rx-offloads=0xXXXXXXXX``
+
+    Set the hexadecimal bitmask of RX queue offloads.
     The default value is 0.
 
 *   ``--hot-plug``

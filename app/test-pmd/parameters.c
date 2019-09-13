@@ -68,7 +68,8 @@ usage(char* progname)
 	       "--rss-ip | --rss-udp | "
 	       "--rxpt= | --rxht= | --rxwt= | --rxfreet= | "
 	       "--txpt= | --txht= | --txwt= | --txfreet= | "
-	       "--txrst= | --tx-offloads= | --vxlan-gpe-port= ]\n",
+	       "--txrst= | --tx-offloads= | | --rx-offloads= | "
+	       "--vxlan-gpe-port= ]\n",
 	       progname);
 #ifdef RTE_LIBRTE_CMDLINE
 	printf("  --interactive: run in interactive mode.\n");
@@ -135,6 +136,7 @@ usage(char* progname)
 	printf("  --enable-hw-vlan-filter: enable hardware vlan filter.\n");
 	printf("  --enable-hw-vlan-strip: enable hardware vlan strip.\n");
 	printf("  --enable-hw-vlan-extend: enable hardware vlan extend.\n");
+	printf("  --enable-hw-qinq-strip: enable hardware qinq strip.\n");
 	printf("  --enable-drop-en: enable per queue packet drop.\n");
 	printf("  --disable-rss: disable rss.\n");
 	printf("  --port-topology=N: set port topology (N: paired (default) or "
@@ -186,6 +188,7 @@ usage(char* progname)
 	printf("  --flow-isolate-all: "
 	       "requests flow API isolated mode on all ports at initialization time.\n");
 	printf("  --tx-offloads=0xXXXXXXXX: hexadecimal bitmask of TX queue offloads\n");
+	printf("  --rx-offloads=0xXXXXXXXX: hexadecimal bitmask of RX queue offloads\n");
 	printf("  --hot-plug: enable hot plug for device.\n");
 	printf("  --vxlan-gpe-port=N: UPD port of tunnel VXLAN-GPE\n");
 	printf("  --mlockall: lock all memory\n");
@@ -607,6 +610,7 @@ launch_args_parse(int argc, char** argv)
 		{ "enable-hw-vlan-filter",      0, 0, 0 },
 		{ "enable-hw-vlan-strip",       0, 0, 0 },
 		{ "enable-hw-vlan-extend",      0, 0, 0 },
+		{ "enable-hw-qinq-strip",       0, 0, 0 },
 		{ "enable-drop-en",            0, 0, 0 },
 		{ "disable-rss",                0, 0, 0 },
 		{ "port-topology",              1, 0, 0 },
@@ -641,6 +645,7 @@ launch_args_parse(int argc, char** argv)
 		{ "print-event",		1, 0, 0 },
 		{ "mask-event",			1, 0, 0 },
 		{ "tx-offloads",		1, 0, 0 },
+		{ "rx-offloads",		1, 0, 0 },
 		{ "hot-plug",			0, 0, 0 },
 		{ "vxlan-gpe-port",		1, 0, 0 },
 		{ "mlockall",			0, 0, 0 },
@@ -994,6 +999,10 @@ launch_args_parse(int argc, char** argv)
 					"enable-hw-vlan-extend"))
 				rx_offloads |= DEV_RX_OFFLOAD_VLAN_EXTEND;
 
+			if (!strcmp(lgopts[opt_idx].name,
+					"enable-hw-qinq-strip"))
+				rx_offloads |= DEV_RX_OFFLOAD_QINQ_STRIP;
+
 			if (!strcmp(lgopts[opt_idx].name, "enable-drop-en"))
 				rx_drop_en = 1;
 
@@ -1215,6 +1224,17 @@ launch_args_parse(int argc, char** argv)
 					rte_exit(EXIT_FAILURE,
 						 "tx-offloads must be >= 0\n");
 			}
+
+			if (!strcmp(lgopts[opt_idx].name, "rx-offloads")) {
+				char *end = NULL;
+				n = strtoull(optarg, &end, 16);
+				if (n >= 0)
+					rx_offloads = (uint64_t)n;
+				else
+					rte_exit(EXIT_FAILURE,
+						 "rx-offloads must be >= 0\n");
+			}
+
 			if (!strcmp(lgopts[opt_idx].name, "vxlan-gpe-port")) {
 				n = atoi(optarg);
 				if (n >= 0)
