@@ -161,7 +161,6 @@ ioat_enqueue_packets(struct rte_mbuf **pkts,
 	rte_mempool_put_bulk(ioat_pktmbuf_pool, (void *)&pkts_copy[i],
 		nb_rx - i);
 
-
 	return ret;
 }
 
@@ -226,8 +225,8 @@ ioat_tx_port(struct rxtx_port_config *tx_config)
 	struct rte_mbuf *mbufs_dst[MAX_PKT_BURST];
 
 	if (copy_mode == COPY_MODE_IOAT_NUM) {
-		/* Deque the mbufs from IOAT device. */
 		for (i = 0; i < tx_config->nb_queues; i++) {
+			/* Deque the mbufs from IOAT device. */
 			nb_dq = rte_ioat_completed_copies(
 				tx_config->ioat_ids[i], MAX_PKT_BURST,
 				(void *)mbufs_src, (void *)mbufs_dst);
@@ -256,29 +255,62 @@ ioat_tx_port(struct rxtx_port_config *tx_config)
 					nb_dq - nb_tx);
 		}
 	} else {
-		/* Deque the mbufs from rx_to_tx_ring. */
-		nb_dq = rte_ring_dequeue_burst(tx_config->rx_to_tx_ring,
-			(void *)mbufs_dst, MAX_PKT_BURST, NULL);
+		for (i = 0; i < tx_config->nb_queues; i++) {
+			/* Deque the mbufs from IOAT device. */
+			nb_dq = rte_ring_dequeue_burst(tx_config->rx_to_tx_ring,
+				(void *)mbufs_dst, MAX_PKT_BURST, NULL);
 
-		if (nb_dq == 0)
-			return;
+			if (nb_dq == 0)
+				return;
 
-		/* Update macs if enabled */
-		if (mac_updating) {
-			for (i = 0; i < nb_dq; i++)
-				update_mac_addrs(mbufs_dst[i],
-					tx_config->rxtx_port);
+			/* Update macs if enabled */
+			if (mac_updating) {
+				for (j = 0; j < nb_dq; j++)
+					update_mac_addrs(mbufs_dst[j],
+						tx_config->rxtx_port);
+			}
+
+			const uint16_t nb_tx =
+				rte_eth_tx_burst(tx_config->rxtx_port, 0,
+					(void *)mbufs_dst, nb_dq);
+
+			/* Free any unsent packets. */
+			if (unlikely(nb_tx < nb_dq))
+				rte_mempool_put_bulk(ioat_pktmbuf_pool,
+				(void *)&mbufs_dst[nb_tx],
+					nb_dq - nb_tx);
 		}
-
-		const uint16_t nb_tx = rte_eth_tx_burst(tx_config->rxtx_port,
-			0, (void *)mbufs_dst, nb_dq);
-
-		/* Free any unsent packets. */
-		if (unlikely(nb_tx < nb_dq))
-			rte_mempool_put_bulk(ioat_pktmbuf_pool,
-			(void *)&mbufs_dst[nb_tx],
-				nb_dq - nb_tx);
 	}
+}
+
+/* Main rx processing loop for IOAT rawdev. */
+static void
+rx_main_loop(void)
+{
+	uint16_t i;
+	uint16_t nb_ports = cfg.nb_ports;
+
+	RTE_LOG(INFO, IOAT, "Entering main rx loop for copy on lcore %u\n",
+		rte_lcore_id());
+
+	while (!force_quit)
+		for (i = 0; i < nb_ports; i++)
+			ioat_rx_port(&cfg.ports[i]);
+}
+
+/* Main tx processing loop for hardware copy. */
+static void
+tx_main_loop(void)
+{
+	uint16_t i;
+	uint16_t nb_ports = cfg.nb_ports;
+
+	RTE_LOG(INFO, IOAT, "Entering main tx loop for copy on lcore %u\n",
+		rte_lcore_id());
+
+	while (!force_quit)
+		for (i = 0; i < nb_ports; i++)
+			ioat_tx_port(&cfg.ports[i]);
 }
 
 /* Main rx and tx loop if only one slave lcore available */
@@ -305,9 +337,19 @@ static void start_forwarding_cores(void)
 	RTE_LOG(INFO, IOAT, "Entering %s on lcore %u\n",
 		__func__, rte_lcore_id());
 
-	lcore_id = rte_get_next_lcore(lcore_id, true, true);
-	rte_eal_remote_launch((lcore_function_t *)rxtx_main_loop,
-		NULL, lcore_id);
+	if (cfg.nb_lcores == 1) {
+		lcore_id = rte_get_next_lcore(lcore_id, true, true);
+		rte_eal_remote_launch((lcore_function_t *)rxtx_main_loop,
+			NULL, lcore_id);
+	} else if (cfg.nb_lcores > 1) {
+		lcore_id = rte_get_next_lcore(lcore_id, true, true);
+		rte_eal_remote_launch((lcore_function_t *)rx_main_loop,
+			NULL, lcore_id);
+
+		lcore_id = rte_get_next_lcore(lcore_id, true, true);
+		rte_eal_remote_launch((lcore_function_t *)tx_main_loop, NULL,
+			lcore_id);
+	}
 }
 
 /* Display usage */
