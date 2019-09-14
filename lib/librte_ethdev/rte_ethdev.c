@@ -3022,6 +3022,19 @@ rte_eth_dev_rss_hash_conf_get(uint16_t port_id,
 }
 
 int
+rte_eth_dev_rss_hash_index_get(uint16_t port_id,
+			       uint32_t hash, uint32_t *hash_idx)
+{
+	struct rte_eth_dev *dev;
+
+	RTE_ETH_VALID_PORTID_OR_ERR_RET(port_id, -ENODEV);
+	dev = &rte_eth_devices[port_id];
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->rss_hash_index_get, -ENOTSUP);
+	return eth_err(port_id, (*dev->dev_ops->rss_hash_index_get)(dev, hash,
+								    hash_idx));
+}
+
+int
 rte_eth_dev_udp_tunnel_port_add(uint16_t port_id,
 				struct rte_eth_udp_tunnel *udp_tunnel)
 {
