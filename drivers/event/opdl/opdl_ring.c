@@ -17,6 +17,7 @@
 #include <rte_memory.h>
 #include <rte_memzone.h>
 #include <rte_eal_memconfig.h>
+#include <rte_atomic.h>
 
 #include "opdl_ring.h"
 #include "opdl_log.h"
@@ -475,9 +476,7 @@ opdl_ring_input_multithread(struct opdl_ring *t, const void *entries,
 	/* If another thread started inputting before this one, but hasn't
 	 * finished, we need to wait for it to complete to update the tail.
 	 */
-	while (unlikely(__atomic_load_n(&s->shared.tail, __ATOMIC_ACQUIRE) !=
-			old_head))
-		rte_pause();
+	rte_wait_until_equal_acquire_32(&s->shared.tail, old_head);
 
 	__atomic_store_n(&s->shared.tail, old_head + num_entries,
 			__ATOMIC_RELEASE);
