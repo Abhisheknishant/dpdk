@@ -1636,6 +1636,7 @@ static const struct eth_dev_ops otx2_eth_dev_ops = {
 	.reta_query               = otx2_nix_dev_reta_query,
 	.rss_hash_update          = otx2_nix_rss_hash_update,
 	.rss_hash_conf_get        = otx2_nix_rss_hash_conf_get,
+	.rss_hash_index_get       = otx2_nix_rss_hash_index_get,
 	.xstats_get               = otx2_nix_xstats_get,
 	.xstats_get_names         = otx2_nix_xstats_get_names,
 	.xstats_reset             = otx2_nix_xstats_reset,

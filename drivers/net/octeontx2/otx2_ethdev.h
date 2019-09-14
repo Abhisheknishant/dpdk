@@ -465,6 +465,9 @@ int otx2_nix_rss_hash_update(struct rte_eth_dev *eth_dev,
 int otx2_nix_rss_hash_conf_get(struct rte_eth_dev *eth_dev,
 			       struct rte_eth_rss_conf *rss_conf);
 
+int otx2_nix_rss_hash_index_get(struct rte_eth_dev *eth_dev,
+				uint32_t hash, uint32_t *hash_idx);
+
 /* CGX */
 int otx2_cgx_rxtx_start(struct otx2_eth_dev *dev);
 int otx2_cgx_rxtx_stop(struct otx2_eth_dev *dev);
