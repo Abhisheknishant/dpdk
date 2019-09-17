@@ -82,6 +82,7 @@ next:
 	}
 
 	hw->lm_cfg = hw->mem_resource[4].addr;
+	hw->mq_cfg = hw->mem_resource[4].addr + IFCVF_MQ_OFFSET;
 
 	if (hw->common_cfg == NULL || hw->notify_base == NULL ||
 			hw->isr == NULL || hw->dev_cfg == NULL) {
