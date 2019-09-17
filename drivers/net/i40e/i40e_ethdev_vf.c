@@ -2349,10 +2349,20 @@ static int
 i40evf_dev_reset(struct rte_eth_dev *dev)
 {
 	int ret;
+	struct i40e_vf *vf = I40EVF_DEV_PRIVATE_TO_VF(dev->data->dev_private);
 
 	ret = i40evf_dev_uninit(dev);
 	if (ret)
 		return ret;
+
+	/*
+	 * Even though the device reset is successful disabling promiscuous
+	 * mode might not always succeed, causing enabling it after reset to
+	 * fail. This would happen when the kernel driver requires a reset
+	 * of the VF.
+	 */
+	if (rte_eal_process_type() == RTE_PROC_PRIMARY)
+		vf->promisc_unicast_enabled = FALSE;
 
 	ret = i40evf_dev_init(dev);
 
