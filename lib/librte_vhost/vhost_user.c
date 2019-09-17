@@ -570,6 +570,74 @@ ring_addr_to_vva(struct virtio_net *dev, struct vhost_virtqueue *vq,
 	return qva_to_vva(dev, ra, size);
 }
 
+/*
+ * Converts Vhost Virtual Address to Guest Physical Address
+ */
+static uint64_t
+vva_to_gpa(struct virtio_net *dev, uint64_t vva, uint64_t *len)
+{
+	struct rte_vhost_mem_region *r;
+	uint32_t i;
+
+	if (unlikely(!dev || !dev->mem))
+		goto out_error;
+
+	/* Find the region where the address lives. */
+	for (i = 0; i < dev->mem->nregions; i++) {
+		r = &dev->mem->regions[i];
+
+		if (vva >= r->host_user_addr &&
+		    vva <  r->host_user_addr + r->size) {
+
+			if (unlikely(vva + *len > r->host_user_addr + r->size))
+				*len = r->guest_user_addr + r->size - vva;
+
+			return r->guest_phys_addr + vva - r->host_user_addr;
+		}
+	}
+out_error:
+	*len = 0;
+
+	return 0;
+}
+
+/*
+ * Converts vring log address to GPA
+ * If IOMMU is enabled, the log address is IOVA
+ * If IOMMU not enabled, the log address is already GPA
+ */
+static uint64_t
+translate_log_addr(struct virtio_net *dev, struct vhost_virtqueue *vq,
+		uint64_t log_addr)
+{
+	if (dev->features & (1ULL << VIRTIO_F_IOMMU_PLATFORM)) {
+		const uint64_t exp_size = sizeof(struct vring_used) +
+			sizeof(struct vring_used_elem) * vq->size;
+		uint64_t vva, gpa;
+		uint64_t size = exp_size;
+
+		vva = vhost_user_iotlb_cache_find(vq, log_addr,
+					&size, VHOST_ACCESS_RW);
+		if (size != exp_size) {
+			vhost_user_iotlb_miss(dev, log_addr + size,
+					      VHOST_ACCESS_RW);
+			return 0;
+		}
+
+		gpa = vva_to_gpa(dev, vva, &size);
+		if (size != exp_size) {
+			RTE_LOG(ERR, VHOST_CONFIG,
+				"VQ: Failed to find GPA mapping for log_addr."
+				"log_addr: 0x%0lx vva: 0x%0lx\n",
+				log_addr, vva);
+			return 0;
+		}
+		return gpa;
+
+	} else
+		return log_addr;
+}
+
 static struct virtio_net *
 translate_ring_addresses(struct virtio_net *dev, int vq_index)
 {
@@ -676,7 +744,15 @@ translate_ring_addresses(struct virtio_net *dev, int vq_index)
 		vq->last_avail_idx = vq->used->idx;
 	}
 
-	vq->log_guest_addr = addr->log_guest_addr;
+	vq->log_guest_addr =
+		translate_log_addr(dev, vq, addr->log_guest_addr);
+	if (vq->log_guest_addr == 0) {
+		RTE_LOG(DEBUG, VHOST_CONFIG,
+			"(%d) failed to map log_guest_addr .\n",
+			dev->vid);
+		return dev;
+	}
+
 
 	VHOST_LOG_DEBUG(VHOST_CONFIG, "(%d) mapped address desc: %p\n",
 			dev->vid, vq->desc);
