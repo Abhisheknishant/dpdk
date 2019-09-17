@@ -12,7 +12,7 @@
 #define IFCVF_SUBSYS_VENDOR_ID	0x8086
 #define IFCVF_SUBSYS_DEVICE_ID	0x001A
 
-#define IFCVF_MAX_QUEUES		1
+#define IFCVF_MAX_QUEUES		32
 #define VIRTIO_F_IOMMU_PLATFORM		33
 
 /* Common configuration */
@@ -151,6 +151,9 @@ ifcvf_enable_logging(struct ifcvf_hw *hw, u64 log_base, u64 log_size);
 
 void
 ifcvf_disable_logging(struct ifcvf_hw *hw);
+
+void
+ifcvf_enable_multiqueue(struct ifcvf_hw *hw, u16 nr_queue_pair);
 
 void
 ifcvf_notify_queue(struct ifcvf_hw *hw, u16 qid);

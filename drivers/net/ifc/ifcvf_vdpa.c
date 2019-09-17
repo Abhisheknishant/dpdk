@@ -994,6 +994,30 @@ ifcvf_get_vfio_device_fd(int vid)
 }
 
 static int
+ifcvf_set_vring_state(int vid, int  nr_active_vring)
+{
+	int did, nr_queue_pair;
+	struct internal_list *list;
+
+	if (nr_active_vring == 0) {
+		DRV_LOG(ERR, "No enabled vring");
+		return -1;
+	}
+	nr_queue_pair = (nr_active_vring + 1) / 2;
+
+	did = rte_vhost_get_vdpa_device_id(vid);
+	list = find_internal_resource_by_did(did);
+	if (list == NULL) {
+		DRV_LOG(ERR, "Invalid device id: %d", did);
+		return -1;
+	}
+
+	ifcvf_enable_multiqueue(&list->internal->hw, nr_queue_pair);
+
+	return 0;
+}
+
+static int
 ifcvf_get_notify_area(int vid, int qid, uint64_t *offset, uint64_t *size)
 {
 	int did;
@@ -1062,7 +1086,9 @@ ifcvf_get_vdpa_features(int did, uint64_t *features)
 		 1ULL << VHOST_USER_PROTOCOL_F_SLAVE_REQ | \
 		 1ULL << VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD | \
 		 1ULL << VHOST_USER_PROTOCOL_F_HOST_NOTIFIER | \
-		 1ULL << VHOST_USER_PROTOCOL_F_LOG_SHMFD)
+		 1ULL << VHOST_USER_PROTOCOL_F_LOG_SHMFD | \
+		 1ULL << VHOST_USER_PROTOCOL_F_MQ)
+
 static int
 ifcvf_get_protocol_features(int did __rte_unused, uint64_t *features)
 {
@@ -1076,7 +1102,7 @@ static struct rte_vdpa_dev_ops ifcvf_ops = {
 	.get_protocol_features = ifcvf_get_protocol_features,
 	.dev_conf = ifcvf_dev_config,
 	.dev_close = ifcvf_dev_close,
-	.set_vring_state = NULL,
+	.set_vring_state = ifcvf_set_vring_state,
 	.set_features = ifcvf_set_features,
 	.migration_done = NULL,
 	.get_vfio_group_fd = ifcvf_get_vfio_group_fd,
