@@ -54,8 +54,8 @@ struct rte_vdpa_dev_ops {
 	int (*dev_conf)(int vid);
 	int (*dev_close)(int vid);
 
-	/** Enable/disable this vring */
-	int (*set_vring_state)(int vid, int vring, int state);
+	/** Enable/disable vring queue pairs */
+	int (*set_vring_state)(int vid, int nr_active_vring);
 
 	/** Set features when changed */
 	int (*set_features)(int vid);

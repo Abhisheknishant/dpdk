@@ -1325,6 +1325,25 @@ vhost_user_get_vring_base(struct virtio_net **pdev,
 	return RTE_VHOST_MSG_RESULT_REPLY;
 }
 
+static uint16_t
+vhost_get_active_vring_num(int vid)
+{
+	struct virtio_net *dev = get_device(vid);
+	struct vhost_virtqueue *vq;
+	uint16_t qid;
+
+	if (dev == NULL)
+		return 0;
+
+	for (qid = 0; qid < dev->nr_vring; qid++) {
+		vq = dev->virtqueue[qid];
+		if (!vq->enabled)
+			break;
+	}
+
+	return qid;
+}
+
 /*
  * when virtio queues are ready to work, qemu will send us to
  * enable the virtio queue pair.
@@ -1339,6 +1358,7 @@ vhost_user_set_vring_enable(struct virtio_net **pdev,
 	int index = (int)msg->payload.state.index;
 	struct rte_vdpa_device *vdpa_dev;
 	int did = -1;
+	int nr_active_vring;
 
 	RTE_LOG(INFO, VHOST_CONFIG,
 		"set queue enable: %d to qp idx: %d\n",
@@ -1346,8 +1366,6 @@ vhost_user_set_vring_enable(struct virtio_net **pdev,
 
 	did = dev->vdpa_dev_id;
 	vdpa_dev = rte_vdpa_get_device(did);
-	if (vdpa_dev && vdpa_dev->ops->set_vring_state)
-		vdpa_dev->ops->set_vring_state(dev->vid, index, enable);
 
 	if (dev->notify_ops->vring_state_changed)
 		dev->notify_ops->vring_state_changed(dev->vid,
@@ -1358,6 +1376,11 @@ vhost_user_set_vring_enable(struct virtio_net **pdev,
 		drain_zmbuf_list(dev->virtqueue[index]);
 
 	dev->virtqueue[index]->enabled = enable;
+
+	if (vdpa_dev && vdpa_dev->ops->set_vring_state) {
+		nr_active_vring = vhost_get_active_vring_num(dev->vid);
+		vdpa_dev->ops->set_vring_state(dev->vid, nr_active_vring);
+	}
 
 	return RTE_VHOST_MSG_RESULT_OK;
 }
