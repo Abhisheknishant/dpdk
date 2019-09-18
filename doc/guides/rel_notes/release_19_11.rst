@@ -56,6 +56,13 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Add support of support dynamic fields and flags in mbuf.**
+
+  This new feature adds the ability to dynamically register some room
+  for a field or a flag in the mbuf structure. This is typically used
+  for specific offload features, where adding a static field or flag
+  in the mbuf is not justified.
+
 
 Removed Items
 -------------
