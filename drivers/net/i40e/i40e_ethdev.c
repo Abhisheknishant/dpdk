@@ -44,6 +44,7 @@
 #define ETH_I40E_SUPPORT_MULTI_DRIVER	"support-multi-driver"
 #define ETH_I40E_QUEUE_NUM_PER_VF_ARG	"queue-num-per-vf"
 #define ETH_I40E_USE_LATEST_VEC	"use-latest-supported-vec"
+#define ETH_I40E_VF_MSG_CFG		"vf_msg_cfg"
 
 #define I40E_CLEAR_PXE_WAIT_MS     200
 
@@ -406,6 +407,7 @@ static const char *const valid_keys[] = {
 	ETH_I40E_SUPPORT_MULTI_DRIVER,
 	ETH_I40E_QUEUE_NUM_PER_VF_ARG,
 	ETH_I40E_USE_LATEST_VEC,
+	ETH_I40E_VF_MSG_CFG,
 	NULL};
 
 static const struct rte_pci_id pci_id_i40e_map[] = {
@@ -1256,6 +1258,77 @@ i40e_use_latest_vec(struct rte_eth_dev *dev)
 	return 0;
 }
 
+static int
+read_vf_msg_config(__rte_unused const char *key,
+			       const char *value,
+			       void *opaque)
+{
+	struct i40e_vf_msg_cfg cfg;
+
+	memset(&cfg, 0, sizeof(cfg));
+	if (sscanf(value, "%u:%u:%u@%u:%u", &cfg.max_valid,
+			&cfg.max_invalid, &cfg.max_unsupported,
+			&cfg.period, &cfg.ignore_second)
+			!= 5) {
+		PMD_DRV_LOG(ERR, "vf_msg_cfg error! format like: "
+				"vf_msg_cfg=30:8:10@120:180");
+		return -EINVAL;
+	}
+
+	/*
+	 * If the message validation function been enabled(max_valid,
+	 * max_invalid and max_unsupported not all zero), the 'period'
+	 * and 'ignore_second' must greater than 0.
+	 */
+	if ((cfg.max_valid || cfg.max_invalid || cfg.max_unsupported) &&
+			(!cfg.period || !cfg.ignore_second)) {
+		PMD_DRV_LOG(ERR, "vf_msg_cfg error! the fourth and fifth"
+				" numbers must be greater than 0!");
+		return -EINVAL;
+	}
+
+	memcpy(opaque, &cfg, sizeof(cfg));
+	return 0;
+}
+
+static int
+i40e_parse_vf_msg_config(struct rte_eth_dev *dev,
+		struct i40e_vf_msg_cfg *msg_cfg)
+{
+	int ret = 0;
+	int kvargs_count;
+	struct rte_kvargs *kvlist;
+
+	/* reset all to zero */
+	memset(msg_cfg, 0, sizeof(*msg_cfg));
+
+	if (!dev->device->devargs)
+		return ret;
+
+	kvlist = rte_kvargs_parse(dev->device->devargs->args, valid_keys);
+	if (!kvlist)
+		return -EINVAL;
+
+	kvargs_count = rte_kvargs_count(kvlist, ETH_I40E_VF_MSG_CFG);
+	if (!kvargs_count)
+		goto free_end;
+
+	if (kvargs_count > 1) {
+		PMD_DRV_LOG(ERR, "More than one argument \"%s\"!",
+				ETH_I40E_VF_MSG_CFG);
+		ret = -EINVAL;
+		goto free_end;
+	}
+
+	if (rte_kvargs_process(kvlist, ETH_I40E_VF_MSG_CFG,
+			read_vf_msg_config, msg_cfg) < 0)
+		ret = -EINVAL;
+
+free_end:
+	rte_kvargs_free(kvlist);
+	return ret;
+}
+
 #define I40E_ALARM_INTERVAL 50000 /* us */
 
 static int
@@ -1328,6 +1401,8 @@ eth_i40e_dev_init(struct rte_eth_dev *dev, void *init_params __rte_unused)
 		return -EIO;
 	}
 
+	/* read VF message configuration */
+	i40e_parse_vf_msg_config(dev, &pf->vf_msg_cfg);
 	/* Check if need to support multi-driver */
 	i40e_support_multi_driver(dev);
 	/* Check if users want the latest supported vec path */

@@ -426,6 +426,28 @@ struct i40e_pf_vf {
 	/* version of the virtchnl from VF */
 	struct virtchnl_version_info version;
 	uint32_t request_caps; /* offload caps requested from VF */
+
+	/*
+	 * Variables for store the arrival timestamp of VF messages.
+	 * If the timestamp of latest valid message stored at
+	 * `valid_msg_timestamps[index % max]` then the timestamp of
+	 * earliest valid message stored at
+	 * `valid_msg_time[(index + 1) % max]`.
+	 * When a new valid message come, the timestamp of this message
+	 * will be stored at `msg_timestamps[(index + 1) % max]` and the
+	 * earliest valid message timestamp is at
+	 * `valid_msg_timestamps[(index + 2) % max]` now...
+	 */
+	uint32_t valid_msg_index;
+	uint32_t invalid_msg_index;
+	uint32_t unsupported_msg_index;
+
+	uint64_t *valid_msg_timestamps;
+	uint64_t *invalid_msg_timestamps;
+	uint64_t *unsupported_msg_timestamps;
+
+	/* cycle of stop ignoring VF message */
+	uint64_t ignore_end_cycle;
 };
 
 /*
@@ -900,6 +922,24 @@ struct i40e_rte_flow_rss_conf {
 	uint16_t queue[I40E_MAX_Q_PER_TC]; /**< Queues indices to use. */
 };
 
+struct i40e_vf_msg_cfg {
+	/* maximal VF valid message during a statistic period */
+	uint32_t max_valid;
+	/* maximal VF invalid message during a statistic period */
+	uint32_t max_invalid;
+	/* maximal VF unsupported message during a statistic period */
+	uint32_t max_unsupported;
+
+	/* statistic period, in second */
+	uint32_t period;
+	/*
+	 * If message statistics(valid, invalid or unsupported) from a VF
+	 * exceed the maximal limitation, the PF will ignore any new
+	 * message from that VF for 'ignor_second' time.
+	 */
+	uint32_t ignore_second;
+};
+
 /*
  * Structure to store private data specific for PF instance.
  */
@@ -975,6 +1015,8 @@ struct i40e_pf {
 	struct i40e_customized_pctype customized_pctype[I40E_CUSTOMIZED_MAX];
 	/* Switch Domain Id */
 	uint16_t switch_domain_id;
+
+	struct i40e_vf_msg_cfg vf_msg_cfg;
 };
 
 enum pending_msg {
@@ -1343,6 +1385,11 @@ i40e_calc_itr_interval(bool is_pf, bool is_multi_drv)
 
 	/* Convert to hardware count, as writing each 1 represents 2 us */
 	return interval / 2;
+}
+
+static inline uint32_t loop_next(uint32_t cur, uint32_t limit)
+{
+	return (cur >= limit) ? 0 : cur + 1;
 }
 
 #define I40E_VALID_FLOW(flow_type) \

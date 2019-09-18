@@ -297,7 +297,7 @@ i40e_pf_host_process_cmd_get_vf_resource(struct i40e_pf_vf *vf, uint8_t *msg,
 		i40e_pf_host_send_msg_to_vf(vf,
 					    VIRTCHNL_OP_GET_VF_RESOURCES,
 					    I40E_NOT_SUPPORTED, NULL, 0);
-		return ret;
+		return I40E_NOT_SUPPORTED;
 	}
 
 	/* only have 1 VSI by default */
@@ -488,7 +488,7 @@ i40e_pf_host_process_cmd_config_vsi_queues(struct i40e_pf_vf *vf,
 		i40e_pf_host_send_msg_to_vf(vf,
 					    VIRTCHNL_OP_CONFIG_VSI_QUEUES,
 					    I40E_NOT_SUPPORTED, NULL, 0);
-		return ret;
+		return I40E_NOT_SUPPORTED;
 	}
 
 	if (!msg || vc_vqci->num_queue_pairs > vsi->nb_qps ||
@@ -655,7 +655,7 @@ i40e_pf_host_process_cmd_config_irq_map(struct i40e_pf_vf *vf,
 			vf,
 			VIRTCHNL_OP_CONFIG_IRQ_MAP,
 			I40E_NOT_SUPPORTED, NULL, 0);
-		return ret;
+		return I40E_NOT_SUPPORTED;
 	}
 
 	if (msg == NULL || msglen < sizeof(struct virtchnl_irq_map_info)) {
@@ -795,7 +795,7 @@ i40e_pf_host_process_cmd_disable_queues(struct i40e_pf_vf *vf,
 			vf,
 			VIRTCHNL_OP_DISABLE_QUEUES,
 			I40E_NOT_SUPPORTED, NULL, 0);
-		return ret;
+		return I40E_NOT_SUPPORTED;
 	}
 
 	if (msg == NULL || msglen != sizeof(*q_sel)) {
@@ -830,7 +830,7 @@ i40e_pf_host_process_cmd_add_ether_address(struct i40e_pf_vf *vf,
 			vf,
 			VIRTCHNL_OP_ADD_ETH_ADDR,
 			I40E_NOT_SUPPORTED, NULL, 0);
-		return ret;
+		return I40E_NOT_SUPPORTED;
 	}
 
 	memset(&filter, 0 , sizeof(struct i40e_mac_filter_info));
@@ -876,7 +876,7 @@ i40e_pf_host_process_cmd_del_ether_address(struct i40e_pf_vf *vf,
 			vf,
 			VIRTCHNL_OP_DEL_ETH_ADDR,
 			I40E_NOT_SUPPORTED, NULL, 0);
-		return ret;
+		return I40E_NOT_SUPPORTED;
 	}
 
 	if (msg == NULL || msglen <= sizeof(*addr_list)) {
@@ -917,7 +917,7 @@ i40e_pf_host_process_cmd_add_vlan(struct i40e_pf_vf *vf,
 			vf,
 			VIRTCHNL_OP_ADD_VLAN,
 			I40E_NOT_SUPPORTED, NULL, 0);
-		return ret;
+		return I40E_NOT_SUPPORTED;
 	}
 
 	if (msg == NULL || msglen <= sizeof(*vlan_filter_list)) {
@@ -958,7 +958,7 @@ i40e_pf_host_process_cmd_del_vlan(struct i40e_pf_vf *vf,
 			vf,
 			VIRTCHNL_OP_DEL_VLAN,
 			I40E_NOT_SUPPORTED, NULL, 0);
-		return ret;
+		return I40E_NOT_SUPPORTED;
 	}
 
 	if (msg == NULL || msglen <= sizeof(*vlan_filter_list)) {
@@ -999,7 +999,7 @@ i40e_pf_host_process_cmd_config_promisc_mode(
 			vf,
 			VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE,
 			I40E_NOT_SUPPORTED, NULL, 0);
-		return ret;
+		return I40E_NOT_SUPPORTED;
 	}
 
 	if (msg == NULL || msglen != sizeof(*promisc)) {
@@ -1031,16 +1031,18 @@ i40e_pf_host_process_cmd_get_stats(struct i40e_pf_vf *vf, bool b_op)
 {
 	i40e_update_vsi_stats(vf->vsi);
 
-	if (b_op)
+	if (b_op) {
 		i40e_pf_host_send_msg_to_vf(vf, VIRTCHNL_OP_GET_STATS,
 					    I40E_SUCCESS,
 					    (uint8_t *)&vf->vsi->eth_stats,
 					    sizeof(vf->vsi->eth_stats));
-	else
+	} else {
 		i40e_pf_host_send_msg_to_vf(vf, VIRTCHNL_OP_GET_STATS,
 					    I40E_NOT_SUPPORTED,
 					    (uint8_t *)&vf->vsi->eth_stats,
 					    sizeof(vf->vsi->eth_stats));
+		return I40E_NOT_SUPPORTED;
+	}
 
 	return I40E_SUCCESS;
 }
@@ -1055,7 +1057,7 @@ i40e_pf_host_process_cmd_enable_vlan_strip(struct i40e_pf_vf *vf, bool b_op)
 			vf,
 			VIRTCHNL_OP_ENABLE_VLAN_STRIPPING,
 			I40E_NOT_SUPPORTED, NULL, 0);
-		return ret;
+		return I40E_NOT_SUPPORTED;
 	}
 
 	ret = i40e_vsi_config_vlan_stripping(vf->vsi, TRUE);
@@ -1078,7 +1080,7 @@ i40e_pf_host_process_cmd_disable_vlan_strip(struct i40e_pf_vf *vf, bool b_op)
 			vf,
 			VIRTCHNL_OP_DISABLE_VLAN_STRIPPING,
 			I40E_NOT_SUPPORTED, NULL, 0);
-		return ret;
+		return I40E_NOT_SUPPORTED;
 	}
 
 	ret = i40e_vsi_config_vlan_stripping(vf->vsi, FALSE);
@@ -1106,7 +1108,7 @@ i40e_pf_host_process_cmd_set_rss_lut(struct i40e_pf_vf *vf,
 			vf,
 			VIRTCHNL_OP_CONFIG_RSS_LUT,
 			I40E_NOT_SUPPORTED, NULL, 0);
-		return ret;
+		return I40E_NOT_SUPPORTED;
 	}
 
 	if (!msg || msglen <= sizeof(struct virtchnl_rss_lut)) {
@@ -1247,6 +1249,7 @@ i40e_pf_host_process_cmd_request_queues(struct i40e_pf_vf *vf, uint8_t *msg)
 	struct i40e_pf *pf;
 	uint32_t req_pairs = vfres->num_queue_pairs;
 	uint32_t cur_pairs = vf->vsi->nb_used_qps;
+	int ret = I40E_SUCCESS;
 
 	pf = vf->pf;
 
@@ -1256,12 +1259,14 @@ i40e_pf_host_process_cmd_request_queues(struct i40e_pf_vf *vf, uint8_t *msg)
 	if (req_pairs == 0) {
 		PMD_DRV_LOG(ERR, "VF %d tried to request 0 queues. Ignoring.\n",
 			    vf->vf_idx);
+		ret = I40E_ERR_PARAM;
 	} else if (req_pairs > I40E_MAX_QP_NUM_PER_VF) {
 		PMD_DRV_LOG(ERR,
 			    "VF %d tried to request more than %d queues.\n",
 			    vf->vf_idx,
 			    I40E_MAX_QP_NUM_PER_VF);
 		vfres->num_queue_pairs = I40E_MAX_QP_NUM_PER_VF;
+		ret = I40E_ERR_PARAM;
 	} else if (req_pairs > cur_pairs + pf->qp_pool.num_free) {
 		PMD_DRV_LOG(ERR, "VF %d requested %d queues (rounded to %d) "
 			"but only %d available\n",
@@ -1277,11 +1282,12 @@ i40e_pf_host_process_cmd_request_queues(struct i40e_pf_vf *vf, uint8_t *msg)
 		pf->vf_nb_qps = req_pairs;
 		i40e_pf_host_process_cmd_reset_vf(vf);
 
-		return 0;
+		return I40E_SUCCESS;
 	}
 
-	return i40e_pf_host_send_msg_to_vf(vf, VIRTCHNL_OP_REQUEST_QUEUES, 0,
+	i40e_pf_host_send_msg_to_vf(vf, VIRTCHNL_OP_REQUEST_QUEUES, 0,
 				(u8 *)vfres, sizeof(*vfres));
+	return ret;
 }
 
 void
@@ -1299,6 +1305,10 @@ i40e_pf_host_handle_vf_msg(struct rte_eth_dev *dev,
 	struct rte_pmd_i40e_mb_event_param ret_param;
 	bool b_op = TRUE;
 	int ret;
+	uint32_t next, limit;
+	const char *out_str = NULL;
+	uint64_t *msg_timestamps = NULL;
+	uint64_t cur_cycle, first_cycle;
 
 	if (vf_id > pf->vf_num - 1 || !pf->vfs) {
 		PMD_DRV_LOG(ERR, "invalid argument");
@@ -1306,11 +1316,17 @@ i40e_pf_host_handle_vf_msg(struct rte_eth_dev *dev,
 	}
 
 	vf = &pf->vfs[vf_id];
+
+	/* if timer not end, ignore the message and return */
+	if (rte_get_timer_cycles() < vf->ignore_end_cycle)
+		return;
+
 	if (!vf->vsi) {
 		PMD_DRV_LOG(ERR, "NO VSI associated with VF found");
 		i40e_pf_host_send_msg_to_vf(vf, opcode,
 			I40E_ERR_NO_AVAILABLE_VSI, NULL, 0);
-		return;
+		ret = I40E_ERR_NO_AVAILABLE_VSI;
+		goto err_cmd;
 	}
 
 	/* perform basic checks on the msg */
@@ -1331,14 +1347,15 @@ i40e_pf_host_handle_vf_msg(struct rte_eth_dev *dev,
 
 	if (ret) {
 		PMD_DRV_LOG(ERR, "Invalid message from VF %u, opcode %u, len %u",
-			    vf_id, opcode, msglen);
+				vf_id, opcode, msglen);
 		i40e_pf_host_send_msg_to_vf(vf, opcode,
-					    I40E_ERR_PARAM, NULL, 0);
-		return;
+				I40E_ERR_PARAM, NULL, 0);
+		ret = I40E_ERR_PARAM;
+		goto err_cmd;
 	}
 
 	/**
-	 * initialise structure to send to user application
+	 * initialize structure to send to user application
 	 * will return response from user in retval field
 	 */
 	ret_param.retval = RTE_PMD_I40E_MB_EVENT_PROCEED;
@@ -1373,78 +1390,84 @@ i40e_pf_host_handle_vf_msg(struct rte_eth_dev *dev,
 		break;
 	case VIRTCHNL_OP_GET_VF_RESOURCES:
 		PMD_DRV_LOG(INFO, "OP_GET_VF_RESOURCES received");
-		i40e_pf_host_process_cmd_get_vf_resource(vf, msg, b_op);
+		ret = i40e_pf_host_process_cmd_get_vf_resource(vf, msg, b_op);
 		break;
 	case VIRTCHNL_OP_CONFIG_VSI_QUEUES:
 		PMD_DRV_LOG(INFO, "OP_CONFIG_VSI_QUEUES received");
-		i40e_pf_host_process_cmd_config_vsi_queues(vf, msg,
+		ret = i40e_pf_host_process_cmd_config_vsi_queues(vf, msg,
 							   msglen, b_op);
 		break;
 	case VIRTCHNL_OP_CONFIG_IRQ_MAP:
 		PMD_DRV_LOG(INFO, "OP_CONFIG_IRQ_MAP received");
-		i40e_pf_host_process_cmd_config_irq_map(vf, msg, msglen, b_op);
+		ret = i40e_pf_host_process_cmd_config_irq_map(vf, msg,
+				msglen, b_op);
 		break;
 	case VIRTCHNL_OP_ENABLE_QUEUES:
 		PMD_DRV_LOG(INFO, "OP_ENABLE_QUEUES received");
 		if (b_op) {
-			i40e_pf_host_process_cmd_enable_queues(vf, msg, msglen);
+			ret = i40e_pf_host_process_cmd_enable_queues(vf,
+					msg, msglen);
 			i40e_notify_vf_link_status(dev, vf);
 		} else {
-			i40e_pf_host_send_msg_to_vf(
-				vf, VIRTCHNL_OP_ENABLE_QUEUES,
-				I40E_NOT_SUPPORTED, NULL, 0);
+			i40e_pf_host_send_msg_to_vf(vf,
+					VIRTCHNL_OP_ENABLE_QUEUES,
+					I40E_NOT_SUPPORTED, NULL, 0);
+			ret = I40E_NOT_SUPPORTED;
 		}
 		break;
 	case VIRTCHNL_OP_DISABLE_QUEUES:
 		PMD_DRV_LOG(INFO, "OP_DISABLE_QUEUE received");
-		i40e_pf_host_process_cmd_disable_queues(vf, msg, msglen, b_op);
+		ret = i40e_pf_host_process_cmd_disable_queues(vf,
+				msg, msglen, b_op);
 		break;
 	case VIRTCHNL_OP_ADD_ETH_ADDR:
 		PMD_DRV_LOG(INFO, "OP_ADD_ETHER_ADDRESS received");
-		i40e_pf_host_process_cmd_add_ether_address(vf, msg,
+		ret = i40e_pf_host_process_cmd_add_ether_address(vf, msg,
 							   msglen, b_op);
 		break;
 	case VIRTCHNL_OP_DEL_ETH_ADDR:
 		PMD_DRV_LOG(INFO, "OP_DEL_ETHER_ADDRESS received");
-		i40e_pf_host_process_cmd_del_ether_address(vf, msg,
+		ret = i40e_pf_host_process_cmd_del_ether_address(vf, msg,
 							   msglen, b_op);
 		break;
 	case VIRTCHNL_OP_ADD_VLAN:
 		PMD_DRV_LOG(INFO, "OP_ADD_VLAN received");
-		i40e_pf_host_process_cmd_add_vlan(vf, msg, msglen, b_op);
+		ret = i40e_pf_host_process_cmd_add_vlan(vf, msg, msglen, b_op);
 		break;
 	case VIRTCHNL_OP_DEL_VLAN:
 		PMD_DRV_LOG(INFO, "OP_DEL_VLAN received");
-		i40e_pf_host_process_cmd_del_vlan(vf, msg, msglen, b_op);
+		ret = i40e_pf_host_process_cmd_del_vlan(vf, msg, msglen, b_op);
 		break;
 	case VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE:
 		PMD_DRV_LOG(INFO, "OP_CONFIG_PROMISCUOUS_MODE received");
-		i40e_pf_host_process_cmd_config_promisc_mode(vf, msg,
+		ret = i40e_pf_host_process_cmd_config_promisc_mode(vf, msg,
 							     msglen, b_op);
 		break;
 	case VIRTCHNL_OP_GET_STATS:
 		PMD_DRV_LOG(INFO, "OP_GET_STATS received");
-		i40e_pf_host_process_cmd_get_stats(vf, b_op);
+		ret = i40e_pf_host_process_cmd_get_stats(vf, b_op);
 		break;
 	case VIRTCHNL_OP_ENABLE_VLAN_STRIPPING:
 		PMD_DRV_LOG(INFO, "OP_ENABLE_VLAN_STRIPPING received");
-		i40e_pf_host_process_cmd_enable_vlan_strip(vf, b_op);
+		ret = i40e_pf_host_process_cmd_enable_vlan_strip(vf, b_op);
 		break;
 	case VIRTCHNL_OP_DISABLE_VLAN_STRIPPING:
 		PMD_DRV_LOG(INFO, "OP_DISABLE_VLAN_STRIPPING received");
-		i40e_pf_host_process_cmd_disable_vlan_strip(vf, b_op);
+		ret = i40e_pf_host_process_cmd_disable_vlan_strip(vf, b_op);
 		break;
 	case VIRTCHNL_OP_CONFIG_RSS_LUT:
 		PMD_DRV_LOG(INFO, "OP_CONFIG_RSS_LUT received");
-		i40e_pf_host_process_cmd_set_rss_lut(vf, msg, msglen, b_op);
+		ret = i40e_pf_host_process_cmd_set_rss_lut(vf, msg,
+				msglen, b_op);
 		break;
 	case VIRTCHNL_OP_CONFIG_RSS_KEY:
 		PMD_DRV_LOG(INFO, "OP_CONFIG_RSS_KEY received");
-		i40e_pf_host_process_cmd_set_rss_key(vf, msg, msglen, b_op);
+		ret = i40e_pf_host_process_cmd_set_rss_key(vf, msg,
+				msglen, b_op);
 		break;
 	case VIRTCHNL_OP_REQUEST_QUEUES:
 		PMD_DRV_LOG(INFO, "OP_REQUEST_QUEUES received");
-		i40e_pf_host_process_cmd_request_queues(vf, msg);
+		ret = i40e_pf_host_process_cmd_request_queues(vf, msg);
 		break;
 
 	/* Don't add command supported below, which will
@@ -1452,9 +1475,76 @@ i40e_pf_host_handle_vf_msg(struct rte_eth_dev *dev,
 	 */
 	default:
 		PMD_DRV_LOG(ERR, "%u received, not supported", opcode);
-		i40e_pf_host_send_msg_to_vf(vf, opcode, I40E_ERR_PARAM,
+		i40e_pf_host_send_msg_to_vf(vf, opcode, I40E_NOT_SUPPORTED,
 								NULL, 0);
+		ret = I40E_NOT_SUPPORTED;
 		break;
+	}
+
+err_cmd:
+	/*
+	 * Record the arrival time(cycles) of each message,
+	 * if in any `period` the message statistics from a VF exceed the
+	 * maximal limitation, the PF will block that VF message for
+	 * `ignore_second` seconds.
+	 */
+	switch (ret) {
+	case I40E_ERR_PARAM:
+	case I40E_ERR_NO_AVAILABLE_VSI:
+		if (!pf->vf_msg_cfg.max_invalid)
+			return;
+
+		out_str = "invalid";
+		limit = pf->vf_msg_cfg.max_invalid - 1;
+		next = loop_next(vf->invalid_msg_index, limit);
+		vf->invalid_msg_index = next;
+		msg_timestamps = vf->invalid_msg_timestamps;
+		break;
+
+	case I40E_NOT_SUPPORTED:
+		if (!pf->vf_msg_cfg.max_unsupported)
+			return;
+
+		out_str = "unsupported";
+		limit = pf->vf_msg_cfg.max_unsupported - 1;
+		next = loop_next(vf->unsupported_msg_index, limit);
+		vf->unsupported_msg_index = next;
+		msg_timestamps = vf->unsupported_msg_timestamps;
+		break;
+
+	default:
+		if (!pf->vf_msg_cfg.max_valid)
+			return;
+
+		out_str = "valid";
+		limit = pf->vf_msg_cfg.max_valid - 1;
+		next = loop_next(vf->valid_msg_index, limit);
+		vf->valid_msg_index = next;
+		msg_timestamps = vf->valid_msg_timestamps;
+		break;
+	}
+	cur_cycle = rte_get_timer_cycles();
+	msg_timestamps[next] = cur_cycle;
+	next = loop_next(next, limit);
+	first_cycle = msg_timestamps[next];
+
+	/*
+	 * If the time span from the arrival time of first message to
+	 * the arrival time of current message smaller than `period`,
+	 * that mean too much message in this statistic period.
+	 */
+	if (first_cycle && cur_cycle < first_cycle +
+			(uint64_t)pf->vf_msg_cfg.period * rte_get_timer_hz()) {
+		PMD_DRV_LOG(ERR, "VF %u too much %s messages(%u in %u"
+				" seconds),\n\tany new message from which"
+				" will be ignored during next %u seconds!",
+				vf_id, out_str, limit + 1,
+				(uint32_t)((cur_cycle - first_cycle +
+				rte_get_timer_hz() - 1) / rte_get_timer_hz()),
+				pf->vf_msg_cfg.ignore_second);
+		vf->ignore_end_cycle = rte_get_timer_cycles() +
+				pf->vf_msg_cfg.ignore_second *
+				rte_get_timer_hz();
 	}
 }
 
@@ -1465,6 +1555,8 @@ i40e_pf_host_init(struct rte_eth_dev *dev)
 	struct i40e_hw *hw = I40E_PF_TO_HW(pf);
 	int ret, i;
 	uint32_t val;
+	size_t size;
+	uint64_t *addr;
 
 	PMD_INIT_FUNC_TRACE();
 
@@ -1489,10 +1581,28 @@ i40e_pf_host_init(struct rte_eth_dev *dev)
 	I40E_WRITE_REG(hw, I40E_PFGEN_PORTMDIO_NUM, val);
 	I40E_WRITE_FLUSH(hw);
 
+	/* calculate the memory size for storing timestamp of messages */
+	size = (pf->vf_msg_cfg.max_valid + pf->vf_msg_cfg.max_invalid +
+			pf->vf_msg_cfg.max_unsupported) * sizeof(uint64_t);
+
 	for (i = 0; i < pf->vf_num; i++) {
 		pf->vfs[i].pf = pf;
 		pf->vfs[i].state = I40E_VF_INACTIVE;
 		pf->vfs[i].vf_idx = i;
+
+		if (size) {
+			/* allocate memory for store timestamp of messages */
+			addr = (uint64_t *)rte_zmalloc("i40e_pf_vf", size, 0);
+			if (addr == NULL)
+				goto fail;
+			pf->vfs[i].valid_msg_timestamps = addr;
+			pf->vfs[i].invalid_msg_timestamps = addr +
+					pf->vf_msg_cfg.max_valid;
+			pf->vfs[i].unsupported_msg_timestamps =
+					pf->vfs[i].invalid_msg_timestamps +
+					pf->vf_msg_cfg.max_invalid;
+		}
+
 		ret = i40e_pf_host_vf_reset(&pf->vfs[i], 0);
 		if (ret != I40E_SUCCESS)
 			goto fail;
@@ -1505,6 +1615,9 @@ i40e_pf_host_init(struct rte_eth_dev *dev)
 	return I40E_SUCCESS;
 
 fail:
+	for (; i >= 0; i--)
+		if (pf->vfs[i].valid_msg_timestamps)
+			rte_free(pf->vfs[i].valid_msg_timestamps);
 	rte_free(pf->vfs);
 	i40e_pf_enable_irq0(hw);
 
@@ -1517,6 +1630,7 @@ i40e_pf_host_uninit(struct rte_eth_dev *dev)
 	struct i40e_pf *pf = I40E_DEV_PRIVATE_TO_PF(dev->data->dev_private);
 	struct i40e_hw *hw = I40E_PF_TO_HW(pf);
 	uint32_t val;
+	int i;
 
 	PMD_INIT_FUNC_TRACE();
 
@@ -1528,6 +1642,11 @@ i40e_pf_host_uninit(struct rte_eth_dev *dev)
 		(pf->vf_num == 0) ||
 		(pf->vf_nb_qps == 0))
 		return I40E_SUCCESS;
+
+	/* free memory for store timestamp of messages */
+	for (i = 0; i < pf->vf_num; i++)
+		if (pf->vfs[i].valid_msg_timestamps)
+			rte_free(pf->vfs[i].valid_msg_timestamps);
 
 	/* free memory to store VF structure */
 	rte_free(pf->vfs);
