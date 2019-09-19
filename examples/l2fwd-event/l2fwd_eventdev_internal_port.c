@@ -265,6 +265,11 @@ rx_tx_adapter_setup_internal_port(uint16_t ethdev_count)
 	}
 }
 
+static void
+eventdev_service_setup_internal_port(void)
+{
+}
+
 void
 eventdev_set_internal_port_ops(struct eventdev_setup_ops *ops)
 {
@@ -272,4 +277,5 @@ eventdev_set_internal_port_ops(struct eventdev_setup_ops *ops)
 	ops->event_queue_setup = event_queue_setup_internal_port;
 	ops->event_port_setup = event_port_setup_internal_port;
 	ops->adapter_setup = rx_tx_adapter_setup_internal_port;
+	ops->service_setup = eventdev_service_setup_internal_port;
 }
