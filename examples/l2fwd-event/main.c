@@ -522,7 +522,7 @@ main(int argc, char **argv)
 	uint32_t rx_lcore_id;
 	uint32_t nb_mbufs;
 	uint16_t nb_ports;
-	int ret;
+	int i, ret;
 
 	/* init EAL */
 	ret = rte_eal_init(argc, argv);
@@ -762,15 +762,41 @@ skip_port_config:
 	/* launch per-lcore init on every lcore */
 	rte_eal_mp_remote_launch(l2fwd_launch_one_lcore, eventdev_rsrc,
 				 CALL_MASTER);
-	rte_eal_mp_wait_lcore();
+	if (eventdev_rsrc->enabled) {
+		for (i = 0; i < eventdev_rsrc->rx_adptr.nb_rx_adptr; i++)
+			rte_event_eth_rx_adapter_stop(
+				eventdev_rsrc->rx_adptr.rx_adptr[i]);
+		for (i = 0; i < eventdev_rsrc->tx_adptr.nb_tx_adptr; i++)
+			rte_event_eth_tx_adapter_stop(
+				eventdev_rsrc->tx_adptr.tx_adptr[i]);
 
-	RTE_ETH_FOREACH_DEV(portid) {
-		if ((l2fwd_enabled_port_mask & (1 << portid)) == 0)
-			continue;
-		printf("Closing port %d...", portid);
-		rte_eth_dev_stop(portid);
-		rte_eth_dev_close(portid);
-		printf(" Done\n");
+		RTE_ETH_FOREACH_DEV(portid) {
+			if ((l2fwd_enabled_port_mask & (1 << portid)) == 0)
+				continue;
+			rte_eth_dev_stop(portid);
+		}
+
+		rte_eal_mp_wait_lcore();
+		RTE_ETH_FOREACH_DEV(portid) {
+			if ((l2fwd_enabled_port_mask & (1 << portid)) == 0)
+				continue;
+			rte_eth_dev_close(portid);
+		}
+
+		rte_event_dev_stop(eventdev_rsrc->event_d_id);
+		rte_event_dev_close(eventdev_rsrc->event_d_id);
+
+	} else {
+		rte_eal_mp_wait_lcore();
+
+		RTE_ETH_FOREACH_DEV(portid) {
+			if ((l2fwd_enabled_port_mask & (1 << portid)) == 0)
+				continue;
+			printf("Closing port %d...", portid);
+			rte_eth_dev_stop(portid);
+			rte_eth_dev_close(portid);
+			printf(" Done\n");
+		}
 	}
 	printf("Bye...\n");
 
