@@ -950,7 +950,6 @@ static int rte_eal_vfio_setup(void)
 static void rte_eal_init_alert(const char *msg)
 {
 	fprintf(stderr, "EAL: FATAL: %s\n", msg);
-	RTE_LOG(ERR, EAL, "%s\n", msg);
 }
 
 /*
@@ -1175,7 +1174,7 @@ rte_eal_init(int argc, char **argv)
 
 #ifdef VFIO_PRESENT
 	if (rte_eal_vfio_setup() < 0) {
-		rte_eal_init_alert("Cannot init VFIO");
+		RTE_LOG(ERR, EAL, "Cannot init VFIO\n");
 		rte_errno = EAGAIN;
 		rte_atomic32_clear(&run_once);
 		return -1;
