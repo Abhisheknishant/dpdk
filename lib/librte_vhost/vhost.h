@@ -61,6 +61,7 @@
 #endif
 
 #define PACKED_BURST_MASK (PACKED_DESCS_BURST - 1)
+#define DESC_SINGLE_DEQUEUE (VRING_DESC_F_NEXT | VRING_DESC_F_INDIRECT)
 
 /**
  * Structure contains buffer address, length and descriptor index

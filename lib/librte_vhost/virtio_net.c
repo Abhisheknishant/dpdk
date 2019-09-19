@@ -1581,6 +1581,121 @@ virtio_dev_tx_split(struct virtio_net *dev, struct vhost_virtqueue *vq,
 }
 
 static __rte_always_inline int
+vhost_dequeue_burst_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
+	struct rte_mempool *mbuf_pool, struct rte_mbuf **pkts,
+	uint16_t avail_idx, uintptr_t *desc_addrs, uint16_t *ids)
+{
+	bool wrap_counter = vq->avail_wrap_counter;
+	struct vring_packed_desc *descs = vq->desc_packed;
+	uint64_t lens[PACKED_DESCS_BURST];
+	uint64_t buf_lens[PACKED_DESCS_BURST];
+	uint32_t buf_offset = dev->vhost_hlen;
+	uint16_t i;
+
+	if (unlikely(avail_idx & PACKED_BURST_MASK))
+		return -1;
+
+	UNROLL_PRAGMA(PRAGMA_PARAM)
+	for (i = 0; i < PACKED_DESCS_BURST; i++) {
+		if (unlikely(!desc_is_avail(&descs[avail_idx + i],
+					    wrap_counter)))
+			return -1;
+		if (unlikely(descs[avail_idx + i].flags &
+			     DESC_SINGLE_DEQUEUE))
+			return -1;
+	}
+
+	rte_smp_rmb();
+
+	UNROLL_PRAGMA(PRAGMA_PARAM)
+	for (i = 0; i < PACKED_DESCS_BURST; i++)
+		lens[i] = descs[avail_idx + i].len;
+
+	UNROLL_PRAGMA(PRAGMA_PARAM)
+	for (i = 0; i < PACKED_DESCS_BURST; i++) {
+		desc_addrs[i] = vhost_iova_to_vva(dev, vq,
+						  descs[avail_idx + i].addr,
+						  &lens[i], VHOST_ACCESS_RW);
+	}
+
+	UNROLL_PRAGMA(PRAGMA_PARAM)
+	for (i = 0; i < PACKED_DESCS_BURST; i++) {
+		if (unlikely((lens[i] != descs[avail_idx + i].len)))
+			return -1;
+	}
+
+	if (rte_pktmbuf_alloc_bulk(mbuf_pool, pkts, PACKED_DESCS_BURST))
+		return -1;
+
+	UNROLL_PRAGMA(PRAGMA_PARAM)
+	for (i = 0; i < PACKED_DESCS_BURST; i++)
+		buf_lens[i] = pkts[i]->buf_len - pkts[i]->data_off;
+
+	UNROLL_PRAGMA(PRAGMA_PARAM)
+	for (i = 0; i < PACKED_DESCS_BURST; i++) {
+		if (unlikely(buf_lens[i] < (lens[i] - buf_offset)))
+			goto free_buf;
+	}
+
+	UNROLL_PRAGMA(PRAGMA_PARAM)
+	for (i = 0; i < PACKED_DESCS_BURST; i++) {
+		pkts[i]->pkt_len = descs[avail_idx + i].len - buf_offset;
+		pkts[i]->data_len = pkts[i]->pkt_len;
+		ids[i] = descs[avail_idx + i].id;
+	}
+
+	return 0;
+
+free_buf:
+	for (i = 0; i < PACKED_DESCS_BURST; i++)
+		rte_pktmbuf_free(pkts[i]);
+
+	return -1;
+}
+
+static __rte_unused int
+virtio_dev_tx_burst_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
+	struct rte_mempool *mbuf_pool, struct rte_mbuf **pkts)
+{
+	uint16_t avail_idx = vq->last_avail_idx;
+	uint32_t buf_offset = dev->vhost_hlen;
+	uintptr_t desc_addrs[PACKED_DESCS_BURST];
+	uint16_t ids[PACKED_DESCS_BURST];
+	int ret;
+	struct virtio_net_hdr *hdr;
+	uint16_t i;
+
+	ret = vhost_dequeue_burst_packed(dev, vq, mbuf_pool, pkts, avail_idx,
+					 desc_addrs, ids);
+
+	if (ret)
+		return ret;
+
+	UNROLL_PRAGMA(PRAGMA_PARAM)
+	for (i = 0; i < PACKED_DESCS_BURST; i++) {
+		rte_prefetch0((void *)(uintptr_t)desc_addrs[i]);
+		rte_memcpy(rte_pktmbuf_mtod_offset(pkts[i], void *, 0),
+			   (void *)(uintptr_t)(desc_addrs[i] + buf_offset),
+			   pkts[i]->pkt_len);
+	}
+
+	if (virtio_net_with_host_offload(dev)) {
+		UNROLL_PRAGMA(PRAGMA_PARAM)
+		for (i = 0; i < PACKED_DESCS_BURST; i++) {
+			hdr = (struct virtio_net_hdr *)(desc_addrs[i]);
+			vhost_dequeue_offload(hdr, pkts[i]);
+		}
+	}
+
+	vq->last_avail_idx += PACKED_DESCS_BURST;
+	if (vq->last_avail_idx >= vq->size) {
+		vq->last_avail_idx -= vq->size;
+		vq->avail_wrap_counter ^= 1;
+	}
+	return 0;
+}
+
+static __rte_always_inline int
 vhost_dequeue_single_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 	struct rte_mempool *mbuf_pool, struct rte_mbuf **pkts, uint16_t *buf_id,
 	uint16_t *desc_count)
