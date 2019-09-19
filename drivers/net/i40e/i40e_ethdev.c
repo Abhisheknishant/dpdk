@@ -1312,6 +1312,9 @@ eth_i40e_dev_init(struct rte_eth_dev *dev, void *init_params __rte_unused)
 	hw->adapter_stopped = 0;
 	hw->adapter_closed = 0;
 
+	/* Init switch device pointer */
+	hw->switch_dev = NULL;
+
 	/*
 	 * Switch Tag value should not be identical to either the First Tag
 	 * or Second Tag values. So set something other than common Ethertype
@@ -2782,6 +2785,20 @@ update_link_aq(struct i40e_hw *hw, struct rte_eth_link *link,
 	}
 }
 
+void
+i40e_set_switch_dev(struct rte_eth_dev *i40e_dev,
+struct rte_eth_dev *switch_dev)
+{
+	struct i40e_hw *hw;
+
+	if (!i40e_dev)
+		return;
+
+	hw = I40E_DEV_PRIVATE_TO_HW(i40e_dev->data->dev_private);
+
+	hw->switch_dev = switch_dev;
+}
+
 int
 i40e_dev_link_update(struct rte_eth_dev *dev,
 		     int wait_to_complete)
@@ -2802,6 +2819,9 @@ i40e_dev_link_update(struct rte_eth_dev *dev,
 		update_link_reg(hw, &link);
 	else
 		update_link_aq(hw, &link, enable_lse, wait_to_complete);
+
+	if (hw->switch_dev)
+		rte_eth_linkstatus_get(hw->switch_dev, &link);
 
 	ret = rte_eth_linkstatus_set(dev, &link);
 	i40e_notify_all_vfs_link_status(dev);
