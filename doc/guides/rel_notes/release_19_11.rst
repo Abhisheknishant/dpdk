@@ -56,6 +56,11 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Updated the Intel drivers.**
+
+  * Added support for the ``RTE_ETH_DEV_CLOSE_REMOVE`` flag for
+    e1000, fm10k, i40e, ice, ixgbe.
+
 
 Removed Items
 -------------
