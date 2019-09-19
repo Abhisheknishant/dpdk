@@ -89,6 +89,10 @@
 #define HAVE_TRANS_START_HELPER
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+#define HAVE_MIN_MAX_MTU
+#endif
+
 /*
  * KNI uses NET_NAME_UNKNOWN macro to select correct version of alloc_netdev()
  * For old kernels just backported the commit that enables the macro
