@@ -170,6 +170,51 @@ update_shadow_packed(struct vhost_virtqueue *vq,
 }
 
 static __rte_always_inline void
+flush_burst_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
+	uint64_t *lens, uint16_t *ids, uint16_t flags)
+{
+	uint16_t i;
+
+	UNROLL_PRAGMA(PRAGMA_PARAM)
+	for (i = 0; i < PACKED_DESCS_BURST; i++) {
+		vq->desc_packed[vq->last_used_idx + i].id = ids[i];
+		vq->desc_packed[vq->last_used_idx + i].len = lens[i];
+	}
+
+	UNROLL_PRAGMA(PRAGMA_PARAM)
+	for (i = 0; i < PACKED_DESCS_BURST; i++) {
+		rte_smp_wmb();
+		vq->desc_packed[vq->last_used_idx + i].flags = flags;
+	}
+
+	vhost_log_cache_used_vring(dev, vq, vq->last_used_idx *
+				   sizeof(struct vring_packed_desc),
+				   sizeof(struct vring_packed_desc) *
+				   PACKED_DESCS_BURST);
+	vhost_log_cache_sync(dev, vq);
+
+	vq->last_used_idx += PACKED_DESCS_BURST;
+	if (vq->last_used_idx >= vq->size) {
+		vq->used_wrap_counter ^= 1;
+		vq->last_used_idx -= vq->size;
+	}
+}
+
+static __rte_always_inline void
+flush_enqueue_burst_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
+	uint64_t *lens, uint16_t *ids)
+{
+	uint16_t flags = 0;
+
+	if (vq->used_wrap_counter)
+		flags = VIRTIO_RX_USED_FLAG;
+	else
+		flags = VIRTIO_RX_USED_WRAP_FLAG;
+
+	flush_burst_packed(dev, vq, lens, ids, flags);
+}
+
+static __rte_always_inline void
 update_enqueue_shadow_packed(struct vhost_virtqueue *vq, uint16_t desc_idx,
 	uint32_t len, uint16_t count)
 {
@@ -950,6 +995,7 @@ virtio_dev_rx_burst_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 	struct virtio_net_hdr_mrg_rxbuf *hdrs[PACKED_DESCS_BURST];
 	uint32_t buf_offset = dev->vhost_hlen;
 	uint64_t lens[PACKED_DESCS_BURST];
+	uint16_t ids[PACKED_DESCS_BURST];
 
 	uint16_t i;
 
@@ -1012,6 +1058,12 @@ virtio_dev_rx_burst_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 			   rte_pktmbuf_mtod_offset(pkts[i], void *, 0),
 			   pkts[i]->pkt_len);
 	}
+
+	UNROLL_PRAGMA(PRAGMA_PARAM)
+	for (i = 0; i < PACKED_DESCS_BURST; i++)
+		ids[i] = descs[avail_idx + i].id;
+
+	flush_enqueue_burst_packed(dev, vq, lens, ids);
 
 	return 0;
 }

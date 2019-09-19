@@ -39,6 +39,9 @@
 
 #define VHOST_LOG_CACHE_NR 32
 
+#define VIRTIO_RX_USED_FLAG  (0ULL | VRING_DESC_F_AVAIL | VRING_DESC_F_USED \
+				| VRING_DESC_F_WRITE)
+#define VIRTIO_RX_USED_WRAP_FLAG (VRING_DESC_F_WRITE)
 #define PACKED_DESCS_BURST (RTE_CACHE_LINE_SIZE / \
 			    sizeof(struct vring_packed_desc))
 
