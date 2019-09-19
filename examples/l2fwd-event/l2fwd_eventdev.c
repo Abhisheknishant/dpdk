@@ -76,6 +76,31 @@ parse_eventdev_args(char **argv, int argc)
 	return 0;
 }
 
+static void
+eventdev_capability_setup(void)
+{
+	struct eventdev_resources *eventdev_rsrc = get_eventdev_rsrc();
+	uint32_t caps = 0;
+	uint16_t i;
+	int ret;
+
+	RTE_ETH_FOREACH_DEV(i) {
+		ret = rte_event_eth_tx_adapter_caps_get(0, i, &caps);
+		if (ret)
+			rte_exit(EXIT_FAILURE,
+				 "Invalid capability for Tx adptr port %d\n",
+				 i);
+
+		eventdev_rsrc->tx_mode_q |= !(caps &
+				   RTE_EVENT_ETH_TX_ADAPTER_CAP_INTERNAL_PORT);
+	}
+
+	if (eventdev_rsrc->tx_mode_q)
+		eventdev_set_generic_ops(&eventdev_rsrc->ops);
+	else
+		eventdev_set_internal_port_ops(&eventdev_rsrc->ops);
+}
+
 void
 eventdev_resource_setup(void)
 {
@@ -90,6 +115,10 @@ eventdev_resource_setup(void)
 
 	if (!rte_event_dev_count())
 		rte_exit(EXIT_FAILURE, "No Eventdev found");
+
+	/* Setup eventdev capability callbacks */
+	eventdev_capability_setup();
+
 	/* Start event device service */
 	ret = rte_event_dev_service_id_get(eventdev_rsrc->event_d_id,
 			&service_id);
