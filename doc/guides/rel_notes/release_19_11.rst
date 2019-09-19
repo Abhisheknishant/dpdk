@@ -56,6 +56,10 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Added command to print port supported ptypes on testpmd application.**
+
+  Added a console command to testpmd app, ``show port (port_id) ptypes`` which
+  gives ability to print port supported ptypes in different protocol layers.
 
 Removed Items
 -------------
