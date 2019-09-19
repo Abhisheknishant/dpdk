@@ -39,6 +39,9 @@
 
 #define VHOST_LOG_CACHE_NR 32
 
+#define PACKED_DESCS_BURST (RTE_CACHE_LINE_SIZE / \
+			    sizeof(struct vring_packed_desc))
+
 #ifdef SUPPORT_GCC_UNROLL_PRAGMA
 #define PRAGMA_PARAM "GCC unroll 4"
 #endif
@@ -56,6 +59,8 @@
 #else
 #define UNROLL_PRAGMA(param) do {} while(0);
 #endif
+
+#define PACKED_BURST_MASK (PACKED_DESCS_BURST - 1)
 
 /**
  * Structure contains buffer address, length and descriptor index
