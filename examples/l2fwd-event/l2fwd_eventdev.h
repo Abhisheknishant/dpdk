@@ -18,8 +18,26 @@ enum {
 	CMD_LINE_OPT_EVENTQ_SYNC_NUM,
 };
 
+typedef void (*event_queue_setup_cb)(uint16_t ethdev_count,
+				     uint32_t event_queue_cfg);
+typedef uint32_t (*eventdev_setup_cb)(uint16_t ethdev_count);
+typedef void (*adapter_setup_cb)(uint16_t ethdev_count);
+typedef void (*event_port_setup_cb)(void);
+typedef void (*service_setup_cb)(void);
+typedef void (*event_loop_cb)(void);
+
+struct eventdev_setup_ops {
+	event_queue_setup_cb event_queue_setup;
+	event_port_setup_cb event_port_setup;
+	eventdev_setup_cb eventdev_setup;
+	adapter_setup_cb adapter_setup;
+	service_setup_cb service_setup;
+	event_loop_cb l2fwd_event_loop;
+};
+
 struct eventdev_resources {
 	struct l2fwd_port_statistics *stats;
+	struct eventdev_setup_ops ops;
 	struct rte_mempool *pkt_pool;
 	uint64_t timer_period;
 	uint32_t *dst_ports;
@@ -58,5 +76,7 @@ get_eventdev_rsrc(void)
 }
 
 void eventdev_resource_setup(void);
+void eventdev_set_generic_ops(struct eventdev_setup_ops *ops);
+void eventdev_set_internal_port_ops(struct eventdev_setup_ops *ops);
 
 #endif /* __L2FWD_EVENTDEV_H__ */

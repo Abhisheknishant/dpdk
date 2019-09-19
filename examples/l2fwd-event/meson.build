@@ -9,5 +9,7 @@
 
 sources = files(
 	'main.c',
-	'l2fwd_eventdev.c'
+	'l2fwd_eventdev.c',
+	'l2fwd_eventdev_internal_port.c',
+	'l2fwd_eventdev_generic.c'
 )
