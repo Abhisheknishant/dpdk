@@ -478,7 +478,9 @@ map_one_desc(struct virtio_net *dev, struct vhost_virtqueue *vq,
 		if (unlikely(!desc_addr))
 			return -1;
 
+#ifndef DISABLE_SWPREFETCH
 		rte_prefetch0((void *)(uintptr_t)desc_addr);
+#endif
 
 		buf_vec[vec_id].buf_iova = desc_iova;
 		buf_vec[vec_id].buf_addr = desc_addr;
@@ -999,7 +1001,9 @@ virtio_dev_rx_split(struct virtio_net *dev, struct vhost_virtqueue *vq,
 	 */
 	rte_smp_rmb();
 
+#ifndef DISABLE_SWPREFETCH
 	rte_prefetch0(&vq->avail->ring[vq->last_avail_idx & (vq->size - 1)]);
+#endif
 
 	for (pkt_idx = 0; pkt_idx < count; pkt_idx++) {
 		uint32_t pkt_len = pkts[pkt_idx]->pkt_len + dev->vhost_hlen;
@@ -1093,7 +1097,9 @@ virtio_dev_rx_burst_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 
 	UNROLL_PRAGMA(PRAGMA_PARAM)
 	for (i = 0; i < PACKED_DESCS_BURST; i++) {
+#ifndef DISABLE_SWPREFETCH
 		rte_prefetch0((void *)(uintptr_t)desc_addrs[i]);
+#endif
 		hdrs[i] = (struct virtio_net_hdr_mrg_rxbuf *)desc_addrs[i];
 		lens[i] = pkts[i]->pkt_len + dev->vhost_hlen;
 	}
@@ -1647,7 +1653,9 @@ virtio_dev_tx_split(struct virtio_net *dev, struct vhost_virtqueue *vq,
 	 */
 	rte_smp_rmb();
 
+#ifndef DISABLE_SWPREFETCH
 	rte_prefetch0(&vq->avail->ring[vq->last_avail_idx & (vq->size - 1)]);
+#endif
 
 	VHOST_LOG_DEBUG(VHOST_DATA, "(%d) %s\n", dev->vid, __func__);
 
@@ -1818,7 +1826,9 @@ virtio_dev_tx_burst_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 
 	UNROLL_PRAGMA(PRAGMA_PARAM)
 	for (i = 0; i < PACKED_DESCS_BURST; i++) {
+#ifndef DISABLE_SWPREFETCH
 		rte_prefetch0((void *)(uintptr_t)desc_addrs[i]);
+#endif
 		rte_memcpy(rte_pktmbuf_mtod_offset(pkts[i], void *, 0),
 			   (void *)(uintptr_t)(desc_addrs[i] + buf_offset),
 			   pkts[i]->pkt_len);
