@@ -232,6 +232,43 @@ update_enqueue_shadow_packed(struct vhost_virtqueue *vq, uint16_t desc_idx,
 	vq->enqueue_shadow_count += count;
 }
 
+static __rte_always_inline void
+update_dequeue_shadow_packed(struct vhost_virtqueue *vq, uint16_t buf_id,
+	uint16_t count)
+{
+	if (!vq->shadow_used_idx) {
+		vq->dequeue_shadow_head = vq->last_used_idx;
+
+		vq->shadow_used_packed[0].id  = buf_id;
+		vq->shadow_used_packed[0].len = 0;
+		vq->shadow_used_packed[0].count = count;
+		vq->shadow_used_packed[0].used_idx = vq->last_used_idx;
+		vq->shadow_used_packed[0].used_wrap_counter =
+			vq->used_wrap_counter;
+
+		vq->shadow_used_idx = 1;
+	} else {
+		vq->desc_packed[vq->last_used_idx].id = buf_id;
+		vq->desc_packed[vq->last_used_idx].len = 0;
+
+		if (vq->used_wrap_counter)
+			vq->desc_packed[vq->last_used_idx].flags =
+				VIRTIO_TX_USED_FLAG;
+		else
+			vq->desc_packed[vq->last_used_idx].flags =
+				VIRTIO_TX_USED_WRAP_FLAG;
+
+	}
+
+	vq->last_used_idx += count;
+
+	if (vq->last_used_idx >= vq->size) {
+		vq->used_wrap_counter ^= 1;
+		vq->last_used_idx -= vq->size;
+	}
+}
+
+
 static inline void
 do_data_copy_enqueue(struct virtio_net *dev, struct vhost_virtqueue *vq)
 {
@@ -1834,6 +1871,8 @@ virtio_dev_tx_single_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 	if (vhost_dequeue_single_packed(dev, vq, mbuf_pool, pkts, &buf_id,
 					&desc_count))
 		return -1;
+
+	update_dequeue_shadow_packed(vq, buf_id, desc_count);
 
 	vq->last_avail_idx += desc_count;
 	if (vq->last_avail_idx >= vq->size) {
