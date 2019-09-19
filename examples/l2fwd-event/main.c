@@ -42,6 +42,7 @@
 #include <rte_spinlock.h>
 
 #include "l2fwd_common.h"
+#include "l2fwd_eventdev.h"
 
 static volatile bool force_quit;
 
@@ -288,7 +289,12 @@ l2fwd_usage(const char *prgname)
 	       "  --[no-]mac-updating: Enable or disable MAC addresses updating (enabled by default)\n"
 	       "      When enabled:\n"
 	       "       - The source MAC address is replaced by the TX port MAC address\n"
-	       "       - The destination MAC address is replaced by 02:00:00:00:00:TX_PORT_ID\n",
+	       "       - The destination MAC address is replaced by 02:00:00:00:00:TX_PORT_ID\n"
+	       "  --mode: Packet transfer mode for I/O, poll or eventdev\n"
+	       "          Default mode = eventdev\n"
+	       "  --eventq-sync:Event queue synchronization method,\n"
+	       "                ordered or atomic.\nDefault: atomic\n"
+	       "                Valid only if --mode=eventdev\n\n",
 	       prgname);
 }
 
@@ -503,6 +509,7 @@ signal_handler(int signum)
 int
 main(int argc, char **argv)
 {
+	struct eventdev_resources *eventdev_rsrc;
 	uint16_t nb_ports_available = 0;
 	struct lcore_queue_conf *qconf;
 	uint32_t nb_ports_in_mask = 0;
@@ -524,6 +531,7 @@ main(int argc, char **argv)
 	signal(SIGINT, signal_handler);
 	signal(SIGTERM, signal_handler);
 
+	eventdev_rsrc = get_eventdev_rsrc();
 	/* parse application arguments (after the EAL ones) */
 	ret = l2fwd_parse_args(argc, argv);
 	if (ret < 0)
@@ -584,6 +592,17 @@ main(int argc, char **argv)
 	if (l2fwd_pktmbuf_pool == NULL)
 		rte_exit(EXIT_FAILURE, "Cannot init mbuf pool\n");
 
+	eventdev_rsrc->port_mask = l2fwd_enabled_port_mask;
+	eventdev_rsrc->pkt_pool = l2fwd_pktmbuf_pool;
+	eventdev_rsrc->dst_ports = l2fwd_dst_ports;
+	eventdev_rsrc->timer_period = timer_period;
+	eventdev_rsrc->mac_updt = mac_updating;
+	eventdev_rsrc->stats = port_statistics;
+	eventdev_rsrc->done = &force_quit;
+
+	/* Configure eventdev parameters if user has requested */
+	eventdev_resource_setup();
+
 	/* Initialize the port/queue configuration of each logical core */
 	RTE_ETH_FOREACH_DEV(portid) {
 		/* skip ports that are not enabled */
@@ -609,7 +628,6 @@ main(int argc, char **argv)
 		qconf->n_rx_port++;
 		printf("Lcore %u: RX port %u\n", rx_lcore_id, portid);
 	}
-
 
 	/* Initialise each port */
 	RTE_ETH_FOREACH_DEV(portid) {

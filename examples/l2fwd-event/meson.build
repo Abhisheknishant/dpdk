@@ -8,5 +8,6 @@
 # DPDK instance, use 'make'
 
 sources = files(
-	'main.c'
+	'main.c',
+	'l2fwd_eventdev.c'
 )
