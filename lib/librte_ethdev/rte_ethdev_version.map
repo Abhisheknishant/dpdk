@@ -283,4 +283,9 @@ EXPERIMENTAL {
 
 	# added in 19.08
 	rte_eth_read_clock;
+
+	# added in 19.11
+	rte_eth_basic_stats_count;
+	rte_eth_basic_stats_get;
+	rte_eth_basic_stats_get_names;
 };
