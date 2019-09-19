@@ -38,7 +38,7 @@ is_valid_virt_queue_idx(uint32_t idx, int is_tx, uint32_t nr_vring)
 }
 
 static __rte_always_inline void
-do_flush_shadow_used_ring_split(struct virtio_net *dev,
+do_flush_shadow_split(struct virtio_net *dev,
 			struct vhost_virtqueue *vq,
 			uint16_t to, uint16_t from, uint16_t size)
 {
@@ -51,22 +51,22 @@ do_flush_shadow_used_ring_split(struct virtio_net *dev,
 }
 
 static __rte_always_inline void
-flush_shadow_used_ring_split(struct virtio_net *dev, struct vhost_virtqueue *vq)
+flush_shadow_split(struct virtio_net *dev, struct vhost_virtqueue *vq)
 {
 	uint16_t used_idx = vq->last_used_idx & (vq->size - 1);
 
 	if (used_idx + vq->shadow_used_idx <= vq->size) {
-		do_flush_shadow_used_ring_split(dev, vq, used_idx, 0,
+		do_flush_shadow_split(dev, vq, used_idx, 0,
 					  vq->shadow_used_idx);
 	} else {
 		uint16_t size;
 
 		/* update used ring interval [used_idx, vq->size] */
 		size = vq->size - used_idx;
-		do_flush_shadow_used_ring_split(dev, vq, used_idx, 0, size);
+		do_flush_shadow_split(dev, vq, used_idx, 0, size);
 
 		/* update the left half used ring interval [0, left_size] */
-		do_flush_shadow_used_ring_split(dev, vq, 0, size,
+		do_flush_shadow_split(dev, vq, 0, size,
 					  vq->shadow_used_idx - size);
 	}
 	vq->last_used_idx += vq->shadow_used_idx;
@@ -82,7 +82,7 @@ flush_shadow_used_ring_split(struct virtio_net *dev, struct vhost_virtqueue *vq)
 }
 
 static __rte_always_inline void
-update_shadow_used_ring_split(struct vhost_virtqueue *vq,
+update_shadow_split(struct vhost_virtqueue *vq,
 			 uint16_t desc_idx, uint32_t len)
 {
 	uint16_t i = vq->shadow_used_idx++;
@@ -92,7 +92,7 @@ update_shadow_used_ring_split(struct vhost_virtqueue *vq,
 }
 
 static __rte_always_inline void
-flush_shadow_used_ring_packed(struct virtio_net *dev,
+flush_shadow_packed(struct virtio_net *dev,
 			struct vhost_virtqueue *vq)
 {
 	int i;
@@ -159,7 +159,7 @@ flush_shadow_used_ring_packed(struct virtio_net *dev,
 }
 
 static __rte_always_inline void
-update_shadow_used_ring_packed(struct vhost_virtqueue *vq,
+update_shadow_packed(struct vhost_virtqueue *vq,
 			 uint16_t desc_idx, uint32_t len, uint16_t count)
 {
 	uint16_t i = vq->shadow_used_idx++;
@@ -421,7 +421,7 @@ reserve_avail_buf_split(struct virtio_net *dev, struct vhost_virtqueue *vq,
 						VHOST_ACCESS_RW) < 0))
 			return -1;
 		len = RTE_MIN(len, size);
-		update_shadow_used_ring_split(vq, head_idx, len);
+		update_shadow_split(vq, head_idx, len);
 		size -= len;
 
 		cur_idx++;
@@ -597,7 +597,7 @@ reserve_avail_buf_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 			return -1;
 
 		len = RTE_MIN(len, size);
-		update_shadow_used_ring_packed(vq, buf_id, len, desc_count);
+		update_shadow_packed(vq, buf_id, len, desc_count);
 		size -= len;
 
 		avail_idx += desc_count;
@@ -888,7 +888,7 @@ virtio_dev_rx_split(struct virtio_net *dev, struct vhost_virtqueue *vq,
 	do_data_copy_enqueue(dev, vq);
 
 	if (likely(vq->shadow_used_idx)) {
-		flush_shadow_used_ring_split(dev, vq);
+		flush_shadow_split(dev, vq);
 		vhost_vring_call_split(dev, vq);
 	}
 
@@ -1046,7 +1046,7 @@ virtio_dev_rx_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 	do_data_copy_enqueue(dev, vq);
 
 	if (likely(vq->shadow_used_idx)) {
-		flush_shadow_used_ring_packed(dev, vq);
+		flush_shadow_packed(dev, vq);
 		vhost_vring_call_packed(dev, vq);
 	}
 
@@ -1475,8 +1475,7 @@ virtio_dev_tx_split(struct virtio_net *dev, struct vhost_virtqueue *vq,
 			next = TAILQ_NEXT(zmbuf, next);
 
 			if (mbuf_is_consumed(zmbuf->mbuf)) {
-				update_shadow_used_ring_split(vq,
-						zmbuf->desc_idx, 0);
+				update_shadow_split(vq, zmbuf->desc_idx, 0);
 				TAILQ_REMOVE(&vq->zmbuf_list, zmbuf, next);
 				restore_mbuf(zmbuf->mbuf);
 				rte_pktmbuf_free(zmbuf->mbuf);
@@ -1486,7 +1485,7 @@ virtio_dev_tx_split(struct virtio_net *dev, struct vhost_virtqueue *vq,
 		}
 
 		if (likely(vq->shadow_used_idx)) {
-			flush_shadow_used_ring_split(dev, vq);
+			flush_shadow_split(dev, vq);
 			vhost_vring_call_split(dev, vq);
 		}
 	}
@@ -1526,7 +1525,7 @@ virtio_dev_tx_split(struct virtio_net *dev, struct vhost_virtqueue *vq,
 			break;
 
 		if (likely(dev->dequeue_zero_copy == 0))
-			update_shadow_used_ring_split(vq, head_idx, 0);
+			update_shadow_split(vq, head_idx, 0);
 
 		pkts[i] = rte_pktmbuf_alloc(mbuf_pool);
 		if (unlikely(pkts[i] == NULL)) {
@@ -1572,7 +1571,7 @@ virtio_dev_tx_split(struct virtio_net *dev, struct vhost_virtqueue *vq,
 		if (unlikely(i < count))
 			vq->shadow_used_idx = i;
 		if (likely(vq->shadow_used_idx)) {
-			flush_shadow_used_ring_split(dev, vq);
+			flush_shadow_split(dev, vq);
 			vhost_vring_call_split(dev, vq);
 		}
 	}
@@ -1764,7 +1763,7 @@ virtio_dev_tx_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 			next = TAILQ_NEXT(zmbuf, next);
 
 			if (mbuf_is_consumed(zmbuf->mbuf)) {
-				update_shadow_used_ring_packed(vq,
+				update_shadow_packed(vq,
 						zmbuf->desc_idx,
 						0,
 						zmbuf->desc_count);
@@ -1778,7 +1777,7 @@ virtio_dev_tx_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 		}
 
 		if (likely(vq->shadow_used_idx)) {
-			flush_shadow_used_ring_packed(dev, vq);
+			flush_shadow_packed(dev, vq);
 			vhost_vring_call_packed(dev, vq);
 		}
 	}
@@ -1804,7 +1803,7 @@ virtio_dev_tx_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 			break;
 
 		if (likely(dev->dequeue_zero_copy == 0))
-			update_shadow_used_ring_packed(vq, buf_id, 0,
+			update_shadow_packed(vq, buf_id, 0,
 					desc_count);
 
 		pkts[i] = rte_pktmbuf_alloc(mbuf_pool);
@@ -1857,7 +1856,7 @@ virtio_dev_tx_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 		if (unlikely(i < count))
 			vq->shadow_used_idx = i;
 		if (likely(vq->shadow_used_idx)) {
-			flush_shadow_used_ring_packed(dev, vq);
+			flush_shadow_packed(dev, vq);
 			vhost_vring_call_packed(dev, vq);
 		}
 	}
