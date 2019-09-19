@@ -216,6 +216,7 @@ eventdev_resource_setup(void)
 {
 	struct eventdev_resources *eventdev_rsrc = get_eventdev_rsrc();
 	uint16_t ethdev_count = rte_eth_dev_count_avail();
+	uint32_t event_queue_cfg = 0;
 	uint32_t service_id;
 	int32_t ret;
 
@@ -232,6 +233,15 @@ eventdev_resource_setup(void)
 
 	/* Ethernet device configuration */
 	eth_dev_port_setup(ethdev_count);
+
+	/* Event device configuration */
+	event_queue_cfg = eventdev_rsrc->ops.eventdev_setup(ethdev_count);
+
+	/* Event queue configuration */
+	eventdev_rsrc->ops.event_queue_setup(ethdev_count, event_queue_cfg);
+
+	/* Event port configuration */
+	eventdev_rsrc->ops.event_port_setup();
 
 	/* Start event device service */
 	ret = rte_event_dev_service_id_get(eventdev_rsrc->event_d_id,
