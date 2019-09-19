@@ -21,6 +21,10 @@ DPDK Release 19.11
 
       xdg-open build/doc/html/guides/rel_notes/release_19_11.html
 
+* **Updated the ICE driver.**
+
+  * Added support for handling Receive Flex Descriptor.
+  * Added support for protocol extraction on per Rx queue.
 
 New Features
 ------------
