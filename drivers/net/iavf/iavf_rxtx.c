@@ -1666,27 +1666,6 @@ end_of_tx:
 	return nb_tx;
 }
 
-static uint16_t
-iavf_xmit_pkts_vec(void *tx_queue, struct rte_mbuf **tx_pkts,
-		  uint16_t nb_pkts)
-{
-	uint16_t nb_tx = 0;
-	struct iavf_tx_queue *txq = (struct iavf_tx_queue *)tx_queue;
-
-	while (nb_pkts) {
-		uint16_t ret, num;
-
-		num = (uint16_t)RTE_MIN(nb_pkts, txq->rs_thresh);
-		ret = iavf_xmit_fixed_burst_vec(tx_queue, &tx_pkts[nb_tx], num);
-		nb_tx += ret;
-		nb_pkts -= ret;
-		if (ret < num)
-			break;
-	}
-
-	return nb_tx;
-}
-
 /* TX prep functions */
 uint16_t
 iavf_prep_pkts(__rte_unused void *tx_queue, struct rte_mbuf **tx_pkts,
@@ -1741,26 +1720,43 @@ iavf_set_rx_function(struct rte_eth_dev *dev)
 {
 	struct iavf_adapter *adapter =
 		IAVF_DEV_PRIVATE_TO_ADAPTER(dev->data->dev_private);
+#ifdef RTE_ARCH_X86
 	struct iavf_rx_queue *rxq;
 	int i;
+	bool use_avx2 = false;
 
-	if (adapter->rx_vec_allowed) {
-		if (dev->data->scattered_rx) {
-			PMD_DRV_LOG(DEBUG, "Using Vector Scattered Rx callback"
-				    " (port=%d).", dev->data->port_id);
-			dev->rx_pkt_burst = iavf_recv_scattered_pkts_vec;
-		} else {
-			PMD_DRV_LOG(DEBUG, "Using Vector Rx callback"
-				    " (port=%d).", dev->data->port_id);
-			dev->rx_pkt_burst = iavf_recv_pkts_vec;
-		}
+	if (!iavf_rx_vec_dev_check(dev)) {
 		for (i = 0; i < dev->data->nb_rx_queues; i++) {
 			rxq = dev->data->rx_queues[i];
-			if (!rxq)
-				continue;
-			iavf_rxq_vec_setup(rxq);
+			(void)iavf_rxq_vec_setup(rxq);
 		}
-	} else if (dev->data->scattered_rx) {
+
+		if (rte_cpu_get_flag_enabled(RTE_CPUFLAG_AVX2) == 1 ||
+		    rte_cpu_get_flag_enabled(RTE_CPUFLAG_AVX512F) == 1)
+			use_avx2 = true;
+
+		if (dev->data->scattered_rx) {
+			PMD_DRV_LOG(DEBUG,
+				    "Using %sVector Scattered Rx (port %d).",
+				    use_avx2 ? "avx2 " : "",
+				    dev->data->port_id);
+			dev->rx_pkt_burst = use_avx2 ?
+					    iavf_recv_scattered_pkts_vec_avx2 :
+					    iavf_recv_scattered_pkts_vec;
+		} else {
+			PMD_DRV_LOG(DEBUG, "Using %sVector Rx (port %d).",
+				    use_avx2 ? "avx2 " : "",
+				    dev->data->port_id);
+			dev->rx_pkt_burst = use_avx2 ?
+					    iavf_recv_pkts_vec_avx2 :
+					    iavf_recv_pkts_vec;
+		}
+
+		return;
+	}
+#endif
+
+	if (dev->data->scattered_rx) {
 		PMD_DRV_LOG(DEBUG, "Using a Scattered Rx callback (port=%d).",
 			    dev->data->port_id);
 		dev->rx_pkt_burst = iavf_recv_scattered_pkts;
@@ -1779,28 +1775,39 @@ iavf_set_rx_function(struct rte_eth_dev *dev)
 void
 iavf_set_tx_function(struct rte_eth_dev *dev)
 {
-	struct iavf_adapter *adapter =
-		IAVF_DEV_PRIVATE_TO_ADAPTER(dev->data->dev_private);
+#ifdef RTE_ARCH_X86
 	struct iavf_tx_queue *txq;
 	int i;
+	bool use_avx2 = false;
 
-	if (adapter->tx_vec_allowed) {
-		PMD_DRV_LOG(DEBUG, "Using Vector Tx callback (port=%d).",
-			    dev->data->port_id);
-		dev->tx_pkt_burst = iavf_xmit_pkts_vec;
-		dev->tx_pkt_prepare = NULL;
+	if (!iavf_tx_vec_dev_check(dev)) {
 		for (i = 0; i < dev->data->nb_tx_queues; i++) {
 			txq = dev->data->tx_queues[i];
 			if (!txq)
 				continue;
 			iavf_txq_vec_setup(txq);
 		}
-	} else {
-		PMD_DRV_LOG(DEBUG, "Using Basic Tx callback (port=%d).",
+
+		if (rte_cpu_get_flag_enabled(RTE_CPUFLAG_AVX2) == 1 ||
+		    rte_cpu_get_flag_enabled(RTE_CPUFLAG_AVX512F) == 1)
+			use_avx2 = true;
+
+		PMD_DRV_LOG(DEBUG, "Using %sVector Tx (port %d).",
+			    use_avx2 ? "avx2 " : "",
 			    dev->data->port_id);
-		dev->tx_pkt_burst = iavf_xmit_pkts;
-		dev->tx_pkt_prepare = iavf_prep_pkts;
+		dev->tx_pkt_burst = use_avx2 ?
+				    iavf_xmit_pkts_vec_avx2 :
+				    iavf_xmit_pkts_vec;
+		dev->tx_pkt_prepare = NULL;
+
+		return;
 	}
+#endif
+
+	PMD_DRV_LOG(DEBUG, "Using Basic Tx callback (port=%d).",
+		    dev->data->port_id);
+	dev->tx_pkt_burst = iavf_xmit_pkts;
+	dev->tx_pkt_prepare = iavf_prep_pkts;
 }
 
 void
