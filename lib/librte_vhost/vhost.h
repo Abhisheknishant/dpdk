@@ -39,6 +39,24 @@
 
 #define VHOST_LOG_CACHE_NR 32
 
+#ifdef SUPPORT_GCC_UNROLL_PRAGMA
+#define PRAGMA_PARAM "GCC unroll 4"
+#endif
+
+#ifdef SUPPORT_CLANG_UNROLL_PRAGMA
+#define PRAGMA_PARAM "unroll 4"
+#endif
+
+#ifdef SUPPORT_ICC_UNROLL_PRAGMA
+#define PRAGMA_PARAM "unroll (4)"
+#endif
+
+#ifdef PRAGMA_PARAM
+#define UNROLL_PRAGMA(param) _Pragma(param)
+#else
+#define UNROLL_PRAGMA(param) do {} while(0);
+#endif
+
 /**
  * Structure contains buffer address, length and descriptor index
  * from vring to do scatter RX.
