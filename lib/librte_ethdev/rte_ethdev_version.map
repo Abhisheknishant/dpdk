@@ -240,6 +240,25 @@ EXPERIMENTAL {
 	global:
 
 	# added in 17.11
+	rte_eth_devargs_parse;
+	rte_eth_dev_create;
+	rte_eth_dev_destroy;
+	rte_eth_dev_get_module_eeprom;
+	rte_eth_dev_get_module_info;
+	rte_eth_dev_is_removed;
+	rte_eth_dev_owner_delete;
+	rte_eth_dev_owner_get;
+	rte_eth_dev_owner_new;
+	rte_eth_dev_owner_set;
+	rte_eth_dev_owner_unset;
+	rte_eth_dev_rx_intr_ctl_q_get_fd;
+	rte_eth_find_next_of;
+	rte_eth_find_next_sibling;
+	rte_eth_read_clock;
+	rte_eth_switch_domain_alloc;
+	rte_eth_switch_domain_free;
+	rte_flow_conv;
+	rte_flow_expand_rss;
 	rte_mtr_capabilities_get;
 	rte_mtr_create;
 	rte_mtr_destroy;
@@ -283,4 +302,9 @@ EXPERIMENTAL {
 
 	# added in 19.08
 	rte_eth_read_clock;
+
+	# added in 19.11
+	rte_eth_basic_stats_count;
+	rte_eth_basic_stats_get;
+	rte_eth_basic_stats_get_names;
 };
