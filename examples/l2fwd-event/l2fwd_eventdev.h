@@ -51,6 +51,7 @@ struct eventdev_resources {
 	uint8_t enabled;
 	uint8_t nb_args;
 	char **args;
+	struct rte_ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
 };
 
 static inline struct eventdev_resources *
