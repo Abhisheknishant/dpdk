@@ -18,6 +18,12 @@
 #include "l2fwd_common.h"
 #include "l2fwd_eventdev.h"
 
+#define L2FWD_EVENT_SINGLE	0x1
+#define L2FWD_EVENT_BURST	0x2
+#define L2FWD_EVENT_TX_DIRECT	0x4
+#define L2FWD_EVENT_TX_ENQ	0x8
+#define L2FWD_EVENT_UPDT_MAC	0x10
+
 static void
 print_ethaddr(const char *name, const struct rte_ether_addr *eth_addr)
 {
@@ -211,10 +217,272 @@ eventdev_capability_setup(void)
 		eventdev_set_internal_port_ops(&eventdev_rsrc->ops);
 }
 
+static __rte_noinline int
+get_free_event_port(struct eventdev_resources *eventdev_rsrc)
+{
+	static int index;
+	int port_id;
+
+	rte_spinlock_lock(&eventdev_rsrc->evp.lock);
+	if (index >= eventdev_rsrc->evp.nb_ports) {
+		printf("No free event port is available\n");
+		return -1;
+	}
+
+	port_id = eventdev_rsrc->evp.event_p_id[index];
+	index++;
+	rte_spinlock_unlock(&eventdev_rsrc->evp.lock);
+
+	return port_id;
+}
+
+static __rte_always_inline void
+l2fwd_event_updt_mac(struct rte_mbuf *m, const struct rte_ether_addr *dst_mac,
+		     uint8_t dst_port)
+{
+	struct rte_ether_hdr *eth;
+	void *tmp;
+
+	eth = rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
+
+	/* 02:00:00:00:00:xx */
+	tmp = &eth->d_addr.addr_bytes[0];
+	*((uint64_t *)tmp) = 0x000000000002 + ((uint64_t)dst_port << 40);
+
+	/* src addr */
+	rte_ether_addr_copy(dst_mac, &eth->s_addr);
+}
+
+static __rte_always_inline void
+l2fwd_event_loop_single(struct eventdev_resources *eventdev_rsrc,
+		      const uint32_t flags)
+{
+	const uint8_t is_master = rte_get_master_lcore() == rte_lcore_id();
+	const uint64_t timer_period = eventdev_rsrc->timer_period;
+	uint64_t prev_tsc = 0, diff_tsc, cur_tsc, timer_tsc = 0;
+	const int port_id = get_free_event_port(eventdev_rsrc);
+	const uint8_t tx_q_id = eventdev_rsrc->evq.event_q_id[
+					eventdev_rsrc->evq.nb_queues - 1];
+	const uint8_t event_d_id = eventdev_rsrc->event_d_id;
+	volatile bool *done = eventdev_rsrc->done;
+	struct rte_mbuf *mbuf;
+	uint16_t dst_port;
+	struct rte_event ev;
+
+	if (port_id < 0)
+		return;
+
+	printf("%s(): entering eventdev main loop on lcore %u\n", __func__,
+		rte_lcore_id());
+
+	while (!*done) {
+		/* if timer is enabled */
+		if (is_master && timer_period > 0) {
+			cur_tsc = rte_rdtsc();
+			diff_tsc = cur_tsc - prev_tsc;
+
+			/* advance the timer */
+			timer_tsc += diff_tsc;
+
+			/* if timer has reached its timeout */
+			if (unlikely(timer_tsc >= timer_period)) {
+				print_stats();
+				/* reset the timer */
+				timer_tsc = 0;
+			}
+			prev_tsc = cur_tsc;
+		}
+
+		/* Read packet from eventdev */
+		if (!rte_event_dequeue_burst(event_d_id, port_id, &ev, 1, 0))
+			continue;
+
+
+		mbuf = ev.mbuf;
+		dst_port = eventdev_rsrc->dst_ports[mbuf->port];
+		rte_prefetch0(rte_pktmbuf_mtod(mbuf, void *));
+
+		if (timer_period > 0)
+			__atomic_fetch_add(&eventdev_rsrc->stats[mbuf->port].rx,
+					   1, __ATOMIC_RELAXED);
+
+		mbuf->port = dst_port;
+		if (flags & L2FWD_EVENT_UPDT_MAC)
+			l2fwd_event_updt_mac(mbuf,
+				&eventdev_rsrc->ports_eth_addr[dst_port],
+				dst_port);
+
+		if (flags & L2FWD_EVENT_TX_ENQ) {
+			ev.queue_id = tx_q_id;
+			ev.op = RTE_EVENT_OP_FORWARD;
+			while (rte_event_enqueue_burst(event_d_id, port_id,
+						       &ev, 1) && !*done)
+				;
+		}
+
+		if (flags & L2FWD_EVENT_TX_DIRECT) {
+			rte_event_eth_tx_adapter_txq_set(mbuf, 0);
+			while (!rte_event_eth_tx_adapter_enqueue(event_d_id,
+								port_id,
+								&ev, 1) &&
+					!*done)
+				;
+		}
+
+		if (timer_period > 0)
+			__atomic_fetch_add(&eventdev_rsrc->stats[mbuf->port].tx,
+					   1, __ATOMIC_RELAXED);
+	}
+}
+
+static __rte_always_inline void
+l2fwd_event_loop_burst(struct eventdev_resources *eventdev_rsrc,
+		       const uint32_t flags)
+{
+	const uint8_t is_master = rte_get_master_lcore() == rte_lcore_id();
+	const uint64_t timer_period = eventdev_rsrc->timer_period;
+	uint64_t prev_tsc = 0, diff_tsc, cur_tsc, timer_tsc = 0;
+	const int port_id = get_free_event_port(eventdev_rsrc);
+	const uint8_t tx_q_id = eventdev_rsrc->evq.event_q_id[
+					eventdev_rsrc->evq.nb_queues - 1];
+	const uint8_t event_d_id = eventdev_rsrc->event_d_id;
+	const uint8_t deq_len = eventdev_rsrc->deq_depth;
+	volatile bool *done = eventdev_rsrc->done;
+	struct rte_event ev[MAX_PKT_BURST];
+	struct rte_mbuf *mbuf;
+	uint16_t nb_rx, nb_tx;
+	uint16_t dst_port;
+	uint8_t i;
+
+	if (port_id < 0)
+		return;
+
+	printf("%s(): entering eventdev main loop on lcore %u\n", __func__,
+		rte_lcore_id());
+
+	while (!*done) {
+		/* if timer is enabled */
+		if (is_master && timer_period > 0) {
+			cur_tsc = rte_rdtsc();
+			diff_tsc = cur_tsc - prev_tsc;
+
+			/* advance the timer */
+			timer_tsc += diff_tsc;
+
+			/* if timer has reached its timeout */
+			if (unlikely(timer_tsc >= timer_period)) {
+				print_stats();
+				/* reset the timer */
+				timer_tsc = 0;
+			}
+			prev_tsc = cur_tsc;
+		}
+
+		/* Read packet from eventdev */
+		nb_rx = rte_event_dequeue_burst(event_d_id, port_id, ev,
+						deq_len, 0);
+		if (nb_rx == 0)
+			continue;
+
+
+		for (i = 0; i < nb_rx; i++) {
+			mbuf = ev[i].mbuf;
+			dst_port = eventdev_rsrc->dst_ports[mbuf->port];
+			rte_prefetch0(rte_pktmbuf_mtod(mbuf, void *));
+
+			if (timer_period > 0) {
+				__atomic_fetch_add(
+					&eventdev_rsrc->stats[mbuf->port].rx,
+					1, __ATOMIC_RELAXED);
+				__atomic_fetch_add(
+					&eventdev_rsrc->stats[mbuf->port].tx,
+					1, __ATOMIC_RELAXED);
+			}
+			mbuf->port = dst_port;
+			if (flags & L2FWD_EVENT_UPDT_MAC)
+				l2fwd_event_updt_mac(mbuf,
+						&eventdev_rsrc->ports_eth_addr[
+								dst_port],
+						dst_port);
+
+			if (flags & L2FWD_EVENT_TX_ENQ) {
+				ev[i].queue_id = tx_q_id;
+				ev[i].op = RTE_EVENT_OP_FORWARD;
+			}
+
+			if (flags & L2FWD_EVENT_TX_DIRECT)
+				rte_event_eth_tx_adapter_txq_set(mbuf, 0);
+
+		}
+
+		if (flags & L2FWD_EVENT_TX_ENQ) {
+			nb_tx = rte_event_enqueue_burst(event_d_id, port_id,
+							ev, nb_rx);
+			while (nb_tx < nb_rx && !*done)
+				nb_tx += rte_event_enqueue_burst(event_d_id,
+						port_id, ev + nb_tx,
+						nb_rx - nb_tx);
+		}
+
+		if (flags & L2FWD_EVENT_TX_DIRECT) {
+			nb_tx = rte_event_eth_tx_adapter_enqueue(event_d_id,
+								 port_id, ev,
+								 nb_rx);
+			while (nb_tx < nb_rx && !*done)
+				nb_tx += rte_event_eth_tx_adapter_enqueue(
+						event_d_id, port_id,
+						ev + nb_tx, nb_rx - nb_tx);
+		}
+	}
+}
+
+static __rte_always_inline void
+l2fwd_event_loop(struct eventdev_resources *eventdev_rsrc,
+			const uint32_t flags)
+{
+	if (flags & L2FWD_EVENT_SINGLE)
+		l2fwd_event_loop_single(eventdev_rsrc, flags);
+	if (flags & L2FWD_EVENT_BURST)
+		l2fwd_event_loop_burst(eventdev_rsrc, flags);
+}
+
+#define L2FWD_EVENT_MODE						\
+FP(tx_d,	0, 0, 0, L2FWD_EVENT_TX_DIRECT | L2FWD_EVENT_SINGLE)	\
+FP(tx_d_burst,	0, 0, 1, L2FWD_EVENT_TX_DIRECT | L2FWD_EVENT_BURST)	\
+FP(tx_q,	0, 1, 0, L2FWD_EVENT_TX_ENQ | L2FWD_EVENT_SINGLE)	\
+FP(tx_q_burst,	0, 1, 1, L2FWD_EVENT_TX_ENQ | L2FWD_EVENT_BURST)	\
+FP(tx_d_mac,	1, 0, 0, L2FWD_EVENT_UPDT_MAC | L2FWD_EVENT_TX_DIRECT | \
+			 L2FWD_EVENT_SINGLE)				\
+FP(tx_d_brst_mac, 1, 0, 1, L2FWD_EVENT_UPDT_MAC | L2FWD_EVENT_TX_DIRECT | \
+				L2FWD_EVENT_BURST)			\
+FP(tx_q_mac,	  1, 1, 0, L2FWD_EVENT_UPDT_MAC | L2FWD_EVENT_TX_ENQ |	\
+				L2FWD_EVENT_SINGLE)			\
+FP(tx_q_brst_mac, 1, 1, 1, L2FWD_EVENT_UPDT_MAC | L2FWD_EVENT_TX_ENQ |	\
+				L2FWD_EVENT_BURST)
+
+
+#define FP(_name, _f3, _f2, _f1, flags)					\
+static void __rte_noinline						\
+l2fwd_event_main_loop_ ## _name(void)					\
+{									\
+	struct eventdev_resources *eventdev_rsrc = get_eventdev_rsrc();	\
+	l2fwd_event_loop(eventdev_rsrc, flags);				\
+}
+
+L2FWD_EVENT_MODE
+#undef FP
+
 void
 eventdev_resource_setup(void)
 {
 	struct eventdev_resources *eventdev_rsrc = get_eventdev_rsrc();
+	/* [MAC_UPDT][TX_MODE][BURST] */
+	const event_loop_cb event_loop[2][2][2] = {
+#define FP(_name, _f3, _f2, _f1, flags) \
+		[_f3][_f2][_f1] = l2fwd_event_main_loop_ ## _name,
+		L2FWD_EVENT_MODE
+#undef FP
+	};
 	uint16_t ethdev_count = rte_eth_dev_count_avail();
 	uint32_t event_queue_cfg = 0;
 	uint32_t service_id;
@@ -260,4 +528,9 @@ eventdev_resource_setup(void)
 	ret = rte_event_dev_start(eventdev_rsrc->event_d_id);
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "Error in starting eventdev");
+
+	eventdev_rsrc->ops.l2fwd_event_loop = event_loop
+					[eventdev_rsrc->mac_updt]
+					[eventdev_rsrc->tx_mode_q]
+					[eventdev_rsrc->has_burst];
 }
