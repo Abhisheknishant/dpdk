@@ -613,6 +613,14 @@ F: drivers/net/hinic/
 F: doc/guides/nics/hinic.rst
 F: doc/guides/nics/features/hinic.ini
 
+Hisilicon hns3
+M: Wei Hu (Xavier) <xavier.huwei@huawei.com>
+M: Min Hu (Connor) <humin29@huawei.com>
+M: Yisen Zhuang <yisen.zhuang@huawei.com>
+F: drivers/net/hns3/
+F: doc/guides/nics/hns3.rst
+F: doc/guides/nics/features/hns3.ini
+
 Intel e1000
 M: Wenzhuo Lu <wenzhuo.lu@intel.com>
 T: git://dpdk.org/next/dpdk-next-net-intel
