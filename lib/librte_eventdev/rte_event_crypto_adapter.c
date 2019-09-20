@@ -356,7 +356,7 @@ eca_enq_to_cryptodev(struct rte_event_crypto_adapter *adapter,
 			cdev_id = m_data->request_info.cdev_id;
 			qp_id = m_data->request_info.queue_pair_id;
 			qp_info = &adapter->cdevs[cdev_id].qpairs[qp_id];
-			if (!qp_info->qp_enabled) {
+			if ((qp_info == NULL) || (!qp_info->qp_enabled)) {
 				rte_pktmbuf_free(crypto_op->sym->m_src);
 				rte_crypto_op_free(crypto_op);
 				continue;
@@ -372,7 +372,7 @@ eca_enq_to_cryptodev(struct rte_event_crypto_adapter *adapter,
 			cdev_id = m_data->request_info.cdev_id;
 			qp_id = m_data->request_info.queue_pair_id;
 			qp_info = &adapter->cdevs[cdev_id].qpairs[qp_id];
-			if (!qp_info->qp_enabled) {
+			if ((qp_info == NULL) || (!qp_info->qp_enabled)) {
 				rte_pktmbuf_free(crypto_op->sym->m_src);
 				rte_crypto_op_free(crypto_op);
 				continue;
