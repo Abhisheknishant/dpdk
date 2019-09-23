@@ -1683,6 +1683,16 @@ static int enic_dev_init(struct enic *enic)
 	/* set up link status checking */
 	vnic_dev_notify_set(enic->vdev, -1); /* No Intr for notify */
 
+	/*
+	 * When Geneve with options offload is available, always disable it
+	 * first as it can interfere with user flow rules.
+	 */
+	if (enic->geneve_opt_avail &&
+	    vnic_dev_overlay_offload_ctrl(enic->vdev,
+			OVERLAY_FEATURE_GENEVE,
+			OVERLAY_OFFLOAD_DISABLE)) {
+		dev_err(enic, "failed to disable geneve+option\n");
+	}
 	enic->overlay_offload = false;
 	if (enic->disable_overlay && enic->vxlan) {
 		/*
@@ -1713,6 +1723,18 @@ static int enic_dev_init(struct enic *enic)
 			PKT_TX_TUNNEL_MASK;
 		enic->overlay_offload = true;
 		dev_info(enic, "Overlay offload is enabled\n");
+	}
+	/* Geneve with options offload requires overlay offload */
+	if (enic->overlay_offload && enic->geneve_opt_avail &&
+	    enic->geneve_opt_request) {
+		if (vnic_dev_overlay_offload_ctrl(enic->vdev,
+				OVERLAY_FEATURE_GENEVE,
+				OVERLAY_OFFLOAD_ENABLE)) {
+			dev_err(enic, "failed to enable geneve+option\n");
+		} else {
+			enic->geneve_opt_enabled = 1;
+			dev_info(enic, "Geneve with options is enabled\n");
+		}
 	}
 	/*
 	 * Reset the vxlan port if HW vxlan parsing is available. It
