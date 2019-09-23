@@ -192,3 +192,43 @@ From examples/helloworld/Makefile::
 
 	build:
 		@mkdir -p $@
+
+Running DPDK unit-tests
+-----------------------
+
+To run all defined unit tests we can use the command::
+
+	meson test -C build
+
+from DPDK root direcotry, where build is the project build directory. It is the
+equivalent to running::
+
+	ninja test
+
+in ``build`` directory.
+To run a set of tests belonging to a specific test suite, we can use::
+
+	meson test -C build --suite <test-suite>
+
+where <test-suite> can be ``fast-tests``, ``perf-tests``, ``driver-tests`` or
+``debug-tests``.
+
+Generating code coverage reports
+--------------------------------
+
+To gather code coverage data, we need to give meson the  ``-Db_coverage=true`` 
+command line flag::
+
+	meson configure -Db_coverage=true
+
+To generate code coverage reports, the ``gcovr`` tool needs to be installed. On
+most linux distributions it is available through the package manager, eg.
+``sudo apt-get install gcovr``.
+Then, after running the tests, we can generate the reports simply by running::
+
+	ninja coverage
+
+in project build directory. The reports will be generated in
+``build/meson-logs`` directory, in ``html``, ``xml`` and ``txt`` formats.
+To generate the coverage reports in only one format, we can use one of 
+``coverage-html``, ``coverage-xml`` or ``coverage-txt`` meson targets.
