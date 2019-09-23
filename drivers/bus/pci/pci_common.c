@@ -293,32 +293,57 @@ rte_pci_probe(void)
 	struct rte_pci_device *dev = NULL;
 	size_t probed = 0, failed = 0;
 	struct rte_devargs *devargs;
-	int probe_all = 0;
+	struct rte_pci_addr addr;
 	int ret = 0;
 
-	if (rte_pci_bus.bus.conf.scan_mode != RTE_BUS_SCAN_WHITELIST)
-		probe_all = 1;
+	if (rte_pci_bus.bus.conf.scan_mode != RTE_BUS_SCAN_WHITELIST) {
+		/* Probe all devices */
+		FOREACH_DEVICE_ON_PCIBUS(dev) {
+			probed++;
 
-	FOREACH_DEVICE_ON_PCIBUS(dev) {
-		probed++;
-
-		devargs = dev->device.devargs;
-		/* probe all or only whitelisted devices */
-		if (probe_all)
 			ret = pci_probe_all_drivers(dev);
-		else if (devargs != NULL &&
-			devargs->policy == RTE_DEV_WHITELISTED)
-			ret = pci_probe_all_drivers(dev);
-		if (ret < 0) {
-			if (ret != -EEXIST) {
-				RTE_LOG(ERR, EAL, "Requested device "
-					PCI_PRI_FMT " cannot be used\n",
-					dev->addr.domain, dev->addr.bus,
-					dev->addr.devid, dev->addr.function);
-				rte_errno = errno;
-				failed++;
+			if (ret < 0) {
+				if (ret != -EEXIST) {
+					RTE_LOG(ERR, EAL, "Requested device "
+						PCI_PRI_FMT " cannot be used\n",
+						dev->addr.domain, dev->addr.bus,
+						dev->addr.devid,
+						dev->addr.function);
+					rte_errno = errno;
+					failed++;
+				}
+				ret = 0;
 			}
-			ret = 0;
+		}
+	} else {
+		/* Probe only whitelisted devices */
+		RTE_EAL_DEVARGS_FOREACH("pci", devargs) {
+			if (devargs->policy != RTE_DEV_WHITELISTED)
+				continue;
+
+			devargs->bus->parse(devargs->name, &addr);
+
+			FOREACH_DEVICE_ON_PCIBUS(dev) {
+				if (rte_pci_addr_cmp(&dev->addr, &addr))
+					continue;
+				probed++;
+				ret = pci_probe_all_drivers(dev);
+				if (ret < 0) {
+					if (ret != -EEXIST) {
+						RTE_LOG(ERR, EAL,
+							"Requested device "
+							 PCI_PRI_FMT
+							"cannot be used\n",
+							dev->addr.domain,
+							dev->addr.bus,
+							dev->addr.devid,
+							dev->addr.function);
+						rte_errno = errno;
+						failed++;
+					}
+					ret = 0;
+				}
+			}
 		}
 	}
 
