@@ -56,6 +56,9 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Updated iavf PMD.**
+
+  Enabled AVX2 data path for iavf PMD.
 
 Removed Items
 -------------
