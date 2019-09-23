@@ -8,6 +8,7 @@
 
 #include "vnic_enet.h"
 #include "vnic_dev.h"
+#include "vnic_flowman.h"
 #include "vnic_wq.h"
 #include "vnic_rq.h"
 #include "vnic_cq.h"
@@ -88,10 +89,17 @@ struct enic_memzone_entry {
 	LIST_ENTRY(enic_memzone_entry) entries;
 };
 
+/* Defined in enic_fm_flow.c */
+struct enic_flowman;
+struct enic_fm_flow;
+
 struct rte_flow {
 	LIST_ENTRY(rte_flow) next;
-	u16 enic_filter_id;
+	/* Data for filter API based flow (enic_flow.c) */
+	uint16_t enic_filter_id;
 	struct filter_v2 enic_filter;
+	/* Data for flow manager based flow (enic_fm_flow.c) */
+	struct enic_fm_flow *fm;
 };
 
 /* Per-instance private data structure */
@@ -195,6 +203,9 @@ struct enic {
 	/* Multicast MAC addresses added to the NIC */
 	uint32_t mc_count;
 	struct rte_ether_addr mc_addrs[ENIC_MULTICAST_PERFECT_FILTERS];
+
+	/* Flow manager API */
+	struct enic_flowman *fm;
 };
 
 /* Compute ethdev's max packet size from MTU */
@@ -276,6 +287,7 @@ enic_ring_incr(uint32_t n_descriptors, uint32_t idx)
 	return idx;
 }
 
+int dev_is_enic(struct rte_eth_dev *dev);
 void enic_fdir_stats_get(struct enic *enic,
 			 struct rte_eth_fdir_stats *stats);
 int enic_fdir_add_fltr(struct enic *enic,
@@ -321,6 +333,12 @@ void enic_post_wq_index(struct vnic_wq *wq);
 int enic_probe(struct enic *enic);
 int enic_clsf_init(struct enic *enic);
 void enic_clsf_destroy(struct enic *enic);
+int enic_fm_init(struct enic *enic);
+void enic_fm_destroy(struct enic *enic);
+void *enic_alloc_consistent(void *priv, size_t size, dma_addr_t *dma_handle,
+			    u8 *name);
+void enic_free_consistent(void *priv, size_t size, void *vaddr,
+			  dma_addr_t dma_handle);
 uint16_t enic_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
 			uint16_t nb_pkts);
 uint16_t enic_noscatter_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
@@ -340,4 +358,5 @@ bool enic_use_vector_rx_handler(struct enic *enic);
 void enic_fdir_info(struct enic *enic);
 void enic_fdir_info_get(struct enic *enic, struct rte_eth_fdir_info *stats);
 extern const struct rte_flow_ops enic_flow_ops;
+extern const struct rte_flow_ops enic_fm_flow_ops;
 #endif /* _ENIC_H_ */
