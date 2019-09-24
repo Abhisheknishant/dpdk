@@ -26,6 +26,17 @@ typedef void (*event_port_setup_cb)(void);
 typedef void (*service_setup_cb)(void);
 typedef void (*event_loop_cb)(void);
 
+struct eventdev_queues {
+	uint8_t *event_q_id;
+	uint8_t	nb_queues;
+};
+
+struct eventdev_ports {
+	uint8_t *event_p_id;
+	uint8_t	nb_ports;
+	rte_spinlock_t lock;
+};
+
 struct eventdev_setup_ops {
 	event_queue_setup_cb event_queue_setup;
 	event_port_setup_cb event_port_setup;
@@ -36,9 +47,14 @@ struct eventdev_setup_ops {
 };
 
 struct eventdev_resources {
+	struct rte_event_port_conf def_p_conf;
 	struct l2fwd_port_statistics *stats;
+	/* Default port config. */
+	uint8_t disable_implicit_release;
 	struct eventdev_setup_ops ops;
 	struct rte_mempool *pkt_pool;
+	struct eventdev_queues evq;
+	struct eventdev_ports evp;
 	uint64_t timer_period;
 	uint32_t *dst_ports;
 	uint32_t service_id;
@@ -47,6 +63,8 @@ struct eventdev_resources {
 	uint8_t event_d_id;
 	uint8_t sync_mode;
 	uint8_t tx_mode_q;
+	uint8_t deq_depth;
+	uint8_t has_burst;
 	uint8_t mac_updt;
 	uint8_t enabled;
 	uint8_t nb_args;
