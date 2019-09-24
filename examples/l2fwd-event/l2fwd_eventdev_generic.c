@@ -17,6 +17,36 @@
 #include "l2fwd_common.h"
 #include "l2fwd_eventdev.h"
 
+static void
+eventdev_service_setup_generic(void)
+{
+	struct eventdev_resources *eventdev_rsrc = get_eventdev_rsrc();
+	uint32_t lcore_id[RTE_MAX_LCORE] = {0};
+	int32_t req_service_cores = 3;
+	int32_t avail_service_cores;
+
+	avail_service_cores = rte_service_lcore_list(lcore_id, RTE_MAX_LCORE);
+	if (avail_service_cores < req_service_cores) {
+		rte_exit(EXIT_FAILURE, "Enough services cores are not present"
+			 " Required = %d Available = %d",
+			 req_service_cores, avail_service_cores);
+	}
+
+	/* Start eventdev scheduler service */
+	rte_service_map_lcore_set(eventdev_rsrc->service_id, lcore_id[0], 1);
+	rte_service_lcore_start(lcore_id[0]);
+
+	/* Start eventdev Rx adapter service */
+	rte_service_map_lcore_set(eventdev_rsrc->rx_adptr.service_id,
+				  lcore_id[1], 1);
+	rte_service_lcore_start(lcore_id[1]);
+
+	/* Start eventdev Tx adapter service */
+	rte_service_map_lcore_set(eventdev_rsrc->tx_adptr.service_id,
+				  lcore_id[2], 1);
+	rte_service_lcore_start(lcore_id[2]);
+}
+
 static uint32_t
 eventdev_setup_generic(uint16_t ethdev_count)
 {
@@ -315,4 +345,5 @@ eventdev_set_generic_ops(struct eventdev_setup_ops *ops)
 	ops->event_queue_setup = event_queue_setup_generic;
 	ops->event_port_setup = event_port_setup_generic;
 	ops->adapter_setup = rx_tx_adapter_setup_generic;
+	ops->service_setup = eventdev_service_setup_generic;
 }

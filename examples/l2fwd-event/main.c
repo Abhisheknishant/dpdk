@@ -633,6 +633,8 @@ main(int argc, char **argv)
 					 ret, portid);
 		}
 
+		/* Now start internal services */
+		eventdev_rsrc->ops.service_setup();
 		goto skip_port_config;
 	}
 
