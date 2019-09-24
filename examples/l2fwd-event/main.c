@@ -619,6 +619,22 @@ main(int argc, char **argv)
 
 	/* Configure eventdev parameters if user has requested */
 	eventdev_resource_setup();
+	if (eventdev_rsrc->enabled) {
+		/* All settings are done. Now enable eth devices */
+		RTE_ETH_FOREACH_DEV(portid) {
+			/* skip ports that are not enabled */
+			if ((l2fwd_enabled_port_mask & (1 << portid)) == 0)
+				continue;
+
+			ret = rte_eth_dev_start(portid);
+			if (ret < 0)
+				rte_exit(EXIT_FAILURE,
+					 "rte_eth_dev_start:err=%d, port=%u\n",
+					 ret, portid);
+		}
+
+		goto skip_port_config;
+	}
 
 	/* Initialize the port/queue configuration of each logical core */
 	RTE_ETH_FOREACH_DEV(portid) {
@@ -750,6 +766,7 @@ main(int argc, char **argv)
 			"All available ports are disabled. Please set portmask.\n");
 	}
 
+skip_port_config:
 	check_all_ports_link_status(l2fwd_enabled_port_mask);
 
 	ret = 0;
