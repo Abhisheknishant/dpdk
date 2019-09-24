@@ -271,8 +271,12 @@ static void l2fwd_main_loop(void)
 static int
 l2fwd_launch_one_lcore(void *args)
 {
-	RTE_SET_USED(args);
-	l2fwd_main_loop();
+	struct eventdev_resources *eventdev_rsrc = args;
+
+	if (eventdev_rsrc->enabled)
+		eventdev_rsrc->ops.l2fwd_event_loop();
+	else
+		l2fwd_main_loop();
 
 	return 0;
 }
@@ -773,7 +777,7 @@ skip_port_config:
 
 	ret = 0;
 	/* launch per-lcore init on every lcore */
-	rte_eal_mp_remote_launch(l2fwd_launch_one_lcore, NULL,
+	rte_eal_mp_remote_launch(l2fwd_launch_one_lcore, eventdev_rsrc,
 				 CALL_MASTER);
 	rte_eal_mp_wait_lcore();
 
