@@ -56,6 +56,10 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+   * **Introduced FIFO for NTB PMD.**
+
+     Introduced FIFO for NTB (Non-transparent Bridge) PMD to support
+     packet based processing.
 
 Removed Items
 -------------
