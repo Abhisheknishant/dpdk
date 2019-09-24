@@ -7,6 +7,7 @@ APP = l2fwd-event
 
 # all source are stored in SRCS-y
 SRCS-y := main.c
+SRCS-y += l2fwd_eventdev.c
 
 # Build using pkg-config variables if possible
 ifeq ($(shell pkg-config --exists libdpdk && echo 0),0)
