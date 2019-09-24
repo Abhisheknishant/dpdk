@@ -455,6 +455,50 @@ kni_ioctl_release(struct net *net, uint32_t ioctl_num,
 }
 
 static int
+kni_ioctl_link(struct net *net, uint32_t ioctl_num,
+		unsigned long ioctl_param)
+{
+	struct kni_net *knet = net_generic(net, kni_net_id);
+	int ret = -EINVAL;
+	struct kni_dev *dev, *n;
+	struct rte_kni_link_info link_info;
+	struct net_device *netdev;
+
+	if (_IOC_SIZE(ioctl_num) > sizeof(link_info))
+		return -EINVAL;
+
+	ret = copy_from_user(&link_info, (void *)ioctl_param,
+			     sizeof(link_info));
+	if (ret) {
+		pr_err("copy_from_user in kni_ioctl_link");
+		return -EIO;
+	}
+
+	if (strlen(link_info.name) == 0)
+		return ret;
+
+	down_read(&knet->kni_list_lock);
+	list_for_each_entry_safe(dev, n, &knet->kni_list_head, list) {
+		if (strncmp(dev->name, link_info.name, RTE_KNI_NAMESIZE) != 0)
+			continue;
+
+		netdev = dev->net_dev;
+
+		if (link_info.linkup) {
+			netif_carrier_on(netdev);
+		} else {
+			netif_carrier_off(netdev);
+		}
+
+		ret = 0;
+		break;
+	}
+	up_read(&knet->kni_list_lock);
+
+	return ret;
+}
+
+static int
 kni_ioctl(struct inode *inode, uint32_t ioctl_num, unsigned long ioctl_param)
 {
 	int ret = -EINVAL;
@@ -474,6 +518,9 @@ kni_ioctl(struct inode *inode, uint32_t ioctl_num, unsigned long ioctl_param)
 		break;
 	case _IOC_NR(RTE_KNI_IOCTL_RELEASE):
 		ret = kni_ioctl_release(net, ioctl_num, ioctl_param);
+		break;
+	case _IOC_NR(RTE_KNI_IOCTL_LINK):
+		ret = kni_ioctl_link(net, ioctl_num, ioctl_param);
 		break;
 	default:
 		pr_debug("IOCTL default\n");
