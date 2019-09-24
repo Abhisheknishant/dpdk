@@ -706,18 +706,6 @@ kni_net_set_mac(struct net_device *netdev, void *p)
 	return (ret == 0 ? req.result : ret);
 }
 
-#ifdef HAVE_CHANGE_CARRIER_CB
-static int
-kni_net_change_carrier(struct net_device *dev, bool new_carrier)
-{
-	if (new_carrier)
-		netif_carrier_on(dev);
-	else
-		netif_carrier_off(dev);
-	return 0;
-}
-#endif
-
 static const struct header_ops kni_net_header_ops = {
 	.create  = kni_net_header,
 	.parse   = eth_header_parse,
@@ -736,9 +724,6 @@ static const struct net_device_ops kni_net_netdev_ops = {
 	.ndo_change_mtu = kni_net_change_mtu,
 	.ndo_tx_timeout = kni_net_tx_timeout,
 	.ndo_set_mac_address = kni_net_set_mac,
-#ifdef HAVE_CHANGE_CARRIER_CB
-	.ndo_change_carrier = kni_net_change_carrier,
-#endif
 };
 
 static void kni_get_drvinfo(struct net_device *dev,

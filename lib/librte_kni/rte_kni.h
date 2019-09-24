@@ -245,9 +245,8 @@ int rte_kni_unregister_handlers(struct rte_kni *kni);
  *  > 0 for linkup.
  *
  * @return
+ *  On success: 0
  *  On failure: -1
- *  Previous link state == linkdown: 0
- *  Previous link state == linkup: 1
  */
 __rte_experimental
 int
