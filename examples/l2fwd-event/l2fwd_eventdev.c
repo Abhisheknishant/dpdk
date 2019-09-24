@@ -243,6 +243,9 @@ eventdev_resource_setup(void)
 	/* Event port configuration */
 	eventdev_rsrc->ops.event_port_setup();
 
+	/* Rx/Tx adapters configuration */
+	eventdev_rsrc->ops.adapter_setup(ethdev_count);
+
 	/* Start event device service */
 	ret = rte_event_dev_service_id_get(eventdev_rsrc->event_d_id,
 			&service_id);
