@@ -562,11 +562,10 @@ send_single_packet(struct rte_mbuf *m, uint16_t port, uint8_t proto)
 }
 
 static inline void
-inbound_sp_sa(struct sp_ctx *sp, struct sa_ctx *sa, struct traffic_type *ip,
-		uint16_t lim)
+inbound_sp_sa(struct sp_ctx *sp, struct traffic_type *ip, uint16_t lim)
 {
 	struct rte_mbuf *m;
-	uint32_t i, j, res, sa_idx;
+	uint32_t i, j, res;
 
 	if (ip->num == 0 || sp == NULL)
 		return;
@@ -593,8 +592,7 @@ inbound_sp_sa(struct sp_ctx *sp, struct sa_ctx *sa, struct traffic_type *ip,
 			continue;
 		}
 
-		sa_idx = SPI2IDX(res);
-		if (!inbound_sa_check(sa, m, sa_idx)) {
+		if (!inbound_sa_check(m, res)) {
 			rte_pktmbuf_free(m);
 			continue;
 		}
@@ -652,15 +650,16 @@ process_pkts_inbound(struct ipsec_ctx *ipsec_ctx,
 				traffic->ipsec.num, MAX_PKT_BURST);
 		split46_traffic(traffic, traffic->ipsec.pkts, nb_pkts_in);
 	} else {
-		inbound_sa_lookup(ipsec_ctx->sa_ctx, traffic->ipsec.pkts,
-			traffic->ipsec.saptr, traffic->ipsec.num);
+		inbound_sa_lookup(ipsec_ctx->sa4_ctx, ipsec_ctx->sa6_ctx,
+			traffic->ipsec.pkts, traffic->ipsec.saptr,
+			traffic->ipsec.num);
 		ipsec_process(ipsec_ctx, traffic);
 	}
 
-	inbound_sp_sa(ipsec_ctx->sp4_ctx, ipsec_ctx->sa_ctx, &traffic->ip4,
+	inbound_sp_sa(ipsec_ctx->sp4_ctx, &traffic->ip4,
 			n_ip4);
 
-	inbound_sp_sa(ipsec_ctx->sp6_ctx, ipsec_ctx->sa_ctx, &traffic->ip6,
+	inbound_sp_sa(ipsec_ctx->sp6_ctx, &traffic->ip6,
 			n_ip6);
 }
 
@@ -728,8 +727,9 @@ process_pkts_outbound(struct ipsec_ctx *ipsec_ctx,
 			}
 		}
 	} else {
-		outbound_sa_lookup(ipsec_ctx->sa_ctx, traffic->ipsec.res,
-			traffic->ipsec.saptr, traffic->ipsec.num);
+		outbound_sa_lookup(ipsec_ctx->sa4_ctx, ipsec_ctx->sa6_ctx,
+			traffic->ipsec.res, traffic->ipsec.saptr,
+			traffic->ipsec.pkts, traffic->ipsec.num);
 		ipsec_process(ipsec_ctx, traffic);
 	}
 }
@@ -770,8 +770,9 @@ process_pkts_inbound_nosp(struct ipsec_ctx *ipsec_ctx,
 			}
 		}
 	} else {
-		inbound_sa_lookup(ipsec_ctx->sa_ctx, traffic->ipsec.pkts,
-			traffic->ipsec.saptr, traffic->ipsec.num);
+		inbound_sa_lookup(ipsec_ctx->sa4_ctx, ipsec_ctx->sa6_ctx,
+			traffic->ipsec.pkts, traffic->ipsec.saptr,
+			traffic->ipsec.num);
 		ipsec_process(ipsec_ctx, traffic);
 	}
 }
@@ -823,8 +824,9 @@ process_pkts_outbound_nosp(struct ipsec_ctx *ipsec_ctx,
 				traffic->ip6.pkts[i] = traffic->ipsec.pkts[i];
 		}
 	} else {
-		outbound_sa_lookup(ipsec_ctx->sa_ctx, traffic->ipsec.res,
-			traffic->ipsec.saptr, traffic->ipsec.num);
+		outbound_sa_lookup(ipsec_ctx->sa4_ctx, ipsec_ctx->sa6_ctx,
+			traffic->ipsec.res, traffic->ipsec.saptr,
+			traffic->ipsec.pkts, traffic->ipsec.num);
 		ipsec_process(ipsec_ctx, traffic);
 	}
 }
@@ -1042,13 +1044,13 @@ drain_inbound_crypto_queues(const struct lcore_conf *qconf,
 
 	/* process ipv4 packets */
 	if (trf.ip4.num != 0) {
-		inbound_sp_sa(ctx->sp4_ctx, ctx->sa_ctx, &trf.ip4, 0);
+		inbound_sp_sa(ctx->sp4_ctx, &trf.ip4, 0);
 		route4_pkts(qconf->rt4_ctx, trf.ip4.pkts, trf.ip4.num);
 	}
 
 	/* process ipv6 packets */
 	if (trf.ip6.num != 0) {
-		inbound_sp_sa(ctx->sp6_ctx, ctx->sa_ctx, &trf.ip6, 0);
+		inbound_sp_sa(ctx->sp6_ctx, &trf.ip6, 0);
 		route6_pkts(qconf->rt6_ctx, trf.ip6.pkts, trf.ip6.num);
 	}
 }
@@ -1109,14 +1111,16 @@ main_loop(__attribute__((unused)) void *dummy)
 	qconf->rt6_ctx = socket_ctx[socket_id].rt_ip6;
 	qconf->inbound.sp4_ctx = socket_ctx[socket_id].sp_ip4_in;
 	qconf->inbound.sp6_ctx = socket_ctx[socket_id].sp_ip6_in;
-	qconf->inbound.sa_ctx = socket_ctx[socket_id].sa_in;
+	qconf->inbound.sa4_ctx = socket_ctx[socket_id].sa_ip4_in;
+	qconf->inbound.sa6_ctx = socket_ctx[socket_id].sa_ip6_in;
 	qconf->inbound.cdev_map = cdev_map_in;
 	qconf->inbound.session_pool = socket_ctx[socket_id].session_pool;
 	qconf->inbound.session_priv_pool =
 			socket_ctx[socket_id].session_priv_pool;
 	qconf->outbound.sp4_ctx = socket_ctx[socket_id].sp_ip4_out;
 	qconf->outbound.sp6_ctx = socket_ctx[socket_id].sp_ip6_out;
-	qconf->outbound.sa_ctx = socket_ctx[socket_id].sa_out;
+	qconf->outbound.sa4_ctx = socket_ctx[socket_id].sa_ip4_out;
+	qconf->outbound.sa6_ctx = socket_ctx[socket_id].sa_ip6_out;
 	qconf->outbound.cdev_map = cdev_map_out;
 	qconf->outbound.session_pool = socket_ctx[socket_id].session_pool;
 	qconf->outbound.session_priv_pool =
@@ -2481,8 +2485,10 @@ main(int32_t argc, char **argv)
 	for (i = 0; i < NB_SOCKETS && i < rte_socket_count(); i++) {
 		socket_id = rte_socket_id_by_idx(i);
 		if ((socket_ctx[socket_id].mbuf_pool != NULL) &&
-			(socket_ctx[socket_id].sa_in == NULL) &&
-			(socket_ctx[socket_id].sa_out == NULL)) {
+			(socket_ctx[socket_id].sa_ip4_in == NULL) &&
+			(socket_ctx[socket_id].sa_ip6_in == NULL) &&
+			(socket_ctx[socket_id].sa_ip4_out == NULL) &&
+			(socket_ctx[socket_id].sa_ip6_out == NULL)) {
 			sa_init(&socket_ctx[socket_id], socket_id);
 			sp4_init(&socket_ctx[socket_id], socket_id);
 			sp6_init(&socket_ctx[socket_id], socket_id);
