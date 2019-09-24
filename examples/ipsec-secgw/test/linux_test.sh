@@ -1,8 +1,13 @@
 #! /bin/bash
 
-# usage:  /bin/bash linux_test6.sh <ipsec_mode>
-# for list of available modes please refer to run_test.sh.
-# ipsec-secgw (IPv6 mode) functional test script.
+# usage:  /bin/bash linux_test.sh <ip_protocol> <ipsec_mode>
+# <ip_protocol> can be set to:
+#  ipv4-ipv4 - only IPv4 traffic
+#  ipv4-ipv6 - IPv4 traffic over IPv6 ipsec tunnel (only for tunnel mode)
+#  ipv6-ipv4 - IPv6 traffic over IPv4 ipsec tunnel (only for tunnel mode)
+#  ipv6-ipv6 - only IPv6 traffic
+# For list of available modes please refer to run_test.sh.
+# ipsec-secgw functional test script.
 #
 # Note that for most of them you required appropriate crypto PMD/device
 # to be avaialble.
@@ -24,7 +29,7 @@
 # One NIC is expected to be managed by linux both machines,
 # and will be used as a control path.
 # Make sure user from SUT can ssh to DUT without entering password,
-# also make sure that sshd over ipv6 is enabled.
+# also make sure that ssh over ipv6 is enabled.
 # Second NIC (test-port) should be reserved for DPDK on SUT,
 # and should be managed by linux on DUT.
 # The script starts ipsec-secgw with 2 NIC devices: test-port and tap vdev.
@@ -32,15 +37,16 @@
 # in the following way:
 # traffic going over test-port in both directions has to be
 # protected by ipsec.
-# raffic going over TAP in both directions doesn't have to be protected.
+# Traffic going over TAP in both directions doesn't have to be protected.
 # I.E:
 # DUT OS(NIC1)--(ipsec)-->(NIC1)ipsec-secgw(TAP)--(plain)-->(TAP)SUT OS
 # SUT OS(TAP)--(plain)-->(TAP)psec-secgw(NIC1)--(ipsec)-->(NIC1)DUT OS
-# Then tries to perorm some data transfer using the scheme decribed above.
+# Then tries to perform some data transfer using the scheme decribed above.
 #
 
 DIR=`dirname $0`
-MODE=$1
+PROTO=$1
+MODE=$2
 
  . ${DIR}/common_defs.sh
  . ${DIR}/${MODE}_defs.sh
@@ -56,23 +62,77 @@ else
 	MTU_LEN=${DEF_MTU_LEN}
 fi
 
-config_secgw
+if [[ ${PROTO} = "ipv4-ipv4" ]] || [[ ${PROTO} = "ipv6-ipv6" ]]; then
+	config_secgw
+else
+	config_secgw_mixed
+fi
 
 secgw_start
 
-config6_iface
-
-config6_remote_xfrm
-
  . ${DIR}/data_rxtx.sh
 
-set_local_mtu ${MTU_LEN}
-ping6_test1 ${REMOTE_IPV6} 0 ${PING_LEN}
-st=$?
-if [[ $st -eq 0 ]]; then
-	set_local_mtu ${DEF_MTU_LEN}
-	scp_test1 ${REMOTE_IPV6}
+if [[ ${PROTO} = "ipv4-ipv4"  ]]; then
+	config_iface
+	config_remote_xfrm_44
+
+	set_local_mtu ${MTU_LEN}
+	ping_test1 ${REMOTE_IPV4} 0 ${PING_LEN}
 	st=$?
+	if [[ $st -eq 0 ]]; then
+		set_local_mtu ${DEF_MTU_LEN}
+		scp_test1 ${REMOTE_IPV4}
+		st=$?
+	fi
+elif [[ ${PROTO} = "ipv4-ipv6" ]]; then
+	if [[ ${MODE} = "trs"* ]]; then
+		echo "Cannot mix protocols in transport mode"
+		secgw_stop
+		exit 1
+	fi
+	config6_iface
+	config_remote_xfrm_46
+
+	set_local_mtu ${MTU_LEN}
+	ping_test1 ${REMOTE_IPV4} 0 ${PING_LEN}
+	st=$?
+	if [[ $st -eq 0 ]]; then
+		set_local_mtu ${DEF_MTU_LEN}
+		scp_test1 ${REMOTE_IPV4}
+		st=$?
+	fi
+elif [[ ${PROTO} = "ipv6-ipv4" ]]; then
+	if [[ ${MODE} = "trs"* ]]; then
+		echo "Cannot mix protocols in transport mode"
+		secgw_stop
+		exit 1
+	fi
+	config6_iface
+	config_remote_xfrm_64
+
+	set_local_mtu ${MTU_LEN}
+	ping6_test1 ${REMOTE_IPV6} 0 ${PING_LEN}
+	st=$?
+	if [[ $st -eq 0 ]]; then
+		set_local_mtu ${DEF_MTU_LEN}
+		scp_test1 ${REMOTE_IPV6}
+		st=$?
+	fi
+elif [[ ${PROTO} = "ipv6-ipv6" ]]; then
+	config6_iface
+	config_remote_xfrm_66
+
+	set_local_mtu ${MTU_LEN}
+	ping6_test1 ${REMOTE_IPV6} 0 ${PING_LEN}
+	st=$?
+	if [[ $st -eq 0 ]]; then
+		set_local_mtu ${DEF_MTU_LEN}
+		scp_test1 ${REMOTE_IPV6}
+		st=$?
+	fi
+else
+	echo "Invalid <proto>"
+	st=128
 fi
 
 secgw_stop

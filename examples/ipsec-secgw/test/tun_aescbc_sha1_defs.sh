@@ -4,7 +4,7 @@
 
 SGW_CMD_XPRM='-w 300'
 
-config_remote_xfrm()
+config_remote_xfrm_44()
 {
 	ssh ${REMOTE_HOST} ip xfrm policy flush
 	ssh ${REMOTE_HOST} ip xfrm state flush
@@ -37,9 +37,80 @@ enc aes 0xdeadbeefdeadbeefdeadbeefdeadbeef
 	ssh ${REMOTE_HOST} ip xfrm state list
 }
 
-config6_remote_xfrm()
+config_remote_xfrm_46()
 {
-	config_remote_xfrm
+	ssh ${REMOTE_HOST} ip xfrm policy flush
+	ssh ${REMOTE_HOST} ip xfrm state flush
+
+	ssh ${REMOTE_HOST} ip xfrm policy add \
+src ${REMOTE_IPV4} dst ${LOCAL_IPV4} \
+dir out ptype main action allow \
+tmpl src ${REMOTE_IPV6} dst ${LOCAL_IPV6} \
+proto esp mode tunnel reqid 1
+
+	ssh ${REMOTE_HOST} ip xfrm policy add \
+src ${LOCAL_IPV4} dst ${REMOTE_IPV4} \
+dir in ptype main action allow \
+tmpl src ${LOCAL_IPV6} dst ${REMOTE_IPV6} \
+proto esp mode tunnel reqid 2
+
+	ssh ${REMOTE_HOST} ip xfrm state add \
+src ${REMOTE_IPV6} dst ${LOCAL_IPV6} \
+proto esp spi 6 reqid 1 mode tunnel replay-window 64 \
+auth sha1 0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef \
+enc aes 0xdeadbeefdeadbeefdeadbeefdeadbeef \
+sel src ${REMOTE_IPV4} dst ${LOCAL_IPV4}
+
+	ssh ${REMOTE_HOST} ip xfrm state add \
+src ${LOCAL_IPV6} dst ${REMOTE_IPV6} \
+proto esp spi 6 reqid 2 mode tunnel replay-window 64 \
+auth sha1 0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef \
+enc aes 0xdeadbeefdeadbeefdeadbeefdeadbeef \
+sel src ${LOCAL_IPV4} dst ${REMOTE_IPV4}
+
+	ssh ${REMOTE_HOST} ip xfrm policy list
+	ssh ${REMOTE_HOST} ip xfrm state list
+}
+
+config_remote_xfrm_64()
+{
+	ssh ${REMOTE_HOST} ip xfrm policy flush
+	ssh ${REMOTE_HOST} ip xfrm state flush
+
+	ssh ${REMOTE_HOST} ip xfrm policy add \
+src ${REMOTE_IPV6} dst ${LOCAL_IPV6} \
+dir out ptype main action allow \
+tmpl src ${REMOTE_IPV4} dst ${LOCAL_IPV4} \
+proto esp mode tunnel reqid 1
+
+	ssh ${REMOTE_HOST} ip xfrm policy add \
+src ${LOCAL_IPV6} dst ${REMOTE_IPV6} \
+dir in ptype main action allow \
+tmpl src ${LOCAL_IPV4} dst ${REMOTE_IPV4} \
+proto esp mode tunnel reqid 2
+
+	ssh ${REMOTE_HOST} ip xfrm state add \
+src ${REMOTE_IPV4} dst ${LOCAL_IPV4} \
+proto esp spi 8 reqid 1 mode tunnel replay-window 64 \
+auth sha1 0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef \
+enc aes 0xdeadbeefdeadbeefdeadbeefdeadbeef \
+sel src ${REMOTE_IPV6} dst ${LOCAL_IPV6}
+
+	ssh ${REMOTE_HOST} ip xfrm state add \
+src ${LOCAL_IPV4} dst ${REMOTE_IPV4} \
+proto esp spi 8 reqid 2 mode tunnel replay-window 64 \
+auth sha1 0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef \
+enc aes 0xdeadbeefdeadbeefdeadbeefdeadbeef \
+sel src ${LOCAL_IPV6} dst ${REMOTE_IPV6}
+
+	ssh ${REMOTE_HOST} ip xfrm policy list
+	ssh ${REMOTE_HOST} ip xfrm state list
+}
+
+config_remote_xfrm_66()
+{
+	ssh ${REMOTE_HOST} ip xfrm policy flush
+	ssh ${REMOTE_HOST} ip xfrm state flush
 
 	ssh ${REMOTE_HOST} ip xfrm policy add \
 src ${REMOTE_IPV6} dst ${LOCAL_IPV6} \

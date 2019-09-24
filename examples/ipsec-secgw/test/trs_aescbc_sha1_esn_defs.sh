@@ -4,7 +4,7 @@
 
 SGW_CMD_XPRM='-e -w 300'
 
-config_remote_xfrm()
+config_remote_xfrm_44()
 {
 	ssh ${REMOTE_HOST} ip xfrm policy flush
 	ssh ${REMOTE_HOST} ip xfrm state flush
@@ -35,9 +35,10 @@ enc aes 0xdeadbeefdeadbeefdeadbeefdeadbeef
 	ssh ${REMOTE_HOST} ip xfrm state list
 }
 
-config6_remote_xfrm()
+config_remote_xfrm_66()
 {
-	config_remote_xfrm
+	ssh ${REMOTE_HOST} ip xfrm policy flush
+	ssh ${REMOTE_HOST} ip xfrm state flush
 
 	ssh ${REMOTE_HOST} ip xfrm policy add \
 src ${REMOTE_IPV6} dst ${LOCAL_IPV6} \
