@@ -56,6 +56,10 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Updated the ICE driver.**
+
+  * Added support for handling Receive Flex Descriptor.
+  * Added support for protocol extraction on per Rx queue.
 
 Removed Items
 -------------
