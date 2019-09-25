@@ -92,8 +92,8 @@ update_shadow_used_ring_split(struct vhost_virtqueue *vq,
 }
 
 static __rte_always_inline void
-flush_shadow_used_ring_packed(struct virtio_net *dev,
-			struct vhost_virtqueue *vq)
+flush_enqueue_shadow_used_ring_packed(struct virtio_net *dev,
+	struct vhost_virtqueue *vq)
 {
 	int i;
 	uint16_t used_idx = vq->last_used_idx;
@@ -159,6 +159,32 @@ flush_shadow_used_ring_packed(struct virtio_net *dev,
 }
 
 static __rte_always_inline void
+flush_dequeue_shadow_used_ring_packed(struct virtio_net *dev,
+	struct vhost_virtqueue *vq)
+{
+	uint16_t head_idx = vq->dequeue_shadow_head;
+	uint16_t head_flags;
+	struct vring_used_elem_packed *used_elem = &vq->shadow_used_packed[0];
+
+	if (used_elem->used_wrap_counter)
+		head_flags = PACKED_TX_USED_FLAG;
+	else
+		head_flags = PACKED_TX_USED_WRAP_FLAG;
+
+	vq->desc_packed[head_idx].id = used_elem->id;
+
+	rte_smp_wmb();
+	vq->desc_packed[head_idx].flags = head_flags;
+
+	vhost_log_cache_used_vring(dev, vq, head_idx *
+				   sizeof(struct vring_packed_desc),
+				   sizeof(struct vring_packed_desc));
+
+	vq->shadow_used_idx = 0;
+	vhost_log_cache_sync(dev, vq);
+}
+
+static __rte_always_inline void
 update_shadow_used_ring_packed(struct vhost_virtqueue *vq,
 			 uint16_t desc_idx, uint32_t len, uint16_t count)
 {
@@ -196,6 +222,47 @@ flush_used_batch_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 	if (vq->last_used_idx >= vq->size) {
 		vq->used_wrap_counter ^= 1;
 		vq->last_used_idx -= vq->size;
+	}
+}
+
+static __rte_always_inline void
+update_dequeue_batch_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
+	uint16_t *ids)
+{
+	uint16_t flags = 0;
+	uint16_t i;
+
+	if (vq->used_wrap_counter)
+		flags = PACKED_TX_USED_FLAG;
+	else
+		flags = PACKED_TX_USED_WRAP_FLAG;
+
+	if (!vq->shadow_used_idx) {
+		vq->dequeue_shadow_head = vq->last_used_idx;
+		vq->shadow_used_packed[0].id  = ids[0];
+		vq->shadow_used_packed[0].len = 0;
+		vq->shadow_used_packed[0].count = 1;
+		vq->shadow_used_packed[0].used_idx = vq->last_used_idx;
+		vq->shadow_used_packed[0].used_wrap_counter =
+			vq->used_wrap_counter;
+
+		UNROLL_PRAGMA(UNROLL_PRAGMA_PARAM)
+		for (i = 1; i < PACKED_BATCH_SIZE; i++)
+			vq->desc_packed[vq->last_used_idx + i].id = ids[i];
+		rte_smp_wmb();
+		UNROLL_PRAGMA(UNROLL_PRAGMA_PARAM)
+		for (i = 1; i < PACKED_BATCH_SIZE; i++)
+			vq->desc_packed[vq->last_used_idx + i].flags = flags;
+
+		vq->shadow_used_idx = 1;
+		vq->last_used_idx += PACKED_BATCH_SIZE;
+		if (vq->last_used_idx >= vq->size) {
+			vq->used_wrap_counter ^= 1;
+			vq->last_used_idx -= vq->size;
+		}
+	} else {
+		uint64_t lens[PACKED_BATCH_SIZE] = {0};
+		flush_used_batch_packed(dev, vq, lens, ids, flags);
 	}
 }
 
@@ -306,8 +373,26 @@ flush_enqueue_packed(struct virtio_net *dev,
 
 		if (vq->enqueue_shadow_count >= PACKED_BATCH_SIZE) {
 			do_data_copy_enqueue(dev, vq);
-			flush_shadow_used_ring_packed(dev, vq);
+			flush_enqueue_shadow_used_ring_packed(dev, vq);
 		}
+	}
+}
+
+static __rte_unused void
+flush_dequeue_packed(struct virtio_net *dev, struct vhost_virtqueue *vq)
+{
+	if (!vq->shadow_used_idx)
+		return;
+
+	int16_t shadow_count = vq->last_used_idx - vq->dequeue_shadow_head;
+	if (shadow_count <= 0)
+		shadow_count += vq->size;
+
+	/* buffer used descs as many as possible when doing dequeue */
+	if ((uint16_t)shadow_count >= (vq->size - MAX_PKT_BURST)) {
+		do_data_copy_dequeue(vq);
+		flush_dequeue_shadow_used_ring_packed(dev, vq);
+		vhost_vring_call_packed(dev, vq);
 	}
 }
 
@@ -1165,7 +1250,7 @@ virtio_dev_rx_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 	do_data_copy_enqueue(dev, vq);
 
 	if (likely(vq->shadow_used_idx)) {
-		flush_shadow_used_ring_packed(dev, vq);
+		flush_enqueue_shadow_used_ring_packed(dev, vq);
 		vhost_vring_call_packed(dev, vq);
 	}
 
@@ -1796,6 +1881,8 @@ virtio_dev_tx_batch_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 			   pkts[i]->pkt_len);
 	}
 
+	update_dequeue_batch_packed(dev, vq, ids);
+
 	if (virtio_net_with_host_offload(dev)) {
 		UNROLL_PRAGMA(UNROLL_PRAGMA_PARAM)
 		for (i = 0; i < PACKED_BATCH_SIZE; i++) {
@@ -1896,7 +1983,7 @@ virtio_dev_tx_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 		}
 
 		if (likely(vq->shadow_used_idx)) {
-			flush_shadow_used_ring_packed(dev, vq);
+			flush_dequeue_shadow_used_ring_packed(dev, vq);
 			vhost_vring_call_packed(dev, vq);
 		}
 	}
@@ -1975,7 +2062,7 @@ virtio_dev_tx_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 		if (unlikely(i < count))
 			vq->shadow_used_idx = i;
 		if (likely(vq->shadow_used_idx)) {
-			flush_shadow_used_ring_packed(dev, vq);
+			flush_dequeue_shadow_used_ring_packed(dev, vq);
 			vhost_vring_call_packed(dev, vq);
 		}
 	}
