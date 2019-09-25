@@ -42,6 +42,8 @@
 #define PACKED_RX_USED_FLAG  (0ULL | VRING_DESC_F_AVAIL | VRING_DESC_F_USED \
 				| VRING_DESC_F_WRITE)
 #define PACKED_RX_USED_WRAP_FLAG (VRING_DESC_F_WRITE)
+#define PACKED_TX_USED_FLAG  (0ULL | VRING_DESC_F_AVAIL | VRING_DESC_F_USED)
+#define PACKED_TX_USED_WRAP_FLAG (0x0)
 #define PACKED_BATCH_SIZE (RTE_CACHE_LINE_SIZE / \
 			    sizeof(struct vring_packed_desc))
 #define PACKED_BATCH_MASK (PACKED_BATCH_SIZE - 1)
@@ -110,9 +112,11 @@ struct log_cache_entry {
 };
 
 struct vring_used_elem_packed {
+	uint16_t used_idx;
 	uint16_t id;
 	uint32_t len;
 	uint32_t count;
+	uint16_t used_wrap_counter;
 };
 
 /**
@@ -167,6 +171,7 @@ struct vhost_virtqueue {
 	};
 	uint16_t                shadow_used_idx;
 	uint16_t		enqueue_shadow_count;
+	uint16_t		dequeue_shadow_head;
 	struct vhost_vring_addr ring_addrs;
 
 	struct batch_copy_elem	*batch_copy_elems;
