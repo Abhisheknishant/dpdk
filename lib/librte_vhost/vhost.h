@@ -61,6 +61,8 @@
 #define UNROLL_PRAGMA(param) do {} while (0);
 #endif
 
+#define PACKED_SINGLE_DEQUEUE_FLAG (VRING_DESC_F_NEXT | VRING_DESC_F_INDIRECT)
+
 /**
  * Structure contains buffer address, length and descriptor index
  * from vring to do scatter RX.
