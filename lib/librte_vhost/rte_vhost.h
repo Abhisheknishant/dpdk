@@ -91,10 +91,18 @@ struct rte_vhost_mem_region {
 	int fd;
 };
 
+struct rte_vhost_mem_region_cache {
+	uint64_t guest_phys_addr;
+	uint64_t guest_phys_addr_end;
+	int64_t host_user_addr_offset;
+	uint64_t size;
+};
+
 /**
  * Memory structure includes region and mapping information.
  */
 struct rte_vhost_memory {
+	struct rte_vhost_mem_region_cache cache_region;
 	uint32_t nregions;
 	struct rte_vhost_mem_region regions[];
 };
@@ -232,10 +240,29 @@ rte_vhost_va_from_guest_pa(struct rte_vhost_memory *mem,
 	struct rte_vhost_mem_region *r;
 	uint32_t i;
 
+	struct rte_vhost_mem_region_cache *r_cache;
+	/* check with cached region */
+	r_cache = &mem->cache_region;
+	if (likely(gpa >= r_cache->guest_phys_addr && gpa <
+		   r_cache->guest_phys_addr_end)) {
+		if (unlikely(*len > r_cache->guest_phys_addr_end - gpa))
+			*len = r_cache->guest_phys_addr_end - gpa;
+
+		return gpa - r_cache->host_user_addr_offset;
+	}
+
+
 	for (i = 0; i < mem->nregions; i++) {
 		r = &mem->regions[i];
 		if (gpa >= r->guest_phys_addr &&
 		    gpa <  r->guest_phys_addr + r->size) {
+
+			r_cache->guest_phys_addr = r->guest_phys_addr;
+			r_cache->guest_phys_addr_end = r->guest_phys_addr +
+						       r->size;
+			r_cache->size = r->size;
+			r_cache->host_user_addr_offset = r->guest_phys_addr -
+							 r->host_user_addr;
 
 			if (unlikely(*len > r->guest_phys_addr + r->size - gpa))
 				*len = r->guest_phys_addr + r->size - gpa;
