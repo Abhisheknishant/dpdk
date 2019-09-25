@@ -245,6 +245,41 @@ int rte_mbuf_check(const struct rte_mbuf *m, int is_header,
 	return 0;
 }
 
+/**
+ * Maximum bulk of mbufs rte_pktmbuf_free_bulk() returns to mempool.
+ */
+#define RTE_PKTMBUF_FREE_BULK_SZ 64
+
+/* Free a bulk of mbufs back into their original mempools. */
+void rte_pktmbuf_free_bulk(struct rte_mbuf **mbufs, unsigned int count)
+{
+	struct rte_mbuf *m, *free[RTE_PKTMBUF_FREE_BULK_SZ];
+	unsigned int idx, nb_free = 0;
+
+	for (idx = 0; idx < count; idx++) {
+		m = mbufs[idx];
+		if (unlikely(m == NULL))
+			continue;
+
+		__rte_mbuf_sanity_check(m, 1);
+		m = rte_pktmbuf_prefree_seg(m);
+		if (unlikely(m == NULL))
+			continue;
+
+		if (nb_free >= RTE_PKTMBUF_FREE_BULK_SZ ||
+		    (nb_free > 0 && m->pool != free[0]->pool)) {
+			rte_mempool_put_bulk(free[0]->pool,
+			                     (void **)free, nb_free);
+			nb_free = 0;
+		}
+
+		free[nb_free++] = m;
+	}
+
+	if (nb_free > 0)
+		rte_mempool_put_bulk(free[0]->pool, (void **)free, nb_free);
+}
+
 /* dump a mbuf on console */
 void
 rte_pktmbuf_dump(FILE *f, const struct rte_mbuf *m, unsigned dump_len)

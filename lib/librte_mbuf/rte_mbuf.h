@@ -1908,21 +1908,15 @@ static inline void rte_pktmbuf_free(struct rte_mbuf *m)
 }
 
 /**
- * Free a bulk of mbufs back into their original mempool.
+ * Free a bulk of mbufs back into their original mempools.
  *
  *  @param mbufs
- *    Array of pointers to mbufs
+ *    Array of pointers to mbufs.
+ *    The array may contain NULL pointers.
  *  @param count
- *    Array size
+ *    Array size.
  */
-static inline void
-rte_pktmbuf_free_bulk(struct rte_mbuf **mbufs, unsigned count)
-{
-	unsigned idx = 0;
-
-	for (idx = 0; idx < count; idx++)
-		rte_pktmbuf_free(mbufs[idx]);
-}
+void rte_pktmbuf_free_bulk(struct rte_mbuf **mbufs, unsigned int count);
 
 /**
  * Creates a "clone" of the given packet mbuf.
