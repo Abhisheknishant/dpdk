@@ -1075,7 +1075,9 @@ virtio_dev_rx_batch_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 
 	UNROLL_PRAGMA(UNROLL_PRAGMA_PARAM)
 	for (i = 0; i < PACKED_BATCH_SIZE; i++) {
+#ifndef DISABLE_SWPREFETCH
 		rte_prefetch0((void *)(uintptr_t)desc_addrs[i]);
+#endif
 		hdrs[i] = (struct virtio_net_hdr_mrg_rxbuf *)
 					(uintptr_t)desc_addrs[i];
 		lens[i] = pkts[i]->pkt_len + dev->vhost_hlen;
@@ -1144,8 +1146,10 @@ virtio_dev_rx_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 	uint32_t remained = count;
 
 	do {
+#ifndef DISABLE_SWPREFETCH
 		rte_prefetch0(&vq->desc_packed[vq->last_avail_idx &
 			(vq->size - 1)]);
+#endif
 		if (remained >= PACKED_BATCH_SIZE) {
 			if (!virtio_dev_rx_batch_packed(dev, vq, pkts)) {
 				pkt_idx += PACKED_BATCH_SIZE;
@@ -1790,7 +1794,9 @@ virtio_dev_tx_batch_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 
 	UNROLL_PRAGMA(UNROLL_PRAGMA_PARAM)
 	for (i = 0; i < PACKED_BATCH_SIZE; i++) {
+#ifndef DISABLE_SWPREFETCH
 		rte_prefetch0((void *)(uintptr_t)desc_addrs[i]);
+#endif
 		rte_memcpy(rte_pktmbuf_mtod_offset(pkts[i], void *, 0),
 			   (void *)(uintptr_t)(desc_addrs[i] + buf_offset),
 			   pkts[i]->pkt_len);
@@ -2046,8 +2052,10 @@ virtio_dev_tx_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 	uint32_t remained = count;
 
 	do {
+#ifndef DISABLE_SWPREFETCH
 		rte_prefetch0(&vq->desc_packed[vq->last_avail_idx &
 		       (vq->size - 1)]);
+#endif
 
 		if (remained >= PACKED_BATCH_SIZE) {
 			if (!virtio_dev_tx_batch_packed(dev, vq, mbuf_pool,
