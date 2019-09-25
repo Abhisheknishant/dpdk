@@ -31,6 +31,12 @@ rxvq_is_mergeable(struct virtio_net *dev)
 	return dev->features & (1ULL << VIRTIO_NET_F_MRG_RXBUF);
 }
 
+static  __rte_always_inline bool
+virtio_net_is_inorder(struct virtio_net *dev)
+{
+	return dev->features & (1ULL << VIRTIO_F_IN_ORDER);
+}
+
 static bool
 is_valid_virt_queue_idx(uint32_t idx, int is_tx, uint32_t nr_vring)
 {
@@ -215,6 +221,29 @@ flush_used_batch_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 }
 
 static __rte_always_inline void
+update_dequeue_batch_packed_inorder(struct vhost_virtqueue *vq, uint16_t id)
+{
+	vq->shadow_used_packed[0].id  = id;
+
+	if (!vq->shadow_used_idx) {
+		vq->dequeue_shadow_head = vq->last_used_idx;
+		vq->shadow_used_packed[0].len = 0;
+		vq->shadow_used_packed[0].count = 1;
+		vq->shadow_used_packed[0].used_idx = vq->last_used_idx;
+		vq->shadow_used_packed[0].used_wrap_counter =
+			vq->used_wrap_counter;
+
+		vq->shadow_used_idx = 1;
+	}
+
+	vq->last_used_idx += PACKED_BATCH_SIZE;
+	if (vq->last_used_idx >= vq->size) {
+		vq->used_wrap_counter ^= 1;
+		vq->last_used_idx -= vq->size;
+	}
+}
+
+static __rte_always_inline void
 update_dequeue_batch_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 	uint16_t *ids)
 {
@@ -311,6 +340,32 @@ update_dequeue_shadow_used_ring_packed(struct vhost_virtqueue *vq,
 		else
 			vq->desc_packed[vq->last_used_idx].flags =
 				PACKED_TX_USED_WRAP_FLAG;
+	}
+
+	vq->last_used_idx += count;
+
+	if (vq->last_used_idx >= vq->size) {
+		vq->used_wrap_counter ^= 1;
+		vq->last_used_idx -= vq->size;
+	}
+}
+
+static __rte_always_inline void
+update_dequeue_shadow_used_ring_packed_inorder(struct vhost_virtqueue *vq,
+	uint16_t buf_id, uint16_t count)
+{
+	vq->shadow_used_packed[0].id = buf_id;
+
+	if (!vq->shadow_used_idx) {
+		vq->dequeue_shadow_head = vq->last_used_idx;
+
+		vq->shadow_used_packed[0].len = 0;
+		vq->shadow_used_packed[0].count = count;
+		vq->shadow_used_packed[0].used_idx = vq->last_used_idx;
+		vq->shadow_used_packed[0].used_wrap_counter =
+			vq->used_wrap_counter;
+
+		vq->shadow_used_idx = 1;
 	}
 
 	vq->last_used_idx += count;
@@ -1801,8 +1856,12 @@ virtio_dev_tx_batch_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 			   (void *)(uintptr_t)(desc_addrs[i] + buf_offset),
 			   pkts[i]->pkt_len);
 	}
+	if (virtio_net_is_inorder(dev))
+		update_dequeue_batch_packed_inorder(vq,
+						    ids[PACKED_BATCH_MASK]);
+	else
+		update_dequeue_batch_packed(dev, vq, ids);
 
-	update_dequeue_batch_packed(dev, vq, ids);
 
 	if (virtio_net_with_host_offload(dev)) {
 		UNROLL_PRAGMA(UNROLL_PRAGMA_PARAM)
@@ -1865,7 +1924,11 @@ virtio_dev_tx_single_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 					&desc_count))
 		return -1;
 
-	update_dequeue_shadow_used_ring_packed(vq, buf_id, desc_count);
+	if (virtio_net_is_inorder(dev))
+		update_dequeue_shadow_used_ring_packed_inorder(vq, buf_id,
+							       desc_count);
+	else
+		update_dequeue_shadow_used_ring_packed(vq, buf_id, desc_count);
 
 	vq->last_avail_idx += desc_count;
 	if (vq->last_avail_idx >= vq->size) {
