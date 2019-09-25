@@ -453,7 +453,6 @@ struct rte_eth_rss_conf {
  * possible, and exclusively. For example, if a packet is identified as
  * 'RTE_ETH_FLOW_NONFRAG_IPV4_TCP', it will not be any of other flow types,
  * though it is an actual IPV4 packet.
- * Note that the flow types are used to define RSS offload types.
  */
 #define RTE_ETH_FLOW_UNKNOWN             0
 #define RTE_ETH_FLOW_RAW                 1
@@ -482,31 +481,43 @@ struct rte_eth_rss_conf {
 #define RTE_ETH_FLOW_MAX                23
 
 /*
- * The RSS offload types are defined based on flow types.
- * Different NIC hardware may support different RSS offload
- * types. The supported flow types or RSS offload types can be queried by
- * rte_eth_dev_info_get().
+ * Below macros are defined for RSS offload types, they can be used to
+ * fill rte_eth_rss_conf.rss_hf or rte_flow_action_rss.types.
  */
-#define ETH_RSS_IPV4               (1ULL << RTE_ETH_FLOW_IPV4)
-#define ETH_RSS_FRAG_IPV4          (1ULL << RTE_ETH_FLOW_FRAG_IPV4)
-#define ETH_RSS_NONFRAG_IPV4_TCP   (1ULL << RTE_ETH_FLOW_NONFRAG_IPV4_TCP)
-#define ETH_RSS_NONFRAG_IPV4_UDP   (1ULL << RTE_ETH_FLOW_NONFRAG_IPV4_UDP)
-#define ETH_RSS_NONFRAG_IPV4_SCTP  (1ULL << RTE_ETH_FLOW_NONFRAG_IPV4_SCTP)
-#define ETH_RSS_NONFRAG_IPV4_OTHER (1ULL << RTE_ETH_FLOW_NONFRAG_IPV4_OTHER)
-#define ETH_RSS_IPV6               (1ULL << RTE_ETH_FLOW_IPV6)
-#define ETH_RSS_FRAG_IPV6          (1ULL << RTE_ETH_FLOW_FRAG_IPV6)
-#define ETH_RSS_NONFRAG_IPV6_TCP   (1ULL << RTE_ETH_FLOW_NONFRAG_IPV6_TCP)
-#define ETH_RSS_NONFRAG_IPV6_UDP   (1ULL << RTE_ETH_FLOW_NONFRAG_IPV6_UDP)
-#define ETH_RSS_NONFRAG_IPV6_SCTP  (1ULL << RTE_ETH_FLOW_NONFRAG_IPV6_SCTP)
-#define ETH_RSS_NONFRAG_IPV6_OTHER (1ULL << RTE_ETH_FLOW_NONFRAG_IPV6_OTHER)
-#define ETH_RSS_L2_PAYLOAD         (1ULL << RTE_ETH_FLOW_L2_PAYLOAD)
-#define ETH_RSS_IPV6_EX            (1ULL << RTE_ETH_FLOW_IPV6_EX)
-#define ETH_RSS_IPV6_TCP_EX        (1ULL << RTE_ETH_FLOW_IPV6_TCP_EX)
-#define ETH_RSS_IPV6_UDP_EX        (1ULL << RTE_ETH_FLOW_IPV6_UDP_EX)
-#define ETH_RSS_PORT               (1ULL << RTE_ETH_FLOW_PORT)
-#define ETH_RSS_VXLAN              (1ULL << RTE_ETH_FLOW_VXLAN)
-#define ETH_RSS_GENEVE             (1ULL << RTE_ETH_FLOW_GENEVE)
-#define ETH_RSS_NVGRE              (1ULL << RTE_ETH_FLOW_NVGRE)
+#define ETH_RSS_IPV4               (1ULL << 2)
+#define ETH_RSS_FRAG_IPV4          (1ULL << 3)
+#define ETH_RSS_NONFRAG_IPV4_TCP   (1ULL << 4)
+#define ETH_RSS_NONFRAG_IPV4_UDP   (1ULL << 5)
+#define ETH_RSS_NONFRAG_IPV4_SCTP  (1ULL << 6)
+#define ETH_RSS_NONFRAG_IPV4_OTHER (1ULL << 7)
+#define ETH_RSS_IPV6               (1ULL << 8)
+#define ETH_RSS_FRAG_IPV6          (1ULL << 9)
+#define ETH_RSS_NONFRAG_IPV6_TCP   (1ULL << 10)
+#define ETH_RSS_NONFRAG_IPV6_UDP   (1ULL << 11)
+#define ETH_RSS_NONFRAG_IPV6_SCTP  (1ULL << 12)
+#define ETH_RSS_NONFRAG_IPV6_OTHER (1ULL << 13)
+#define ETH_RSS_L2_PAYLOAD         (1ULL << 14)
+#define ETH_RSS_IPV6_EX            (1ULL << 15)
+#define ETH_RSS_IPV6_TCP_EX        (1ULL << 16)
+#define ETH_RSS_IPV6_UDP_EX        (1ULL << 17)
+#define ETH_RSS_PORT               (1ULL << 18)
+#define ETH_RSS_VXLAN              (1ULL << 19)
+#define ETH_RSS_GENEVE             (1ULL << 20)
+#define ETH_RSS_NVGRE              (1ULL << 21)
+
+/*
+ * We use the following macros to combine with above ETH_RSS_* for
+ * more specific input set selection. These bits are defined starting
+ * from the high end of the 64 bits.
+ * Note: if use above ETH_RSS_* without SRC/DST_ONLY, it represents
+ * both SRC and DST are taken into account.
+ */
+#define ETH_RSS_L2_SRC_ONLY        (1ULL << 63)
+#define ETH_RSS_L2_DST_ONLY        (1ULL << 62)
+#define ETH_RSS_L3_SRC_ONLY        (1ULL << 61)
+#define ETH_RSS_L3_DST_ONLY        (1ULL << 60)
+#define ETH_RSS_L4_SRC_ONLY        (1ULL << 59)
+#define ETH_RSS_L4_DST_ONLY        (1ULL << 58)
 
 #define ETH_RSS_IP ( \
 	ETH_RSS_IPV4 | \
