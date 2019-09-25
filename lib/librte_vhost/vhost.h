@@ -163,6 +163,7 @@ struct vhost_virtqueue {
 		struct vring_used_elem_packed *shadow_used_packed;
 	};
 	uint16_t                shadow_used_idx;
+	uint16_t		enqueue_shadow_count;
 	struct vhost_vring_addr ring_addrs;
 
 	struct batch_copy_elem	*batch_copy_elems;

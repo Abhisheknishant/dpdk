@@ -169,6 +169,24 @@ update_shadow_used_ring_packed(struct vhost_virtqueue *vq,
 	vq->shadow_used_packed[i].count = count;
 }
 
+static __rte_always_inline void
+update_enqueue_shadow_used_ring_packed(struct vhost_virtqueue *vq,
+	uint16_t desc_idx, uint32_t len, uint16_t count)
+{
+	/* enqueue shadow flush action aligned with batch num */
+	if (!vq->shadow_used_idx)
+		vq->enqueue_shadow_count = vq->last_used_idx &
+						PACKED_BATCH_MASK;
+
+	uint16_t i = vq->shadow_used_idx++;
+
+	vq->shadow_used_packed[i].id  = desc_idx;
+	vq->shadow_used_packed[i].len = len;
+	vq->shadow_used_packed[i].count = count;
+
+	vq->enqueue_shadow_count += count;
+}
+
 static inline void
 do_data_copy_enqueue(struct virtio_net *dev, struct vhost_virtqueue *vq)
 {
@@ -196,6 +214,23 @@ do_data_copy_dequeue(struct vhost_virtqueue *vq)
 		rte_memcpy(elem[i].dst, elem[i].src, elem[i].len);
 
 	vq->batch_copy_nb_elems = 0;
+}
+
+static __rte_always_inline void
+flush_enqueue_packed(struct virtio_net *dev,
+	struct vhost_virtqueue *vq, uint32_t len[], uint16_t id[],
+	uint16_t count[], uint16_t num_buffers)
+{
+	int i;
+	for (i = 0; i < num_buffers; i++) {
+		update_enqueue_shadow_used_ring_packed(vq, id[i], len[i],
+						       count[i]);
+
+		if (vq->enqueue_shadow_count >= PACKED_BATCH_SIZE) {
+			do_data_copy_enqueue(dev, vq);
+			flush_shadow_used_ring_packed(dev, vq);
+		}
+	}
 }
 
 /* avoid write operation when necessary, to lessen cache issues */
@@ -786,6 +821,9 @@ vhost_enqueue_single_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 	uint16_t desc_count;
 	uint32_t size = pkt->pkt_len + dev->vhost_hlen;
 	uint16_t num_buffers = 0;
+	uint32_t buffer_len[vq->size];
+	uint16_t buffer_buf_id[vq->size];
+	uint16_t buffer_desc_count[vq->size];
 
 	if (rxvq_is_mergeable(dev))
 		max_tries = vq->size - 1;
@@ -811,6 +849,9 @@ vhost_enqueue_single_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 		len = RTE_MIN(len, size);
 		size -= len;
 
+		buffer_len[num_buffers] = len;
+		buffer_buf_id[num_buffers] = buf_id;
+		buffer_desc_count[num_buffers] = desc_count;
 		num_buffers += 1;
 
 		*nr_descs += desc_count;
@@ -822,6 +863,8 @@ vhost_enqueue_single_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 	if (copy_mbuf_to_desc(dev, vq, pkt, buf_vec, nr_vec, num_buffers) < 0)
 		return -1;
 
+	flush_enqueue_packed(dev, vq, buffer_len, buffer_buf_id,
+			     buffer_desc_count, num_buffers);
 	return 0;
 }
 
