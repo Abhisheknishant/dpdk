@@ -123,10 +123,16 @@ struct rte_kni_device_info {
 	uint8_t mac_addr[6];
 };
 
+struct rte_kni_link_info {
+	char name[RTE_KNI_NAMESIZE];
+	unsigned int linkup;
+};
+
 #define KNI_DEVICE "kni"
 
 #define RTE_KNI_IOCTL_TEST    _IOWR(0, 1, int)
 #define RTE_KNI_IOCTL_CREATE  _IOWR(0, 2, struct rte_kni_device_info)
 #define RTE_KNI_IOCTL_RELEASE _IOWR(0, 3, struct rte_kni_device_info)
+#define RTE_KNI_IOCTL_LINK    _IOWR(0, 4, struct rte_kni_link_info)
 
 #endif /* _RTE_KNI_COMMON_H_ */

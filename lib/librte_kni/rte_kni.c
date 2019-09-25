@@ -731,41 +731,20 @@ rte_kni_unregister_handlers(struct rte_kni *kni)
 int
 rte_kni_update_link(struct rte_kni *kni, unsigned int linkup)
 {
-	char path[64];
-	char old_carrier[2];
-	const char *new_carrier;
-	int old_linkup;
-	int fd, ret;
+	struct rte_kni_link_info link_info;
 
 	if (kni == NULL)
 		return -1;
 
-	snprintf(path, sizeof(path), "/sys/devices/virtual/net/%s/carrier",
-		kni->name);
+	snprintf(link_info.name, RTE_KNI_NAMESIZE, "%s", kni->name);
+	link_info.linkup = linkup;
 
-	fd = open(path, O_RDWR);
-	if (fd == -1) {
-		RTE_LOG(ERR, KNI, "Failed to open file: %s.\n", path);
+	if (ioctl(kni_fd, RTE_KNI_IOCTL_LINK, &link_info) < 0) {
+		RTE_LOG(ERR, KNI, "Fail to update KNI link\n");
 		return -1;
 	}
 
-	ret = read(fd, old_carrier, 2);
-	if (ret < 1) {
-		close(fd);
-		return -1;
-	}
-	old_linkup = (old_carrier[0] == '1');
-
-	new_carrier = linkup ? "1" : "0";
-	ret = write(fd, new_carrier, 1);
-	if (ret < 1) {
-		RTE_LOG(ERR, KNI, "Failed to write file: %s.\n", path);
-		close(fd);
-		return -1;
-	}
-
-	close(fd);
-	return old_linkup;
+	return 0;
 }
 
 void
