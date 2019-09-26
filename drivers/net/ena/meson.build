@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright(c) 2018 Intel Corporation
+# Copyright(c) 2015-2019 Amazon.com, Inc. or its affiliates.
+# All rights reserved.
 
 allow_experimental_apis = true
 sources = files('ena_ethdev.c',
