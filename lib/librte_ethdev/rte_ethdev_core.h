@@ -126,12 +126,26 @@ typedef int (*eth_rx_queue_setup_t)(struct rte_eth_dev *dev,
 				    struct rte_mempool *mb_pool);
 /**< @internal Set up a receive queue of an Ethernet device. */
 
+typedef int (*eth_rx_hairpin_queue_setup_t)
+	(struct rte_eth_dev *dev, uint16_t rx_queue_id,
+	 uint16_t nb_rx_desc, unsigned int socket_id,
+	 const struct rte_eth_rxconf *rx_conf,
+	 const struct rte_eth_hairpin_conf *hairpin_conf);
+/**< @internal Set up a receive hairpin queue of an Ethernet device. */
+
 typedef int (*eth_tx_queue_setup_t)(struct rte_eth_dev *dev,
 				    uint16_t tx_queue_id,
 				    uint16_t nb_tx_desc,
 				    unsigned int socket_id,
 				    const struct rte_eth_txconf *tx_conf);
 /**< @internal Setup a transmit queue of an Ethernet device. */
+
+typedef int (*eth_tx_hairpin_queue_setup_t)
+	(struct rte_eth_dev *dev, uint16_t tx_queue_id,
+	 uint16_t nb_tx_desc, unsigned int socket_id,
+	 const struct rte_eth_txconf *tx_conf,
+	 const struct rte_eth_hairpin_conf *hairpin_conf);
+/**< @internal Setup a transmit hairpin queue of an Ethernet device. */
 
 typedef int (*eth_rx_enable_intr_t)(struct rte_eth_dev *dev,
 				    uint16_t rx_queue_id);
@@ -433,6 +447,8 @@ struct eth_dev_ops {
 	eth_queue_start_t          tx_queue_start;/**< Start TX for a queue. */
 	eth_queue_stop_t           tx_queue_stop; /**< Stop TX for a queue. */
 	eth_rx_queue_setup_t       rx_queue_setup;/**< Set up device RX queue. */
+	eth_rx_hairpin_queue_setup_t rx_hairpin_queue_setup;
+	/**< Set up device RX hairpin queue. */
 	eth_queue_release_t        rx_queue_release; /**< Release RX queue. */
 	eth_rx_queue_count_t       rx_queue_count;
 	/**< Get the number of used RX descriptors. */
@@ -444,6 +460,8 @@ struct eth_dev_ops {
 	eth_rx_enable_intr_t       rx_queue_intr_enable;  /**< Enable Rx queue interrupt. */
 	eth_rx_disable_intr_t      rx_queue_intr_disable; /**< Disable Rx queue interrupt. */
 	eth_tx_queue_setup_t       tx_queue_setup;/**< Set up device TX queue. */
+	eth_tx_hairpin_queue_setup_t tx_hairpin_queue_setup;
+	/**< Set up device TX hairpin queue. */
 	eth_queue_release_t        tx_queue_release; /**< Release TX queue. */
 	eth_tx_done_cleanup_t      tx_done_cleanup;/**< Free tx ring mbufs */
 

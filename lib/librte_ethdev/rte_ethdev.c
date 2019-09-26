@@ -1695,6 +1695,115 @@ rte_eth_rx_queue_setup(uint16_t port_id, uint16_t rx_queue_id,
 }
 
 int
+rte_eth_rx_hairpin_queue_setup(uint16_t port_id, uint16_t rx_queue_id,
+			       uint16_t nb_rx_desc, unsigned int socket_id,
+			       const struct rte_eth_rxconf *rx_conf,
+			       const struct rte_eth_hairpin_conf *hairpin_conf)
+{
+	int ret;
+	struct rte_eth_dev *dev;
+	struct rte_eth_dev_info dev_info;
+	struct rte_eth_rxconf local_conf;
+	void **rxq;
+
+	RTE_ETH_VALID_PORTID_OR_ERR_RET(port_id, -EINVAL);
+
+	dev = &rte_eth_devices[port_id];
+	if (rx_queue_id >= dev->data->nb_rx_queues) {
+		RTE_ETHDEV_LOG(ERR, "Invalid RX queue_id=%u\n", rx_queue_id);
+		return -EINVAL;
+	}
+
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->dev_infos_get, -ENOTSUP);
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->rx_hairpin_queue_setup,
+				-ENOTSUP);
+
+	rte_eth_dev_info_get(port_id, &dev_info);
+
+	/* Use default specified by driver, if nb_rx_desc is zero */
+	if (nb_rx_desc == 0) {
+		nb_rx_desc = dev_info.default_rxportconf.ring_size;
+		/* If driver default is also zero, fall back on EAL default */
+		if (nb_rx_desc == 0)
+			nb_rx_desc = RTE_ETH_DEV_FALLBACK_RX_RINGSIZE;
+	}
+
+	if (nb_rx_desc > dev_info.rx_desc_lim.nb_max ||
+			nb_rx_desc < dev_info.rx_desc_lim.nb_min ||
+			nb_rx_desc % dev_info.rx_desc_lim.nb_align != 0) {
+
+		RTE_ETHDEV_LOG(ERR,
+			       "Invalid value for nb_rx_desc(=%hu), should be: "
+			       "<= %hu, >= %hu, and a product of %hu\n",
+			nb_rx_desc, dev_info.rx_desc_lim.nb_max,
+			dev_info.rx_desc_lim.nb_min,
+			dev_info.rx_desc_lim.nb_align);
+		return -EINVAL;
+	}
+
+	if (dev->data->dev_started &&
+		!(dev_info.dev_capa &
+			RTE_ETH_DEV_CAPA_RUNTIME_RX_QUEUE_SETUP))
+		return -EBUSY;
+
+	if (dev->data->dev_started &&
+		(dev->data->rx_queue_state[rx_queue_id] !=
+			RTE_ETH_QUEUE_STATE_STOPPED))
+		return -EBUSY;
+
+	rxq = dev->data->rx_queues;
+	if (rxq[rx_queue_id]) {
+		RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->rx_queue_release,
+					-ENOTSUP);
+		(*dev->dev_ops->rx_queue_release)(rxq[rx_queue_id]);
+		rxq[rx_queue_id] = NULL;
+	}
+
+	if (rx_conf == NULL)
+		rx_conf = &dev_info.default_rxconf;
+
+	local_conf = *rx_conf;
+
+	/*
+	 * If an offloading has already been enabled in
+	 * rte_eth_dev_configure(), it has been enabled on all queues,
+	 * so there is no need to enable it in this queue again.
+	 * The local_conf.offloads input to underlying PMD only carries
+	 * those offloadings which are only enabled on this queue and
+	 * not enabled on all queues.
+	 */
+	local_conf.offloads &= ~dev->data->dev_conf.rxmode.offloads;
+
+	/*
+	 * New added offloadings for this queue are those not enabled in
+	 * rte_eth_dev_configure() and they must be per-queue type.
+	 * A pure per-port offloading can't be enabled on a queue while
+	 * disabled on another queue. A pure per-port offloading can't
+	 * be enabled for any queue as new added one if it hasn't been
+	 * enabled in rte_eth_dev_configure().
+	 */
+	if ((local_conf.offloads & dev_info.rx_queue_offload_capa) !=
+	     local_conf.offloads) {
+		RTE_ETHDEV_LOG(ERR,
+			"Ethdev port_id=%d rx_queue_id=%d, "
+			"new added offloads 0x%"PRIx64" must be "
+			"within per-queue offload capabilities "
+			"0x%"PRIx64" in %s()\n",
+			port_id, rx_queue_id, local_conf.offloads,
+			dev_info.rx_queue_offload_capa,
+			__func__);
+		return -EINVAL;
+	}
+
+	ret = (*dev->dev_ops->rx_hairpin_queue_setup)(dev, rx_queue_id,
+						      nb_rx_desc, socket_id,
+						      &local_conf,
+						      hairpin_conf);
+
+	return eth_err(port_id, ret);
+}
+
+int
 rte_eth_tx_queue_setup(uint16_t port_id, uint16_t tx_queue_id,
 		       uint16_t nb_tx_desc, unsigned int socket_id,
 		       const struct rte_eth_txconf *tx_conf)
@@ -1789,6 +1898,110 @@ rte_eth_tx_queue_setup(uint16_t port_id, uint16_t tx_queue_id,
 
 	return eth_err(port_id, (*dev->dev_ops->tx_queue_setup)(dev,
 		       tx_queue_id, nb_tx_desc, socket_id, &local_conf));
+}
+
+int
+rte_eth_tx_hairpin_queue_setup(uint16_t port_id, uint16_t tx_queue_id,
+			       uint16_t nb_tx_desc, unsigned int socket_id,
+			       const struct rte_eth_txconf *tx_conf,
+			       const struct rte_eth_hairpin_conf *hairpin_conf)
+{
+	struct rte_eth_dev *dev;
+	struct rte_eth_dev_info dev_info;
+	struct rte_eth_txconf local_conf;
+	void **txq;
+
+	RTE_ETH_VALID_PORTID_OR_ERR_RET(port_id, -EINVAL);
+
+	dev = &rte_eth_devices[port_id];
+	if (tx_queue_id >= dev->data->nb_tx_queues) {
+		RTE_ETHDEV_LOG(ERR, "Invalid TX queue_id=%u\n", tx_queue_id);
+		return -EINVAL;
+	}
+
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->dev_infos_get, -ENOTSUP);
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->tx_hairpin_queue_setup,
+				-ENOTSUP);
+
+	rte_eth_dev_info_get(port_id, &dev_info);
+
+	/* Use default specified by driver, if nb_tx_desc is zero */
+	if (nb_tx_desc == 0) {
+		nb_tx_desc = dev_info.default_txportconf.ring_size;
+		/* If driver default is zero, fall back on EAL default */
+		if (nb_tx_desc == 0)
+			nb_tx_desc = RTE_ETH_DEV_FALLBACK_TX_RINGSIZE;
+	}
+	if (nb_tx_desc > dev_info.tx_desc_lim.nb_max ||
+	    nb_tx_desc < dev_info.tx_desc_lim.nb_min ||
+	    nb_tx_desc % dev_info.tx_desc_lim.nb_align != 0) {
+		RTE_ETHDEV_LOG(ERR,
+			       "Invalid value for nb_tx_desc(=%hu), "
+			       "should be: <= %hu, >= %hu, and a product of "
+			       " %hu\n",
+			       nb_tx_desc, dev_info.tx_desc_lim.nb_max,
+			       dev_info.tx_desc_lim.nb_min,
+			       dev_info.tx_desc_lim.nb_align);
+		return -EINVAL;
+	}
+
+	if (dev->data->dev_started &&
+		!(dev_info.dev_capa &
+		  RTE_ETH_DEV_CAPA_RUNTIME_TX_QUEUE_SETUP))
+		return -EBUSY;
+
+	if (dev->data->dev_started &&
+		(dev->data->tx_queue_state[tx_queue_id] !=
+		 RTE_ETH_QUEUE_STATE_STOPPED))
+		return -EBUSY;
+
+	txq = dev->data->tx_queues;
+	if (txq[tx_queue_id]) {
+		RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->tx_queue_release,
+					-ENOTSUP);
+		(*dev->dev_ops->tx_queue_release)(txq[tx_queue_id]);
+		txq[tx_queue_id] = NULL;
+	}
+
+	if (tx_conf == NULL)
+		tx_conf = &dev_info.default_txconf;
+
+	local_conf = *tx_conf;
+
+	/*
+	 * If an offloading has already been enabled in
+	 * rte_eth_dev_configure(), it has been enabled on all queues,
+	 * so there is no need to enable it in this queue again.
+	 * The local_conf.offloads input to underlying PMD only carries
+	 * those offloadings which are only enabled on this queue and
+	 * not enabled on all queues.
+	 */
+	local_conf.offloads &= ~dev->data->dev_conf.txmode.offloads;
+
+	/*
+	 * New added offloadings for this queue are those not enabled in
+	 * rte_eth_dev_configure() and they must be per-queue type.
+	 * A pure per-port offloading can't be enabled on a queue while
+	 * disabled on another queue. A pure per-port offloading can't
+	 * be enabled for any queue as new added one if it hasn't been
+	 * enabled in rte_eth_dev_configure().
+	 */
+	if ((local_conf.offloads & dev_info.tx_queue_offload_capa) !=
+	     local_conf.offloads) {
+		RTE_ETHDEV_LOG(ERR,
+			       "Ethdev port_id=%d tx_queue_id=%d, new added "
+			       "offloads 0x%"PRIx64" must be within "
+			       "per-queue offload capabilities 0x%"PRIx64" "
+			       "in %s()\n",
+			       port_id, tx_queue_id, local_conf.offloads,
+			       dev_info.tx_queue_offload_capa,
+			       __func__);
+		return -EINVAL;
+	}
+
+	return eth_err(port_id, (*dev->dev_ops->tx_hairpin_queue_setup)
+		       (dev, tx_queue_id, nb_tx_desc, socket_id, &local_conf,
+			hairpin_conf));
 }
 
 void
