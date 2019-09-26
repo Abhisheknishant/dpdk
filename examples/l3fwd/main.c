@@ -817,6 +817,93 @@ prepare_ptype_parser(uint16_t portid, uint16_t queueid)
 	return 0;
 }
 
+static inline int
+l3fwd_service_enable(uint32_t service_id)
+{
+	uint8_t min_service_count = UINT8_MAX;
+	uint32_t slcore_array[RTE_MAX_LCORE];
+	unsigned int slcore = 0;
+	uint8_t service_count;
+	int32_t slcore_count;
+
+	if (!rte_service_lcore_count())
+		return -ENOENT;
+
+	slcore_count = rte_service_lcore_list(slcore_array, RTE_MAX_LCORE);
+	if (slcore_count < 0)
+		return -ENOENT;
+	/* Get the core which has least number of services running. */
+	while (slcore_count--) {
+		/* Reset default mapping */
+		rte_service_map_lcore_set(service_id,
+				slcore_array[slcore_count], 0);
+		service_count = rte_service_lcore_count_services(
+				slcore_array[slcore_count]);
+		if (service_count < min_service_count) {
+			slcore = slcore_array[slcore_count];
+			min_service_count = service_count;
+		}
+	}
+	if (rte_service_map_lcore_set(service_id, slcore, 1))
+		return -ENOENT;
+	rte_service_lcore_start(slcore);
+
+	return 0;
+}
+
+static void
+l3fwd_eventdev_service_setup(void)
+{
+	struct l3fwd_eventdev_resources *evdev_rsrc = l3fwd_get_eventdev_rsrc();
+	struct rte_event_dev_info evdev_info;
+	uint32_t service_id, caps;
+	int ret, i;
+
+	rte_event_dev_info_get(evdev_rsrc->event_d_id, &evdev_info);
+	if (evdev_info.event_dev_cap  & RTE_EVENT_DEV_CAP_DISTRIBUTED_SCHED) {
+		ret = rte_event_dev_service_id_get(evdev_rsrc->event_d_id,
+				&service_id);
+		if (ret != -ESRCH && ret != 0)
+			rte_exit(EXIT_FAILURE,
+				 "Error in starting eventdev service\n");
+		l3fwd_service_enable(service_id);
+	}
+
+	for (i = 0; i < evdev_rsrc->rx_adptr.nb_rx_adptr; i++) {
+		ret = rte_event_eth_rx_adapter_caps_get(evdev_rsrc->event_d_id,
+				evdev_rsrc->rx_adptr.rx_adptr[i], &caps);
+		if (ret < 0)
+			rte_exit(EXIT_FAILURE,
+				 "Failed to get Rx adapter[%d] caps\n",
+				 evdev_rsrc->rx_adptr.rx_adptr[i]);
+		ret = rte_event_eth_rx_adapter_service_id_get(
+				evdev_rsrc->event_d_id,
+				&service_id);
+		if (ret != -ESRCH && ret != 0)
+			rte_exit(EXIT_FAILURE,
+				 "Error in starting Rx adapter[%d] service\n",
+				 evdev_rsrc->rx_adptr.rx_adptr[i]);
+		l3fwd_service_enable(service_id);
+	}
+
+	for (i = 0; i < evdev_rsrc->tx_adptr.nb_tx_adptr; i++) {
+		ret = rte_event_eth_tx_adapter_caps_get(evdev_rsrc->event_d_id,
+				evdev_rsrc->tx_adptr.tx_adptr[i], &caps);
+		if (ret < 0)
+			rte_exit(EXIT_FAILURE,
+				 "Failed to get Rx adapter[%d] caps\n",
+				 evdev_rsrc->tx_adptr.tx_adptr[i]);
+		ret = rte_event_eth_tx_adapter_service_id_get(
+				evdev_rsrc->event_d_id,
+				&service_id);
+		if (ret != -ESRCH && ret != 0)
+			rte_exit(EXIT_FAILURE,
+				 "Error in starting Rx adapter[%d] service\n",
+				 evdev_rsrc->tx_adptr.tx_adptr[i]);
+		l3fwd_service_enable(service_id);
+	}
+}
+
 int
 main(int argc, char **argv)
 {
@@ -860,6 +947,8 @@ main(int argc, char **argv)
 	evdev_rsrc->port_mask = enabled_port_mask;
 	/* Configure eventdev parameters if user has requested */
 	l3fwd_eventdev_resource_setup(&port_conf);
+	if (evdev_rsrc->enabled)
+		goto skip_port_config;
 
 	if (check_lcore_params() < 0)
 		rte_exit(EXIT_FAILURE, "check_lcore_params failed\n");
@@ -1030,6 +1119,7 @@ main(int argc, char **argv)
 		}
 	}
 
+skip_port_config:
 	printf("\n");
 
 	/* start ports */
@@ -1053,6 +1143,9 @@ main(int argc, char **argv)
 		if (promiscuous_on)
 			rte_eth_promiscuous_enable(portid);
 	}
+
+	if (evdev_rsrc->enabled)
+		l3fwd_eventdev_service_setup();
 
 	printf("\n");
 

@@ -330,4 +330,9 @@ l3fwd_eventdev_resource_setup(struct rte_eth_conf *port_conf)
 
 	/* Rx/Tx adapters configuration */
 	evdev_rsrc->ops.adapter_setup(ethdev_count);
+
+	/* Start event device */
+	ret = rte_event_dev_start(evdev_rsrc->event_d_id);
+	if (ret < 0)
+		rte_exit(EXIT_FAILURE, "Error in starting eventdev");
 }
