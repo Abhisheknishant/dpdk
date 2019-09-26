@@ -7,6 +7,7 @@
 
 #include <rte_common.h>
 #include <rte_eventdev.h>
+#include <rte_event_eth_tx_adapter.h>
 #include <rte_spinlock.h>
 
 #include "l3fwd.h"
@@ -19,8 +20,26 @@ enum {
 	CMD_LINE_OPT_EVENTQ_SYNC_NUM,
 };
 
+typedef void (*event_queue_setup_cb)(uint16_t ethdev_count,
+				     uint32_t event_queue_cfg);
+typedef uint32_t (*eventdev_setup_cb)(uint16_t ethdev_count);
+typedef void (*adapter_setup_cb)(uint16_t ethdev_count);
+typedef void (*event_port_setup_cb)(void);
+typedef void (*service_setup_cb)(void);
+typedef int (*event_loop_cb)(void *);
+
+struct l3fwd_eventdev_setup_ops {
+	event_queue_setup_cb event_queue_setup;
+	event_port_setup_cb event_port_setup;
+	adapter_setup_cb adapter_setup;
+	event_loop_cb lpm_event_loop;
+	event_loop_cb em_event_loop;
+};
+
 struct l3fwd_eventdev_resources {
+	struct l3fwd_eventdev_setup_ops ops;
 	uint8_t sync_mode;
+	uint8_t tx_mode_q;
 	uint8_t enabled;
 	uint8_t nb_args;
 	char **args;
@@ -50,5 +69,7 @@ l3fwd_get_eventdev_rsrc(void)
 }
 
 void l3fwd_eventdev_resource_setup(void);
+void l3fwd_eventdev_set_generic_ops(struct l3fwd_eventdev_setup_ops *ops);
+void l3fwd_eventdev_set_internal_port_ops(struct l3fwd_eventdev_setup_ops *ops);
 
 #endif /* __L3FWD_EVENTDEV_H__ */

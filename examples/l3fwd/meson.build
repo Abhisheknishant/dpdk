@@ -8,5 +8,6 @@
 
 deps += ['hash', 'lpm', 'eventdev']
 sources = files(
-	'l3fwd_em.c', 'l3fwd_lpm.c', 'l3fwd_eventdev.c', 'main.c'
+	'l3fwd_em.c', 'l3fwd_lpm.c', 'l3fwd_eventdev.c',
+	'l3fwd_eventdev_internal_port.c', 'l3fwd_eventdev_generic.c', 'main.c'
 )
