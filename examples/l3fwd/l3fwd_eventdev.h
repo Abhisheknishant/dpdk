@@ -40,6 +40,9 @@ struct l3fwd_eventdev_setup_ops {
 struct l3fwd_eventdev_resources {
 	uint8_t disable_implicit_release;
 	struct l3fwd_eventdev_setup_ops ops;
+	struct rte_mempool * (*pkt_pool)[NB_SOCKETS];
+	uint32_t port_mask;
+	uint8_t per_port_pool;
 	uint8_t event_d_id;
 	uint8_t sync_mode;
 	uint8_t tx_mode_q;
@@ -72,7 +75,7 @@ l3fwd_get_eventdev_rsrc(void)
 	return NULL;
 }
 
-void l3fwd_eventdev_resource_setup(void);
+void l3fwd_eventdev_resource_setup(struct rte_eth_conf *port_conf);
 void l3fwd_eventdev_set_generic_ops(struct l3fwd_eventdev_setup_ops *ops);
 void l3fwd_eventdev_set_internal_port_ops(struct l3fwd_eventdev_setup_ops *ops);
 

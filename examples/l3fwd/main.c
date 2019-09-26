@@ -45,12 +45,6 @@
 #include <cmdline_parse_etheraddr.h>
 
 #include "l3fwd.h"
-
-/*
- * Configurable number of RX/TX ring descriptors
- */
-#define RTE_TEST_RX_DESC_DEFAULT 1024
-#define RTE_TEST_TX_DESC_DEFAULT 1024
 #include "l3fwd_eventdev.h"
 
 #define MAX_TX_QUEUE_PER_PORT RTE_MAX_ETHPORTS
@@ -448,7 +442,6 @@ parse_eth_dest(const char *optarg)
 }
 
 #define MAX_JUMBO_PKT_LEN  9600
-#define MEMPOOL_CACHE_SIZE 256
 
 static const char short_options[] =
 	"p:"  /* portmask */
@@ -678,7 +671,7 @@ print_ethaddr(const char *name, const struct rte_ether_addr *eth_addr)
 	printf("%s%s", name, buf);
 }
 
-static int
+int
 init_mem(uint16_t portid, unsigned int nb_mbuf)
 {
 	struct lcore_conf *qconf;
@@ -857,14 +850,16 @@ main(int argc, char **argv)
 	}
 
 	evdev_rsrc = l3fwd_get_eventdev_rsrc();
-	RTE_SET_USED(evdev_rsrc);
 	/* parse application arguments (after the EAL ones) */
 	ret = parse_args(argc, argv);
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "Invalid L3FWD parameters\n");
 
+	evdev_rsrc->per_port_pool = per_port_pool;
+	evdev_rsrc->pkt_pool = pktmbuf_pool;
+	evdev_rsrc->port_mask = enabled_port_mask;
 	/* Configure eventdev parameters if user has requested */
-	l3fwd_eventdev_resource_setup();
+	l3fwd_eventdev_resource_setup(&port_conf);
 
 	if (check_lcore_params() < 0)
 		rte_exit(EXIT_FAILURE, "check_lcore_params failed\n");
