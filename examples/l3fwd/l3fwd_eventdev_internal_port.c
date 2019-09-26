@@ -109,9 +109,89 @@ l3fwd_event_queue_setup_internal_port(uint16_t ethdev_count,
 	}
 }
 
+static void
+l3fwd_rx_tx_adapter_setup_internal_port(uint16_t ethdev_count)
+{
+	struct l3fwd_eventdev_resources *evdev_rsrc = l3fwd_get_eventdev_rsrc();
+	struct rte_event_eth_rx_adapter_queue_conf eth_q_conf = {
+		.rx_queue_flags = 0,
+		.ev = {
+			.queue_id = 0,
+			.priority = RTE_EVENT_DEV_PRIORITY_NORMAL,
+		}
+	};
+	uint8_t event_d_id = evdev_rsrc->event_d_id;
+	int32_t ret, i;
+
+	evdev_rsrc->rx_adptr.nb_rx_adptr = ethdev_count;
+	evdev_rsrc->rx_adptr.rx_adptr = (uint8_t *)malloc(sizeof(uint8_t) *
+					evdev_rsrc->rx_adptr.nb_rx_adptr);
+	if (!evdev_rsrc->rx_adptr.rx_adptr) {
+		free(evdev_rsrc->evp.event_p_id);
+		free(evdev_rsrc->evq.event_q_id);
+		rte_exit(EXIT_FAILURE,
+			 "failed to allocate memery for Rx adapter");
+	}
+
+	for (i = 0; i < ethdev_count; i++) {
+		ret = rte_event_eth_rx_adapter_create(i, event_d_id,
+						&evdev_rsrc->def_p_conf);
+		if (ret)
+			rte_exit(EXIT_FAILURE,
+				 "failed to create rx adapter[%d]", i);
+
+		/* Configure user requested sync mode */
+		eth_q_conf.ev.queue_id = evdev_rsrc->evq.event_q_id[i];
+		eth_q_conf.ev.sched_type = evdev_rsrc->sync_mode;
+		ret = rte_event_eth_rx_adapter_queue_add(i, i, -1, &eth_q_conf);
+		if (ret)
+			rte_exit(EXIT_FAILURE,
+				 "Failed to add queues to Rx adapter");
+
+		ret = rte_event_eth_rx_adapter_start(i);
+		if (ret)
+			rte_exit(EXIT_FAILURE,
+				 "Rx adapter[%d] start failed", i);
+
+		evdev_rsrc->rx_adptr.rx_adptr[i] = i;
+	}
+
+	evdev_rsrc->tx_adptr.nb_tx_adptr = ethdev_count;
+	evdev_rsrc->tx_adptr.tx_adptr = (uint8_t *)malloc(sizeof(uint8_t) *
+					evdev_rsrc->tx_adptr.nb_tx_adptr);
+	if (!evdev_rsrc->tx_adptr.tx_adptr) {
+		free(evdev_rsrc->rx_adptr.rx_adptr);
+		free(evdev_rsrc->evp.event_p_id);
+		free(evdev_rsrc->evq.event_q_id);
+		rte_exit(EXIT_FAILURE,
+			 "failed to allocate memery for Rx adapter");
+	}
+
+	for (i = 0; i < ethdev_count; i++) {
+		ret = rte_event_eth_tx_adapter_create(i, event_d_id,
+						&evdev_rsrc->def_p_conf);
+		if (ret)
+			rte_exit(EXIT_FAILURE,
+				 "failed to create tx adapter[%d]", i);
+
+		ret = rte_event_eth_tx_adapter_queue_add(i, i, -1);
+		if (ret)
+			rte_exit(EXIT_FAILURE,
+				 "failed to add queues to Tx adapter");
+
+		ret = rte_event_eth_tx_adapter_start(i);
+		if (ret)
+			rte_exit(EXIT_FAILURE,
+				 "Tx adapter[%d] start failed", i);
+
+		evdev_rsrc->tx_adptr.tx_adptr[i] = i;
+	}
+}
+
 void
 l3fwd_eventdev_set_internal_port_ops(struct l3fwd_eventdev_setup_ops *ops)
 {
 	ops->event_queue_setup = l3fwd_event_queue_setup_internal_port;
 	ops->event_port_setup = l3fwd_event_port_setup_internal_port;
+	ops->adapter_setup = l3fwd_rx_tx_adapter_setup_internal_port;
 }

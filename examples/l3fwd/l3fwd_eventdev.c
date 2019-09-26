@@ -327,4 +327,7 @@ l3fwd_eventdev_resource_setup(struct rte_eth_conf *port_conf)
 
 	/* Event port configuration */
 	evdev_rsrc->ops.event_port_setup();
+
+	/* Rx/Tx adapters configuration */
+	evdev_rsrc->ops.adapter_setup(ethdev_count);
 }

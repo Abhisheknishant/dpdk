@@ -7,6 +7,7 @@
 
 #include <rte_common.h>
 #include <rte_eventdev.h>
+#include <rte_event_eth_rx_adapter.h>
 #include <rte_event_eth_tx_adapter.h>
 #include <rte_service.h>
 #include <rte_spinlock.h>
@@ -40,6 +41,16 @@ struct l3fwd_eventdev_ports {
 	rte_spinlock_t lock;
 };
 
+struct l3fwd_eventdev_rx_adptr {
+	uint8_t	nb_rx_adptr;
+	uint8_t *rx_adptr;
+};
+
+struct l3fwd_eventdev_tx_adptr {
+	uint8_t	nb_tx_adptr;
+	uint8_t *tx_adptr;
+};
+
 struct l3fwd_eventdev_setup_ops {
 	event_queue_setup_cb event_queue_setup;
 	event_port_setup_cb event_port_setup;
@@ -50,6 +61,8 @@ struct l3fwd_eventdev_setup_ops {
 
 struct l3fwd_eventdev_resources {
 	struct rte_event_port_conf def_p_conf;
+	struct l3fwd_eventdev_rx_adptr rx_adptr;
+	struct l3fwd_eventdev_tx_adptr tx_adptr;
 	uint8_t disable_implicit_release;
 	struct l3fwd_eventdev_setup_ops ops;
 	struct rte_mempool * (*pkt_pool)[NB_SOCKETS];

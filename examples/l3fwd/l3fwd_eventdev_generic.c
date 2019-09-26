@@ -115,9 +115,108 @@ l3fwd_event_queue_setup_generic(uint16_t ethdev_count,
 	evdev_rsrc->evq.event_q_id[event_q_id] = event_q_id;
 }
 
+static void
+l3fwd_rx_tx_adapter_setup_generic(uint16_t ethdev_count)
+{
+	struct l3fwd_eventdev_resources *evdev_rsrc = l3fwd_get_eventdev_rsrc();
+	struct rte_event_eth_rx_adapter_queue_conf eth_q_conf = {
+		.rx_queue_flags = 0,
+		.ev = {
+			.queue_id = 0,
+			.priority = RTE_EVENT_DEV_PRIORITY_NORMAL,
+		}
+	};
+	uint8_t event_d_id = evdev_rsrc->event_d_id;
+	uint8_t rx_adptr_id = 0;
+	uint8_t tx_adptr_id = 0;
+	uint8_t tx_port_id = 0;
+	int32_t ret, i;
+
+	/* Rx adapter setup */
+	evdev_rsrc->rx_adptr.nb_rx_adptr = 1;
+	evdev_rsrc->rx_adptr.rx_adptr = (uint8_t *)malloc(sizeof(uint8_t) *
+					evdev_rsrc->rx_adptr.nb_rx_adptr);
+	if (!evdev_rsrc->rx_adptr.rx_adptr) {
+		free(evdev_rsrc->evp.event_p_id);
+		free(evdev_rsrc->evq.event_q_id);
+		rte_exit(EXIT_FAILURE,
+			 "failed to allocate memery for Rx adapter");
+	}
+
+	ret = rte_event_eth_rx_adapter_create(rx_adptr_id, event_d_id,
+					      &evdev_rsrc->def_p_conf);
+	if (ret)
+		rte_exit(EXIT_FAILURE, "failed to create rx adapter");
+
+	eth_q_conf.ev.sched_type = evdev_rsrc->sync_mode;
+	for (i = 0; i < ethdev_count; i++) {
+		/* Configure user requested sync mode */
+		eth_q_conf.ev.queue_id = evdev_rsrc->evq.event_q_id[i];
+		ret = rte_event_eth_rx_adapter_queue_add(rx_adptr_id, i, -1,
+							 &eth_q_conf);
+		if (ret)
+			rte_exit(EXIT_FAILURE,
+				 "Failed to add queues to Rx adapter");
+	}
+
+	ret = rte_event_eth_rx_adapter_start(rx_adptr_id);
+	if (ret)
+		rte_exit(EXIT_FAILURE, "Rx adapter[%d] start failed",
+			 rx_adptr_id);
+
+	evdev_rsrc->rx_adptr.rx_adptr[0] = rx_adptr_id;
+
+	/* Tx adapter setup */
+	evdev_rsrc->tx_adptr.nb_tx_adptr = 1;
+	evdev_rsrc->tx_adptr.tx_adptr = (uint8_t *)malloc(sizeof(uint8_t) *
+					evdev_rsrc->tx_adptr.nb_tx_adptr);
+	if (!evdev_rsrc->tx_adptr.tx_adptr) {
+		free(evdev_rsrc->rx_adptr.rx_adptr);
+		free(evdev_rsrc->evp.event_p_id);
+		free(evdev_rsrc->evq.event_q_id);
+		rte_exit(EXIT_FAILURE,
+			 "failed to allocate memery for Rx adapter");
+	}
+
+	ret = rte_event_eth_tx_adapter_create(tx_adptr_id, event_d_id,
+					      &evdev_rsrc->def_p_conf);
+	if (ret)
+		rte_exit(EXIT_FAILURE, "failed to create tx adapter[%d]",
+			 tx_adptr_id);
+
+	for (i = 0; i < ethdev_count; i++) {
+		ret = rte_event_eth_tx_adapter_queue_add(tx_adptr_id, i, -1);
+		if (ret)
+			rte_exit(EXIT_FAILURE,
+				 "failed to add queues to Tx adapter");
+	}
+
+	ret = rte_event_eth_tx_adapter_event_port_get(tx_adptr_id, &tx_port_id);
+	if (ret)
+		rte_exit(EXIT_FAILURE,
+			 "Failed to get Tx adapter port id: %d\n", ret);
+
+	ret = rte_event_port_link(event_d_id, tx_port_id,
+				  &evdev_rsrc->evq.event_q_id[
+					evdev_rsrc->evq.nb_queues - 1],
+				  NULL, 1);
+	if (ret != 1)
+		rte_exit(EXIT_FAILURE,
+			 "Unable to link Tx adapter port to Tx queue:err = %d",
+			 ret);
+
+	ret = rte_event_eth_tx_adapter_start(tx_adptr_id);
+	if (ret)
+		rte_exit(EXIT_FAILURE, "Tx adapter[%d] start failed",
+			 tx_adptr_id);
+
+	evdev_rsrc->tx_adptr.tx_adptr[0] = tx_adptr_id;
+}
+
 void
 l3fwd_eventdev_set_generic_ops(struct l3fwd_eventdev_setup_ops *ops)
 {
 	ops->event_queue_setup = l3fwd_event_queue_setup_generic;
 	ops->event_port_setup = l3fwd_event_port_setup_generic;
+	ops->adapter_setup = l3fwd_rx_tx_adapter_setup_generic;
 }
