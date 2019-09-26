@@ -951,7 +951,10 @@ main(int argc, char **argv)
 	/* Configure eventdev parameters if user has requested */
 	l3fwd_eventdev_resource_setup(&port_conf);
 	if (evdev_rsrc->enabled) {
-		l3fwd_lkp.main_loop = evdev_rsrc->ops.lpm_event_loop;
+		if (l3fwd_em_on)
+			l3fwd_lkp.main_loop = evdev_rsrc->ops.em_event_loop;
+		else
+			l3fwd_lkp.main_loop = evdev_rsrc->ops.lpm_event_loop;
 		goto skip_port_config;
 	}
 

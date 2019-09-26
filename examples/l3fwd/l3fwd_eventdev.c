@@ -307,6 +307,12 @@ l3fwd_eventdev_resource_setup(struct rte_eth_conf *port_conf)
 		L3FWD_LPM_EVENT_MODE
 #undef LPM_FP
 	};
+	const event_loop_cb em_event_loop[2][2] = {
+#define EM_FP(_name, _f2, _f1, flags) \
+		[_f2][_f1] = em_event_main_loop_ ## _name,
+		L3FWD_EM_EVENT_MODE
+#undef EM_FP
+	};
 	uint16_t ethdev_count = rte_eth_dev_count_avail();
 	uint32_t event_queue_cfg;
 	int32_t ret;
@@ -343,5 +349,8 @@ l3fwd_eventdev_resource_setup(struct rte_eth_conf *port_conf)
 		rte_exit(EXIT_FAILURE, "Error in starting eventdev");
 
 	evdev_rsrc->ops.lpm_event_loop = lpm_event_loop[evdev_rsrc->tx_mode_q]
+						       [evdev_rsrc->has_burst];
+
+	evdev_rsrc->ops.em_event_loop = em_event_loop[evdev_rsrc->tx_mode_q]
 						       [evdev_rsrc->has_burst];
 }
