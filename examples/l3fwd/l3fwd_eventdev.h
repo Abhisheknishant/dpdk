@@ -29,6 +29,17 @@ typedef void (*event_port_setup_cb)(void);
 typedef void (*service_setup_cb)(void);
 typedef int (*event_loop_cb)(void *);
 
+struct l3fwd_eventdev_queues {
+	uint8_t *event_q_id;
+	uint8_t	nb_queues;
+};
+
+struct l3fwd_eventdev_ports {
+	uint8_t *event_p_id;
+	uint8_t	nb_ports;
+	rte_spinlock_t lock;
+};
+
 struct l3fwd_eventdev_setup_ops {
 	event_queue_setup_cb event_queue_setup;
 	event_port_setup_cb event_port_setup;
@@ -38,14 +49,18 @@ struct l3fwd_eventdev_setup_ops {
 };
 
 struct l3fwd_eventdev_resources {
+	struct rte_event_port_conf def_p_conf;
 	uint8_t disable_implicit_release;
 	struct l3fwd_eventdev_setup_ops ops;
 	struct rte_mempool * (*pkt_pool)[NB_SOCKETS];
+	struct l3fwd_eventdev_queues evq;
+	struct l3fwd_eventdev_ports evp;
 	uint32_t port_mask;
 	uint8_t per_port_pool;
 	uint8_t event_d_id;
 	uint8_t sync_mode;
 	uint8_t tx_mode_q;
+	uint8_t deq_depth;
 	uint8_t has_burst;
 	uint8_t enabled;
 	uint8_t nb_args;
@@ -76,6 +91,7 @@ l3fwd_get_eventdev_rsrc(void)
 }
 
 void l3fwd_eventdev_resource_setup(struct rte_eth_conf *port_conf);
+int l3fwd_get_free_event_port(struct l3fwd_eventdev_resources *eventdev_rsrc);
 void l3fwd_eventdev_set_generic_ops(struct l3fwd_eventdev_setup_ops *ops);
 void l3fwd_eventdev_set_internal_port_ops(struct l3fwd_eventdev_setup_ops *ops);
 

@@ -215,7 +215,6 @@ l3fwd_eventdev_capability_setup(void)
 		l3fwd_eventdev_set_internal_port_ops(&evdev_rsrc->ops);
 }
 
-
 static uint32_t
 l3fwd_eventdev_setup(uint16_t ethdev_count)
 {
@@ -267,6 +266,7 @@ l3fwd_eventdev_setup(uint16_t ethdev_count)
 		num_workers = dev_info.max_event_ports;
 
 	event_d_conf.nb_event_ports = num_workers;
+	evdev_rsrc->evp.nb_ports = num_workers;
 	evdev_rsrc->has_burst = !!(dev_info.event_dev_cap &
 				    RTE_EVENT_DEV_CAP_BURST_MODE);
 
@@ -278,11 +278,31 @@ l3fwd_eventdev_setup(uint16_t ethdev_count)
 	return event_queue_cfg;
 }
 
+int
+l3fwd_get_free_event_port(struct l3fwd_eventdev_resources *evdev_rsrc)
+{
+	static int index;
+	int port_id;
+
+	rte_spinlock_lock(&evdev_rsrc->evp.lock);
+	if (index >= evdev_rsrc->evp.nb_ports) {
+		printf("No free event port is available\n");
+		return -1;
+	}
+
+	port_id = evdev_rsrc->evp.event_p_id[index];
+	index++;
+	rte_spinlock_unlock(&evdev_rsrc->evp.lock);
+
+	return port_id;
+}
+
 void
 l3fwd_eventdev_resource_setup(struct rte_eth_conf *port_conf)
 {
 	struct l3fwd_eventdev_resources *evdev_rsrc = l3fwd_get_eventdev_rsrc();
 	uint16_t ethdev_count = rte_eth_dev_count_avail();
+	uint32_t event_queue_cfg;
 	int32_t ret;
 
 	/* Parse eventdev command line options */
@@ -300,5 +320,11 @@ l3fwd_eventdev_resource_setup(struct rte_eth_conf *port_conf)
 	l3fwd_eth_dev_port_setup(port_conf);
 
 	/* Event device configuration */
-	l3fwd_eventdev_setup(ethdev_count);
+	event_queue_cfg = l3fwd_eventdev_setup(ethdev_count);
+
+	/* Event queue configuration */
+	evdev_rsrc->ops.event_queue_setup(ethdev_count, event_queue_cfg);
+
+	/* Event port configuration */
+	evdev_rsrc->ops.event_port_setup();
 }
