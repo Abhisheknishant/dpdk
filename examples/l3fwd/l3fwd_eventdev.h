@@ -8,6 +8,7 @@
 #include <rte_common.h>
 #include <rte_eventdev.h>
 #include <rte_event_eth_tx_adapter.h>
+#include <rte_service.h>
 #include <rte_spinlock.h>
 
 #include "l3fwd.h"
@@ -37,9 +38,12 @@ struct l3fwd_eventdev_setup_ops {
 };
 
 struct l3fwd_eventdev_resources {
+	uint8_t disable_implicit_release;
 	struct l3fwd_eventdev_setup_ops ops;
+	uint8_t event_d_id;
 	uint8_t sync_mode;
 	uint8_t tx_mode_q;
+	uint8_t has_burst;
 	uint8_t enabled;
 	uint8_t nb_args;
 	char **args;
