@@ -209,6 +209,18 @@ em_main_loop(__attribute__((unused)) void *dummy);
 int
 lpm_main_loop(__attribute__((unused)) void *dummy);
 
+#define L3FWD_LPM_EVENT_MODE						  \
+LPM_FP(tx_d,		0, 0, L3FWD_EVENT_TX_DIRECT | L3FWD_EVENT_SINGLE) \
+LPM_FP(tx_d_burst,	0, 1, L3FWD_EVENT_TX_DIRECT | L3FWD_EVENT_BURST)  \
+LPM_FP(tx_q,		1, 0, L3FWD_EVENT_TX_ENQ | L3FWD_EVENT_SINGLE)	  \
+LPM_FP(tx_q_burst,	1, 1, L3FWD_EVENT_TX_ENQ | L3FWD_EVENT_BURST)	  \
+
+#define LPM_FP(_name, _f2, _f1, flags)					\
+int									\
+lpm_event_main_loop_ ## _name(__attribute__((unused)) void *dummy);
+L3FWD_LPM_EVENT_MODE
+#undef LPM_FP
+
 /* Return ipv4/ipv6 fwd lookup struct for LPM or EM. */
 void *
 em_get_ipv4_l3fwd_lookup_struct(const int socketid);

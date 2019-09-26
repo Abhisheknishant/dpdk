@@ -28,6 +28,7 @@
 #include <rte_lpm6.h>
 
 #include "l3fwd.h"
+#include "l3fwd_eventdev.h"
 
 struct ipv4_l3fwd_lpm_route {
 	uint32_t ip;
@@ -253,6 +254,210 @@ lpm_main_loop(__attribute__((unused)) void *dummy)
 
 	return 0;
 }
+
+static __rte_always_inline void
+lpm_event_loop_single(struct l3fwd_eventdev_resources *evdev_rsrc,
+		const uint8_t flags)
+{
+	const int event_p_id = l3fwd_get_free_event_port(evdev_rsrc);
+	const uint8_t tx_q_id = evdev_rsrc->evq.event_q_id[
+		evdev_rsrc->evq.nb_queues - 1];
+	const uint8_t event_d_id = evdev_rsrc->event_d_id;
+	struct lcore_conf *lconf;
+	unsigned int lcore_id;
+	struct rte_event ev;
+
+	if (event_p_id < 0)
+		return;
+
+	lcore_id = rte_lcore_id();
+	lconf = &lcore_conf[lcore_id];
+
+	RTE_LOG(INFO, L3FWD, "entering %s on lcore %u\n", __func__, lcore_id);
+	while (!force_quit) {
+		if (!rte_event_dequeue_burst(event_d_id, event_p_id, &ev, 1, 0))
+			continue;
+
+		struct rte_mbuf *mbuf = ev.mbuf;
+		mbuf->port = lpm_get_dst_port(lconf, mbuf, mbuf->port);
+
+#if defined RTE_ARCH_X86 || defined RTE_MACHINE_CPUFLAG_NEON \
+				|| defined RTE_ARCH_PPC_64
+		process_packet(mbuf, &mbuf->port);
+#else
+
+		struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(mbuf,
+							struct rte_ether_hdr *);
+#ifdef DO_RFC_1812_CHECKS
+		struct rte_ipv4_hdr *ipv4_hdr;
+		if (RTE_ETH_IS_IPV4_HDR(mbuf->packet_type)) {
+			/* Handle IPv4 headers.*/
+			ipv4_hdr = rte_pktmbuf_mtod_offset(mbuf,
+					struct rte_ipv4_hdr *,
+					sizeof(struct rte_ether_hdr));
+
+			if (is_valid_ipv4_pkt(ipv4_hdr, mbuf->pkt_len)
+					< 0) {
+				mbuf->port = BAD_PORT;
+				continue;
+			}
+			/* Update time to live and header checksum */
+			--(ipv4_hdr->time_to_live);
+			++(ipv4_hdr->hdr_checksum);
+		}
+#endif
+		/* dst addr */
+		*(uint64_t *)&eth_hdr->d_addr = dest_eth_addr[mbuf->port];
+
+		/* src addr */
+		rte_ether_addr_copy(&ports_eth_addr[mbuf->port],
+				&eth_hdr->s_addr);
+#endif
+		if (mbuf->port == BAD_PORT) {
+			rte_pktmbuf_free(mbuf);
+			continue;
+		}
+
+		if (flags & L3FWD_EVENT_TX_ENQ) {
+			ev.queue_id = tx_q_id;
+			ev.op = RTE_EVENT_OP_FORWARD;
+			while (rte_event_enqueue_burst(event_d_id, event_p_id,
+						&ev, 1) && !force_quit)
+				;
+		}
+
+		if (flags & L3FWD_EVENT_TX_DIRECT) {
+			rte_event_eth_tx_adapter_txq_set(mbuf, 0);
+			while (!rte_event_eth_tx_adapter_enqueue(event_d_id,
+						event_p_id, &ev, 1) &&
+					!force_quit)
+				;
+		}
+	}
+}
+
+static __rte_always_inline void
+lpm_event_loop_burst(struct l3fwd_eventdev_resources *evdev_rsrc,
+		const uint8_t flags)
+{
+	const int event_p_id = l3fwd_get_free_event_port(evdev_rsrc);
+	const uint8_t tx_q_id = evdev_rsrc->evq.event_q_id[
+		evdev_rsrc->evq.nb_queues - 1];
+	const uint8_t event_d_id = evdev_rsrc->event_d_id;
+	const uint16_t deq_len = evdev_rsrc->deq_depth;
+	struct rte_event events[MAX_PKT_BURST];
+	struct lcore_conf *lconf;
+	unsigned int lcore_id;
+	int i, nb_enq, nb_deq;
+
+	if (event_p_id < 0)
+		return;
+
+	lcore_id = rte_lcore_id();
+
+	lconf = &lcore_conf[lcore_id];
+
+	RTE_LOG(INFO, L3FWD, "entering %s on lcore %u\n", __func__, lcore_id);
+
+	while (!force_quit) {
+		/* Read events from RX queues */
+		nb_deq = rte_event_dequeue_burst(event_d_id, event_p_id,
+				events, deq_len, 0);
+		if (nb_deq == 0) {
+			rte_pause();
+			continue;
+		}
+
+		for (i = 0; i < nb_deq; i++) {
+			struct rte_mbuf *mbuf = events[i].mbuf;
+
+			mbuf->port = lpm_get_dst_port(lconf, mbuf, mbuf->port);
+
+#if defined RTE_ARCH_X86 || defined RTE_MACHINE_CPUFLAG_NEON \
+					|| defined RTE_ARCH_PPC_64
+			process_packet(mbuf, &mbuf->port);
+#else
+			struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(mbuf,
+						struct rte_ether_hdr *);
+
+#ifdef DO_RFC_1812_CHECKS
+			struct rte_ipv4_hdr *ipv4_hdr;
+			if (RTE_ETH_IS_IPV4_HDR(mbuf->packet_type)) {
+				/* Handle IPv4 headers.*/
+				ipv4_hdr = rte_pktmbuf_mtod_offset(mbuf,
+						struct rte_ipv4_hdr *,
+						sizeof(struct rte_ether_hdr));
+
+				if (is_valid_ipv4_pkt(ipv4_hdr, mbuf->pkt_len)
+						< 0) {
+					mbuf->port = BAD_PORT;
+					continue;
+				}
+				/* Update time to live and header checksum */
+				--(ipv4_hdr->time_to_live);
+				++(ipv4_hdr->hdr_checksum);
+			}
+#endif
+			/* dst addr */
+			*(uint64_t *)&eth_hdr->d_addr = dest_eth_addr[
+								mbuf->port];
+			/* src addr */
+			rte_ether_addr_copy(&ports_eth_addr[mbuf->port],
+					&eth_hdr->s_addr);
+#endif
+			if (flags & L3FWD_EVENT_TX_ENQ) {
+				events[i].queue_id = tx_q_id;
+				events[i].op = RTE_EVENT_OP_FORWARD;
+			}
+
+			if (flags & L3FWD_EVENT_TX_DIRECT)
+				rte_event_eth_tx_adapter_txq_set(mbuf, 0);
+		}
+
+		if (flags & L3FWD_EVENT_TX_ENQ) {
+			nb_enq = rte_event_enqueue_burst(event_d_id, event_p_id,
+					events, nb_deq);
+			while (nb_enq < nb_deq && !force_quit)
+				nb_enq += rte_event_enqueue_burst(event_d_id,
+						event_p_id, events + nb_enq,
+						nb_deq - nb_enq);
+		}
+
+		if (flags & L3FWD_EVENT_TX_DIRECT) {
+			nb_enq = rte_event_eth_tx_adapter_enqueue(event_d_id,
+					event_p_id, events, nb_deq);
+			while (nb_enq < nb_deq && !force_quit)
+				nb_enq += rte_event_eth_tx_adapter_enqueue(
+						event_d_id, event_p_id,
+						events + nb_enq,
+						nb_deq - nb_enq);
+		}
+	}
+}
+
+static __rte_always_inline void
+lpm_event_loop(struct l3fwd_eventdev_resources *evdev_rsrc,
+		 const uint8_t flags)
+{
+	if (flags & L3FWD_EVENT_SINGLE)
+		lpm_event_loop_single(evdev_rsrc, flags);
+	if (flags & L3FWD_EVENT_BURST)
+		lpm_event_loop_burst(evdev_rsrc, flags);
+}
+
+#define LPM_FP(_name, _f2, _f1, flags)					\
+int __rte_noinline							\
+lpm_event_main_loop_ ## _name(__attribute__((unused)) void *dummy)	\
+{									\
+	struct l3fwd_eventdev_resources *evdev_rsrc =			\
+					l3fwd_get_eventdev_rsrc();	\
+									\
+	lpm_event_loop(evdev_rsrc, flags);				\
+	return 0;							\
+}
+
+L3FWD_LPM_EVENT_MODE
+#undef LPM_FP
 
 void
 setup_lpm(const int socketid)

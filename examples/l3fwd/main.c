@@ -942,13 +942,18 @@ main(int argc, char **argv)
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "Invalid L3FWD parameters\n");
 
+	/* Setup function pointers for lookup method. */
+	setup_l3fwd_lookup_tables();
+
 	evdev_rsrc->per_port_pool = per_port_pool;
 	evdev_rsrc->pkt_pool = pktmbuf_pool;
 	evdev_rsrc->port_mask = enabled_port_mask;
 	/* Configure eventdev parameters if user has requested */
 	l3fwd_eventdev_resource_setup(&port_conf);
-	if (evdev_rsrc->enabled)
+	if (evdev_rsrc->enabled) {
+		l3fwd_lkp.main_loop = evdev_rsrc->ops.lpm_event_loop;
 		goto skip_port_config;
+	}
 
 	if (check_lcore_params() < 0)
 		rte_exit(EXIT_FAILURE, "check_lcore_params failed\n");
@@ -963,9 +968,6 @@ main(int argc, char **argv)
 		rte_exit(EXIT_FAILURE, "check_port_config failed\n");
 
 	nb_lcores = rte_lcore_count();
-
-	/* Setup function pointers for lookup method. */
-	setup_l3fwd_lookup_tables();
 
 	/* initialize all ports */
 	RTE_ETH_FOREACH_DEV(portid) {
