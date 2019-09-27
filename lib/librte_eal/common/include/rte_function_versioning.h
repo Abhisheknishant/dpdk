@@ -3,8 +3,8 @@
  * All rights reserved.
  */
 
-#ifndef _RTE_COMPAT_H_
-#define _RTE_COMPAT_H_
+#ifndef _RTE_FUNCTION_VERSIONING_H_
+#define _RTE_FUNCTION_VERSIONING_H_
 #include <rte_common.h>
 
 #ifdef RTE_BUILD_SHARED_LIB
@@ -76,17 +76,4 @@
  */
 #endif
 
-#ifndef ALLOW_EXPERIMENTAL_API
-
-#define __rte_experimental \
-__attribute__((deprecated("Symbol is not yet part of stable ABI"), \
-section(".text.experimental")))
-
-#else
-
-#define __rte_experimental \
-__attribute__((section(".text.experimental")))
-
-#endif
-
-#endif /* _RTE_COMPAT_H_ */
+#endif /* _RTE_FUNCTION_VERSIONING_H_ */
