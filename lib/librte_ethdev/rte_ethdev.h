@@ -505,6 +505,19 @@ struct rte_eth_rss_conf {
 #define ETH_RSS_GENEVE             (1ULL << 20)
 #define ETH_RSS_NVGRE              (1ULL << 21)
 
+/*
+ * We use the following macros to combine with above ETH_RSS_* for
+ * more specific input set selection. These bits are defined starting
+ * from the high end of the 64 bits.
+ * Note: If we use above ETH_RSS_* without SRC/DST_ONLY, it represents
+ * both SRC and DST are taken into account. SRC_ONLY and DST_ONLY can't
+ * be used simultaneously.
+ */
+#define ETH_RSS_L3_SRC_ONLY        (1ULL << 63)
+#define ETH_RSS_L3_DST_ONLY        (1ULL << 62)
+#define ETH_RSS_L4_SRC_ONLY        (1ULL << 61)
+#define ETH_RSS_L4_DST_ONLY        (1ULL << 60)
+
 #define ETH_RSS_IP ( \
 	ETH_RSS_IPV4 | \
 	ETH_RSS_FRAG_IPV4 | \
