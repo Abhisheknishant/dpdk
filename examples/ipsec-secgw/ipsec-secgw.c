@@ -189,6 +189,7 @@ static uint32_t mtu_size = RTE_ETHER_MTU;
 
 /* application wide librte_ipsec/SA parameters */
 struct app_sa_prm app_sa_prm = {.enable = 0};
+static const char *cfgfile;
 
 struct lcore_rx_queue {
 	uint16_t port_id;
@@ -1462,12 +1463,7 @@ parse_args(int32_t argc, char **argv)
 				print_usage(prgname);
 				return -1;
 			}
-			if (parse_cfg_file(optarg) < 0) {
-				printf("parsing file \"%s\" failed\n",
-					optarg);
-				print_usage(prgname);
-				return -1;
-			}
+			cfgfile = optarg;
 			f_present = 1;
 			break;
 		case 'j':
@@ -2397,6 +2393,14 @@ main(int32_t argc, char **argv)
 	ret = parse_args(argc, argv);
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "Invalid parameters\n");
+
+	/* parse configuration file */
+	if (parse_cfg_file(cfgfile) < 0) {
+		printf("parsing file \"%s\" failed\n",
+			optarg);
+		print_usage(argv[0]);
+		return -1;
+	}
 
 	if ((unprotected_port_mask & enabled_port_mask) !=
 			unprotected_port_mask)
