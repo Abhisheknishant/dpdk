@@ -56,6 +56,11 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Added Marvell NITROX symmetric crypto PMD.**
+
+  Added a symmetric crypto PMD for Marvell NITROX V security processor.
+  See the :doc:`../cryptodevs/nitrox` guide for more details on this new driver.
+
 
 Removed Items
 -------------
