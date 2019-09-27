@@ -4,10 +4,9 @@
  * Copyright 2017 NXP
  *
  */
+#include <rte_spinlock.h>
 #include <fsl_mc_sys.h>
 #include <fsl_mc_cmd.h>
-
-#include <rte_spinlock.h>
 
 /** User space framework uses MC Portal in shared mode. Following change
  * introduces lock in MC FLIB
