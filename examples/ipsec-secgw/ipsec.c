@@ -40,7 +40,8 @@ set_ipsec_conf(struct ipsec_sa *sa, struct rte_security_ipsec_xform *ipsec)
 }
 
 int
-create_lookaside_session(struct ipsec_ctx *ipsec_ctx, struct ipsec_sa *sa)
+create_lookaside_session(struct ipsec_ctx *ipsec_ctx, struct ipsec_sa *sa,
+		struct rte_ipsec_session *ips)
 {
 	struct rte_cryptodev_info cdev_info;
 	unsigned long cdev_id_qp = 0;
@@ -71,9 +72,9 @@ create_lookaside_session(struct ipsec_ctx *ipsec_ctx, struct ipsec_sa *sa)
 			ipsec_ctx->tbl[cdev_id_qp].id,
 			ipsec_ctx->tbl[cdev_id_qp].qp);
 
-	if (sa->type != RTE_SECURITY_ACTION_TYPE_NONE) {
+	if (ips->type != RTE_SECURITY_ACTION_TYPE_NONE) {
 		struct rte_security_session_conf sess_conf = {
-			.action_type = sa->type,
+			.action_type = ips->type,
 			.protocol = RTE_SECURITY_PROTOCOL_IPSEC,
 			{.ipsec = {
 				.spi = sa->spi,
@@ -90,7 +91,7 @@ create_lookaside_session(struct ipsec_ctx *ipsec_ctx, struct ipsec_sa *sa)
 
 		};
 
-		if (sa->type == RTE_SECURITY_ACTION_TYPE_LOOKASIDE_PROTOCOL) {
+		if (ips->type == RTE_SECURITY_ACTION_TYPE_LOOKASIDE_PROTOCOL) {
 			struct rte_security_ctx *ctx = (struct rte_security_ctx *)
 							rte_cryptodev_get_sec_ctx(
 							ipsec_ctx->tbl[cdev_id_qp].id);
@@ -98,9 +99,9 @@ create_lookaside_session(struct ipsec_ctx *ipsec_ctx, struct ipsec_sa *sa)
 			/* Set IPsec parameters in conf */
 			set_ipsec_conf(sa, &(sess_conf.ipsec));
 
-			sa->sec_session = rte_security_session_create(ctx,
+			ips->security.ses = rte_security_session_create(ctx,
 					&sess_conf, ipsec_ctx->session_priv_pool);
-			if (sa->sec_session == NULL) {
+			if (ips->security.ses == NULL) {
 				RTE_LOG(ERR, IPSEC,
 				"SEC Session init failed: err: %d\n", ret);
 				return -1;
@@ -110,10 +111,10 @@ create_lookaside_session(struct ipsec_ctx *ipsec_ctx, struct ipsec_sa *sa)
 			return -1;
 		}
 	} else {
-		sa->crypto_session = rte_cryptodev_sym_session_create(
+		ips->crypto.ses = rte_cryptodev_sym_session_create(
 				ipsec_ctx->session_pool);
 		rte_cryptodev_sym_session_init(ipsec_ctx->tbl[cdev_id_qp].id,
-				sa->crypto_session, sa->xforms,
+				ips->crypto.ses, sa->xforms,
 				ipsec_ctx->session_priv_pool);
 
 		rte_cryptodev_info_get(ipsec_ctx->tbl[cdev_id_qp].id,
@@ -126,12 +127,13 @@ create_lookaside_session(struct ipsec_ctx *ipsec_ctx, struct ipsec_sa *sa)
 }
 
 int
-create_inline_session(struct socket_ctx *skt_ctx, struct ipsec_sa *sa)
+create_inline_session(struct socket_ctx *skt_ctx, struct ipsec_sa *sa,
+		struct rte_ipsec_session *ips)
 {
 	int32_t ret = 0;
 	struct rte_security_ctx *sec_ctx;
 	struct rte_security_session_conf sess_conf = {
-		.action_type = sa->type,
+		.action_type = ips->type,
 		.protocol = RTE_SECURITY_PROTOCOL_IPSEC,
 		{.ipsec = {
 			.spi = sa->spi,
@@ -151,7 +153,7 @@ create_inline_session(struct socket_ctx *skt_ctx, struct ipsec_sa *sa)
 	RTE_LOG_DP(DEBUG, IPSEC, "Create session for SA spi %u on port %u\n",
 		sa->spi, sa->portid);
 
-	if (sa->type == RTE_SECURITY_ACTION_TYPE_INLINE_CRYPTO) {
+	if (ips->type == RTE_SECURITY_ACTION_TYPE_INLINE_CRYPTO) {
 		struct rte_flow_error err;
 		const struct rte_security_capability *sec_cap;
 		int ret = 0;
@@ -165,9 +167,9 @@ create_inline_session(struct socket_ctx *skt_ctx, struct ipsec_sa *sa)
 			return -1;
 		}
 
-		sa->sec_session = rte_security_session_create(sec_ctx,
+		ips->security.ses = rte_security_session_create(sec_ctx,
 				&sess_conf, skt_ctx->session_pool);
-		if (sa->sec_session == NULL) {
+		if (ips->security.ses == NULL) {
 			RTE_LOG(ERR, IPSEC,
 				"SEC Session init failed: err: %d\n", ret);
 			return -1;
@@ -177,7 +179,7 @@ create_inline_session(struct socket_ctx *skt_ctx, struct ipsec_sa *sa)
 
 		/* iterate until ESP tunnel*/
 		while (sec_cap->action != RTE_SECURITY_ACTION_TYPE_NONE) {
-			if (sec_cap->action == sa->type &&
+			if (sec_cap->action == ips->type &&
 			    sec_cap->protocol ==
 				RTE_SECURITY_PROTOCOL_IPSEC &&
 			    sec_cap->ipsec.mode ==
@@ -193,8 +195,8 @@ create_inline_session(struct socket_ctx *skt_ctx, struct ipsec_sa *sa)
 			return -1;
 		}
 
-		sa->ol_flags = sec_cap->ol_flags;
-		sa->security_ctx = sec_ctx;
+		ips->security.ol_flags = sec_cap->ol_flags;
+		ips->security.ctx = sec_ctx;
 		sa->pattern[0].type = RTE_FLOW_ITEM_TYPE_ETH;
 
 		if (IS_IP6(sa->flags)) {
@@ -223,7 +225,7 @@ create_inline_session(struct socket_ctx *skt_ctx, struct ipsec_sa *sa)
 		sa->pattern[3].type = RTE_FLOW_ITEM_TYPE_END;
 
 		sa->action[0].type = RTE_FLOW_ACTION_TYPE_SECURITY;
-		sa->action[0].conf = sa->sec_session;
+		sa->action[0].conf = ips->security.ses;
 
 		sa->action[1].type = RTE_FLOW_ACTION_TYPE_END;
 
@@ -282,8 +284,8 @@ create_inline_session(struct socket_ctx *skt_ctx, struct ipsec_sa *sa)
 			if (ret)
 				goto flow_create_failure;
 		} else if (sa->attr.egress &&
-			   (sa->ol_flags &
-				    RTE_SECURITY_TX_HW_TRAILER_OFFLOAD)) {
+				(ips->security.ol_flags &
+					RTE_SECURITY_TX_HW_TRAILER_OFFLOAD)) {
 			sa->action[1].type =
 					RTE_FLOW_ACTION_TYPE_PASSTHRU;
 			sa->action[2].type =
@@ -299,7 +301,7 @@ flow_create_failure:
 				err.message);
 			return -1;
 		}
-	} else if (sa->type ==	RTE_SECURITY_ACTION_TYPE_INLINE_PROTOCOL) {
+	} else if (ips->type ==	RTE_SECURITY_ACTION_TYPE_INLINE_PROTOCOL) {
 		const struct rte_security_capability *sec_cap;
 
 		sec_ctx = (struct rte_security_ctx *)
@@ -327,9 +329,9 @@ flow_create_failure:
 
 		sess_conf.userdata = (void *) sa;
 
-		sa->sec_session = rte_security_session_create(sec_ctx,
+		ips->security.ses = rte_security_session_create(sec_ctx,
 					&sess_conf, skt_ctx->session_pool);
-		if (sa->sec_session == NULL) {
+		if (ips->security.ses == NULL) {
 			RTE_LOG(ERR, IPSEC,
 				"SEC Session init failed: err: %d\n", ret);
 			return -1;
@@ -345,7 +347,7 @@ flow_create_failure:
 		/* iterate until ESP tunnel*/
 		while (sec_cap->action !=
 				RTE_SECURITY_ACTION_TYPE_NONE) {
-			if (sec_cap->action == sa->type &&
+			if (sec_cap->action == ips->type &&
 			    sec_cap->protocol ==
 				RTE_SECURITY_PROTOCOL_IPSEC &&
 			    sec_cap->ipsec.mode ==
@@ -361,8 +363,8 @@ flow_create_failure:
 			return -1;
 		}
 
-		sa->ol_flags = sec_cap->ol_flags;
-		sa->security_ctx = sec_ctx;
+		ips->security.ol_flags = sec_cap->ol_flags;
+		ips->security.ctx = sec_ctx;
 	}
 	sa->cdev_id_qp = 0;
 
@@ -409,6 +411,7 @@ ipsec_enqueue(ipsec_xform_fn xform_func, struct ipsec_ctx *ipsec_ctx,
 	struct ipsec_mbuf_metadata *priv;
 	struct rte_crypto_sym_op *sym_cop;
 	struct ipsec_sa *sa;
+	struct rte_ipsec_session *ips;
 
 	for (i = 0; i < nb_pkts; i++) {
 		if (unlikely(sas[i] == NULL)) {
@@ -422,16 +425,17 @@ ipsec_enqueue(ipsec_xform_fn xform_func, struct ipsec_ctx *ipsec_ctx,
 		priv = get_priv(pkts[i]);
 		sa = sas[i];
 		priv->sa = sa;
+		ips = ipsec_get_session(sa);
 
-		switch (sa->type) {
+		switch (ips->type) {
 		case RTE_SECURITY_ACTION_TYPE_LOOKASIDE_PROTOCOL:
 			priv->cop.type = RTE_CRYPTO_OP_TYPE_SYMMETRIC;
 			priv->cop.status = RTE_CRYPTO_OP_STATUS_NOT_PROCESSED;
 
 			rte_prefetch0(&priv->sym_cop);
 
-			if ((unlikely(sa->sec_session == NULL)) &&
-				create_lookaside_session(ipsec_ctx, sa)) {
+			if ((unlikely(ips->security.ses == NULL)) &&
+				create_lookaside_session(ipsec_ctx, sa, ips)) {
 				rte_pktmbuf_free(pkts[i]);
 				continue;
 			}
@@ -440,7 +444,7 @@ ipsec_enqueue(ipsec_xform_fn xform_func, struct ipsec_ctx *ipsec_ctx,
 			sym_cop->m_src = pkts[i];
 
 			rte_security_attach_session(&priv->cop,
-					sa->sec_session);
+				ips->security.ses);
 			break;
 		case RTE_SECURITY_ACTION_TYPE_NONE:
 
@@ -449,14 +453,14 @@ ipsec_enqueue(ipsec_xform_fn xform_func, struct ipsec_ctx *ipsec_ctx,
 
 			rte_prefetch0(&priv->sym_cop);
 
-			if ((unlikely(sa->crypto_session == NULL)) &&
-				create_lookaside_session(ipsec_ctx, sa)) {
+			if ((unlikely(ips->crypto.ses == NULL)) &&
+				create_lookaside_session(ipsec_ctx, sa, ips)) {
 				rte_pktmbuf_free(pkts[i]);
 				continue;
 			}
 
 			rte_crypto_op_attach_sym_session(&priv->cop,
-					sa->crypto_session);
+					ips->crypto.ses);
 
 			ret = xform_func(pkts[i], sa, &priv->cop);
 			if (unlikely(ret)) {
@@ -465,21 +469,22 @@ ipsec_enqueue(ipsec_xform_fn xform_func, struct ipsec_ctx *ipsec_ctx,
 			}
 			break;
 		case RTE_SECURITY_ACTION_TYPE_INLINE_PROTOCOL:
-			RTE_ASSERT(sa->sec_session != NULL);
+			RTE_ASSERT(ips->security.ses != NULL);
 			ipsec_ctx->ol_pkts[ipsec_ctx->ol_pkts_cnt++] = pkts[i];
-			if (sa->ol_flags & RTE_SECURITY_TX_OLOAD_NEED_MDATA)
+			if (ips->security.ol_flags &
+				RTE_SECURITY_TX_OLOAD_NEED_MDATA)
 				rte_security_set_pkt_metadata(
-						sa->security_ctx,
-						sa->sec_session, pkts[i], NULL);
+					ips->security.ctx, ips->security.ses,
+					pkts[i], NULL);
 			continue;
 		case RTE_SECURITY_ACTION_TYPE_INLINE_CRYPTO:
-			RTE_ASSERT(sa->sec_session != NULL);
+			RTE_ASSERT(ips->security.ses != NULL);
 			priv->cop.type = RTE_CRYPTO_OP_TYPE_SYMMETRIC;
 			priv->cop.status = RTE_CRYPTO_OP_STATUS_NOT_PROCESSED;
 
 			rte_prefetch0(&priv->sym_cop);
 			rte_security_attach_session(&priv->cop,
-					sa->sec_session);
+					ips->security.ses);
 
 			ret = xform_func(pkts[i], sa, &priv->cop);
 			if (unlikely(ret)) {
@@ -488,10 +493,11 @@ ipsec_enqueue(ipsec_xform_fn xform_func, struct ipsec_ctx *ipsec_ctx,
 			}
 
 			ipsec_ctx->ol_pkts[ipsec_ctx->ol_pkts_cnt++] = pkts[i];
-			if (sa->ol_flags & RTE_SECURITY_TX_OLOAD_NEED_MDATA)
+			if (ips->security.ol_flags &
+				RTE_SECURITY_TX_OLOAD_NEED_MDATA)
 				rte_security_set_pkt_metadata(
-						sa->security_ctx,
-						sa->sec_session, pkts[i], NULL);
+					ips->security.ctx, ips->security.ses,
+					pkts[i], NULL);
 			continue;
 		}
 
@@ -560,7 +566,8 @@ ipsec_dequeue(ipsec_xform_fn xform_func, struct ipsec_ctx *ipsec_ctx,
 
 			RTE_ASSERT(sa != NULL);
 
-			if (sa->type == RTE_SECURITY_ACTION_TYPE_NONE) {
+			if (ipsec_get_action_type(sa) ==
+				RTE_SECURITY_ACTION_TYPE_NONE) {
 				ret = xform_func(pkt, sa, cops[j]);
 				if (unlikely(ret)) {
 					rte_pktmbuf_free(pkt);
