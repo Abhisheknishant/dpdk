@@ -57,4 +57,5 @@ EXPERIMENTAL {
 	global:
 
 	rte_mbuf_check;
+	rte_pktmbuf_copy;
 } DPDK_18.08;
