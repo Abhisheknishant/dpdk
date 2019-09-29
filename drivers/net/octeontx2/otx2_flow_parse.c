@@ -979,7 +979,8 @@ otx2_flow_parse_actions(struct rte_eth_dev *dev,
 	if (mark)
 		flow->npc_action |= (uint64_t)mark << 40;
 
-	if (rte_atomic32_read(&npc->mark_actions) == 1) {
+	if (rte_atomic32_read(&npc->mark_actions) == 1 &&
+			(hw->rx_offloads & DEV_RX_OFFLOAD_FLOW_MARK)) {
 		hw->rx_offload_flags |=
 			NIX_RX_OFFLOAD_MARK_UPDATE_F;
 		otx2_eth_set_rx_function(dev);
