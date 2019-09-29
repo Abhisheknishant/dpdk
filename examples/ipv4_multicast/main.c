@@ -765,6 +765,7 @@ main(int argc, char **argv)
 			qconf->tx_queue_id[portid] = queueid;
 			queueid++;
 		}
+		rte_eth_dev_set_supported_ptypes(portid, RTE_PTYPE_UNKNOWN);
 		rte_eth_allmulticast_enable(portid);
 		/* Start device */
 		ret = rte_eth_dev_start(portid);

@@ -162,6 +162,7 @@ port_init(uint16_t port, struct rte_mempool *mbuf_pool)
 			return retval;
 	}
 
+	rte_eth_dev_set_supported_ptypes(port, RTE_PTYPE_UNKNOWN);
 	retval = rte_eth_dev_start(port);
 	if (retval < 0)
 		return retval;

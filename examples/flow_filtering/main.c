@@ -176,6 +176,7 @@ init_port(void)
 	}
 
 	rte_eth_promiscuous_enable(port_id);
+	rte_eth_dev_set_supported_ptypes(port_id, RTE_PTYPE_UNKNOWN);
 	ret = rte_eth_dev_start(port_id);
 	if (ret < 0) {
 		rte_exit(EXIT_FAILURE,

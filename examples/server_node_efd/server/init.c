@@ -149,6 +149,7 @@ init_port(uint16_t port_num)
 
 	rte_eth_promiscuous_enable(port_num);
 
+	rte_eth_dev_set_supported_ptypes(port_num, RTE_PTYPE_UNKNOWN);
 	retval = rte_eth_dev_start(port_num);
 	if (retval < 0)
 		return retval;

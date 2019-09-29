@@ -138,6 +138,7 @@ app_init_port(uint16_t portid, struct rte_mempool *mp)
 			 "rte_eth_tx_queue_setup: err=%d, port=%u queue=%d\n",
 			 ret, portid, 0);
 
+	rte_eth_dev_set_supported_ptypes(portid, RTE_PTYPE_UNKNOWN);
 	/* Start device */
 	ret = rte_eth_dev_start(portid);
 	if (ret < 0)

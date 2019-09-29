@@ -96,6 +96,7 @@ void configure_eth_port(uint16_t port_id)
 				"Failed to setup hardware flow control on port %u (error %d)\n",
 				(unsigned int) port_id, ret);
 
+	rte_eth_dev_set_supported_ptypes(port_id, RTE_PTYPE_UNKNOWN);
 	/* Start the port */
 	ret = rte_eth_dev_start(port_id);
 	if (ret < 0)
