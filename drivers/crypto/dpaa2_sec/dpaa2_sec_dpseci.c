@@ -54,7 +54,7 @@ typedef uint64_t	dma_addr_t;
 #define FLE_POOL_NUM_BUFS	32000
 #define FLE_POOL_BUF_SIZE	256
 #define FLE_POOL_CACHE_SIZE	512
-#define FLE_SG_MEM_SIZE		2048
+#define FLE_SG_MEM_SIZE(num)	(FLE_POOL_BUF_SIZE + ((num) * 32))
 #define SEC_FLC_DHR_OUTBOUND	-114
 #define SEC_FLC_DHR_INBOUND	0
 
@@ -82,13 +82,14 @@ build_proto_compound_sg_fd(dpaa2_sec_session *sess,
 		mbuf = sym_op->m_src;
 
 	/* first FLE entry used to store mbuf and session ctxt */
-	fle = (struct qbman_fle *)rte_malloc(NULL, FLE_SG_MEM_SIZE,
+	fle = (struct qbman_fle *)rte_malloc(NULL,
+			FLE_SG_MEM_SIZE(mbuf->nb_segs + sym_op->m_src->nb_segs),
 			RTE_CACHE_LINE_SIZE);
 	if (unlikely(!fle)) {
 		DPAA2_SEC_DP_ERR("Proto:SG: Memory alloc failed for SGE");
 		return -1;
 	}
-	memset(fle, 0, FLE_SG_MEM_SIZE);
+	memset(fle, 0, FLE_SG_MEM_SIZE(mbuf->nb_segs + sym_op->m_src->nb_segs));
 	DPAA2_SET_FLE_ADDR(fle, (size_t)op);
 	DPAA2_FLE_SAVE_CTXT(fle, (ptrdiff_t)priv);
 
@@ -311,13 +312,14 @@ build_authenc_gcm_sg_fd(dpaa2_sec_session *sess,
 		mbuf = sym_op->m_src;
 
 	/* first FLE entry used to store mbuf and session ctxt */
-	fle = (struct qbman_fle *)rte_malloc(NULL, FLE_SG_MEM_SIZE,
+	fle = (struct qbman_fle *)rte_malloc(NULL,
+			FLE_SG_MEM_SIZE(mbuf->nb_segs + sym_op->m_src->nb_segs),
 			RTE_CACHE_LINE_SIZE);
 	if (unlikely(!fle)) {
 		DPAA2_SEC_ERR("GCM SG: Memory alloc failed for SGE");
 		return -1;
 	}
-	memset(fle, 0, FLE_SG_MEM_SIZE);
+	memset(fle, 0, FLE_SG_MEM_SIZE(mbuf->nb_segs + sym_op->m_src->nb_segs));
 	DPAA2_SET_FLE_ADDR(fle, (size_t)op);
 	DPAA2_FLE_SAVE_CTXT(fle, (size_t)priv);
 
@@ -607,13 +609,14 @@ build_authenc_sg_fd(dpaa2_sec_session *sess,
 		mbuf = sym_op->m_src;
 
 	/* first FLE entry used to store mbuf and session ctxt */
-	fle = (struct qbman_fle *)rte_malloc(NULL, FLE_SG_MEM_SIZE,
+	fle = (struct qbman_fle *)rte_malloc(NULL,
+			FLE_SG_MEM_SIZE(mbuf->nb_segs + sym_op->m_src->nb_segs),
 			RTE_CACHE_LINE_SIZE);
 	if (unlikely(!fle)) {
 		DPAA2_SEC_ERR("AUTHENC SG: Memory alloc failed for SGE");
 		return -1;
 	}
-	memset(fle, 0, FLE_SG_MEM_SIZE);
+	memset(fle, 0, FLE_SG_MEM_SIZE(mbuf->nb_segs + sym_op->m_src->nb_segs));
 	DPAA2_SET_FLE_ADDR(fle, (size_t)op);
 	DPAA2_FLE_SAVE_CTXT(fle, (ptrdiff_t)priv);
 
@@ -900,13 +903,14 @@ static inline int build_auth_sg_fd(
 	}
 
 	mbuf = sym_op->m_src;
-	fle = (struct qbman_fle *)rte_malloc(NULL, FLE_SG_MEM_SIZE,
+	fle = (struct qbman_fle *)rte_malloc(NULL,
+			FLE_SG_MEM_SIZE(mbuf->nb_segs),
 			RTE_CACHE_LINE_SIZE);
 	if (unlikely(!fle)) {
 		DPAA2_SEC_ERR("AUTH SG: Memory alloc failed for SGE");
 		return -1;
 	}
-	memset(fle, 0, FLE_SG_MEM_SIZE);
+	memset(fle, 0, FLE_SG_MEM_SIZE(mbuf->nb_segs));
 	/* first FLE entry used to store mbuf and session ctxt */
 	DPAA2_SET_FLE_ADDR(fle, (size_t)op);
 	DPAA2_FLE_SAVE_CTXT(fle, (ptrdiff_t)priv);
@@ -1139,13 +1143,15 @@ build_cipher_sg_fd(dpaa2_sec_session *sess, struct rte_crypto_op *op,
 	else
 		mbuf = sym_op->m_src;
 
-	fle = (struct qbman_fle *)rte_malloc(NULL, FLE_SG_MEM_SIZE,
+	/* first FLE entry used to store mbuf and session ctxt */
+	fle = (struct qbman_fle *)rte_malloc(NULL,
+			FLE_SG_MEM_SIZE(mbuf->nb_segs + sym_op->m_src->nb_segs),
 			RTE_CACHE_LINE_SIZE);
 	if (!fle) {
 		DPAA2_SEC_ERR("CIPHER SG: Memory alloc failed for SGE");
 		return -1;
 	}
-	memset(fle, 0, FLE_SG_MEM_SIZE);
+	memset(fle, 0, FLE_SG_MEM_SIZE(mbuf->nb_segs + sym_op->m_src->nb_segs));
 	/* first FLE entry used to store mbuf and session ctxt */
 	DPAA2_SET_FLE_ADDR(fle, (size_t)op);
 	DPAA2_FLE_SAVE_CTXT(fle, (ptrdiff_t)priv);
