@@ -11,20 +11,23 @@ EXTLIB_BUILD ?= n
 # VPATH contains at least SRCDIR
 VPATH += $(SRCDIR)
 
-ifneq ($(CONFIG_RTE_MAJOR_ABI),)
-ifneq ($(LIBABIVER),)
-LIBABIVER := $(CONFIG_RTE_MAJOR_ABI)
+ifeq ($(OS), Windows_NT)
+search_cmd = findstr
+print_cmd = more
+else
+search_cmd = grep
+print_cmd = cat
 endif
+
+ifneq ($(shell $(search_cmd) "^DPDK_" $(SRCDIR)/$(EXPORT_MAP)),)
+LIBABIVER := $(shell $(print_cmd) $(RTE_SRCDIR)/config/ABI_VERSION)
+else
+LIBABIVER := 0
 endif
 
 ifeq ($(CONFIG_RTE_BUILD_SHARED_LIB),y)
 LIB := $(patsubst %.a,%.so.$(LIBABIVER),$(LIB))
 ifeq ($(EXTLIB_BUILD),n)
-ifeq ($(CONFIG_RTE_MAJOR_ABI),)
-ifeq ($(CONFIG_RTE_NEXT_ABI),y)
-LIB := $(LIB).1
-endif
-endif
 CPU_LDFLAGS += --version-script=$(SRCDIR)/$(EXPORT_MAP)
 endif
 endif

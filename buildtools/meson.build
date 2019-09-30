@@ -12,3 +12,5 @@ if python3.found()
 else
 	map_to_def_cmd = ['meson', 'runpython', files('map_to_def.py')]
 endif
+
+is_experimental_cmd = [find_program('grep', 'findstr'), '^DPDK_']

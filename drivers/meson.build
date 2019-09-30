@@ -110,9 +110,20 @@ foreach class:dpdk_driver_classes
 					output: out_filename,
 					depends: [pmdinfogen, tmp_lib])
 
-			if get_option('per_library_versions')
-				lib_version = '@0@.1'.format(version)
-				so_version = '@0@'.format(version)
+			version_map = '@0@/@1@/@2@_version.map'.format(
+					meson.current_source_dir(),
+					drv_path, lib_name)
+
+			if is_windows
+				version_map = '\\'.join(version_map.split('/'))
+			endif
+
+			is_experimental = run_command(is_experimental_cmd,
+				files(version_map)).returncode()
+
+			if is_experimental != 0
+				lib_version = '0.1'
+				so_version = '0'
 			else
 				lib_version = major_version
 				so_version = major_version
@@ -128,9 +139,6 @@ foreach class:dpdk_driver_classes
 				install: true)
 
 			# now build the shared driver
-			version_map = '@0@/@1@/@2@_version.map'.format(
-					meson.current_source_dir(),
-					drv_path, lib_name)
 			shared_lib = shared_library(lib_name,
 				sources,
 				objects: objs,

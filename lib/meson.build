@@ -97,9 +97,19 @@ foreach l:libraries
 				cflags += '-DALLOW_EXPERIMENTAL_API'
 			endif
 
-			if get_option('per_library_versions')
-				lib_version = '@0@.1'.format(version)
-				so_version = '@0@'.format(version)
+			version_map = '@0@/@1@/rte_@2@_version.map'.format(
+					meson.current_source_dir(), dir_name, name)
+
+			if is_windows
+				version_map = '\\'.join(version_map.split('/'))
+			endif
+
+			is_experimental = run_command(is_experimental_cmd,
+					files(version_map)).returncode()
+
+			if is_experimental != 0
+				lib_version = '0.1'
+				so_version = '0'
 			else
 				lib_version = major_version
 				so_version = major_version
@@ -120,8 +130,6 @@ foreach l:libraries
 			# then use pre-build objects to build shared lib
 			sources = []
 			objs += static_lib.extract_all_objects(recursive: false)
-			version_map = '@0@/@1@/rte_@2@_version.map'.format(
-					meson.current_source_dir(), dir_name, name)
 			implib = dir_name + '.dll.a'
 
 			def_file = custom_target(name + '_def',

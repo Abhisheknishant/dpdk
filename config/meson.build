@@ -17,7 +17,8 @@ endforeach
 # set the major version, which might be used by drivers and libraries
 # depending on the configuration options
 pver = meson.project_version().split('.')
-major_version = '@0@.@1@'.format(pver.get(0), pver.get(1))
+major_version = run_command(find_program('cat', 'more'),
+	files('ABI_VERSION')).stdout().strip()
 
 # extract all version information into the build configuration
 dpdk_conf.set('RTE_VER_YEAR', pver.get(0).to_int())
