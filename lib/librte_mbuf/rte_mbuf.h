@@ -1928,6 +1928,32 @@ struct rte_mbuf *
 rte_pktmbuf_clone(struct rte_mbuf *md, struct rte_mempool *mp);
 
 /**
+ * Creates a full copy of a given packet mbuf.
+ *
+ * Copies all the data from a given packet mbuf to a newly allocated
+ * set of mbufs.
+ *
+ * @param m
+ *   The packet mbuf to be cloned.
+ * @param mp
+ *   The mempool from which the "clone" mbufs are allocated.
+ * @param offset
+ *   The number of bytes to skip before copying.
+ *   If the mbuf does not have that many bytes, it is an error
+ *   and NULL is returned.
+ * @param length
+ *   The upper limit on bytes to copy.  Passing UINT32_MAX
+ *   means all data (after offset).
+ * @return
+ *   - The pointer to the new "clone" mbuf on success.
+ *   - NULL if allocation fails.
+ */
+__rte_experimental
+struct rte_mbuf *
+rte_pktmbuf_copy(const struct rte_mbuf *m, struct rte_mempool *mp,
+		 uint32_t offset, uint32_t length);
+
+/**
  * Adds given value to the refcnt of all packet mbuf segments.
  *
  * Walks through all segments of given packet mbuf and for each of them
