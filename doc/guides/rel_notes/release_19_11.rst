@@ -62,6 +62,8 @@ New Features
 
   * Support for pinning netdev queue IRQs to cores specified by the user.
     Available for ixgbe, i40e and mlx5 drivers.
+  * Enabled zero copy between application mempools and UMEM by enabling the
+    XDP_UMEM_UNALIGNED_CHUNKS UMEM flag.
 
 
 Removed Items
@@ -84,6 +86,8 @@ Removed Items
      offloading on all Rx queues of a port is:
      "port config <port_id> rx_offload crc_strip|scatter|ipv4_cksum|udp_cksum|tcp_cksum|
      timestamp|vlan_strip|vlan_filter|vlan_extend on|off"
+
+   * Removed AF_XDP pmd_zero copy vdev argument. Support is now auto-detected.
 
 
 API Changes
