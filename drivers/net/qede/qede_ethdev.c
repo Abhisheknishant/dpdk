@@ -276,30 +276,38 @@ static void qede_print_adapter_info(struct qede_dev *qdev)
 {
 	struct ecore_dev *edev = &qdev->edev;
 	struct qed_dev_info *info = &qdev->dev_info.common;
-	static char drv_ver[QEDE_PMD_DRV_VER_STR_SIZE];
 	static char ver_str[QEDE_PMD_DRV_VER_STR_SIZE];
 
-	DP_INFO(edev, "*********************************\n");
-	DP_INFO(edev, " DPDK version:%s\n", rte_version());
-	DP_INFO(edev, " Chip details : %s %c%d\n",
+	DP_INFO(edev, "**************************************************\n");
+	DP_INFO(edev, " DPDK version\t\t\t: %s\n", rte_version());
+	DP_INFO(edev, " Chip details\t\t\t: %s %c%d\n",
 		  ECORE_IS_BB(edev) ? "BB" : "AH",
 		  'A' + edev->chip_rev,
 		  (int)edev->chip_metal);
-	snprintf(ver_str, QEDE_PMD_DRV_VER_STR_SIZE, "%d.%d.%d.%d",
-		 info->fw_major, info->fw_minor, info->fw_rev, info->fw_eng);
-	snprintf(drv_ver, QEDE_PMD_DRV_VER_STR_SIZE, "%s_%s",
-		 ver_str, QEDE_PMD_VERSION);
-	DP_INFO(edev, " Driver version : %s\n", drv_ver);
-	DP_INFO(edev, " Firmware version : %s\n", ver_str);
+	snprintf(ver_str, QEDE_PMD_DRV_VER_STR_SIZE, "%s",
+		 QEDE_PMD_DRV_VERSION);
+	DP_INFO(edev, " Driver version\t\t\t: %s\n", ver_str);
+
+	snprintf(ver_str, QEDE_PMD_DRV_VER_STR_SIZE, "%s",
+		 QEDE_PMD_BASE_VERSION);
+	DP_INFO(edev, " Base version\t\t\t: %s\n", ver_str);
+
+	snprintf(ver_str, QEDE_PMD_DRV_VER_STR_SIZE, "%s", QEDE_PMD_FW_VERSION);
+	DP_INFO(edev, " Firmware version\t\t\t: %s\n", ver_str);
 
 	snprintf(ver_str, MCP_DRV_VER_STR_SIZE,
 		 "%d.%d.%d.%d",
-		(info->mfw_rev >> 24) & 0xff,
-		(info->mfw_rev >> 16) & 0xff,
-		(info->mfw_rev >> 8) & 0xff, (info->mfw_rev) & 0xff);
-	DP_INFO(edev, " Management Firmware version : %s\n", ver_str);
-	DP_INFO(edev, " Firmware file : %s\n", qede_fw_file);
-	DP_INFO(edev, "*********************************\n");
+		 (info->mfw_rev & QED_MFW_VERSION_3_MASK) >>
+		 QED_MFW_VERSION_3_OFFSET,
+		 (info->mfw_rev & QED_MFW_VERSION_2_MASK) >>
+		 QED_MFW_VERSION_2_OFFSET,
+		 (info->mfw_rev & QED_MFW_VERSION_1_MASK) >>
+		 QED_MFW_VERSION_1_OFFSET,
+		 (info->mfw_rev & QED_MFW_VERSION_0_MASK) >>
+		 QED_MFW_VERSION_0_OFFSET);
+	DP_INFO(edev, " Management Firmware version\t: %s\n", ver_str);
+	DP_INFO(edev, " Firmware file\t\t\t: %s\n", qede_fw_file);
+	DP_INFO(edev, "**************************************************\n");
 }
 
 static void qede_reset_queue_stats(struct qede_dev *qdev, bool xstats)
@@ -2455,6 +2463,10 @@ static int qede_common_dev_init(struct rte_eth_dev *eth_dev, bool is_vf)
 				    dp_level, is_vf);
 	if (rc != 0) {
 		DP_ERR(edev, "qede probe failed rc %d\n", rc);
+		if (do_once) {
+			qede_print_adapter_info(adapter);
+			do_once = false;
+		}
 		return -ENODEV;
 	}
 	qede_update_pf_params(edev);
@@ -2525,6 +2537,11 @@ static int qede_common_dev_init(struct rte_eth_dev *eth_dev, bool is_vf)
 
 	qede_alloc_etherdev(adapter, &dev_info);
 
+	if (do_once) {
+		qede_print_adapter_info(adapter);
+		do_once = false;
+	}
+
 	adapter->ops->common->set_name(edev, edev->name);
 
 	if (!is_vf)
@@ -2580,11 +2597,6 @@ static int qede_common_dev_init(struct rte_eth_dev *eth_dev, bool is_vf)
 	}
 
 	eth_dev->dev_ops = (is_vf) ? &qede_eth_vf_dev_ops : &qede_eth_dev_ops;
-
-	if (do_once) {
-		qede_print_adapter_info(adapter);
-		do_once = false;
-	}
 
 	/* Bring-up the link */
 	qede_dev_set_link_state(eth_dev, true);
