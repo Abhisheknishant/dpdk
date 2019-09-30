@@ -1,7 +1,8 @@
-DPDK_18.05 {
+DPDK_20.0 {
 	global:
 
+	octeontx_mbox_send;
 	octeontx_mbox_set_ram_mbox_base;
 	octeontx_mbox_set_reg;
-	octeontx_mbox_send;
 };
+

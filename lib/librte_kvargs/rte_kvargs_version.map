@@ -1,11 +1,10 @@
-DPDK_2.0 {
+DPDK_20.0 {
 	global:
 
 	rte_kvargs_count;
 	rte_kvargs_free;
 	rte_kvargs_parse;
 	rte_kvargs_process;
-
 	local: *;
 };
 
@@ -14,5 +13,4 @@ EXPERIMENTAL {
 
 	rte_kvargs_parse_delim;
 	rte_kvargs_strcmp;
-
-} DPDK_2.0;
+};

@@ -1,4 +1,4 @@
-DPDK_2.0 {
+DPDK_20.0 {
 	global:
 
 	rte_acl_add_rules;
@@ -14,6 +14,6 @@ DPDK_2.0 {
 	rte_acl_reset;
 	rte_acl_reset_rules;
 	rte_acl_set_ctx_classify;
-
 	local: *;
 };
+

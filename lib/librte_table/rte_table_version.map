@@ -1,4 +1,4 @@
-DPDK_17.11 {
+DPDK_20.0 {
 	global:
 
 	rte_table_acl_ops;
@@ -15,6 +15,6 @@ DPDK_17.11 {
 	rte_table_lpm_ipv6_ops;
 	rte_table_lpm_ops;
 	rte_table_stub_ops;
-
 	local: *;
 };
+

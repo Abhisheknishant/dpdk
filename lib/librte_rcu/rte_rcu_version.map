@@ -8,6 +8,5 @@ EXPERIMENTAL {
 	rte_rcu_qsbr_synchronize;
 	rte_rcu_qsbr_thread_register;
 	rte_rcu_qsbr_thread_unregister;
-
 	local: *;
 };

@@ -1,4 +1,4 @@
-DPDK_2.0 {
+DPDK_20.0 {
 	global:
 
 	rte_kni_alloc;
@@ -12,7 +12,6 @@ DPDK_2.0 {
 	rte_kni_rx_burst;
 	rte_kni_tx_burst;
 	rte_kni_unregister_handlers;
-
 	local: *;
 };
 

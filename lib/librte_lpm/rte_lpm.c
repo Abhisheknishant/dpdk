@@ -113,7 +113,6 @@ rte_lpm_find_existing_v20(const char *name)
 
 	return l;
 }
-VERSION_SYMBOL(rte_lpm_find_existing, _v20, 2.0);
 
 struct rte_lpm *
 rte_lpm_find_existing_v1604(const char *name)
@@ -139,7 +138,7 @@ rte_lpm_find_existing_v1604(const char *name)
 
 	return l;
 }
-BIND_DEFAULT_SYMBOL(rte_lpm_find_existing, _v1604, 16.04);
+BIND_DEFAULT_SYMBOL(rte_lpm_find_existing, _v1604, 20.0);
 MAP_STATIC_SYMBOL(struct rte_lpm *rte_lpm_find_existing(const char *name),
 		rte_lpm_find_existing_v1604);
 
@@ -217,7 +216,6 @@ exit:
 
 	return lpm;
 }
-VERSION_SYMBOL(rte_lpm_create, _v20, 2.0);
 
 struct rte_lpm *
 rte_lpm_create_v1604(const char *name, int socket_id,
@@ -320,7 +318,7 @@ exit:
 
 	return lpm;
 }
-BIND_DEFAULT_SYMBOL(rte_lpm_create, _v1604, 16.04);
+BIND_DEFAULT_SYMBOL(rte_lpm_create, _v1604, 20.0);
 MAP_STATIC_SYMBOL(
 	struct rte_lpm *rte_lpm_create(const char *name, int socket_id,
 			const struct rte_lpm_config *config), rte_lpm_create_v1604);
@@ -355,7 +353,6 @@ rte_lpm_free_v20(struct rte_lpm_v20 *lpm)
 	rte_free(lpm);
 	rte_free(te);
 }
-VERSION_SYMBOL(rte_lpm_free, _v20, 2.0);
 
 void
 rte_lpm_free_v1604(struct rte_lpm *lpm)
@@ -386,7 +383,7 @@ rte_lpm_free_v1604(struct rte_lpm *lpm)
 	rte_free(lpm);
 	rte_free(te);
 }
-BIND_DEFAULT_SYMBOL(rte_lpm_free, _v1604, 16.04);
+BIND_DEFAULT_SYMBOL(rte_lpm_free, _v1604, 20.0);
 MAP_STATIC_SYMBOL(void rte_lpm_free(struct rte_lpm *lpm),
 		rte_lpm_free_v1604);
 
@@ -1215,7 +1212,6 @@ rte_lpm_add_v20(struct rte_lpm_v20 *lpm, uint32_t ip, uint8_t depth,
 
 	return 0;
 }
-VERSION_SYMBOL(rte_lpm_add, _v20, 2.0);
 
 int
 rte_lpm_add_v1604(struct rte_lpm *lpm, uint32_t ip, uint8_t depth,
@@ -1256,7 +1252,7 @@ rte_lpm_add_v1604(struct rte_lpm *lpm, uint32_t ip, uint8_t depth,
 
 	return 0;
 }
-BIND_DEFAULT_SYMBOL(rte_lpm_add, _v1604, 16.04);
+BIND_DEFAULT_SYMBOL(rte_lpm_add, _v1604, 20.0);
 MAP_STATIC_SYMBOL(int rte_lpm_add(struct rte_lpm *lpm, uint32_t ip,
 		uint8_t depth, uint32_t next_hop), rte_lpm_add_v1604);
 
@@ -1288,7 +1284,6 @@ uint8_t *next_hop)
 	/* If rule is not found return 0. */
 	return 0;
 }
-VERSION_SYMBOL(rte_lpm_is_rule_present, _v20, 2.0);
 
 int
 rte_lpm_is_rule_present_v1604(struct rte_lpm *lpm, uint32_t ip, uint8_t depth,
@@ -1315,7 +1310,7 @@ uint32_t *next_hop)
 	/* If rule is not found return 0. */
 	return 0;
 }
-BIND_DEFAULT_SYMBOL(rte_lpm_is_rule_present, _v1604, 16.04);
+BIND_DEFAULT_SYMBOL(rte_lpm_is_rule_present, _v1604, 20.0);
 MAP_STATIC_SYMBOL(int rte_lpm_is_rule_present(struct rte_lpm *lpm, uint32_t ip,
 		uint8_t depth, uint32_t *next_hop), rte_lpm_is_rule_present_v1604);
 
@@ -1895,7 +1890,6 @@ rte_lpm_delete_v20(struct rte_lpm_v20 *lpm, uint32_t ip, uint8_t depth)
 				sub_rule_depth);
 	}
 }
-VERSION_SYMBOL(rte_lpm_delete, _v20, 2.0);
 
 int
 rte_lpm_delete_v1604(struct rte_lpm *lpm, uint32_t ip, uint8_t depth)
@@ -1949,7 +1943,7 @@ rte_lpm_delete_v1604(struct rte_lpm *lpm, uint32_t ip, uint8_t depth)
 				sub_rule_depth);
 	}
 }
-BIND_DEFAULT_SYMBOL(rte_lpm_delete, _v1604, 16.04);
+BIND_DEFAULT_SYMBOL(rte_lpm_delete, _v1604, 20.0);
 MAP_STATIC_SYMBOL(int rte_lpm_delete(struct rte_lpm *lpm, uint32_t ip,
 		uint8_t depth), rte_lpm_delete_v1604);
 
@@ -1971,7 +1965,6 @@ rte_lpm_delete_all_v20(struct rte_lpm_v20 *lpm)
 	/* Delete all rules form the rules table. */
 	memset(lpm->rules_tbl, 0, sizeof(lpm->rules_tbl[0]) * lpm->max_rules);
 }
-VERSION_SYMBOL(rte_lpm_delete_all, _v20, 2.0);
 
 void
 rte_lpm_delete_all_v1604(struct rte_lpm *lpm)
@@ -1989,6 +1982,6 @@ rte_lpm_delete_all_v1604(struct rte_lpm *lpm)
 	/* Delete all rules form the rules table. */
 	memset(lpm->rules_tbl, 0, sizeof(lpm->rules_tbl[0]) * lpm->max_rules);
 }
-BIND_DEFAULT_SYMBOL(rte_lpm_delete_all, _v1604, 16.04);
+BIND_DEFAULT_SYMBOL(rte_lpm_delete_all, _v1604, 20.0);
 MAP_STATIC_SYMBOL(void rte_lpm_delete_all(struct rte_lpm *lpm),
 		rte_lpm_delete_all_v1604);

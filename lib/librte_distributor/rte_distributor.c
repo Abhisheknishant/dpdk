@@ -78,7 +78,7 @@ rte_distributor_request_pkt_v1705(struct rte_distributor *d,
 	 */
 	*retptr64 |= RTE_DISTRIB_GET_BUF;
 }
-BIND_DEFAULT_SYMBOL(rte_distributor_request_pkt, _v1705, 17.05);
+BIND_DEFAULT_SYMBOL(rte_distributor_request_pkt, _v1705, 20.0);
 MAP_STATIC_SYMBOL(void rte_distributor_request_pkt(struct rte_distributor *d,
 		unsigned int worker_id, struct rte_mbuf **oldpkt,
 		unsigned int count),
@@ -119,7 +119,7 @@ rte_distributor_poll_pkt_v1705(struct rte_distributor *d,
 
 	return count;
 }
-BIND_DEFAULT_SYMBOL(rte_distributor_poll_pkt, _v1705, 17.05);
+BIND_DEFAULT_SYMBOL(rte_distributor_poll_pkt, _v1705, 20.0);
 MAP_STATIC_SYMBOL(int rte_distributor_poll_pkt(struct rte_distributor *d,
 		unsigned int worker_id, struct rte_mbuf **pkts),
 		rte_distributor_poll_pkt_v1705);
@@ -153,7 +153,7 @@ rte_distributor_get_pkt_v1705(struct rte_distributor *d,
 	}
 	return count;
 }
-BIND_DEFAULT_SYMBOL(rte_distributor_get_pkt, _v1705, 17.05);
+BIND_DEFAULT_SYMBOL(rte_distributor_get_pkt, _v1705, 20.0);
 MAP_STATIC_SYMBOL(int rte_distributor_get_pkt(struct rte_distributor *d,
 		unsigned int worker_id, struct rte_mbuf **pkts,
 		struct rte_mbuf **oldpkt, unsigned int return_count),
@@ -187,7 +187,7 @@ rte_distributor_return_pkt_v1705(struct rte_distributor *d,
 
 	return 0;
 }
-BIND_DEFAULT_SYMBOL(rte_distributor_return_pkt, _v1705, 17.05);
+BIND_DEFAULT_SYMBOL(rte_distributor_return_pkt, _v1705, 20.0);
 MAP_STATIC_SYMBOL(int rte_distributor_return_pkt(struct rte_distributor *d,
 		unsigned int worker_id, struct rte_mbuf **oldpkt, int num),
 		rte_distributor_return_pkt_v1705);
@@ -470,7 +470,7 @@ rte_distributor_process_v1705(struct rte_distributor *d,
 
 	return num_mbufs;
 }
-BIND_DEFAULT_SYMBOL(rte_distributor_process, _v1705, 17.05);
+BIND_DEFAULT_SYMBOL(rte_distributor_process, _v1705, 20.0);
 MAP_STATIC_SYMBOL(int rte_distributor_process(struct rte_distributor *d,
 		struct rte_mbuf **mbufs, unsigned int num_mbufs),
 		rte_distributor_process_v1705);
@@ -502,7 +502,7 @@ rte_distributor_returned_pkts_v1705(struct rte_distributor *d,
 
 	return retval;
 }
-BIND_DEFAULT_SYMBOL(rte_distributor_returned_pkts, _v1705, 17.05);
+BIND_DEFAULT_SYMBOL(rte_distributor_returned_pkts, _v1705, 20.0);
 MAP_STATIC_SYMBOL(int rte_distributor_returned_pkts(struct rte_distributor *d,
 		struct rte_mbuf **mbufs, unsigned int max_mbufs),
 		rte_distributor_returned_pkts_v1705);
@@ -556,7 +556,7 @@ rte_distributor_flush_v1705(struct rte_distributor *d)
 
 	return flushed;
 }
-BIND_DEFAULT_SYMBOL(rte_distributor_flush, _v1705, 17.05);
+BIND_DEFAULT_SYMBOL(rte_distributor_flush, _v1705, 20.0);
 MAP_STATIC_SYMBOL(int rte_distributor_flush(struct rte_distributor *d),
 		rte_distributor_flush_v1705);
 
@@ -576,7 +576,7 @@ rte_distributor_clear_returns_v1705(struct rte_distributor *d)
 	for (wkr = 0; wkr < d->num_workers; wkr++)
 		d->bufs[wkr].retptr64[0] = 0;
 }
-BIND_DEFAULT_SYMBOL(rte_distributor_clear_returns, _v1705, 17.05);
+BIND_DEFAULT_SYMBOL(rte_distributor_clear_returns, _v1705, 20.0);
 MAP_STATIC_SYMBOL(void rte_distributor_clear_returns(struct rte_distributor *d),
 		rte_distributor_clear_returns_v1705);
 
@@ -656,7 +656,7 @@ rte_distributor_create_v1705(const char *name,
 
 	return d;
 }
-BIND_DEFAULT_SYMBOL(rte_distributor_create, _v1705, 17.05);
+BIND_DEFAULT_SYMBOL(rte_distributor_create, _v1705, 20.0);
 MAP_STATIC_SYMBOL(struct rte_distributor *rte_distributor_create(
 		const char *name, unsigned int socket_id,
 		unsigned int num_workers, unsigned int alg_type),

@@ -1,4 +1,4 @@
-DPDK_17.02 {
+DPDK_20.0 {
 	global:
 
 	rte_efd_create;
@@ -8,6 +8,6 @@ DPDK_17.02 {
 	rte_efd_lookup;
 	rte_efd_lookup_bulk;
 	rte_efd_update;
-
 	local: *;
 };
+

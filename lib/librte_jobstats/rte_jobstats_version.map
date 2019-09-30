@@ -1,6 +1,7 @@
-DPDK_2.0 {
+DPDK_20.0 {
 	global:
 
+	rte_jobstats_abort;
 	rte_jobstats_context_finish;
 	rte_jobstats_context_init;
 	rte_jobstats_context_reset;
@@ -14,13 +15,6 @@ DPDK_2.0 {
 	rte_jobstats_set_target;
 	rte_jobstats_set_update_period_function;
 	rte_jobstats_start;
-
 	local: *;
 };
 
-DPDK_16.04 {
-	global:
-
-	rte_jobstats_abort;
-
-} DPDK_2.0;

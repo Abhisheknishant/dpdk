@@ -1,4 +1,4 @@
-DPDK_17.11 {
+DPDK_20.0 {
 	global:
 
 	rte_pci_dump;
@@ -13,6 +13,6 @@ DPDK_17.11 {
 	rte_pci_unmap_device;
 	rte_pci_unregister;
 	rte_pci_write_config;
-
 	local: *;
 };
+

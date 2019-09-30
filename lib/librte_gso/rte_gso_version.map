@@ -1,7 +1,7 @@
-DPDK_17.11 {
+DPDK_20.0 {
 	global:
 
 	rte_gso_segment;
-
 	local: *;
 };
+

@@ -5,6 +5,5 @@ EXPERIMENTAL {
 	rte_telemetry_init;
 	rte_telemetry_parse;
 	rte_telemetry_selftest;
-
 	local: *;
 };

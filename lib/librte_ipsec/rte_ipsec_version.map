@@ -10,6 +10,5 @@ EXPERIMENTAL {
 	rte_ipsec_sa_type;
 	rte_ipsec_ses_from_crypto;
 	rte_ipsec_session_prepare;
-
 	local: *;
 };

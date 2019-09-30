@@ -1,4 +1,4 @@
-DPDK_17.05 {
+DPDK_20.0 {
 	global:
 
 	rte_metrics_get_names;
@@ -8,7 +8,6 @@ DPDK_17.05 {
 	rte_metrics_reg_names;
 	rte_metrics_update_value;
 	rte_metrics_update_values;
-
 	local: *;
 };
 

@@ -1,4 +1,4 @@
-DPDK_17.08 {
+DPDK_20.0 {
 	global:
 
 	rte_gro_ctx_create;
@@ -7,6 +7,6 @@ DPDK_17.08 {
 	rte_gro_reassemble;
 	rte_gro_reassemble_burst;
 	rte_gro_timeout_flush;
-
 	local: *;
 };
+

@@ -1,4 +1,4 @@
-DPDK_17.11 {
+DPDK_20.0 {
 	global:
 
 	eal_parse_pci_BDF;
@@ -9,6 +9,6 @@ DPDK_17.11 {
 	rte_pci_addr_cmp;
 	rte_pci_addr_parse;
 	rte_pci_device_name;
-
 	local: *;
 };
+

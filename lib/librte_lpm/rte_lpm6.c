@@ -817,7 +817,6 @@ rte_lpm6_add_v20(struct rte_lpm6 *lpm, uint8_t *ip, uint8_t depth,
 {
 	return rte_lpm6_add_v1705(lpm, ip, depth, next_hop);
 }
-VERSION_SYMBOL(rte_lpm6_add, _v20, 2.0);
 
 
 /*
@@ -913,7 +912,7 @@ rte_lpm6_add_v1705(struct rte_lpm6 *lpm, uint8_t *ip, uint8_t depth,
 
 	return status;
 }
-BIND_DEFAULT_SYMBOL(rte_lpm6_add, _v1705, 17.05);
+BIND_DEFAULT_SYMBOL(rte_lpm6_add, _v1705, 20.0);
 MAP_STATIC_SYMBOL(int rte_lpm6_add(struct rte_lpm6 *lpm, uint8_t *ip,
 				uint8_t depth, uint32_t next_hop),
 		rte_lpm6_add_v1705);
@@ -970,7 +969,6 @@ rte_lpm6_lookup_v20(const struct rte_lpm6 *lpm, uint8_t *ip, uint8_t *next_hop)
 
 	return status;
 }
-VERSION_SYMBOL(rte_lpm6_lookup, _v20, 2.0);
 
 int
 rte_lpm6_lookup_v1705(const struct rte_lpm6 *lpm, uint8_t *ip,
@@ -1000,7 +998,7 @@ rte_lpm6_lookup_v1705(const struct rte_lpm6 *lpm, uint8_t *ip,
 
 	return status;
 }
-BIND_DEFAULT_SYMBOL(rte_lpm6_lookup, _v1705, 17.05);
+BIND_DEFAULT_SYMBOL(rte_lpm6_lookup, _v1705, 20.0);
 MAP_STATIC_SYMBOL(int rte_lpm6_lookup(const struct rte_lpm6 *lpm, uint8_t *ip,
 				uint32_t *next_hop), rte_lpm6_lookup_v1705);
 
@@ -1046,7 +1044,6 @@ rte_lpm6_lookup_bulk_func_v20(const struct rte_lpm6 *lpm,
 
 	return 0;
 }
-VERSION_SYMBOL(rte_lpm6_lookup_bulk_func, _v20, 2.0);
 
 int
 rte_lpm6_lookup_bulk_func_v1705(const struct rte_lpm6 *lpm,
@@ -1089,7 +1086,7 @@ rte_lpm6_lookup_bulk_func_v1705(const struct rte_lpm6 *lpm,
 
 	return 0;
 }
-BIND_DEFAULT_SYMBOL(rte_lpm6_lookup_bulk_func, _v1705, 17.05);
+BIND_DEFAULT_SYMBOL(rte_lpm6_lookup_bulk_func, _v1705, 20.0);
 MAP_STATIC_SYMBOL(int rte_lpm6_lookup_bulk_func(const struct rte_lpm6 *lpm,
 				uint8_t ips[][RTE_LPM6_IPV6_ADDR_SIZE],
 				int32_t *next_hops, unsigned int n),
@@ -1116,7 +1113,6 @@ rte_lpm6_is_rule_present_v20(struct rte_lpm6 *lpm, uint8_t *ip, uint8_t depth,
 	return status;
 
 }
-VERSION_SYMBOL(rte_lpm6_is_rule_present, _v20, 2.0);
 
 int
 rte_lpm6_is_rule_present_v1705(struct rte_lpm6 *lpm, uint8_t *ip, uint8_t depth,
@@ -1135,7 +1131,7 @@ rte_lpm6_is_rule_present_v1705(struct rte_lpm6 *lpm, uint8_t *ip, uint8_t depth,
 
 	return rule_find(lpm, masked_ip, depth, next_hop);
 }
-BIND_DEFAULT_SYMBOL(rte_lpm6_is_rule_present, _v1705, 17.05);
+BIND_DEFAULT_SYMBOL(rte_lpm6_is_rule_present, _v1705, 20.0);
 MAP_STATIC_SYMBOL(int rte_lpm6_is_rule_present(struct rte_lpm6 *lpm,
 				uint8_t *ip, uint8_t depth, uint32_t *next_hop),
 		rte_lpm6_is_rule_present_v1705);

@@ -1,4 +1,4 @@
-DPDK_17.11 {
+DPDK_20.0 {
 	global:
 
 	rte_member_add;
@@ -11,6 +11,6 @@ DPDK_17.11 {
 	rte_member_lookup_multi;
 	rte_member_lookup_multi_bulk;
 	rte_member_reset;
-
 	local: *;
 };
+

@@ -11,6 +11,5 @@ EXPERIMENTAL {
 	rte_bpf_exec_burst;
 	rte_bpf_get_jit;
 	rte_bpf_load;
-
 	local: *;
 };

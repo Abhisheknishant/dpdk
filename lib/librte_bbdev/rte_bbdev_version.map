@@ -36,6 +36,5 @@ EXPERIMENTAL {
 	rte_bbdev_stats_get;
 	rte_bbdev_stats_reset;
 	rte_bbdev_stop;
-
 	local: *;
 };
