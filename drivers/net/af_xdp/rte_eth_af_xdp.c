@@ -286,19 +286,16 @@ kick_tx(struct pkt_tx_queue *txq)
 {
 	struct xsk_umem_info *umem = txq->pair->umem;
 
-#if defined(XDP_USE_NEED_WAKEUP)
-	if (xsk_ring_prod__needs_wakeup(&txq->tx))
-#endif
-		while (send(xsk_socket__fd(txq->pair->xsk), NULL,
-			    0, MSG_DONTWAIT) < 0) {
-			/* some thing unexpected */
-			if (errno != EBUSY && errno != EAGAIN && errno != EINTR)
-				break;
+	while (send(xsk_socket__fd(txq->pair->xsk), NULL,
+		    0, MSG_DONTWAIT) < 0) {
+		/* some thing unexpected */
+		if (errno != EBUSY && errno != EAGAIN && errno != EINTR)
+			break;
 
-			/* pull from completion queue to leave more space */
-			if (errno == EAGAIN)
-				pull_umem_cq(umem, ETH_AF_XDP_TX_BATCH_SIZE);
-		}
+		/* pull from completion queue to leave more space */
+		if (errno == EAGAIN)
+			pull_umem_cq(umem, ETH_AF_XDP_TX_BATCH_SIZE);
+	}
 	pull_umem_cq(umem, ETH_AF_XDP_TX_BATCH_SIZE);
 }
 
@@ -367,7 +364,10 @@ eth_af_xdp_tx(void *queue, struct rte_mbuf **bufs, uint16_t nb_pkts)
 
 	xsk_ring_prod__submit(&txq->tx, nb_pkts);
 
-	kick_tx(txq);
+#if defined(XDP_USE_NEED_WAKEUP)
+	if (xsk_ring_prod__needs_wakeup(&txq->tx))
+#endif
+		kick_tx(txq);
 
 	txq->stats.tx_pkts += nb_pkts;
 	txq->stats.tx_bytes += tx_bytes;
