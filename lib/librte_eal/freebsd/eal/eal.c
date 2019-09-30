@@ -961,6 +961,11 @@ int rte_eal_has_pci(void)
 	return !internal_config.no_pci;
 }
 
+int rte_eal_manual_probe(void)
+{
+	return internal_config.manual_probe;
+}
+
 int rte_eal_create_uio_dev(void)
 {
 	return internal_config.create_uio_dev;
