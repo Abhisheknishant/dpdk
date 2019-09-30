@@ -15,10 +15,10 @@
 #include <rte_pause.h>
 #include <rte_tailq.h>
 
-#include "rte_distributor_v20.h"
+#include "rte_distributor_single.h"
 #include "rte_distributor_private.h"
 
-TAILQ_HEAD(rte_distributor_list, rte_distributor_v20);
+TAILQ_HEAD(rte_distributor_list, rte_distributor_single);
 
 static struct rte_tailq_elem rte_distributor_tailq = {
 	.name = "RTE_DISTRIBUTOR",
@@ -28,10 +28,10 @@ EAL_REGISTER_TAILQ(rte_distributor_tailq)
 /**** APIs called by workers ****/
 
 void
-rte_distributor_request_pkt_v20(struct rte_distributor_v20 *d,
+rte_distributor_request_pkt_single(struct rte_distributor_single *d,
 		unsigned worker_id, struct rte_mbuf *oldpkt)
 {
-	union rte_distributor_buffer_v20 *buf = &d->bufs[worker_id];
+	union rte_distributor_buffer_single *buf = &d->bufs[worker_id];
 	int64_t req = (((int64_t)(uintptr_t)oldpkt) << RTE_DISTRIB_FLAG_BITS)
 			| RTE_DISTRIB_GET_BUF;
 	while (unlikely(buf->bufptr64 & RTE_DISTRIB_FLAGS_MASK))
@@ -40,10 +40,10 @@ rte_distributor_request_pkt_v20(struct rte_distributor_v20 *d,
 }
 
 struct rte_mbuf *
-rte_distributor_poll_pkt_v20(struct rte_distributor_v20 *d,
+rte_distributor_poll_pkt_single(struct rte_distributor_single *d,
 		unsigned worker_id)
 {
-	union rte_distributor_buffer_v20 *buf = &d->bufs[worker_id];
+	union rte_distributor_buffer_single *buf = &d->bufs[worker_id];
 	if (buf->bufptr64 & RTE_DISTRIB_GET_BUF)
 		return NULL;
 
@@ -53,21 +53,21 @@ rte_distributor_poll_pkt_v20(struct rte_distributor_v20 *d,
 }
 
 struct rte_mbuf *
-rte_distributor_get_pkt_v20(struct rte_distributor_v20 *d,
+rte_distributor_get_pkt_single(struct rte_distributor_single *d,
 		unsigned worker_id, struct rte_mbuf *oldpkt)
 {
 	struct rte_mbuf *ret;
-	rte_distributor_request_pkt_v20(d, worker_id, oldpkt);
-	while ((ret = rte_distributor_poll_pkt_v20(d, worker_id)) == NULL)
+	rte_distributor_request_pkt_single(d, worker_id, oldpkt);
+	while ((ret = rte_distributor_poll_pkt_single(d, worker_id)) == NULL)
 		rte_pause();
 	return ret;
 }
 
 int
-rte_distributor_return_pkt_v20(struct rte_distributor_v20 *d,
+rte_distributor_return_pkt_single(struct rte_distributor_single *d,
 		unsigned worker_id, struct rte_mbuf *oldpkt)
 {
-	union rte_distributor_buffer_v20 *buf = &d->bufs[worker_id];
+	union rte_distributor_buffer_single *buf = &d->bufs[worker_id];
 	uint64_t req = (((int64_t)(uintptr_t)oldpkt) << RTE_DISTRIB_FLAG_BITS)
 			| RTE_DISTRIB_RETURN_BUF;
 	buf->bufptr64 = req;
@@ -98,7 +98,7 @@ backlog_pop(struct rte_distributor_backlog *bl)
 
 /* stores a packet returned from a worker inside the returns array */
 static inline void
-store_return(uintptr_t oldbuf, struct rte_distributor_v20 *d,
+store_return(uintptr_t oldbuf, struct rte_distributor_single *d,
 		unsigned *ret_start, unsigned *ret_count)
 {
 	/* store returns in a circular buffer - code is branch-free */
@@ -109,7 +109,7 @@ store_return(uintptr_t oldbuf, struct rte_distributor_v20 *d,
 }
 
 static inline void
-handle_worker_shutdown(struct rte_distributor_v20 *d, unsigned int wkr)
+handle_worker_shutdown(struct rte_distributor_single *d, unsigned int wkr)
 {
 	d->in_flight_tags[wkr] = 0;
 	d->in_flight_bitmask &= ~(1UL << wkr);
@@ -139,7 +139,7 @@ handle_worker_shutdown(struct rte_distributor_v20 *d, unsigned int wkr)
 		 * Note that the tags were set before first level call
 		 * to rte_distributor_process.
 		 */
-		rte_distributor_process_v20(d, pkts, i);
+		rte_distributor_process_single(d, pkts, i);
 		bl->count = bl->start = 0;
 	}
 }
@@ -149,7 +149,7 @@ handle_worker_shutdown(struct rte_distributor_v20 *d, unsigned int wkr)
  * to do a partial flush.
  */
 static int
-process_returns(struct rte_distributor_v20 *d)
+process_returns(struct rte_distributor_single *d)
 {
 	unsigned wkr;
 	unsigned flushed = 0;
@@ -188,7 +188,7 @@ process_returns(struct rte_distributor_v20 *d)
 
 /* process a set of packets to distribute them to workers */
 int
-rte_distributor_process_v20(struct rte_distributor_v20 *d,
+rte_distributor_process_single(struct rte_distributor_single *d,
 		struct rte_mbuf **mbufs, unsigned num_mbufs)
 {
 	unsigned next_idx = 0;
@@ -292,7 +292,7 @@ rte_distributor_process_v20(struct rte_distributor_v20 *d,
 
 /* return to the caller, packets returned from workers */
 int
-rte_distributor_returned_pkts_v20(struct rte_distributor_v20 *d,
+rte_distributor_returned_pkts_single(struct rte_distributor_single *d,
 		struct rte_mbuf **mbufs, unsigned max_mbufs)
 {
 	struct rte_distributor_returned_pkts *returns = &d->returns;
@@ -314,7 +314,7 @@ rte_distributor_returned_pkts_v20(struct rte_distributor_v20 *d,
  * being worked on or queued up in a backlog.
  */
 static inline unsigned
-total_outstanding(const struct rte_distributor_v20 *d)
+total_outstanding(const struct rte_distributor_single *d)
 {
 	unsigned wkr, total_outstanding;
 
@@ -329,19 +329,19 @@ total_outstanding(const struct rte_distributor_v20 *d)
 /* flush the distributor, so that there are no outstanding packets in flight or
  * queued up. */
 int
-rte_distributor_flush_v20(struct rte_distributor_v20 *d)
+rte_distributor_flush_single(struct rte_distributor_single *d)
 {
 	const unsigned flushed = total_outstanding(d);
 
 	while (total_outstanding(d) > 0)
-		rte_distributor_process_v20(d, NULL, 0);
+		rte_distributor_process_single(d, NULL, 0);
 
 	return flushed;
 }
 
 /* clears the internal returns array in the distributor */
 void
-rte_distributor_clear_returns_v20(struct rte_distributor_v20 *d)
+rte_distributor_clear_returns_single(struct rte_distributor_single *d)
 {
 	d->returns.start = d->returns.count = 0;
 #ifndef __OPTIMIZE__
@@ -350,12 +350,12 @@ rte_distributor_clear_returns_v20(struct rte_distributor_v20 *d)
 }
 
 /* creates a distributor instance */
-struct rte_distributor_v20 *
-rte_distributor_create_v20(const char *name,
+struct rte_distributor_single *
+rte_distributor_create_single(const char *name,
 		unsigned socket_id,
 		unsigned num_workers)
 {
-	struct rte_distributor_v20 *d;
+	struct rte_distributor_single *d;
 	struct rte_distributor_list *distributor_list;
 	char mz_name[RTE_MEMZONE_NAMESIZE];
 	const struct rte_memzone *mz;
