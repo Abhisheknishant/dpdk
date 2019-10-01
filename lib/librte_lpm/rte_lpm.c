@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: BSD-3-Clause
  * Copyright(c) 2010-2014 Intel Corporation
+ * Copyright(c) 2019 Arm Limited
  */
 
 #include <string.h>
@@ -381,6 +382,8 @@ rte_lpm_free_v1604(struct rte_lpm *lpm)
 
 	rte_mcfg_tailq_write_unlock();
 
+	if (lpm->dq)
+		rte_rcu_qsbr_dq_delete(lpm->dq);
 	rte_free(lpm->tbl8);
 	rte_free(lpm->rules_tbl);
 	rte_free(lpm);
@@ -389,6 +392,59 @@ rte_lpm_free_v1604(struct rte_lpm *lpm)
 BIND_DEFAULT_SYMBOL(rte_lpm_free, _v1604, 16.04);
 MAP_STATIC_SYMBOL(void rte_lpm_free(struct rte_lpm *lpm),
 		rte_lpm_free_v1604);
+
+struct __rte_lpm_rcu_dq_entry {
+	uint32_t tbl8_group_index;
+	uint32_t pad;
+};
+
+static void
+__lpm_rcu_qsbr_free_resource(void *p, void *data)
+{
+	struct rte_lpm_tbl_entry zero_tbl8_entry = {0};
+	struct __rte_lpm_rcu_dq_entry *e =
+			(struct __rte_lpm_rcu_dq_entry *)data;
+	struct rte_lpm_tbl_entry *tbl8 = (struct rte_lpm_tbl_entry *)p;
+
+	/* Set tbl8 group invalid */
+	__atomic_store(&tbl8[e->tbl8_group_index], &zero_tbl8_entry,
+		__ATOMIC_RELAXED);
+}
+
+/* Associate QSBR variable with an LPM object.
+ */
+int
+rte_lpm_rcu_qsbr_add(struct rte_lpm *lpm, struct rte_rcu_qsbr *v)
+{
+	char rcu_dq_name[RTE_RCU_QSBR_DQ_NAMESIZE];
+	struct rte_rcu_qsbr_dq_parameters params;
+
+	if ((lpm == NULL) || (v == NULL)) {
+		rte_errno = EINVAL;
+		return 1;
+	}
+
+	if (lpm->dq) {
+		rte_errno = EEXIST;
+		return 1;
+	}
+
+	/* Init QSBR defer queue. */
+	snprintf(rcu_dq_name, sizeof(rcu_dq_name), "LPM_RCU_%s", lpm->name);
+	params.name = rcu_dq_name;
+	params.size = lpm->number_tbl8s;
+	params.esize = sizeof(struct __rte_lpm_rcu_dq_entry);
+	params.f = __lpm_rcu_qsbr_free_resource;
+	params.p = lpm->tbl8;
+	params.v = v;
+	lpm->dq = rte_rcu_qsbr_dq_create(&params);
+	if (lpm->dq == NULL) {
+		RTE_LOG(ERR, LPM, "LPM QS defer queue creation failed\n");
+		return 1;
+	}
+
+	return 0;
+}
 
 /*
  * Adds a rule to the rule table.
@@ -679,14 +735,15 @@ tbl8_alloc_v20(struct rte_lpm_tbl_entry_v20 *tbl8)
 }
 
 static int32_t
-tbl8_alloc_v1604(struct rte_lpm_tbl_entry *tbl8, uint32_t number_tbl8s)
+__tbl8_alloc_v1604(struct rte_lpm *lpm)
 {
 	uint32_t group_idx; /* tbl8 group index. */
 	struct rte_lpm_tbl_entry *tbl8_entry;
 
 	/* Scan through tbl8 to find a free (i.e. INVALID) tbl8 group. */
-	for (group_idx = 0; group_idx < number_tbl8s; group_idx++) {
-		tbl8_entry = &tbl8[group_idx * RTE_LPM_TBL8_GROUP_NUM_ENTRIES];
+	for (group_idx = 0; group_idx < lpm->number_tbl8s; group_idx++) {
+		tbl8_entry = &lpm->tbl8[group_idx *
+					RTE_LPM_TBL8_GROUP_NUM_ENTRIES];
 		/* If a free tbl8 group is found clean it and set as VALID. */
 		if (!tbl8_entry->valid_group) {
 			struct rte_lpm_tbl_entry new_tbl8_entry = {
@@ -712,6 +769,21 @@ tbl8_alloc_v1604(struct rte_lpm_tbl_entry *tbl8, uint32_t number_tbl8s)
 	return -ENOSPC;
 }
 
+static int32_t
+tbl8_alloc_v1604(struct rte_lpm *lpm)
+{
+	int32_t group_idx; /* tbl8 group index. */
+
+	group_idx = __tbl8_alloc_v1604(lpm);
+	if ((group_idx < 0) && (lpm->dq != NULL)) {
+		/* If there are no tbl8 groups try to reclaim some. */
+		if (rte_rcu_qsbr_dq_reclaim(lpm->dq) == 0)
+			group_idx = __tbl8_alloc_v1604(lpm);
+	}
+
+	return group_idx;
+}
+
 static void
 tbl8_free_v20(struct rte_lpm_tbl_entry_v20 *tbl8, uint32_t tbl8_group_start)
 {
@@ -728,13 +800,21 @@ tbl8_free_v20(struct rte_lpm_tbl_entry_v20 *tbl8, uint32_t tbl8_group_start)
 }
 
 static void
-tbl8_free_v1604(struct rte_lpm_tbl_entry *tbl8, uint32_t tbl8_group_start)
+tbl8_free_v1604(struct rte_lpm *lpm, uint32_t tbl8_group_start)
 {
-	/* Set tbl8 group invalid*/
 	struct rte_lpm_tbl_entry zero_tbl8_entry = {0};
+	struct __rte_lpm_rcu_dq_entry e;
 
-	__atomic_store(&tbl8[tbl8_group_start], &zero_tbl8_entry,
-			__ATOMIC_RELAXED);
+	if (lpm->dq != NULL) {
+		e.tbl8_group_index = tbl8_group_start;
+		e.pad = 0;
+		/* Push into QSBR defer queue. */
+		rte_rcu_qsbr_dq_enqueue(lpm->dq, (void *)&e);
+	} else {
+		/* Set tbl8 group invalid*/
+		__atomic_store(&lpm->tbl8[tbl8_group_start], &zero_tbl8_entry,
+				__ATOMIC_RELAXED);
+	}
 }
 
 static __rte_noinline int32_t
@@ -1037,7 +1117,7 @@ add_depth_big_v1604(struct rte_lpm *lpm, uint32_t ip_masked, uint8_t depth,
 
 	if (!lpm->tbl24[tbl24_index].valid) {
 		/* Search for a free tbl8 group. */
-		tbl8_group_index = tbl8_alloc_v1604(lpm->tbl8, lpm->number_tbl8s);
+		tbl8_group_index = tbl8_alloc_v1604(lpm);
 
 		/* Check tbl8 allocation was successful. */
 		if (tbl8_group_index < 0) {
@@ -1083,7 +1163,7 @@ add_depth_big_v1604(struct rte_lpm *lpm, uint32_t ip_masked, uint8_t depth,
 	} /* If valid entry but not extended calculate the index into Table8. */
 	else if (lpm->tbl24[tbl24_index].valid_group == 0) {
 		/* Search for free tbl8 group. */
-		tbl8_group_index = tbl8_alloc_v1604(lpm->tbl8, lpm->number_tbl8s);
+		tbl8_group_index = tbl8_alloc_v1604(lpm);
 
 		if (tbl8_group_index < 0) {
 			return tbl8_group_index;
@@ -1818,7 +1898,7 @@ delete_depth_big_v1604(struct rte_lpm *lpm, uint32_t ip_masked,
 		 */
 		lpm->tbl24[tbl24_index].valid = 0;
 		__atomic_thread_fence(__ATOMIC_RELEASE);
-		tbl8_free_v1604(lpm->tbl8, tbl8_group_start);
+		tbl8_free_v1604(lpm, tbl8_group_start);
 	} else if (tbl8_recycle_index > -1) {
 		/* Update tbl24 entry. */
 		struct rte_lpm_tbl_entry new_tbl24_entry = {
@@ -1834,7 +1914,7 @@ delete_depth_big_v1604(struct rte_lpm *lpm, uint32_t ip_masked,
 		__atomic_store(&lpm->tbl24[tbl24_index], &new_tbl24_entry,
 				__ATOMIC_RELAXED);
 		__atomic_thread_fence(__ATOMIC_RELEASE);
-		tbl8_free_v1604(lpm->tbl8, tbl8_group_start);
+		tbl8_free_v1604(lpm, tbl8_group_start);
 	}
 #undef group_idx
 	return 0;

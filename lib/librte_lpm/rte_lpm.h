@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: BSD-3-Clause
  * Copyright(c) 2010-2014 Intel Corporation
+ * Copyright(c) 2019 Arm Limited
  */
 
 #ifndef _RTE_LPM_H_
@@ -21,6 +22,7 @@
 #include <rte_common.h>
 #include <rte_vect.h>
 #include <rte_compat.h>
+#include <rte_rcu_qsbr.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -186,6 +188,7 @@ struct rte_lpm {
 			__rte_cache_aligned; /**< LPM tbl24 table. */
 	struct rte_lpm_tbl_entry *tbl8; /**< LPM tbl8 table. */
 	struct rte_lpm_rule *rules_tbl; /**< LPM rules. */
+	struct rte_rcu_qsbr_dq *dq;	/**< RCU QSBR defer queue.*/
 };
 
 /**
@@ -247,6 +250,24 @@ void
 rte_lpm_free_v20(struct rte_lpm_v20 *lpm);
 void
 rte_lpm_free_v1604(struct rte_lpm *lpm);
+
+/**
+ * Associate RCU QSBR variable with an LPM object.
+ *
+ * @param lpm
+ *   the lpm object to add RCU QSBR
+ * @param v
+ *   RCU QSBR variable
+ * @return
+ *   On success - 0
+ *   On error - 1 with error code set in rte_errno.
+ *   Possible rte_errno codes are:
+ *   - EINVAL - invalid pointer
+ *   - EEXIST - already added QSBR
+ *   - ENOMEM - memory allocation failure
+ */
+__rte_experimental
+int rte_lpm_rcu_qsbr_add(struct rte_lpm *lpm, struct rte_rcu_qsbr *v);
 
 /**
  * Add a rule to the LPM table.
