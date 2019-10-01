@@ -17,6 +17,7 @@ CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
 
 CFLAGS += -I$(RTE_SDK)/drivers/bus/dpaa/include
+CFLAGS += -I$(RTE_SDK)/drivers/common/dpaax
 CFLAGS += -I$(RTE_SDK)/drivers/crypto/caam_jr
 #sharing the hw flib headers from dpaa2_sec pmd
 CFLAGS += -I$(RTE_SDK)/drivers/crypto/dpaa2_sec/
@@ -37,6 +38,7 @@ SRCS-$(CONFIG_RTE_LIBRTE_PMD_CAAM_JR) += caam_jr_uio.c
 
 LDLIBS += -lrte_eal -lrte_mbuf -lrte_mempool -lrte_ring
 LDLIBS += -lrte_cryptodev
+LDLIBS += -lrte_common_dpaax
 LDLIBS += -lrte_bus_dpaa
 LDLIBS += -lrte_bus_vdev
 

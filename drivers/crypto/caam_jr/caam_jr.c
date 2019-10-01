@@ -27,7 +27,7 @@
 /* RTA header files */
 #include <hw/desc/common.h>
 #include <hw/desc/algo.h>
-#include <of.h>
+#include <dpaa_of.h>
 
 #define CAAM_JR_DBG	0
 #define CRYPTODEV_NAME_CAAM_JR_PMD	crypto_caam_jr
