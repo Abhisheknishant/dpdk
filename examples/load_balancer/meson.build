@@ -7,6 +7,7 @@
 # DPDK instance, use 'make'
 
 deps += 'lpm'
+allow_experimental_apis = true
 sources = files(
 	'config.c', 'init.c', 'main.c', 'runtime.c'
 )
