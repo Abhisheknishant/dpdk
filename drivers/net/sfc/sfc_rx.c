@@ -618,7 +618,8 @@ struct sfc_dp_rx sfc_efx_rx = {
 	},
 	.features		= SFC_DP_RX_FEAT_INTR,
 	.dev_offload_capa	= DEV_RX_OFFLOAD_CHECKSUM,
-	.queue_offload_capa	= DEV_RX_OFFLOAD_SCATTER,
+	.queue_offload_capa	= DEV_RX_OFFLOAD_SCATTER |
+				  DEV_RX_OFFLOAD_RSS_HASH,
 	.qsize_up_rings		= sfc_efx_rx_qsize_up_rings,
 	.qcreate		= sfc_efx_rx_qcreate,
 	.qdestroy		= sfc_efx_rx_qdestroy,
