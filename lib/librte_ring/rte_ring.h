@@ -953,6 +953,36 @@ rte_ring_dequeue_burst(struct rte_ring *r, void **obj_table,
 				r->cons.single, available);
 }
 
+/**
+ * Peek one object from a ring.
+ *
+ * The peek API allows fetching the next available object in the ring
+ * without dequeuing it. This API is not multi-thread safe with respect
+ * to other consumer threads.
+ *
+ * @param r
+ *   A pointer to the ring structure.
+ * @param obj_p
+ *   A pointer to a void * pointer (object) that will be filled.
+ * @return
+ *   - 0: Success, object available
+ *   - -ENOENT: Not enough entries in the ring.
+ */
+__rte_experimental
+static __rte_always_inline int
+rte_ring_peek(struct rte_ring *r, void **obj_p)
+{
+	uint32_t prod_tail = r->prod.tail;
+	uint32_t cons_head = r->cons.head;
+	uint32_t count = (prod_tail - cons_head) & r->mask;
+	unsigned int n = 1;
+	if (count) {
+		DEQUEUE_PTRS(r, &r[1], cons_head, obj_p, n, void *);
+		return 0;
+	}
+	return -ENOENT;
+}
+
 #ifdef __cplusplus
 }
 #endif
