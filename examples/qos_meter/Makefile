@@ -52,6 +52,7 @@ RTE_TARGET ?= $(notdir $(abspath $(dir $(firstword $(wildcard $(RTE_SDK)/*/.conf
 include $(RTE_SDK)/mk/rte.vars.mk
 
 CFLAGS += -O3
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 CFLAGS += $(WERROR_FLAGS)
 
 # workaround for a gcc bug with noreturn attribute

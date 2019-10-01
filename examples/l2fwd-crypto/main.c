@@ -2559,6 +2559,8 @@ initialize_ports(struct l2fwd_crypto_options *options)
 			return -1;
 		}
 
+		rte_eth_dev_set_supported_ptypes(portid, RTE_PTYPE_UNKNOWN,
+						 NULL, 0);
 		/* Start device */
 		retval = rte_eth_dev_start(portid);
 		if (retval < 0) {

@@ -258,6 +258,7 @@ port_init(uint16_t port, struct rte_mempool *mbuf_pool)
 		}
 	}
 
+	rte_eth_dev_set_supported_ptypes(port, RTE_PTYPE_UNKNOWN, NULL, 0);
 	retval  = rte_eth_dev_start(port);
 	if (retval < 0) {
 		printf("port %d start failed\n", port);
