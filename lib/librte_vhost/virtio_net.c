@@ -1291,10 +1291,12 @@ again:
 
 static __rte_noinline uint16_t
 virtio_dev_tx_split(struct virtio_net *dev, struct vhost_virtqueue *vq,
-	struct rte_mempool *mbuf_pool, struct rte_mbuf **pkts, uint16_t count)
+	struct rte_mempool *mbuf_pool, struct rte_mempool *mbuf_pool_large,
+	struct rte_mbuf **pkts, uint16_t count)
 {
 	uint16_t i;
 	uint16_t free_entries;
+	uint16_t mbuf_avail;
 
 	if (unlikely(dev->dequeue_zero_copy)) {
 		struct zcopy_mbuf *zmbuf, *next;
@@ -1340,32 +1342,42 @@ virtio_dev_tx_split(struct virtio_net *dev, struct vhost_virtqueue *vq,
 	VHOST_LOG_DEBUG(VHOST_DATA, "(%d) about to dequeue %u buffers\n",
 			dev->vid, count);
 
+	/* If the large mpool is provided, find the threshold */
+	mbuf_avail = 0;
+	if (mbuf_pool_large)
+		mbuf_avail = rte_pktmbuf_data_room_size(mbuf_pool) - RTE_PKTMBUF_HEADROOM;
+
 	for (i = 0; i < count; i++) {
 		struct buf_vector buf_vec[BUF_VECTOR_MAX];
 		uint16_t head_idx;
-		uint32_t dummy_len;
+		uint32_t buf_len;
 		uint16_t nr_vec = 0;
+		struct rte_mempool *mpool;
 		int err;
 
 		if (unlikely(fill_vec_buf_split(dev, vq,
 						vq->last_avail_idx + i,
 						&nr_vec, buf_vec,
-						&head_idx, &dummy_len,
+						&head_idx, &buf_len,
 						VHOST_ACCESS_RO) < 0))
 			break;
 
 		if (likely(dev->dequeue_zero_copy == 0))
 			update_shadow_used_ring_split(vq, head_idx, 0);
 
-		pkts[i] = rte_pktmbuf_alloc(mbuf_pool);
+		if (mbuf_pool_large && buf_len > mbuf_avail)
+			mpool = mbuf_pool_large;
+		else
+			mpool = mbuf_pool;
+
+		pkts[i] = rte_pktmbuf_alloc(mpool);
 		if (unlikely(pkts[i] == NULL)) {
 			RTE_LOG(ERR, VHOST_DATA,
 				"Failed to allocate memory for mbuf.\n");
 			break;
 		}
 
-		err = copy_desc_to_mbuf(dev, vq, buf_vec, nr_vec, pkts[i],
-				mbuf_pool);
+		err = copy_desc_to_mbuf(dev, vq, buf_vec, nr_vec, pkts[i], mpool);
 		if (unlikely(err)) {
 			rte_pktmbuf_free(pkts[i]);
 			break;
@@ -1411,9 +1423,11 @@ virtio_dev_tx_split(struct virtio_net *dev, struct vhost_virtqueue *vq,
 
 static __rte_noinline uint16_t
 virtio_dev_tx_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
-	struct rte_mempool *mbuf_pool, struct rte_mbuf **pkts, uint16_t count)
+	struct rte_mempool *mbuf_pool, struct rte_mempool *mbuf_pool_large,
+	struct rte_mbuf **pkts, uint16_t count)
 {
 	uint16_t i;
+	uint16_t mbuf_avail;
 
 	if (unlikely(dev->dequeue_zero_copy)) {
 		struct zcopy_mbuf *zmbuf, *next;
@@ -1448,17 +1462,23 @@ virtio_dev_tx_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 	VHOST_LOG_DEBUG(VHOST_DATA, "(%d) about to dequeue %u buffers\n",
 			dev->vid, count);
 
+	/* If the large mpool is provided, find the threshold */
+	mbuf_avail = 0;
+	if (mbuf_pool_large)
+		mbuf_avail = rte_pktmbuf_data_room_size(mbuf_pool) - RTE_PKTMBUF_HEADROOM;
+
 	for (i = 0; i < count; i++) {
 		struct buf_vector buf_vec[BUF_VECTOR_MAX];
 		uint16_t buf_id;
-		uint32_t dummy_len;
+		uint32_t buf_len;
 		uint16_t desc_count, nr_vec = 0;
+		struct rte_mempool *mpool;
 		int err;
 
 		if (unlikely(fill_vec_buf_packed(dev, vq,
 						vq->last_avail_idx, &desc_count,
 						buf_vec, &nr_vec,
-						&buf_id, &dummy_len,
+						&buf_id, &buf_len,
 						VHOST_ACCESS_RO) < 0))
 			break;
 
@@ -1466,15 +1486,19 @@ virtio_dev_tx_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 			update_shadow_used_ring_packed(vq, buf_id, 0,
 					desc_count);
 
-		pkts[i] = rte_pktmbuf_alloc(mbuf_pool);
+		if (mbuf_pool_large && buf_len > mbuf_avail)
+			mpool = mbuf_pool_large;
+		else
+			mpool = mbuf_pool;
+
+		pkts[i] = rte_pktmbuf_alloc(mpool);
 		if (unlikely(pkts[i] == NULL)) {
 			RTE_LOG(ERR, VHOST_DATA,
 				"Failed to allocate memory for mbuf.\n");
 			break;
 		}
 
-		err = copy_desc_to_mbuf(dev, vq, buf_vec, nr_vec, pkts[i],
-				mbuf_pool);
+		err = copy_desc_to_mbuf(dev, vq, buf_vec, nr_vec, pkts[i], mpool);
 		if (unlikely(err)) {
 			rte_pktmbuf_free(pkts[i]);
 			break;
@@ -1526,7 +1550,8 @@ virtio_dev_tx_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 
 uint16_t
 rte_vhost_dequeue_burst(int vid, uint16_t queue_id,
-	struct rte_mempool *mbuf_pool, struct rte_mbuf **pkts, uint16_t count)
+	struct rte_mempool *mbuf_pool, struct rte_mempool *mbuf_pool_large,
+	struct rte_mbuf **pkts, uint16_t count)
 {
 	struct virtio_net *dev;
 	struct rte_mbuf *rarp_mbuf = NULL;
@@ -1598,9 +1623,11 @@ rte_vhost_dequeue_burst(int vid, uint16_t queue_id,
 	}
 
 	if (vq_is_packed(dev))
-		count = virtio_dev_tx_packed(dev, vq, mbuf_pool, pkts, count);
+		count = virtio_dev_tx_packed(dev, vq, mbuf_pool, mbuf_pool_large, pkts,
+                                     count);
 	else
-		count = virtio_dev_tx_split(dev, vq, mbuf_pool, pkts, count);
+		count = virtio_dev_tx_split(dev, vq, mbuf_pool, mbuf_pool_large, pkts,
+                                    count);
 
 out:
 	if (dev->features & (1ULL << VIRTIO_F_IOMMU_PLATFORM))
