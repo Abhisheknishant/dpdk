@@ -270,12 +270,14 @@ otx2_ssogws_enq_fwd_burst(void *port, const struct rte_event ev[],
 #define T(name, f4, f3, f2, f1, f0, sz, flags)				\
 uint16_t __hot								\
 otx2_ssogws_tx_adptr_enq_ ## name(void *port, struct rte_event ev[],	\
-				  uint16_t nb_events)			\
+				  uint16_t nb_events,			\
+				  uint8_t eq_flags)			\
 {									\
 	struct otx2_ssogws *ws = port;					\
 	uint64_t cmd[sz];						\
 									\
 	RTE_SET_USED(nb_events);					\
+	RTE_SET_USED(eq_flags);						\
 	return otx2_ssogws_event_tx(ws, ev, cmd, flags);		\
 }
 SSO_TX_ADPTR_ENQ_FASTPATH_FUNC
@@ -284,12 +286,14 @@ SSO_TX_ADPTR_ENQ_FASTPATH_FUNC
 #define T(name, f4, f3, f2, f1, f0, sz, flags)				\
 uint16_t __hot								\
 otx2_ssogws_tx_adptr_enq_seg_ ## name(void *port, struct rte_event ev[],\
-				      uint16_t nb_events)		\
+				      uint16_t nb_events,		\
+				      uint8_t eq_flags)			\
 {									\
 	struct otx2_ssogws *ws = port;					\
 	uint64_t cmd[(sz) + NIX_TX_MSEG_SG_DWORDS - 2];			\
 									\
 	RTE_SET_USED(nb_events);					\
+	RTE_SET_USED(eq_flags);						\
 	return otx2_ssogws_event_tx(ws, ev, cmd, (flags) |		\
 				    NIX_TX_MULTI_SEG_F);		\
 }

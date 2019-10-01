@@ -181,7 +181,7 @@ void ssows_flush_events(struct ssows *ws, uint8_t queue_id,
 		ssows_handle_event_t fn, void *arg);
 void ssows_reset(struct ssows *ws);
 uint16_t sso_event_tx_adapter_enqueue(void *port,
-		struct rte_event ev[], uint16_t nb_events);
+		struct rte_event ev[], uint16_t nb_events, uint8_t eq_flags);
 int ssovf_info(struct ssovf_info *info);
 void *ssovf_bar(enum ssovf_type, uint8_t id, uint8_t bar);
 int test_eventdev_octeontx(void);

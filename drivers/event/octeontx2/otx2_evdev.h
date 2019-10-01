@@ -333,16 +333,20 @@ SSO_RX_ADPTR_ENQ_FASTPATH_FUNC
 
 #define T(name, f4, f3, f2, f1, f0, sz, flags)				     \
 uint16_t otx2_ssogws_tx_adptr_enq_ ## name(void *port, struct rte_event ev[],\
-					   uint16_t nb_events);		     \
+					   uint16_t nb_events,		     \
+					   uint8_t eq_flags);		     \
 uint16_t otx2_ssogws_tx_adptr_enq_seg_ ## name(void *port,		     \
 					       struct rte_event ev[],	     \
-					       uint16_t nb_events);	     \
+					       uint16_t nb_events,	     \
+					       uint8_t eq_flags);	     \
 uint16_t otx2_ssogws_dual_tx_adptr_enq_ ## name(void *port,		     \
 						struct rte_event ev[],	     \
-						uint16_t nb_events);	     \
+						uint16_t nb_events,	     \
+						uint8_t eq_flags);	     \
 uint16_t otx2_ssogws_dual_tx_adptr_enq_seg_ ## name(void *port,		     \
 						    struct rte_event ev[],   \
-						    uint16_t nb_events);     \
+						    uint16_t nb_events,	     \
+						    uint8_t eq_flags);	     \
 
 SSO_TX_ADPTR_ENQ_FASTPATH_FUNC
 #undef T

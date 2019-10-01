@@ -1324,7 +1324,8 @@ rte_eventdev_find_free_device_index(void)
 static uint16_t
 rte_event_tx_adapter_enqueue(__rte_unused void *port,
 			__rte_unused struct rte_event ev[],
-			__rte_unused uint16_t nb_events)
+			__rte_unused uint16_t nb_events,
+			__rte_unused uint8_t flags)
 {
 	rte_errno = ENOTSUP;
 	return 0;

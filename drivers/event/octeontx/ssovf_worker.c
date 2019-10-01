@@ -264,7 +264,7 @@ ssows_reset(struct ssows *ws)
 
 uint16_t
 sso_event_tx_adapter_enqueue(void *port,
-		struct rte_event ev[], uint16_t nb_events)
+		struct rte_event ev[], uint16_t nb_events, uint8_t eq_flags)
 {
 	uint16_t port_id;
 	uint16_t queue_id;
@@ -275,6 +275,7 @@ sso_event_tx_adapter_enqueue(void *port,
 	octeontx_dq_t *dq;
 
 	RTE_SET_USED(nb_events);
+	RTE_SET_USED(eq_flags);
 	switch (ev->sched_type) {
 	case SSO_SYNC_ORDERED:
 		ssows_swtag_norm(ws, ev->event, SSO_SYNC_ATOMIC);

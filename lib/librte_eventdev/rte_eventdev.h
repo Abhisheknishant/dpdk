@@ -1227,7 +1227,7 @@ typedef uint16_t (*event_dequeue_burst_t)(void *port, struct rte_event ev[],
 /**< @internal Dequeue burst of events from port of a device */
 
 typedef uint16_t (*event_tx_adapter_enqueue)(void *port,
-				struct rte_event ev[], uint16_t nb_events);
+		struct rte_event ev[], uint16_t nb_events, uint8_t flags);
 /**< @internal Enqueue burst of events on port of a device */
 
 #define RTE_EVENTDEV_NAME_MAX_LEN	(64)
