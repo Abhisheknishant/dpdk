@@ -21,6 +21,7 @@
 #include <rte_errno.h>
 
 #include "rte_rcu_qsbr.h"
+#include "rte_rcu_qsbr_pvt.h"
 
 /* Get the memory size of QSBR variable */
 size_t
@@ -263,6 +264,190 @@ rte_rcu_qsbr_dump(FILE *f, struct rte_rcu_qsbr *v)
 			bmap &= ~(1UL << t);
 		}
 	}
+
+	return 0;
+}
+
+/* Create a queue used to store the data structure elements that can
+ * be freed later. This queue is referred to as 'defer queue'.
+ */
+struct rte_rcu_qsbr_dq *
+rte_rcu_qsbr_dq_create(const struct rte_rcu_qsbr_dq_parameters *params)
+{
+	struct rte_rcu_qsbr_dq *dq;
+	uint32_t qs_fifo_size;
+
+	if (params == NULL || params->f == NULL ||
+		params->v == NULL || params->name == NULL ||
+		params->size == 0 || params->esize == 0 ||
+		(params->esize % 8 != 0)) {
+		rte_log(RTE_LOG_ERR, rte_rcu_log_type,
+			"%s(): Invalid input parameter\n", __func__);
+		rte_errno = EINVAL;
+
+		return NULL;
+	}
+
+	dq = rte_zmalloc(NULL,
+		(sizeof(struct rte_rcu_qsbr_dq) + params->esize),
+		RTE_CACHE_LINE_SIZE);
+	if (dq == NULL) {
+		rte_errno = ENOMEM;
+
+		return NULL;
+	}
+
+	/* round up qs_fifo_size to next power of two that is not less than
+	 * max_size.
+	 */
+	qs_fifo_size = rte_align32pow2((((params->esize/8) + 1)
+					* params->size) + 1);
+	dq->r = rte_ring_create(params->name, qs_fifo_size,
+					SOCKET_ID_ANY, 0);
+	if (dq->r == NULL) {
+		rte_log(RTE_LOG_ERR, rte_rcu_log_type,
+			"%s(): defer queue create failed\n", __func__);
+		rte_free(dq);
+		return NULL;
+	}
+
+	dq->v = params->v;
+	dq->size = params->size;
+	dq->esize = params->esize;
+	dq->f = params->f;
+	dq->p = params->p;
+
+	return dq;
+}
+
+/* Enqueue one resource to the defer queue to free after the grace
+ * period is over.
+ */
+int rte_rcu_qsbr_dq_enqueue(struct rte_rcu_qsbr_dq *dq, void *e)
+{
+	uint64_t token;
+	uint64_t *tmp;
+	uint32_t i;
+	uint32_t cur_size, free_size;
+
+	if (dq == NULL || e == NULL) {
+		rte_log(RTE_LOG_ERR, rte_rcu_log_type,
+			"%s(): Invalid input parameter\n", __func__);
+		rte_errno = EINVAL;
+
+		return 1;
+	}
+
+	/* Start the grace period */
+	token = rte_rcu_qsbr_start(dq->v);
+
+	/* Reclaim resources if the queue is 1/8th full. This helps
+	 * the queue from growing too large and allows time for reader
+	 * threads to report their quiescent state.
+	 */
+	cur_size = rte_ring_count(dq->r) / (dq->esize/8 + 1);
+	if (cur_size > (dq->size >> RTE_RCU_QSBR_AUTO_RECLAIM_LIMIT)) {
+		rte_log(RTE_LOG_INFO, rte_rcu_log_type,
+			"%s(): Triggering reclamation\n", __func__);
+		rte_rcu_qsbr_dq_reclaim(dq);
+	}
+
+	/* Check if there is space for atleast for 1 resource */
+	free_size = rte_ring_free_count(dq->r) / (dq->esize/8 + 1);
+	if (!free_size) {
+		rte_log(RTE_LOG_ERR, rte_rcu_log_type,
+			"%s(): Defer queue is full\n", __func__);
+		rte_errno = ENOSPC;
+		return 1;
+	}
+
+	/* Enqueue the resource */
+	rte_ring_sp_enqueue(dq->r, (void *)(uintptr_t)token);
+
+	/* The resource to enqueue needs to be a multiple of 64b
+	 * due to the limitation of the rte_ring implementation.
+	 */
+	for (i = 0, tmp = (uint64_t *)e; i < dq->esize/8; i++, tmp++)
+		rte_ring_sp_enqueue(dq->r, (void *)(uintptr_t)*tmp);
+
+	return 0;
+}
+
+/* Reclaim resources from the defer queue. */
+int
+rte_rcu_qsbr_dq_reclaim(struct rte_rcu_qsbr_dq *dq)
+{
+	uint32_t max_cnt;
+	uint32_t cnt;
+	void *token;
+	uint64_t *tmp;
+	uint32_t i;
+
+	if (dq == NULL) {
+		rte_log(RTE_LOG_ERR, rte_rcu_log_type,
+			"%s(): Invalid input parameter\n", __func__);
+		rte_errno = EINVAL;
+
+		return 1;
+	}
+
+	/* Anything to reclaim? */
+	if (rte_ring_count(dq->r) == 0)
+		return 0;
+
+	/* Reclaim at the max 1/16th the total number of entries. */
+	max_cnt = dq->size >> RTE_RCU_QSBR_MAX_RECLAIM_LIMIT;
+	max_cnt = (max_cnt == 0) ? dq->size : max_cnt;
+	cnt = 0;
+
+	/* Check reader threads quiescent state and reclaim resources */
+	while ((cnt < max_cnt) && (rte_ring_peek(dq->r, &token) == 0) &&
+		(rte_rcu_qsbr_check(dq->v, (uint64_t)((uintptr_t)token), false)
+			== 1)) {
+		(void)rte_ring_sc_dequeue(dq->r, &token);
+		/* The resource to dequeue needs to be a multiple of 64b
+		 * due to the limitation of the rte_ring implementation.
+		 */
+		for (i = 0, tmp = (uint64_t *)dq->e; i < dq->esize/8;
+			i++, tmp++)
+			(void)rte_ring_sc_dequeue(dq->r,
+					(void *)(uintptr_t)tmp);
+		dq->f(dq->p, dq->e);
+
+		cnt++;
+	}
+
+	rte_log(RTE_LOG_INFO, rte_rcu_log_type,
+		"%s(): Reclaimed %u resources\n", __func__, cnt);
+
+	if (cnt == 0) {
+		/* No resources were reclaimed */
+		rte_errno = EAGAIN;
+		return 1;
+	}
+
+	return 0;
+}
+
+/* Delete a defer queue. */
+int
+rte_rcu_qsbr_dq_delete(struct rte_rcu_qsbr_dq *dq)
+{
+	if (dq == NULL) {
+		rte_log(RTE_LOG_ERR, rte_rcu_log_type,
+			"%s(): Invalid input parameter\n", __func__);
+		rte_errno = EINVAL;
+
+		return 1;
+	}
+
+	/* Reclaim all the resources */
+	if (rte_rcu_qsbr_dq_reclaim(dq) != 0)
+		/* Error number is already set by the reclaim API */
+		return 1;
+
+	rte_ring_free(dq->r);
+	rte_free(dq);
 
 	return 0;
 }
