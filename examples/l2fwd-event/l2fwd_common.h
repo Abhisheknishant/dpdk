@@ -114,7 +114,9 @@ l2fwd_get_rsrc(void)
 
 		memset(l2fwd_rsrc, 0, sizeof(struct l2fwd_resources));
 		l2fwd_rsrc->mac_updating = true;
+		l2fwd_rsrc->event_mode = true;
 		l2fwd_rsrc->rx_queue_per_lcore = 1;
+		l2fwd_rsrc->sched_type = RTE_SCHED_TYPE_ATOMIC;
 		l2fwd_rsrc->timer_period = 10 * rte_get_timer_hz();
 
 		return mz->addr;
