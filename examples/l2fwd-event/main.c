@@ -2,6 +2,7 @@
  * Copyright(C) 2019 Marvell International Ltd.
  */
 
+#include "l2fwd_event.h"
 #include "l2fwd_poll.h"
 
 /* display usage */
@@ -16,7 +17,12 @@ l2fwd_event_usage(const char *prgname)
 	       "  --[no-]mac-updating: Enable or disable MAC addresses updating (enabled by default)\n"
 	       "      When enabled:\n"
 	       "       - The source MAC address is replaced by the TX port MAC address\n"
-	       "       - The destination MAC address is replaced by 02:00:00:00:00:TX_PORT_ID\n",
+	       "       - The destination MAC address is replaced by 02:00:00:00:00:TX_PORT_ID\n"
+	       "  --mode: Packet transfer mode for I/O, poll or eventdev\n"
+	       "          Default mode = eventdev\n"
+	       "  --eventq-sched: Event queue schedule type, ordered or atomic.\n"
+	       "                  Default: atomic\n"
+	       "                  Valid only if --mode=eventdev\n\n",
 	       prgname);
 }
 
@@ -71,6 +77,26 @@ l2fwd_event_parse_timer_period(const char *q_arg)
 	return n;
 }
 
+static void
+l2fwd_event_parse_mode(const char *optarg,
+		       struct l2fwd_resources *l2fwd_rsrc)
+{
+	if (!strncmp(optarg, "poll", 4))
+		l2fwd_rsrc->event_mode = false;
+	else if (!strncmp(optarg, "eventdev", 8))
+		l2fwd_rsrc->event_mode = true;
+}
+
+static void
+l2fwd_event_parse_eventq_sched(const char *optarg,
+			       struct l2fwd_resources *l2fwd_rsrc)
+{
+	if (!strncmp(optarg, "ordered", 7))
+		l2fwd_rsrc->sched_type = RTE_SCHED_TYPE_ORDERED;
+	else if (!strncmp(optarg, "atomic", 6))
+		l2fwd_rsrc->sched_type = RTE_SCHED_TYPE_ATOMIC;
+}
+
 static const char short_options[] =
 	"p:"  /* portmask */
 	"q:"  /* number of queues */
@@ -79,6 +105,8 @@ static const char short_options[] =
 
 #define CMD_LINE_OPT_MAC_UPDATING "mac-updating"
 #define CMD_LINE_OPT_NO_MAC_UPDATING "no-mac-updating"
+#define CMD_LINE_OPT_MODE "mode"
+#define CMD_LINE_OPT_EVENTQ_SCHED "eventq-sched"
 
 enum {
 	/* long options mapped to a short option */
@@ -87,6 +115,8 @@ enum {
 	 * conflict with short options
 	 */
 	CMD_LINE_OPT_MIN_NUM = 256,
+	CMD_LINE_OPT_MODE_NUM,
+	CMD_LINE_OPT_EVENTQ_SCHED_NUM,
 };
 
 /* Parse the argument given in the command line of the application */
@@ -98,6 +128,10 @@ l2fwd_event_parse_args(int argc, char **argv,
 	struct option lgopts[] = {
 		{ CMD_LINE_OPT_MAC_UPDATING, no_argument, &mac_updating, 1},
 		{ CMD_LINE_OPT_NO_MAC_UPDATING, no_argument, &mac_updating, 0},
+		{ CMD_LINE_OPT_MODE, required_argument, NULL,
+							CMD_LINE_OPT_MODE_NUM},
+		{ CMD_LINE_OPT_EVENTQ_SCHED, required_argument, NULL,
+						CMD_LINE_OPT_EVENTQ_SCHED_NUM},
 		{NULL, 0, 0, 0}
 	};
 	int opt, ret, timer_secs;
@@ -143,6 +177,14 @@ l2fwd_event_parse_args(int argc, char **argv,
 			l2fwd_rsrc->timer_period = timer_secs;
 			/* convert to number of cycles */
 			l2fwd_rsrc->timer_period *= rte_get_timer_hz();
+			break;
+
+		case CMD_LINE_OPT_MODE_NUM:
+			l2fwd_event_parse_mode(optarg, l2fwd_rsrc);
+			break;
+
+		case CMD_LINE_OPT_EVENTQ_SCHED_NUM:
+			l2fwd_event_parse_eventq_sched(optarg, l2fwd_rsrc);
 			break;
 
 		/* long options */
@@ -332,7 +374,11 @@ main(int argc, char **argv)
 			"All available ports are disabled. Please set portmask.\n");
 	}
 
-	l2fwd_poll_resource_setup(l2fwd_rsrc);
+	/* Configure eventdev parameters if required */
+	if (l2fwd_rsrc->event_mode)
+		l2fwd_event_resource_setup(l2fwd_rsrc);
+	else
+		l2fwd_poll_resource_setup(l2fwd_rsrc);
 
 	/* initialize port stats */
 	memset(&l2fwd_rsrc->port_stats, 0,
