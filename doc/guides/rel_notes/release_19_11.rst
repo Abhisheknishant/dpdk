@@ -56,6 +56,12 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Added new example l2fwd-event**
+
+  Added an example application `l2fwd-event` that adds event device support to
+  traditional  l2fwd example. The default poll mode is also preserved for
+  readability.
+
 
 Removed Items
 -------------
