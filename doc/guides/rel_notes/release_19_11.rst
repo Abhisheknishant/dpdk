@@ -110,6 +110,8 @@ ABI Changes
    Also, make sure to start the actual text at the margin.
    =========================================================
 
+* eal: The ``lcore_config`` struct and global symbol are now private.
+
 
 Shared Library Versions
 -----------------------
