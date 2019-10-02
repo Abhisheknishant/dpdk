@@ -45,6 +45,7 @@ void
 l2fwd_event_resource_setup(struct l2fwd_resources *l2fwd_rsrc)
 {
 	struct l2fwd_event_resources *event_rsrc;
+	uint32_t event_queue_cfg;
 
 	if (!rte_event_dev_count())
 		rte_exit(EXIT_FAILURE, "No Eventdev found\n");
@@ -60,5 +61,11 @@ l2fwd_event_resource_setup(struct l2fwd_resources *l2fwd_rsrc)
 	l2fwd_event_capability_setup(event_rsrc);
 
 	/* Event device configuration */
-	event_rsrc->ops.event_device_setup(l2fwd_rsrc);
+	event_queue_cfg = event_rsrc->ops.event_device_setup(l2fwd_rsrc);
+
+	/* Event queue configuration */
+	event_rsrc->ops.event_queue_setup(l2fwd_rsrc, event_queue_cfg);
+
+	/* Event port configuration */
+	event_rsrc->ops.event_port_setup(l2fwd_rsrc);
 }
