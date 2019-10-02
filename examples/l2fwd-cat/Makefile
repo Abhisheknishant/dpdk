@@ -66,6 +66,7 @@ endif
 EXTRA_CFLAGS += -O3 -g -Wfatal-errors
 
 CFLAGS += -I$(PQOS_INSTALL_PATH)/../include
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 
 LDLIBS += -L$(PQOS_INSTALL_PATH)
 LDLIBS += -lpqos
