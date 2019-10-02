@@ -160,7 +160,6 @@ TAILQ_HEAD(otx2_flow_list, rte_flow);
 
 /* Accessed from ethdev private - otx2_eth_dev */
 struct otx2_npc_flow_info {
-	rte_atomic32_t mark_actions;
 	uint32_t keyx_supp_nmask[NPC_MAX_INTF];/* nibble mask */
 	uint32_t keyx_len[NPC_MAX_INTF];	/* per intf key len in bits */
 	uint32_t datax_len[NPC_MAX_INTF];	/* per intf data len in bits */
