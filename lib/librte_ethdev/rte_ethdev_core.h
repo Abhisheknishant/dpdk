@@ -110,6 +110,16 @@ typedef void (*eth_dev_infos_get_t)(struct rte_eth_dev *dev,
 typedef const uint32_t *(*eth_dev_supported_ptypes_get_t)(struct rte_eth_dev *dev);
 /**< @internal Get supported ptypes of an Ethernet device. */
 
+typedef int (*eth_dev_supported_ptypes_set_t)(struct rte_eth_dev *dev,
+					      uint32_t ptype_mask);
+/**< @internal Inform an Ethernet device about packet types in which the
+ *   recipient is interested.
+ *   Ptype_mask can have any of the following values RTE_PTYPE_UNKNOWN |
+ *   RTE_PTYPE_L2_MASK | RTE_PTYPE_L3_MASK | RTE_PTYPE_L4_MASK |
+ *   RTE_PTYPE_TUNNEL_MASK | RTE_PTYPE_INNER_L2_MASK | RTE_PTYPE_INNER_L3_MASK |
+ *   RTE_PTYPE_INNER_L4_MASK | RTE_PTYPE_ALL_MASK.
+ */
+
 typedef int (*eth_queue_start_t)(struct rte_eth_dev *dev,
 				    uint16_t queue_id);
 /**< @internal Start rx and tx of a queue of an Ethernet device. */
@@ -421,6 +431,8 @@ struct eth_dev_ops {
 	eth_fw_version_get_t       fw_version_get; /**< Get firmware version. */
 	eth_dev_supported_ptypes_get_t dev_supported_ptypes_get;
 	/**< Get packet types supported and identified by device. */
+	eth_dev_supported_ptypes_set_t dev_supported_ptypes_set;
+	/**< Inform Ethernet device about packet types in which the recipient is interested. */
 
 	vlan_filter_set_t          vlan_filter_set; /**< Filter VLAN Setup. */
 	vlan_tpid_set_t            vlan_tpid_set; /**< Outer/Inner VLAN TPID Setup. */
