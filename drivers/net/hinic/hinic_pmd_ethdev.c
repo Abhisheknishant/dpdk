@@ -680,7 +680,8 @@ hinic_dev_infos_get(struct rte_eth_dev *dev, struct rte_eth_dev_info *info)
 	info->rx_offload_capa = DEV_RX_OFFLOAD_VLAN_STRIP |
 				DEV_RX_OFFLOAD_IPV4_CKSUM |
 				DEV_RX_OFFLOAD_UDP_CKSUM |
-				DEV_RX_OFFLOAD_TCP_CKSUM;
+				DEV_RX_OFFLOAD_TCP_CKSUM |
+				DEV_RX_OFFLOAD_RSS_HASH;
 
 	info->tx_queue_offload_capa = 0;
 	info->tx_offload_capa = DEV_TX_OFFLOAD_VLAN_INSERT |
