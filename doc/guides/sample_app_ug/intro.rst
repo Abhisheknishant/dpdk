@@ -31,7 +31,7 @@ applications that are available in the examples directory of DPDK:
  .. table:: **Some of the DPDK Sample applications**
 
     +---------------------------------------+--------------------------------------+
-    | Bonding                               | Netmap Compatibility                 |
+    | Bonding                               |                                      |
     +---------------------------------------+--------------------------------------+
     | Command Line                          | Packet Ordering                      |
     +---------------------------------------+--------------------------------------+
