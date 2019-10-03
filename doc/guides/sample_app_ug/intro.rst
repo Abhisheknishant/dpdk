@@ -31,37 +31,33 @@ applications that are available in the examples directory of DPDK:
  .. table:: **Some of the DPDK Sample applications**
 
     +---------------------------------------+--------------------------------------+
-    | Bonding                               |                                      |
+    | Bonding                               | Packet Ordering                      |
     +---------------------------------------+--------------------------------------+
-    | Command Line                          | Packet Ordering                      |
+    | Command Line                          | Performance Thread                   |
     +---------------------------------------+--------------------------------------+
-    | Distributor                           | Performance Thread                   |
+    | Distributor                           | Precision Time Protocol (PTP) Client |
     +---------------------------------------+--------------------------------------+
-    | Ethtool                               | Precision Time Protocol (PTP) Client |
-    +---------------------------------------+--------------------------------------+
-    |                                       | Quality of Service (QoS) Metering    |
+    | Ethtool                               | Quality of Service (QoS) Metering    |
     +---------------------------------------+--------------------------------------+
     | Hello World                           | QoS Scheduler                        |
     +---------------------------------------+--------------------------------------+
-    | Internet Protocol (IP) Fragmentation  |                                      |
+    | Internet Protocol (IP) Fragmentation  | RX/TX Callbacks                      |
     +---------------------------------------+--------------------------------------+
-    | IP Pipeline                           | RX/TX Callbacks                      |
+    | IP Pipeline                           | Server node EFD                      |
     +---------------------------------------+--------------------------------------+
-    | IP Reassembly                         | Server node EFD                      |
+    | IP Reassembly                         | Basic Forwarding/Skeleton App        |
     +---------------------------------------+--------------------------------------+
-    | IPsec Security Gateway                | Basic Forwarding/Skeleton App        |
+    | IPsec Security Gateway                | Tunnel End Point (TEP) termination   |
     +---------------------------------------+--------------------------------------+
-    | IPv4 multicast                        | Tunnel End Point (TEP) termination   |
+    | IPv4 multicast                        | Timer                                |
     +---------------------------------------+--------------------------------------+
-    | Kernel NIC Interface                  | Timer                                |
+    | Kernel NIC Interface                  | Vhost                                |
     +---------------------------------------+--------------------------------------+
-    | Network Layer 2 Forwarding + variants | Vhost                                |
+    | Network Layer 2 Forwarding + variants | Vhost Xen                            |
     +---------------------------------------+--------------------------------------+
-    | Network Layer 3 Forwarding + variants | Vhost Xen                            |
+    | Network Layer 3 Forwarding + variants | VMDQ Forwarding                      |
     +---------------------------------------+--------------------------------------+
-    | Link Status Interrupt                 | VMDQ Forwarding                      |
-    +---------------------------------------+--------------------------------------+
-    |                                       | VMDQ and DCB Forwarding              |
+    | Link Status Interrupt                 | VMDQ and DCB Forwarding              |
     +---------------------------------------+--------------------------------------+
     | Multi-process                         | VM Power Management                  |
     +---------------------------------------+--------------------------------------+
