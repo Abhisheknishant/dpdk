@@ -39,7 +39,7 @@ applications that are available in the examples directory of DPDK:
     +---------------------------------------+--------------------------------------+
     | Ethtool                               | Precision Time Protocol (PTP) Client |
     +---------------------------------------+--------------------------------------+
-    | Exception Path                        | Quality of Service (QoS) Metering    |
+    |                                       | Quality of Service (QoS) Metering    |
     +---------------------------------------+--------------------------------------+
     | Hello World                           | QoS Scheduler                        |
     +---------------------------------------+--------------------------------------+
