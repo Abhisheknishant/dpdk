@@ -312,6 +312,13 @@ DPDK_19.08 {
 
 } DPDK_19.05;
 
+DPDK_19.11 {
+	global:
+
+	rte_eal_manual_probe;
+
+} DPDK_19.05;
+
 EXPERIMENTAL {
 	global:
 

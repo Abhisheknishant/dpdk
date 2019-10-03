@@ -465,6 +465,23 @@ int rte_eal_has_hugepages(void);
 int rte_eal_has_pci(void);
 
 /**
+ * Whether EAL probe is manual.
+ * Enabled by the --manual-probe option.
+ *
+ * When manual probing is enabled, batched bus probe of
+ * their devices is disabled. All devices need to be probed
+ * using the proper rte_dev API.
+ *
+ * In this mode, devices declared on the command line will
+ * be probed using the bus hotplug API. It is used to enforce
+ * a specific probe order.
+ *
+ * @return
+ *   Nonzero if manual device probing is enabled.
+ */
+int rte_eal_manual_probe(void);
+
+/**
  * Whether the EAL was asked to create UIO device.
  *
  * @return

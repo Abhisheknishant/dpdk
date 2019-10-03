@@ -1376,6 +1376,11 @@ int rte_eal_create_uio_dev(void)
 	return internal_config.create_uio_dev;
 }
 
+int rte_eal_manual_probe(void)
+{
+	return internal_config.manual_probe;
+}
+
 enum rte_intr_mode
 rte_eal_vfio_intr_mode(void)
 {
