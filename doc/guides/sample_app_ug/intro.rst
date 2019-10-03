@@ -43,7 +43,7 @@ applications that are available in the examples directory of DPDK:
     +---------------------------------------+--------------------------------------+
     | Hello World                           | QoS Scheduler                        |
     +---------------------------------------+--------------------------------------+
-    | Internet Protocol (IP) Fragmentation  | Quota and Watermark                  |
+    | Internet Protocol (IP) Fragmentation  |                                      |
     +---------------------------------------+--------------------------------------+
     | IP Pipeline                           | RX/TX Callbacks                      |
     +---------------------------------------+--------------------------------------+
