@@ -61,7 +61,7 @@ applications that are available in the examples directory of DPDK:
     +---------------------------------------+--------------------------------------+
     | Link Status Interrupt                 | VMDQ Forwarding                      |
     +---------------------------------------+--------------------------------------+
-    | Load Balancer                         | VMDQ and DCB Forwarding              |
+    |                                       | VMDQ and DCB Forwarding              |
     +---------------------------------------+--------------------------------------+
     | Multi-process                         | VM Power Management                  |
     +---------------------------------------+--------------------------------------+
