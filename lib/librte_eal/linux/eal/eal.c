@@ -1382,6 +1382,16 @@ rte_eal_vfio_intr_mode(void)
 	return internal_config.vfio_intr_mode;
 }
 
+int rte_eal_manual_probe(void)
+{
+	return internal_config.manual_probe;
+}
+
+void rte_eal_manual_probe_set(int enabled)
+{
+	internal_config.manual_probe = !!enabled;
+}
+
 int
 rte_eal_check_module(const char *module_name)
 {

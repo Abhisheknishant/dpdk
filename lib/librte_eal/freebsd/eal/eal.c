@@ -972,6 +972,16 @@ rte_eal_vfio_intr_mode(void)
 	return RTE_INTR_MODE_NONE;
 }
 
+int rte_eal_manual_probe(void)
+{
+	return internal_config.manual_probe;
+}
+
+void rte_eal_manual_probe_set(int enabled)
+{
+	internal_config.manual_probe = !!enabled;
+}
+
 int rte_vfio_setup_device(__rte_unused const char *sysfs_base,
 		      __rte_unused const char *dev_addr,
 		      __rte_unused int *vfio_dev_fd,
