@@ -1684,6 +1684,19 @@ rte_pktmbuf_attach_extbuf(struct rte_mbuf *m, void *buf_addr,
  */
 #define rte_pktmbuf_detach_extbuf(m) rte_pktmbuf_detach(m)
 
+/* internal */
+static inline void
+__rte_pktmbuf_copy_hdr(struct rte_mbuf *mi, const struct rte_mbuf *m)
+{
+	mi->port = m->port;
+	mi->vlan_tci = m->vlan_tci;
+	mi->vlan_tci_outer = m->vlan_tci_outer;
+	mi->tx_offload = m->tx_offload;
+	mi->hash = m->hash;
+	mi->packet_type = m->packet_type;
+	mi->timestamp = m->timestamp;
+}
+
 /**
  * Attach packet mbuf to another packet mbuf.
  *
@@ -1721,23 +1734,17 @@ static inline void rte_pktmbuf_attach(struct rte_mbuf *mi, struct rte_mbuf *m)
 		mi->ol_flags = m->ol_flags | IND_ATTACHED_MBUF;
 	}
 
+	__rte_pktmbuf_copy_hdr(mi, m);
+
+	mi->data_off = m->data_off;
+	mi->data_len = m->data_len;
 	mi->buf_iova = m->buf_iova;
 	mi->buf_addr = m->buf_addr;
 	mi->buf_len = m->buf_len;
 
-	mi->data_off = m->data_off;
-	mi->data_len = m->data_len;
-	mi->port = m->port;
-	mi->vlan_tci = m->vlan_tci;
-	mi->vlan_tci_outer = m->vlan_tci_outer;
-	mi->tx_offload = m->tx_offload;
-	mi->hash = m->hash;
-
 	mi->next = NULL;
 	mi->pkt_len = mi->data_len;
 	mi->nb_segs = 1;
-	mi->packet_type = m->packet_type;
-	mi->timestamp = m->timestamp;
 
 	__rte_mbuf_sanity_check(mi, 1);
 	__rte_mbuf_sanity_check(m, 0);
@@ -1926,6 +1933,32 @@ static inline void rte_pktmbuf_free(struct rte_mbuf *m)
  */
 struct rte_mbuf *
 rte_pktmbuf_clone(struct rte_mbuf *md, struct rte_mempool *mp);
+
+/**
+ * Creates a full copy of a given packet mbuf.
+ *
+ * Copies all the data from a given packet mbuf to a newly allocated
+ * set of mbufs.
+ *
+ * @param m
+ *   The packet mbuf to be cloned.
+ * @param mp
+ *   The mempool from which the "clone" mbufs are allocated.
+ * @param offset
+ *   The number of bytes to skip before copying.
+ *   If the mbuf does not have that many bytes, it is an error
+ *   and NULL is returned.
+ * @param length
+ *   The upper limit on bytes to copy.  Passing UINT32_MAX
+ *   means all data (after offset).
+ * @return
+ *   - The pointer to the new "clone" mbuf on success.
+ *   - NULL if allocation fails.
+ */
+__rte_experimental
+struct rte_mbuf *
+rte_pktmbuf_copy(const struct rte_mbuf *m, struct rte_mempool *mp,
+		 uint32_t offset, uint32_t length);
 
 /**
  * Adds given value to the refcnt of all packet mbuf segments.
