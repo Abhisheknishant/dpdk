@@ -126,12 +126,24 @@ typedef int (*eth_rx_queue_setup_t)(struct rte_eth_dev *dev,
 				    struct rte_mempool *mb_pool);
 /**< @internal Set up a receive queue of an Ethernet device. */
 
+typedef int (*eth_rx_hairpin_queue_setup_t)
+	(struct rte_eth_dev *dev, uint16_t rx_queue_id,
+	 uint16_t nb_rx_desc,
+	 const struct rte_eth_hairpin_conf *conf);
+/**< @internal Set up a receive hairpin queue of an Ethernet device. */
+
 typedef int (*eth_tx_queue_setup_t)(struct rte_eth_dev *dev,
 				    uint16_t tx_queue_id,
 				    uint16_t nb_tx_desc,
 				    unsigned int socket_id,
 				    const struct rte_eth_txconf *tx_conf);
 /**< @internal Setup a transmit queue of an Ethernet device. */
+
+typedef int (*eth_tx_hairpin_queue_setup_t)
+	(struct rte_eth_dev *dev, uint16_t tx_queue_id,
+	 uint16_t nb_tx_desc,
+	 const struct rte_eth_hairpin_conf *hairpin_conf);
+/**< @internal Setup a transmit hairpin queue of an Ethernet device. */
 
 typedef int (*eth_rx_enable_intr_t)(struct rte_eth_dev *dev,
 				    uint16_t rx_queue_id);
@@ -381,6 +393,10 @@ typedef int (*eth_pool_ops_supported_t)(struct rte_eth_dev *dev,
 						const char *pool);
 /**< @internal Test if a port supports specific mempool ops */
 
+typedef int (*eth_hairpin_cap_get_t)(struct rte_eth_dev *dev,
+				     struct rte_eth_hairpin_cap *cap);
+/**< @internal get the hairpin capabilities. */
+
 /**
  * @internal A structure containing the functions exported by an Ethernet driver.
  */
@@ -433,6 +449,8 @@ struct eth_dev_ops {
 	eth_queue_start_t          tx_queue_start;/**< Start TX for a queue. */
 	eth_queue_stop_t           tx_queue_stop; /**< Stop TX for a queue. */
 	eth_rx_queue_setup_t       rx_queue_setup;/**< Set up device RX queue. */
+	eth_rx_hairpin_queue_setup_t rx_hairpin_queue_setup;
+	/**< Set up device RX hairpin queue. */
 	eth_queue_release_t        rx_queue_release; /**< Release RX queue. */
 	eth_rx_queue_count_t       rx_queue_count;
 	/**< Get the number of used RX descriptors. */
@@ -444,6 +462,8 @@ struct eth_dev_ops {
 	eth_rx_enable_intr_t       rx_queue_intr_enable;  /**< Enable Rx queue interrupt. */
 	eth_rx_disable_intr_t      rx_queue_intr_disable; /**< Disable Rx queue interrupt. */
 	eth_tx_queue_setup_t       tx_queue_setup;/**< Set up device TX queue. */
+	eth_tx_hairpin_queue_setup_t tx_hairpin_queue_setup;
+	/**< Set up device TX hairpin queue. */
 	eth_queue_release_t        tx_queue_release; /**< Release TX queue. */
 	eth_tx_done_cleanup_t      tx_done_cleanup;/**< Free tx ring mbufs */
 
@@ -515,6 +535,9 @@ struct eth_dev_ops {
 
 	eth_pool_ops_supported_t pool_ops_supported;
 	/**< Test if a port supports specific mempool ops */
+
+	eth_hairpin_cap_get_t hairpin_cap_get;
+	/**< Returns the hairpin capabilities. */
 };
 
 /**
@@ -622,9 +645,9 @@ struct rte_eth_dev_data {
 		dev_started : 1,   /**< Device state: STARTED(1) / STOPPED(0). */
 		lro         : 1;   /**< RX LRO is ON(1) / OFF(0) */
 	uint8_t rx_queue_state[RTE_MAX_QUEUES_PER_PORT];
-			/**< Queues state: STARTED(1) / STOPPED(0). */
+		/**< Queues state: HAIRPIN(2) / STARTED(1) / STOPPED(0). */
 	uint8_t tx_queue_state[RTE_MAX_QUEUES_PER_PORT];
-			/**< Queues state: STARTED(1) / STOPPED(0). */
+		/**< Queues state: HAIRPIN(2) STARTED(1) / STOPPED(0). */
 	uint32_t dev_flags;             /**< Capabilities. */
 	enum rte_kernel_driver kdrv;    /**< Kernel driver passthrough. */
 	int numa_node;                  /**< NUMA node connection. */

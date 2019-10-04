@@ -1689,8 +1689,98 @@ rte_eth_rx_queue_setup(uint16_t port_id, uint16_t rx_queue_id,
 		if (!dev->data->min_rx_buf_size ||
 		    dev->data->min_rx_buf_size > mbp_buf_size)
 			dev->data->min_rx_buf_size = mbp_buf_size;
+		if (dev->data->rx_queue_state[rx_queue_id] ==
+		    RTE_ETH_QUEUE_STATE_HAIRPIN)
+			dev->data->rx_queue_state[rx_queue_id] =
+				RTE_ETH_QUEUE_STATE_STOPPED;
 	}
 
+	return eth_err(port_id, ret);
+}
+
+int
+rte_eth_rx_hairpin_queue_setup(uint16_t port_id, uint16_t rx_queue_id,
+			       uint16_t nb_rx_desc,
+			       const struct rte_eth_hairpin_conf *conf)
+{
+	int ret;
+	struct rte_eth_dev *dev;
+	struct rte_eth_hairpin_cap cap;
+	struct rte_eth_dev_info dev_info;
+	void **rxq;
+	int i;
+	int count = 0;
+
+	RTE_ETH_VALID_PORTID_OR_ERR_RET(port_id, -EINVAL);
+
+	dev = &rte_eth_devices[port_id];
+	if (rx_queue_id >= dev->data->nb_rx_queues) {
+		RTE_ETHDEV_LOG(ERR, "Invalid RX queue_id=%u\n", rx_queue_id);
+		return -EINVAL;
+	}
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->dev_infos_get, -ENOTSUP);
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->hairpin_cap_get,
+				-ENOTSUP);
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->rx_hairpin_queue_setup,
+				-ENOTSUP);
+	rte_eth_dev_hairpin_capability_get(port_id, &cap);
+	/* Use default specified by driver, if nb_rx_desc is zero */
+	if (nb_rx_desc == 0)
+		nb_rx_desc = cap.max_nb_desc;
+	if (nb_rx_desc > cap.max_nb_desc) {
+		RTE_ETHDEV_LOG(ERR,
+			       "Invalid value for nb_rx_desc(=%hu), should be: "
+			       "<= %hu", nb_rx_desc, cap.max_nb_desc);
+		return -EINVAL;
+	}
+	ret = rte_eth_dev_info_get(port_id, &dev_info);
+	if (ret != 0)
+		return ret;
+	if (dev->data->dev_started &&
+		!(dev_info.dev_capa &
+		  RTE_ETH_DEV_CAPA_RUNTIME_RX_QUEUE_SETUP))
+		return -EBUSY;
+	if (dev->data->dev_started &&
+		(dev->data->rx_queue_state[rx_queue_id] !=
+		 RTE_ETH_QUEUE_STATE_STOPPED))
+		return -EBUSY;
+	if (conf->peer_n > cap.max_rx_2_tx) {
+		RTE_ETHDEV_LOG(ERR,
+			       "Invalid value for number of peers(=%hu), "
+			       "should be: <= %hu", conf->peer_n,
+			       cap.max_rx_2_tx);
+		return -EINVAL;
+	}
+	if (conf->peer_n == 0) {
+		RTE_ETHDEV_LOG(ERR,
+			       "Invalid value for number of peers(=%hu), "
+			       "should be: > 0", conf->peer_n);
+		return -EINVAL;
+	}
+	if (cap.max_n_queues != -1) {
+		for (i = 0; i < dev->data->nb_rx_queues; i++) {
+			if (dev->data->rx_queue_state[i] ==
+			    RTE_ETH_QUEUE_STATE_HAIRPIN)
+				count++;
+		}
+		if (count > cap.max_n_queues) {
+			RTE_ETHDEV_LOG(ERR,
+				       "To many Rx hairpin queues %d", count);
+			return -EINVAL;
+		}
+	}
+	rxq = dev->data->rx_queues;
+	if (rxq[rx_queue_id]) {
+		RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->rx_queue_release,
+					-ENOTSUP);
+		(*dev->dev_ops->rx_queue_release)(rxq[rx_queue_id]);
+		rxq[rx_queue_id] = NULL;
+	}
+	ret = (*dev->dev_ops->rx_hairpin_queue_setup)(dev, rx_queue_id,
+						      nb_rx_desc, conf);
+	if (!ret)
+		dev->data->rx_queue_state[rx_queue_id] =
+			RTE_ETH_QUEUE_STATE_HAIRPIN;
 	return eth_err(port_id, ret);
 }
 
@@ -1786,9 +1876,97 @@ rte_eth_tx_queue_setup(uint16_t port_id, uint16_t tx_queue_id,
 			__func__);
 		return -EINVAL;
 	}
+	ret = (*dev->dev_ops->tx_queue_setup)(dev, tx_queue_id, nb_tx_desc,
+					      socket_id, &local_conf);
+	if (!ret)
+		if (dev->data->tx_queue_state[tx_queue_id] ==
+		    RTE_ETH_QUEUE_STATE_HAIRPIN)
+			dev->data->tx_queue_state[tx_queue_id] =
+				RTE_ETH_QUEUE_STATE_STOPPED;
+	return eth_err(port_id, ret);
+}
 
-	return eth_err(port_id, (*dev->dev_ops->tx_queue_setup)(dev,
-		       tx_queue_id, nb_tx_desc, socket_id, &local_conf));
+int
+rte_eth_tx_hairpin_queue_setup(uint16_t port_id, uint16_t tx_queue_id,
+			       uint16_t nb_tx_desc,
+			       const struct rte_eth_hairpin_conf *conf)
+{
+	struct rte_eth_dev *dev;
+	struct rte_eth_hairpin_cap cap;
+	struct rte_eth_dev_info dev_info;
+	void **txq;
+	int i;
+	int count = 0;
+	int ret;
+
+	RTE_ETH_VALID_PORTID_OR_ERR_RET(port_id, -EINVAL);
+	dev = &rte_eth_devices[port_id];
+	if (tx_queue_id >= dev->data->nb_tx_queues) {
+		RTE_ETHDEV_LOG(ERR, "Invalid TX queue_id=%u\n", tx_queue_id);
+		return -EINVAL;
+	}
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->dev_infos_get, -ENOTSUP);
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->hairpin_cap_get,
+				-ENOTSUP);
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->tx_hairpin_queue_setup,
+				-ENOTSUP);
+	rte_eth_dev_info_get(port_id, &dev_info);
+	rte_eth_dev_hairpin_capability_get(port_id, &cap);
+	/* Use default specified by driver, if nb_tx_desc is zero */
+	if (nb_tx_desc == 0)
+		nb_tx_desc = cap.max_nb_desc;
+	if (nb_tx_desc > cap.max_nb_desc) {
+		RTE_ETHDEV_LOG(ERR,
+			       "Invalid value for nb_tx_desc(=%hu), should be: "
+			       "<= %hu", nb_tx_desc, cap.max_nb_desc);
+		return -EINVAL;
+	}
+	if (conf->peer_n > cap.max_tx_2_rx) {
+		RTE_ETHDEV_LOG(ERR,
+			       "Invalid value for number of peers(=%hu), "
+			       "should be: <= %hu", conf->peer_n,
+			       cap.max_tx_2_rx);
+		return -EINVAL;
+	}
+	if (conf->peer_n == 0) {
+		RTE_ETHDEV_LOG(ERR,
+			       "Invalid value for number of peers(=%hu), "
+			       "should be: > 0", conf->peer_n);
+		return -EINVAL;
+	}
+	if (cap.max_n_queues != -1) {
+		for (i = 0; i < dev->data->nb_tx_queues; i++) {
+			if (dev->data->tx_queue_state[i] ==
+			    RTE_ETH_QUEUE_STATE_HAIRPIN)
+				count++;
+		}
+		if (count > cap.max_n_queues) {
+			RTE_ETHDEV_LOG(ERR,
+				       "To many Rx hairpin queues %d", count);
+			return -EINVAL;
+		}
+	}
+	if (dev->data->dev_started &&
+		!(dev_info.dev_capa &
+		  RTE_ETH_DEV_CAPA_RUNTIME_TX_QUEUE_SETUP))
+		return -EBUSY;
+	if (dev->data->dev_started &&
+		(dev->data->tx_queue_state[tx_queue_id] !=
+		 RTE_ETH_QUEUE_STATE_STOPPED))
+		return -EBUSY;
+	txq = dev->data->tx_queues;
+	if (txq[tx_queue_id]) {
+		RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->tx_queue_release,
+					-ENOTSUP);
+		(*dev->dev_ops->tx_queue_release)(txq[tx_queue_id]);
+		txq[tx_queue_id] = NULL;
+	}
+	ret = (*dev->dev_ops->tx_hairpin_queue_setup)
+		(dev, tx_queue_id, nb_tx_desc, conf);
+	if (!ret)
+		dev->data->tx_queue_state[tx_queue_id] =
+			RTE_ETH_QUEUE_STATE_HAIRPIN;
+	return eth_err(port_id, ret);
 }
 
 void
@@ -3853,9 +4031,17 @@ rte_eth_add_rx_callback(uint16_t port_id, uint16_t queue_id,
 	rte_errno = ENOTSUP;
 	return NULL;
 #endif
+	struct rte_eth_dev *dev;
+
 	/* check input parameters */
 	if (!rte_eth_dev_is_valid_port(port_id) || fn == NULL ||
 		    queue_id >= rte_eth_devices[port_id].data->nb_rx_queues) {
+		rte_errno = EINVAL;
+		return NULL;
+	}
+	dev = &rte_eth_devices[port_id];
+	if (dev->data->rx_queue_state[queue_id] ==
+	    RTE_ETH_QUEUE_STATE_HAIRPIN) {
 		rte_errno = EINVAL;
 		return NULL;
 	}
@@ -3930,9 +4116,18 @@ rte_eth_add_tx_callback(uint16_t port_id, uint16_t queue_id,
 	rte_errno = ENOTSUP;
 	return NULL;
 #endif
+	struct rte_eth_dev *dev;
+
 	/* check input parameters */
 	if (!rte_eth_dev_is_valid_port(port_id) || fn == NULL ||
 		    queue_id >= rte_eth_devices[port_id].data->nb_tx_queues) {
+		rte_errno = EINVAL;
+		return NULL;
+	}
+
+	dev = &rte_eth_devices[port_id];
+	if (dev->data->tx_queue_state[queue_id] ==
+	    RTE_ETH_QUEUE_STATE_HAIRPIN) {
 		rte_errno = EINVAL;
 		return NULL;
 	}
@@ -4380,6 +4575,21 @@ rte_eth_dev_adjust_nb_rx_tx_desc(uint16_t port_id,
 		rte_eth_dev_adjust_nb_desc(nb_tx_desc, &dev_info.tx_desc_lim);
 
 	return 0;
+}
+
+int
+rte_eth_dev_hairpin_capability_get(uint16_t port_id,
+				   struct rte_eth_hairpin_cap *cap)
+{
+	struct rte_eth_dev *dev;
+
+	RTE_ETH_VALID_PORTID_OR_ERR_RET(port_id, -EINVAL);
+
+	dev = &rte_eth_devices[port_id];
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->hairpin_cap_get,
+				-ENOTSUP);
+	return eth_err(port_id, (*dev->dev_ops->hairpin_cap_get)
+		       (dev, cap));
 }
 
 int
