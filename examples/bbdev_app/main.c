@@ -478,6 +478,7 @@ initialize_ports(struct app_config_params *app_params,
 	}
 
 	rte_eth_promiscuous_enable(port_id);
+	rte_eth_dev_set_supported_ptypes(port_id, RTE_PTYPE_UNKNOWN, NULL, 0);
 
 	rte_eth_macaddr_get(port_id, &bbdev_port_eth_addr);
 	print_mac(port_id, &bbdev_port_eth_addr);
