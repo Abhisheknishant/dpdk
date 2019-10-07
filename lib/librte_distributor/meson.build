@@ -9,3 +9,4 @@ else
 endif
 headers = files('rte_distributor.h')
 deps += ['mbuf']
+use_function_versioning = true
