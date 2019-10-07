@@ -56,6 +56,14 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Updated the IPSec library and IPsec Security Gateway application.**
+
+  Added the following features to ``librte_ipsec`` and the ``ipsec-secgw``
+  sample application:
+
+  * Support fragmented packets in inline crypto processing mode with fallback
+    lookaside session.
+
 
 Removed Items
 -------------
