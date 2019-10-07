@@ -761,7 +761,6 @@ otx2_flow_parse_actions(struct rte_eth_dev *dev,
 			struct rte_flow *flow)
 {
 	struct otx2_eth_dev *hw = dev->data->dev_private;
-	struct otx2_npc_flow_info *npc = &hw->npc_flow;
 	const struct rte_flow_action_count *act_count;
 	const struct rte_flow_action_mark *act_mark;
 	const struct rte_flow_action_queue *act_q;
@@ -795,13 +794,11 @@ otx2_flow_parse_actions(struct rte_eth_dev *dev,
 			}
 			mark = act_mark->id + 1;
 			req_act |= OTX2_FLOW_ACT_MARK;
-			rte_atomic32_inc(&npc->mark_actions);
 			break;
 
 		case RTE_FLOW_ACTION_TYPE_FLAG:
 			mark = OTX2_FLOW_FLAG_VAL;
 			req_act |= OTX2_FLOW_ACT_FLAG;
-			rte_atomic32_inc(&npc->mark_actions);
 			break;
 
 		case RTE_FLOW_ACTION_TYPE_COUNT:
@@ -979,7 +976,7 @@ otx2_flow_parse_actions(struct rte_eth_dev *dev,
 	if (mark)
 		flow->npc_action |= (uint64_t)mark << 40;
 
-	if (rte_atomic32_read(&npc->mark_actions) == 1) {
+	if (hw->rx_offloads & DEV_RX_OFFLOAD_FLOW_MARK) {
 		hw->rx_offload_flags |=
 			NIX_RX_OFFLOAD_MARK_UPDATE_F;
 		otx2_eth_set_rx_function(dev);
