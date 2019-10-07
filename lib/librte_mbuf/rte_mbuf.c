@@ -245,6 +245,56 @@ int rte_mbuf_check(const struct rte_mbuf *m, int is_header,
 	return 0;
 }
 
+/**
+ * Size of the array holding mbufs from the same membool to be freed in bulk.
+ */
+#define RTE_PKTMBUF_FREE_BULK_SZ 64
+
+/**
+ * @internal helper function for freeing a bulk of mbufs via an array holding
+ * mbufs from the same mempool.
+ */
+static __rte_always_inline void
+rte_pktmbuf_free_seg_via_array(struct rte_mbuf *m,
+	struct rte_mbuf ** const free, unsigned int * const nb_free)
+{
+	m = rte_pktmbuf_prefree_seg(m);
+	if (likely(m != NULL)) {
+		if (*nb_free >= RTE_PKTMBUF_FREE_BULK_SZ ||
+		    (*nb_free > 0 && m->pool != free[0]->pool)) {
+			rte_mempool_put_bulk(free[0]->pool, (void **)free,
+					     *nb_free);
+			*nb_free = 0;
+		}
+
+		free[(*nb_free)++] = m;
+	}
+}
+
+/* Free a bulk of mbufs back into their original mempools. */
+void rte_pktmbuf_free_bulk(struct rte_mbuf **mbufs, unsigned int count)
+{
+	struct rte_mbuf *m, *m_next, *free[RTE_PKTMBUF_FREE_BULK_SZ];
+	unsigned int idx, nb_free = 0;
+
+	for (idx = 0; idx < count; idx++) {
+		m = mbufs[idx];
+		if (unlikely(m == NULL))
+			continue;
+
+		__rte_mbuf_sanity_check(m, 1);
+
+		do {
+			m_next = m->next;
+			rte_pktmbuf_free_seg_via_array(m, free, &nb_free);
+			m = m_next;
+		} while (m != NULL);
+	}
+
+	if (nb_free > 0)
+		rte_mempool_put_bulk(free[0]->pool, (void **)free, nb_free);
+}
+
 /* dump a mbuf on console */
 void
 rte_pktmbuf_dump(FILE *f, const struct rte_mbuf *m, unsigned dump_len)
