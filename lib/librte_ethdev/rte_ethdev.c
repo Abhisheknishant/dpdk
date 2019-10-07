@@ -2602,6 +2602,79 @@ rte_eth_dev_get_supported_ptypes(uint16_t port_id, uint32_t ptype_mask,
 	return j;
 }
 
+int
+rte_eth_dev_set_supported_ptypes(uint16_t port_id, uint32_t ptype_mask,
+				 uint32_t *set_ptypes, unsigned int num)
+{
+	const uint32_t *all_ptypes;
+	uint32_t test_ptype_mask;
+	struct rte_eth_dev *dev;
+	unsigned int i, j;
+	int ret;
+
+	RTE_ETH_VALID_PORTID_OR_ERR_RET(port_id, -ENODEV);
+	dev = &rte_eth_devices[port_id];
+
+	if (num > 0 && set_ptypes == NULL)
+		return -EINVAL;
+
+	if (*dev->dev_ops->dev_supported_ptypes_get == NULL ||
+			*dev->dev_ops->dev_supported_ptypes_set == NULL) {
+		ret = 0;
+		goto ptype_unknown;
+	}
+
+	if (ptype_mask == 0) {
+		ret = (*dev->dev_ops->dev_supported_ptypes_set)(dev,
+				ptype_mask);
+		goto ptype_unknown;
+	}
+
+	test_ptype_mask = ptype_mask;
+	while (test_ptype_mask) {
+		uint8_t mask = test_ptype_mask & RTE_PTYPE_L2_MASK;
+
+		if (mask && (mask != RTE_PTYPE_L2_MASK)) {
+			ret = -EINVAL;
+			goto ptype_unknown;
+		}
+		test_ptype_mask >>= __builtin_popcount(RTE_PTYPE_L2_MASK);
+	}
+
+	all_ptypes = (*dev->dev_ops->dev_supported_ptypes_get)(dev);
+	if (all_ptypes == NULL) {
+		ret = 0;
+		goto ptype_unknown;
+	}
+
+	/*
+	 * Accodommodate as many set_ptypes as possible. If the supplied
+	 * set_ptypes array is insufficient fill it partially.
+	 */
+	for (i = 0, j = 0; set_ptypes != NULL &&
+				(all_ptypes[i] != RTE_PTYPE_UNKNOWN); ++i) {
+		if (ptype_mask & all_ptypes[i]) {
+			if (j < num - 1) {
+				set_ptypes[j] = all_ptypes[i];
+				j++;
+				continue;
+			}
+			break;
+		}
+	}
+
+	if (set_ptypes != NULL && j < num)
+		set_ptypes[j] = RTE_PTYPE_UNKNOWN;
+
+	return (*dev->dev_ops->dev_supported_ptypes_set)(dev, ptype_mask);
+
+ptype_unknown:
+	if (num > 0)
+		set_ptypes[0] = RTE_PTYPE_UNKNOWN;
+
+	return ret;
+}
+
 void
 rte_eth_macaddr_get(uint16_t port_id, struct rte_ether_addr *mac_addr)
 {
