@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: BSD-3-Clause
  *
+ * Copyright (c) 2019 Arm Limited
  * Copyright (c) 2010-2017 Intel Corporation
  * Copyright (c) 2007-2009 Kip Macy kmacy@freebsd.org
  * All rights reserved.
@@ -7,29 +8,12 @@
  * Used as BSD-3 Licensed with permission from Kip Macy.
  */
 
-#ifndef _RTE_RING_H_
-#define _RTE_RING_H_
+#ifndef _RTE_RING_ELEM_H_
+#define _RTE_RING_ELEM_H_
 
 /**
  * @file
- * RTE Ring
- *
- * The Ring Manager is a fixed-size queue, implemented as a table of
- * pointers. Head and tail pointers are modified atomically, allowing
- * concurrent access to it. It has the following features:
- *
- * - FIFO (First In First Out)
- * - Maximum size is fixed; the pointers are stored in a table.
- * - Lockless implementation.
- * - Multi- or single-consumer dequeue.
- * - Multi- or single-producer enqueue.
- * - Bulk dequeue.
- * - Bulk enqueue.
- *
- * Note: the ring implementation is not preemptible. Refer to Programmer's
- * guide/Environment Abstraction Layer/Multiple pthread/Known Issues/rte_ring
- * for more information.
- *
+ * RTE Ring with flexible element size
  */
 
 #ifdef __cplusplus
@@ -49,134 +33,37 @@ extern "C" {
 #include <rte_memzone.h>
 #include <rte_pause.h>
 
-#define RTE_TAILQ_RING_NAME "RTE_RING"
-
-enum rte_ring_queue_behavior {
-	RTE_RING_QUEUE_FIXED = 0, /* Enq/Deq a fixed number of items from a ring */
-	RTE_RING_QUEUE_VARIABLE   /* Enq/Deq as many items as possible from ring */
-};
-
-#define RTE_RING_MZ_PREFIX "RG_"
-/** The maximum length of a ring name. */
-#define RTE_RING_NAMESIZE (RTE_MEMZONE_NAMESIZE - \
-			   sizeof(RTE_RING_MZ_PREFIX) + 1)
-
-/* structure to hold a pair of head/tail values and other metadata */
-struct rte_ring_headtail {
-	volatile uint32_t head;  /**< Prod/consumer head. */
-	volatile uint32_t tail;  /**< Prod/consumer tail. */
-	uint32_t single;         /**< True if single prod/cons */
-};
+#include "rte_ring.h"
 
 /**
- * An RTE ring structure.
+ * @warning
+ * @b EXPERIMENTAL: this API may change without prior notice
  *
- * The producer and the consumer have a head and a tail index. The particularity
- * of these index is that they are not between 0 and size(ring). These indexes
- * are between 0 and 2^32, and we mask their value when we access the ring[]
- * field. Thanks to this assumption, we can do subtractions between 2 index
- * values in a modulo-32bit base: that's why the overflow of the indexes is not
- * a problem.
- */
-struct rte_ring {
-	/*
-	 * Note: this field kept the RTE_MEMZONE_NAMESIZE size due to ABI
-	 * compatibility requirements, it could be changed to RTE_RING_NAMESIZE
-	 * next time the ABI changes
-	 */
-	char name[RTE_MEMZONE_NAMESIZE] __rte_cache_aligned; /**< Name of the ring. */
-	int flags;               /**< Flags supplied at creation. */
-	const struct rte_memzone *memzone;
-			/**< Memzone, if any, containing the rte_ring */
-	uint32_t size;           /**< Size of ring. */
-	uint32_t mask;           /**< Mask (size-1) of ring. */
-	uint32_t capacity;       /**< Usable size of ring */
-
-	char pad0 __rte_cache_aligned; /**< empty cache line */
-
-	/** Ring producer status. */
-	struct rte_ring_headtail prod __rte_cache_aligned;
-	char pad1 __rte_cache_aligned; /**< empty cache line */
-
-	/** Ring consumer status. */
-	struct rte_ring_headtail cons __rte_cache_aligned;
-	char pad2 __rte_cache_aligned; /**< empty cache line */
-};
-
-#define RING_F_SP_ENQ 0x0001 /**< The default enqueue is "single-producer". */
-#define RING_F_SC_DEQ 0x0002 /**< The default dequeue is "single-consumer". */
-/**
- * Ring is to hold exactly requested number of entries.
- * Without this flag set, the ring size requested must be a power of 2, and the
- * usable space will be that size - 1. With the flag, the requested size will
- * be rounded up to the next power of two, but the usable space will be exactly
- * that requested. Worst case, if a power-of-2 size is requested, half the
- * ring space will be wasted.
- */
-#define RING_F_EXACT_SZ 0x0004
-#define RTE_RING_SZ_MASK  (0x7fffffffU) /**< Ring size mask */
-
-/* @internal defines for passing to the enqueue dequeue worker functions */
-#define __IS_SP 1
-#define __IS_MP 0
-#define __IS_SC 1
-#define __IS_MC 0
-
-/**
- * Calculate the memory size needed for a ring
+ * Calculate the memory size needed for a ring with given element size
  *
  * This function returns the number of bytes needed for a ring, given
- * the number of elements in it. This value is the sum of the size of
- * the structure rte_ring and the size of the memory needed by the
- * objects pointers. The value is aligned to a cache line size.
+ * the number of elements in it and the size of the element. This value
+ * is the sum of the size of the structure rte_ring and the size of the
+ * memory needed for storing the elements. The value is aligned to a cache
+ * line size.
  *
  * @param count
  *   The number of elements in the ring (must be a power of 2).
+ * @param esize
+ *   The size of ring element, in bytes. It must be a multiple of 4.
+ *   Currently, sizes 4, 8 and 16 are supported.
  * @return
  *   - The memory size needed for the ring on success.
  *   - -EINVAL if count is not a power of 2.
  */
-ssize_t rte_ring_get_memsize(unsigned count);
+__rte_experimental
+ssize_t rte_ring_get_memsize_elem(unsigned count, unsigned esize);
 
 /**
- * Initialize a ring structure.
+ * @warning
+ * @b EXPERIMENTAL: this API may change without prior notice
  *
- * Initialize a ring structure in memory pointed by "r". The size of the
- * memory area must be large enough to store the ring structure and the
- * object table. It is advised to use rte_ring_get_memsize() to get the
- * appropriate size.
- *
- * The ring size is set to *count*, which must be a power of two. Water
- * marking is disabled by default. The real usable ring size is
- * *count-1* instead of *count* to differentiate a free ring from an
- * empty ring.
- *
- * The ring is not added in RTE_TAILQ_RING global list. Indeed, the
- * memory given by the caller may not be shareable among dpdk
- * processes.
- *
- * @param r
- *   The pointer to the ring structure followed by the objects table.
- * @param name
- *   The name of the ring.
- * @param count
- *   The number of elements in the ring (must be a power of 2).
- * @param flags
- *   An OR of the following:
- *    - RING_F_SP_ENQ: If this flag is set, the default behavior when
- *      using ``rte_ring_enqueue()`` or ``rte_ring_enqueue_bulk()``
- *      is "single-producer". Otherwise, it is "multi-producers".
- *    - RING_F_SC_DEQ: If this flag is set, the default behavior when
- *      using ``rte_ring_dequeue()`` or ``rte_ring_dequeue_bulk()``
- *      is "single-consumer". Otherwise, it is "multi-consumers".
- * @return
- *   0 on success, or a negative value on error.
- */
-int rte_ring_init(struct rte_ring *r, const char *name, unsigned count,
-	unsigned flags);
-
-/**
- * Create a new ring named *name* in memory.
+ * Create a new ring named *name* that stores elements with given size.
  *
  * This function uses ``memzone_reserve()`` to allocate memory. Then it
  * calls rte_ring_init() to initialize an empty ring.
@@ -191,7 +78,10 @@ int rte_ring_init(struct rte_ring *r, const char *name, unsigned count,
  * @param name
  *   The name of the ring.
  * @param count
- *   The size of the ring (must be a power of 2).
+ *   The number of elements in the ring (must be a power of 2).
+ * @param esize
+ *   The size of ring element, in bytes. It must be a multiple of 4.
+ *   Currently, sizes 4, 8 and 16 are supported.
  * @param socket_id
  *   The *socket_id* argument is the socket identifier in case of
  *   NUMA. The value can be *SOCKET_ID_ANY* if there is no NUMA
@@ -214,86 +104,219 @@ int rte_ring_init(struct rte_ring *r, const char *name, unsigned count,
  *    - EEXIST - a memzone with the same name already exists
  *    - ENOMEM - no appropriate memory area found in which to create memzone
  */
-struct rte_ring *rte_ring_create(const char *name, unsigned count,
-				 int socket_id, unsigned flags);
-
-/**
- * De-allocate all memory used by the ring.
- *
- * @param r
- *   Ring to free
- */
-void rte_ring_free(struct rte_ring *r);
-
-/**
- * Dump the status of the ring to a file.
- *
- * @param f
- *   A pointer to a file for output
- * @param r
- *   A pointer to the ring structure.
- */
-void rte_ring_dump(FILE *f, const struct rte_ring *r);
+__rte_experimental
+struct rte_ring *rte_ring_create_elem(const char *name, unsigned count,
+				unsigned esize, int socket_id, unsigned flags);
 
 /* the actual enqueue of pointers on the ring.
  * Placed here since identical code needed in both
- * single and multi producer enqueue functions */
-#define ENQUEUE_PTRS(r, ring_start, prod_head, obj_table, n, obj_type) do { \
+ * single and multi producer enqueue functions.
+ */
+#define ENQUEUE_PTRS_ELEM(r, ring_start, prod_head, obj_table, esize, n) do { \
+	if (esize == 4) \
+		ENQUEUE_PTRS_32(r, ring_start, prod_head, obj_table, n); \
+	else if (esize == 8) \
+		ENQUEUE_PTRS_64(r, ring_start, prod_head, obj_table, n); \
+	else if (esize == 16) \
+		ENQUEUE_PTRS_128(r, ring_start, prod_head, obj_table, n); \
+} while (0)
+
+#define ENQUEUE_PTRS_32(r, ring_start, prod_head, obj_table, n) do { \
 	unsigned int i; \
 	const uint32_t size = (r)->size; \
 	uint32_t idx = prod_head & (r)->mask; \
-	obj_type *ring = (obj_type *)ring_start; \
+	uint32_t *ring = (uint32_t *)ring_start; \
+	uint32_t *obj = (uint32_t *)obj_table; \
 	if (likely(idx + n < size)) { \
-		for (i = 0; i < (n & ((~(unsigned)0x3))); i+=4, idx+=4) { \
-			ring[idx] = obj_table[i]; \
-			ring[idx+1] = obj_table[i+1]; \
-			ring[idx+2] = obj_table[i+2]; \
-			ring[idx+3] = obj_table[i+3]; \
+		for (i = 0; i < (n & ((~(unsigned)0x8))); i += 8, idx += 8) { \
+			ring[idx] = obj[i]; \
+			ring[idx + 1] = obj[i + 1]; \
+			ring[idx + 2] = obj[i + 2]; \
+			ring[idx + 3] = obj[i + 3]; \
+			ring[idx + 4] = obj[i + 4]; \
+			ring[idx + 5] = obj[i + 5]; \
+			ring[idx + 6] = obj[i + 6]; \
+			ring[idx + 7] = obj[i + 7]; \
 		} \
-		switch (n & 0x3) { \
+		switch (n & 0x8) { \
+		case 7: \
+			ring[idx++] = obj[i++]; /* fallthrough */ \
+		case 6: \
+			ring[idx++] = obj[i++]; /* fallthrough */ \
+		case 5: \
+			ring[idx++] = obj[i++]; /* fallthrough */ \
+		case 4: \
+			ring[idx++] = obj[i++]; /* fallthrough */ \
 		case 3: \
-			ring[idx++] = obj_table[i++]; /* fallthrough */ \
+			ring[idx++] = obj[i++]; /* fallthrough */ \
 		case 2: \
-			ring[idx++] = obj_table[i++]; /* fallthrough */ \
+			ring[idx++] = obj[i++]; /* fallthrough */ \
 		case 1: \
-			ring[idx++] = obj_table[i++]; \
+			ring[idx++] = obj[i++]; /* fallthrough */ \
 		} \
 	} else { \
 		for (i = 0; idx < size; i++, idx++)\
-			ring[idx] = obj_table[i]; \
+			ring[idx] = obj[i]; \
 		for (idx = 0; i < n; i++, idx++) \
-			ring[idx] = obj_table[i]; \
+			ring[idx] = obj[i]; \
+	} \
+} while (0)
+
+#define ENQUEUE_PTRS_64(r, ring_start, prod_head, obj_table, n) do { \
+	unsigned int i; \
+	const uint32_t size = (r)->size; \
+	uint32_t idx = prod_head & (r)->mask; \
+	uint64_t *ring = (uint64_t *)ring_start; \
+	uint64_t *obj = (uint64_t *)obj_table; \
+	if (likely(idx + n < size)) { \
+		for (i = 0; i < (n & ((~(unsigned)0x3))); i += 4, idx += 4) { \
+			ring[idx] = obj[i]; \
+			ring[idx + 1] = obj[i + 1]; \
+			ring[idx + 2] = obj[i + 2]; \
+			ring[idx + 3] = obj[i + 3]; \
+		} \
+		switch (n & 0x3) { \
+		case 3: \
+			ring[idx++] = obj[i++]; /* fallthrough */ \
+		case 2: \
+			ring[idx++] = obj[i++]; /* fallthrough */ \
+		case 1: \
+			ring[idx++] = obj[i++]; \
+		} \
+	} else { \
+		for (i = 0; idx < size; i++, idx++)\
+			ring[idx] = obj[i]; \
+		for (idx = 0; i < n; i++, idx++) \
+			ring[idx] = obj[i]; \
+	} \
+} while (0)
+
+#define ENQUEUE_PTRS_128(r, ring_start, prod_head, obj_table, n) do { \
+	unsigned int i; \
+	const uint32_t size = (r)->size; \
+	uint32_t idx = prod_head & (r)->mask; \
+	__uint128_t *ring = (__uint128_t *)ring_start; \
+	__uint128_t *obj = (__uint128_t *)obj_table; \
+	if (likely(idx + n < size)) { \
+		for (i = 0; i < (n >> 1); i += 2, idx += 2) { \
+			ring[idx] = obj[i]; \
+			ring[idx + 1] = obj[i + 1]; \
+		} \
+		switch (n & 0x1) { \
+		case 1: \
+			ring[idx++] = obj[i++]; \
+		} \
+	} else { \
+		for (i = 0; idx < size; i++, idx++)\
+			ring[idx] = obj[i]; \
+		for (idx = 0; i < n; i++, idx++) \
+			ring[idx] = obj[i]; \
 	} \
 } while (0)
 
 /* the actual copy of pointers on the ring to obj_table.
  * Placed here since identical code needed in both
- * single and multi consumer dequeue functions */
-#define DEQUEUE_PTRS(r, ring_start, cons_head, obj_table, n, obj_type) do { \
+ * single and multi consumer dequeue functions.
+ */
+#define DEQUEUE_PTRS_ELEM(r, ring_start, cons_head, obj_table, esize, n) do { \
+	if (esize == 4) \
+		DEQUEUE_PTRS_32(r, ring_start, cons_head, obj_table, n); \
+	else if (esize == 8) \
+		DEQUEUE_PTRS_64(r, ring_start, cons_head, obj_table, n); \
+	else if (esize == 16) \
+		DEQUEUE_PTRS_128(r, ring_start, cons_head, obj_table, n); \
+} while (0)
+
+#define DEQUEUE_PTRS_32(r, ring_start, cons_head, obj_table, n) do { \
 	unsigned int i; \
 	uint32_t idx = cons_head & (r)->mask; \
 	const uint32_t size = (r)->size; \
-	obj_type *ring = (obj_type *)ring_start; \
+	uint32_t *ring = (uint32_t *)ring_start; \
+	uint32_t *obj = (uint32_t *)obj_table; \
 	if (likely(idx + n < size)) { \
-		for (i = 0; i < (n & (~(unsigned)0x3)); i+=4, idx+=4) {\
-			obj_table[i] = ring[idx]; \
-			obj_table[i+1] = ring[idx+1]; \
-			obj_table[i+2] = ring[idx+2]; \
-			obj_table[i+3] = ring[idx+3]; \
+		for (i = 0; i < (n & (~(unsigned)0x8)); i += 8, idx += 8) {\
+			obj[i] = ring[idx]; \
+			obj[i + 1] = ring[idx + 1]; \
+			obj[i + 2] = ring[idx + 2]; \
+			obj[i + 3] = ring[idx + 3]; \
+			obj[i + 4] = ring[idx + 4]; \
+			obj[i + 5] = ring[idx + 5]; \
+			obj[i + 6] = ring[idx + 6]; \
+			obj[i+7] = ring[idx+7]; \
 		} \
-		switch (n & 0x3) { \
+		switch (n & 0x8) { \
+		case 7: \
+			obj[i++] = ring[idx++]; /* fallthrough */ \
+		case 6: \
+			obj[i++] = ring[idx++]; /* fallthrough */ \
+		case 5: \
+			obj[i++] = ring[idx++]; /* fallthrough */ \
+		case 4: \
+			obj[i++] = ring[idx++]; /* fallthrough */ \
 		case 3: \
-			obj_table[i++] = ring[idx++]; /* fallthrough */ \
+			obj[i++] = ring[idx++]; /* fallthrough */ \
 		case 2: \
-			obj_table[i++] = ring[idx++]; /* fallthrough */ \
+			obj[i++] = ring[idx++]; /* fallthrough */ \
 		case 1: \
-			obj_table[i++] = ring[idx++]; \
+			obj[i++] = ring[idx++]; /* fallthrough */ \
 		} \
 	} else { \
 		for (i = 0; idx < size; i++, idx++) \
-			obj_table[i] = ring[idx]; \
+			obj[i] = ring[idx]; \
 		for (idx = 0; i < n; i++, idx++) \
-			obj_table[i] = ring[idx]; \
+			obj[i] = ring[idx]; \
+	} \
+} while (0)
+
+#define DEQUEUE_PTRS_64(r, ring_start, cons_head, obj_table, n) do { \
+	unsigned int i; \
+	uint32_t idx = cons_head & (r)->mask; \
+	const uint32_t size = (r)->size; \
+	uint64_t *ring = (uint64_t *)ring_start; \
+	uint64_t *obj = (uint64_t *)obj_table; \
+	if (likely(idx + n < size)) { \
+		for (i = 0; i < (n & (~(unsigned)0x3)); i += 4, idx += 4) {\
+			obj[i] = ring[idx]; \
+			obj[i + 1] = ring[idx + 1]; \
+			obj[i + 2] = ring[idx + 2]; \
+			obj[i + 3] = ring[idx + 3]; \
+		} \
+		switch (n & 0x3) { \
+		case 3: \
+			obj[i++] = ring[idx++]; /* fallthrough */ \
+		case 2: \
+			obj[i++] = ring[idx++]; /* fallthrough */ \
+		case 1: \
+			obj[i++] = ring[idx++]; \
+		} \
+	} else { \
+		for (i = 0; idx < size; i++, idx++) \
+			obj[i] = ring[idx]; \
+		for (idx = 0; i < n; i++, idx++) \
+			obj[i] = ring[idx]; \
+	} \
+} while (0)
+
+#define DEQUEUE_PTRS_128(r, ring_start, cons_head, obj_table, n) do { \
+	unsigned int i; \
+	uint32_t idx = cons_head & (r)->mask; \
+	const uint32_t size = (r)->size; \
+	__uint128_t *ring = (__uint128_t *)ring_start; \
+	__uint128_t *obj = (__uint128_t *)obj_table; \
+	if (likely(idx + n < size)) { \
+		for (i = 0; i < (n >> 1); i += 2, idx += 2) { \
+			obj[i] = ring[idx]; \
+			obj[i + 1] = ring[idx + 1]; \
+		} \
+		switch (n & 0x1) { \
+		case 1: \
+			obj[i++] = ring[idx++]; /* fallthrough */ \
+		} \
+	} else { \
+		for (i = 0; idx < size; i++, idx++) \
+			obj[i] = ring[idx]; \
+		for (idx = 0; i < n; i++, idx++) \
+			obj[i] = ring[idx]; \
 	} \
 } while (0)
 
@@ -315,10 +338,14 @@ void rte_ring_dump(FILE *f, const struct rte_ring *r);
 /**
  * @internal Enqueue several objects on the ring
  *
-  * @param r
+ * @param r
  *   A pointer to the ring structure.
  * @param obj_table
  *   A pointer to a table of void * pointers (objects).
+ * @param esize
+ *   The size of ring element, in bytes. It must be a multiple of 4.
+ *   Currently, sizes 4, 8 and 16 are supported. This should be the same
+ *   as passed while creating the ring, otherwise the results are undefined.
  * @param n
  *   The number of objects to add in the ring from the obj_table.
  * @param behavior
@@ -333,9 +360,10 @@ void rte_ring_dump(FILE *f, const struct rte_ring *r);
  *   If behavior == RTE_RING_QUEUE_FIXED, this will be 0 or n only.
  */
 static __rte_always_inline unsigned int
-__rte_ring_do_enqueue(struct rte_ring *r, void * const *obj_table,
-		 unsigned int n, enum rte_ring_queue_behavior behavior,
-		 unsigned int is_sp, unsigned int *free_space)
+__rte_ring_do_enqueue_elem(struct rte_ring *r, void * const obj_table,
+		unsigned int esize, unsigned int n,
+		enum rte_ring_queue_behavior behavior, unsigned int is_sp,
+		unsigned int *free_space)
 {
 	uint32_t prod_head, prod_next;
 	uint32_t free_entries;
@@ -345,7 +373,7 @@ __rte_ring_do_enqueue(struct rte_ring *r, void * const *obj_table,
 	if (n == 0)
 		goto end;
 
-	ENQUEUE_PTRS(r, &r[1], prod_head, obj_table, n, void *);
+	ENQUEUE_PTRS_ELEM(r, &r[1], prod_head, obj_table, esize, n);
 
 	update_tail(&r->prod, prod_head, prod_next, is_sp, 1);
 end:
@@ -361,6 +389,10 @@ end:
  *   A pointer to the ring structure.
  * @param obj_table
  *   A pointer to a table of void * pointers (objects).
+ * @param esize
+ *   The size of ring element, in bytes. It must be a multiple of 4.
+ *   Currently, sizes 4, 8 and 16 are supported. This should be the same
+ *   as passed while creating the ring, otherwise the results are undefined.
  * @param n
  *   The number of objects to pull from the ring.
  * @param behavior
@@ -375,9 +407,10 @@ end:
  *     If behavior == RTE_RING_QUEUE_FIXED, this will be 0 or n only.
  */
 static __rte_always_inline unsigned int
-__rte_ring_do_dequeue(struct rte_ring *r, void **obj_table,
-		 unsigned int n, enum rte_ring_queue_behavior behavior,
-		 unsigned int is_sc, unsigned int *available)
+__rte_ring_do_dequeue_elem(struct rte_ring *r, void *obj_table,
+		unsigned int esize, unsigned int n,
+		enum rte_ring_queue_behavior behavior, unsigned int is_sc,
+		unsigned int *available)
 {
 	uint32_t cons_head, cons_next;
 	uint32_t entries;
@@ -387,7 +420,7 @@ __rte_ring_do_dequeue(struct rte_ring *r, void **obj_table,
 	if (n == 0)
 		goto end;
 
-	DEQUEUE_PTRS(r, &r[1], cons_head, obj_table, n, void *);
+	DEQUEUE_PTRS_ELEM(r, &r[1], cons_head, obj_table, esize, n);
 
 	update_tail(&r->cons, cons_head, cons_next, is_sc, 0);
 
@@ -407,6 +440,10 @@ end:
  *   A pointer to the ring structure.
  * @param obj_table
  *   A pointer to a table of void * pointers (objects).
+ * @param esize
+ *   The size of ring element, in bytes. It must be a multiple of 4.
+ *   Currently, sizes 4, 8 and 16 are supported. This should be the same
+ *   as passed while creating the ring, otherwise the results are undefined.
  * @param n
  *   The number of objects to add in the ring from the obj_table.
  * @param free_space
@@ -416,11 +453,11 @@ end:
  *   The number of objects enqueued, either 0 or n
  */
 static __rte_always_inline unsigned int
-rte_ring_mp_enqueue_bulk(struct rte_ring *r, void * const *obj_table,
-			 unsigned int n, unsigned int *free_space)
+rte_ring_mp_enqueue_bulk_elem(struct rte_ring *r, void * const obj_table,
+		unsigned int esize, unsigned int n, unsigned int *free_space)
 {
-	return __rte_ring_do_enqueue(r, obj_table, n, RTE_RING_QUEUE_FIXED,
-			__IS_MP, free_space);
+	return __rte_ring_do_enqueue_elem(r, obj_table, esize, n,
+			RTE_RING_QUEUE_FIXED, __IS_MP, free_space);
 }
 
 /**
@@ -430,6 +467,10 @@ rte_ring_mp_enqueue_bulk(struct rte_ring *r, void * const *obj_table,
  *   A pointer to the ring structure.
  * @param obj_table
  *   A pointer to a table of void * pointers (objects).
+ * @param esize
+ *   The size of ring element, in bytes. It must be a multiple of 4.
+ *   Currently, sizes 4, 8 and 16 are supported. This should be the same
+ *   as passed while creating the ring, otherwise the results are undefined.
  * @param n
  *   The number of objects to add in the ring from the obj_table.
  * @param free_space
@@ -439,11 +480,11 @@ rte_ring_mp_enqueue_bulk(struct rte_ring *r, void * const *obj_table,
  *   The number of objects enqueued, either 0 or n
  */
 static __rte_always_inline unsigned int
-rte_ring_sp_enqueue_bulk(struct rte_ring *r, void * const *obj_table,
-			 unsigned int n, unsigned int *free_space)
+rte_ring_sp_enqueue_bulk_elem(struct rte_ring *r, void * const obj_table,
+		unsigned int esize, unsigned int n, unsigned int *free_space)
 {
-	return __rte_ring_do_enqueue(r, obj_table, n, RTE_RING_QUEUE_FIXED,
-			__IS_SP, free_space);
+	return __rte_ring_do_enqueue_elem(r, obj_table, esize, n,
+			RTE_RING_QUEUE_FIXED, __IS_SP, free_space);
 }
 
 /**
@@ -457,6 +498,10 @@ rte_ring_sp_enqueue_bulk(struct rte_ring *r, void * const *obj_table,
  *   A pointer to the ring structure.
  * @param obj_table
  *   A pointer to a table of void * pointers (objects).
+ * @param esize
+ *   The size of ring element, in bytes. It must be a multiple of 4.
+ *   Currently, sizes 4, 8 and 16 are supported. This should be the same
+ *   as passed while creating the ring, otherwise the results are undefined.
  * @param n
  *   The number of objects to add in the ring from the obj_table.
  * @param free_space
@@ -466,11 +511,11 @@ rte_ring_sp_enqueue_bulk(struct rte_ring *r, void * const *obj_table,
  *   The number of objects enqueued, either 0 or n
  */
 static __rte_always_inline unsigned int
-rte_ring_enqueue_bulk(struct rte_ring *r, void * const *obj_table,
-		      unsigned int n, unsigned int *free_space)
+rte_ring_enqueue_bulk_elem(struct rte_ring *r, void * const obj_table,
+		unsigned int esize, unsigned int n, unsigned int *free_space)
 {
-	return __rte_ring_do_enqueue(r, obj_table, n, RTE_RING_QUEUE_FIXED,
-			r->prod.single, free_space);
+	return __rte_ring_do_enqueue_elem(r, obj_table, esize, n,
+			RTE_RING_QUEUE_FIXED, r->prod.single, free_space);
 }
 
 /**
@@ -483,14 +528,19 @@ rte_ring_enqueue_bulk(struct rte_ring *r, void * const *obj_table,
  *   A pointer to the ring structure.
  * @param obj
  *   A pointer to the object to be added.
+ * @param esize
+ *   The size of ring element, in bytes. It must be a multiple of 4.
+ *   Currently, sizes 4, 8 and 16 are supported. This should be the same
+ *   as passed while creating the ring, otherwise the results are undefined.
  * @return
  *   - 0: Success; objects enqueued.
  *   - -ENOBUFS: Not enough room in the ring to enqueue; no object is enqueued.
  */
 static __rte_always_inline int
-rte_ring_mp_enqueue(struct rte_ring *r, void *obj)
+rte_ring_mp_enqueue_elem(struct rte_ring *r, void *obj, unsigned int esize)
 {
-	return rte_ring_mp_enqueue_bulk(r, &obj, 1, NULL) ? 0 : -ENOBUFS;
+	return rte_ring_mp_enqueue_bulk_elem(r, obj, esize, 1, NULL) ? 0 :
+								-ENOBUFS;
 }
 
 /**
@@ -500,14 +550,19 @@ rte_ring_mp_enqueue(struct rte_ring *r, void *obj)
  *   A pointer to the ring structure.
  * @param obj
  *   A pointer to the object to be added.
+ * @param esize
+ *   The size of ring element, in bytes. It must be a multiple of 4.
+ *   Currently, sizes 4, 8 and 16 are supported. This should be the same
+ *   as passed while creating the ring, otherwise the results are undefined.
  * @return
  *   - 0: Success; objects enqueued.
  *   - -ENOBUFS: Not enough room in the ring to enqueue; no object is enqueued.
  */
 static __rte_always_inline int
-rte_ring_sp_enqueue(struct rte_ring *r, void *obj)
+rte_ring_sp_enqueue_elem(struct rte_ring *r, void *obj, unsigned int esize)
 {
-	return rte_ring_sp_enqueue_bulk(r, &obj, 1, NULL) ? 0 : -ENOBUFS;
+	return rte_ring_sp_enqueue_bulk_elem(r, obj, esize, 1, NULL) ? 0 :
+								-ENOBUFS;
 }
 
 /**
@@ -521,14 +576,19 @@ rte_ring_sp_enqueue(struct rte_ring *r, void *obj)
  *   A pointer to the ring structure.
  * @param obj
  *   A pointer to the object to be added.
+ * @param esize
+ *   The size of ring element, in bytes. It must be a multiple of 4.
+ *   Currently, sizes 4, 8 and 16 are supported. This should be the same
+ *   as passed while creating the ring, otherwise the results are undefined.
  * @return
  *   - 0: Success; objects enqueued.
  *   - -ENOBUFS: Not enough room in the ring to enqueue; no object is enqueued.
  */
 static __rte_always_inline int
-rte_ring_enqueue(struct rte_ring *r, void *obj)
+rte_ring_enqueue_elem(struct rte_ring *r, void *obj, unsigned int esize)
 {
-	return rte_ring_enqueue_bulk(r, &obj, 1, NULL) ? 0 : -ENOBUFS;
+	return rte_ring_enqueue_bulk_elem(r, obj, esize, 1, NULL) ? 0 :
+								-ENOBUFS;
 }
 
 /**
@@ -541,6 +601,10 @@ rte_ring_enqueue(struct rte_ring *r, void *obj)
  *   A pointer to the ring structure.
  * @param obj_table
  *   A pointer to a table of void * pointers (objects) that will be filled.
+ * @param esize
+ *   The size of ring element, in bytes. It must be a multiple of 4.
+ *   Currently, sizes 4, 8 and 16 are supported. This should be the same
+ *   as passed while creating the ring, otherwise the results are undefined.
  * @param n
  *   The number of objects to dequeue from the ring to the obj_table.
  * @param available
@@ -550,11 +614,11 @@ rte_ring_enqueue(struct rte_ring *r, void *obj)
  *   The number of objects dequeued, either 0 or n
  */
 static __rte_always_inline unsigned int
-rte_ring_mc_dequeue_bulk(struct rte_ring *r, void **obj_table,
-		unsigned int n, unsigned int *available)
+rte_ring_mc_dequeue_bulk_elem(struct rte_ring *r, void *obj_table,
+		unsigned int esize, unsigned int n, unsigned int *available)
 {
-	return __rte_ring_do_dequeue(r, obj_table, n, RTE_RING_QUEUE_FIXED,
-			__IS_MC, available);
+	return __rte_ring_do_dequeue_elem(r, obj_table, esize, n,
+				RTE_RING_QUEUE_FIXED, __IS_MC, available);
 }
 
 /**
@@ -564,6 +628,10 @@ rte_ring_mc_dequeue_bulk(struct rte_ring *r, void **obj_table,
  *   A pointer to the ring structure.
  * @param obj_table
  *   A pointer to a table of void * pointers (objects) that will be filled.
+ * @param esize
+ *   The size of ring element, in bytes. It must be a multiple of 4.
+ *   Currently, sizes 4, 8 and 16 are supported. This should be the same
+ *   as passed while creating the ring, otherwise the results are undefined.
  * @param n
  *   The number of objects to dequeue from the ring to the obj_table,
  *   must be strictly positive.
@@ -574,11 +642,11 @@ rte_ring_mc_dequeue_bulk(struct rte_ring *r, void **obj_table,
  *   The number of objects dequeued, either 0 or n
  */
 static __rte_always_inline unsigned int
-rte_ring_sc_dequeue_bulk(struct rte_ring *r, void **obj_table,
-		unsigned int n, unsigned int *available)
+rte_ring_sc_dequeue_bulk_elem(struct rte_ring *r, void *obj_table,
+		unsigned int esize, unsigned int n, unsigned int *available)
 {
-	return __rte_ring_do_dequeue(r, obj_table, n, RTE_RING_QUEUE_FIXED,
-			__IS_SC, available);
+	return __rte_ring_do_dequeue_elem(r, obj_table, esize, n,
+			RTE_RING_QUEUE_FIXED, __IS_SC, available);
 }
 
 /**
@@ -592,6 +660,10 @@ rte_ring_sc_dequeue_bulk(struct rte_ring *r, void **obj_table,
  *   A pointer to the ring structure.
  * @param obj_table
  *   A pointer to a table of void * pointers (objects) that will be filled.
+ * @param esize
+ *   The size of ring element, in bytes. It must be a multiple of 4.
+ *   Currently, sizes 4, 8 and 16 are supported. This should be the same
+ *   as passed while creating the ring, otherwise the results are undefined.
  * @param n
  *   The number of objects to dequeue from the ring to the obj_table.
  * @param available
@@ -601,11 +673,11 @@ rte_ring_sc_dequeue_bulk(struct rte_ring *r, void **obj_table,
  *   The number of objects dequeued, either 0 or n
  */
 static __rte_always_inline unsigned int
-rte_ring_dequeue_bulk(struct rte_ring *r, void **obj_table, unsigned int n,
-		unsigned int *available)
+rte_ring_dequeue_bulk_elem(struct rte_ring *r, void *obj_table,
+		unsigned int esize, unsigned int n, unsigned int *available)
 {
-	return __rte_ring_do_dequeue(r, obj_table, n, RTE_RING_QUEUE_FIXED,
-				r->cons.single, available);
+	return __rte_ring_do_dequeue_elem(r, obj_table, esize, n,
+			RTE_RING_QUEUE_FIXED, r->cons.single, available);
 }
 
 /**
@@ -618,15 +690,21 @@ rte_ring_dequeue_bulk(struct rte_ring *r, void **obj_table, unsigned int n,
  *   A pointer to the ring structure.
  * @param obj_p
  *   A pointer to a void * pointer (object) that will be filled.
+ * @param esize
+ *   The size of ring element, in bytes. It must be a multiple of 4.
+ *   Currently, sizes 4, 8 and 16 are supported. This should be the same
+ *   as passed while creating the ring, otherwise the results are undefined.
  * @return
  *   - 0: Success; objects dequeued.
  *   - -ENOENT: Not enough entries in the ring to dequeue; no object is
  *     dequeued.
  */
 static __rte_always_inline int
-rte_ring_mc_dequeue(struct rte_ring *r, void **obj_p)
+rte_ring_mc_dequeue_elem(struct rte_ring *r, void *obj_p,
+				unsigned int esize)
 {
-	return rte_ring_mc_dequeue_bulk(r, obj_p, 1, NULL)  ? 0 : -ENOENT;
+	return rte_ring_mc_dequeue_bulk_elem(r, obj_p, esize, 1, NULL)  ? 0 :
+								-ENOENT;
 }
 
 /**
@@ -636,15 +714,21 @@ rte_ring_mc_dequeue(struct rte_ring *r, void **obj_p)
  *   A pointer to the ring structure.
  * @param obj_p
  *   A pointer to a void * pointer (object) that will be filled.
+ * @param esize
+ *   The size of ring element, in bytes. It must be a multiple of 4.
+ *   Currently, sizes 4, 8 and 16 are supported. This should be the same
+ *   as passed while creating the ring, otherwise the results are undefined.
  * @return
  *   - 0: Success; objects dequeued.
  *   - -ENOENT: Not enough entries in the ring to dequeue, no object is
  *     dequeued.
  */
 static __rte_always_inline int
-rte_ring_sc_dequeue(struct rte_ring *r, void **obj_p)
+rte_ring_sc_dequeue_elem(struct rte_ring *r, void *obj_p,
+				unsigned int esize)
 {
-	return rte_ring_sc_dequeue_bulk(r, obj_p, 1, NULL) ? 0 : -ENOENT;
+	return rte_ring_sc_dequeue_bulk_elem(r, obj_p, esize, 1, NULL) ? 0 :
+								-ENOENT;
 }
 
 /**
@@ -658,144 +742,21 @@ rte_ring_sc_dequeue(struct rte_ring *r, void **obj_p)
  *   A pointer to the ring structure.
  * @param obj_p
  *   A pointer to a void * pointer (object) that will be filled.
+ * @param esize
+ *   The size of ring element, in bytes. It must be a multiple of 4.
+ *   Currently, sizes 4, 8 and 16 are supported. This should be the same
+ *   as passed while creating the ring, otherwise the results are undefined.
  * @return
  *   - 0: Success, objects dequeued.
  *   - -ENOENT: Not enough entries in the ring to dequeue, no object is
  *     dequeued.
  */
 static __rte_always_inline int
-rte_ring_dequeue(struct rte_ring *r, void **obj_p)
+rte_ring_dequeue_elem(struct rte_ring *r, void *obj_p, unsigned int esize)
 {
-	return rte_ring_dequeue_bulk(r, obj_p, 1, NULL) ? 0 : -ENOENT;
+	return rte_ring_dequeue_bulk_elem(r, obj_p, esize, 1, NULL) ? 0 :
+								-ENOENT;
 }
-
-/**
- * Flush a ring.
- *
- * This function flush all the elements in a ring
- *
- * @b EXPERIMENTAL: this API may change without prior notice
- *
- * @warning
- * Make sure the ring is not in use while calling this function.
- *
- * @param r
- *   A pointer to the ring structure.
- */
-__rte_experimental
-void
-rte_ring_reset(struct rte_ring *r);
-
-/**
- * Return the number of entries in a ring.
- *
- * @param r
- *   A pointer to the ring structure.
- * @return
- *   The number of entries in the ring.
- */
-static inline unsigned
-rte_ring_count(const struct rte_ring *r)
-{
-	uint32_t prod_tail = r->prod.tail;
-	uint32_t cons_tail = r->cons.tail;
-	uint32_t count = (prod_tail - cons_tail) & r->mask;
-	return (count > r->capacity) ? r->capacity : count;
-}
-
-/**
- * Return the number of free entries in a ring.
- *
- * @param r
- *   A pointer to the ring structure.
- * @return
- *   The number of free entries in the ring.
- */
-static inline unsigned
-rte_ring_free_count(const struct rte_ring *r)
-{
-	return r->capacity - rte_ring_count(r);
-}
-
-/**
- * Test if a ring is full.
- *
- * @param r
- *   A pointer to the ring structure.
- * @return
- *   - 1: The ring is full.
- *   - 0: The ring is not full.
- */
-static inline int
-rte_ring_full(const struct rte_ring *r)
-{
-	return rte_ring_free_count(r) == 0;
-}
-
-/**
- * Test if a ring is empty.
- *
- * @param r
- *   A pointer to the ring structure.
- * @return
- *   - 1: The ring is empty.
- *   - 0: The ring is not empty.
- */
-static inline int
-rte_ring_empty(const struct rte_ring *r)
-{
-	return rte_ring_count(r) == 0;
-}
-
-/**
- * Return the size of the ring.
- *
- * @param r
- *   A pointer to the ring structure.
- * @return
- *   The size of the data store used by the ring.
- *   NOTE: this is not the same as the usable space in the ring. To query that
- *   use ``rte_ring_get_capacity()``.
- */
-static inline unsigned int
-rte_ring_get_size(const struct rte_ring *r)
-{
-	return r->size;
-}
-
-/**
- * Return the number of elements which can be stored in the ring.
- *
- * @param r
- *   A pointer to the ring structure.
- * @return
- *   The usable size of the ring.
- */
-static inline unsigned int
-rte_ring_get_capacity(const struct rte_ring *r)
-{
-	return r->capacity;
-}
-
-/**
- * Dump the status of all rings on the console
- *
- * @param f
- *   A pointer to a file for output
- */
-void rte_ring_list_dump(FILE *f);
-
-/**
- * Search a ring from its name
- *
- * @param name
- *   The name of the ring.
- * @return
- *   The pointer to the ring matching the name, or NULL if not found,
- *   with rte_errno set appropriately. Possible rte_errno values include:
- *    - ENOENT - required entry not available to return.
- */
-struct rte_ring *rte_ring_lookup(const char *name);
 
 /**
  * Enqueue several objects on the ring (multi-producers safe).
@@ -807,6 +768,10 @@ struct rte_ring *rte_ring_lookup(const char *name);
  *   A pointer to the ring structure.
  * @param obj_table
  *   A pointer to a table of void * pointers (objects).
+ * @param esize
+ *   The size of ring element, in bytes. It must be a multiple of 4.
+ *   Currently, sizes 4, 8 and 16 are supported. This should be the same
+ *   as passed while creating the ring, otherwise the results are undefined.
  * @param n
  *   The number of objects to add in the ring from the obj_table.
  * @param free_space
@@ -816,10 +781,10 @@ struct rte_ring *rte_ring_lookup(const char *name);
  *   - n: Actual number of objects enqueued.
  */
 static __rte_always_inline unsigned
-rte_ring_mp_enqueue_burst(struct rte_ring *r, void * const *obj_table,
-			 unsigned int n, unsigned int *free_space)
+rte_ring_mp_enqueue_burst_elem(struct rte_ring *r, void * const obj_table,
+		unsigned int esize, unsigned int n, unsigned int *free_space)
 {
-	return __rte_ring_do_enqueue(r, obj_table, n,
+	return __rte_ring_do_enqueue_elem(r, obj_table, esize, n,
 			RTE_RING_QUEUE_VARIABLE, __IS_MP, free_space);
 }
 
@@ -830,6 +795,10 @@ rte_ring_mp_enqueue_burst(struct rte_ring *r, void * const *obj_table,
  *   A pointer to the ring structure.
  * @param obj_table
  *   A pointer to a table of void * pointers (objects).
+ * @param esize
+ *   The size of ring element, in bytes. It must be a multiple of 4.
+ *   Currently, sizes 4, 8 and 16 are supported. This should be the same
+ *   as passed while creating the ring, otherwise the results are undefined.
  * @param n
  *   The number of objects to add in the ring from the obj_table.
  * @param free_space
@@ -839,10 +808,10 @@ rte_ring_mp_enqueue_burst(struct rte_ring *r, void * const *obj_table,
  *   - n: Actual number of objects enqueued.
  */
 static __rte_always_inline unsigned
-rte_ring_sp_enqueue_burst(struct rte_ring *r, void * const *obj_table,
-			 unsigned int n, unsigned int *free_space)
+rte_ring_sp_enqueue_burst_elem(struct rte_ring *r, void * const obj_table,
+		unsigned int esize, unsigned int n, unsigned int *free_space)
 {
-	return __rte_ring_do_enqueue(r, obj_table, n,
+	return __rte_ring_do_enqueue_elem(r, obj_table, esize, n,
 			RTE_RING_QUEUE_VARIABLE, __IS_SP, free_space);
 }
 
@@ -857,6 +826,10 @@ rte_ring_sp_enqueue_burst(struct rte_ring *r, void * const *obj_table,
  *   A pointer to the ring structure.
  * @param obj_table
  *   A pointer to a table of void * pointers (objects).
+ * @param esize
+ *   The size of ring element, in bytes. It must be a multiple of 4.
+ *   Currently, sizes 4, 8 and 16 are supported. This should be the same
+ *   as passed while creating the ring, otherwise the results are undefined.
  * @param n
  *   The number of objects to add in the ring from the obj_table.
  * @param free_space
@@ -866,11 +839,11 @@ rte_ring_sp_enqueue_burst(struct rte_ring *r, void * const *obj_table,
  *   - n: Actual number of objects enqueued.
  */
 static __rte_always_inline unsigned
-rte_ring_enqueue_burst(struct rte_ring *r, void * const *obj_table,
-		      unsigned int n, unsigned int *free_space)
+rte_ring_enqueue_burst_elem(struct rte_ring *r, void * const obj_table,
+		unsigned int esize, unsigned int n, unsigned int *free_space)
 {
-	return __rte_ring_do_enqueue(r, obj_table, n, RTE_RING_QUEUE_VARIABLE,
-			r->prod.single, free_space);
+	return __rte_ring_do_enqueue_elem(r, obj_table, esize, n,
+			RTE_RING_QUEUE_VARIABLE, r->prod.single, free_space);
 }
 
 /**
@@ -885,6 +858,10 @@ rte_ring_enqueue_burst(struct rte_ring *r, void * const *obj_table,
  *   A pointer to the ring structure.
  * @param obj_table
  *   A pointer to a table of void * pointers (objects) that will be filled.
+ * @param esize
+ *   The size of ring element, in bytes. It must be a multiple of 4.
+ *   Currently, sizes 4, 8 and 16 are supported. This should be the same
+ *   as passed while creating the ring, otherwise the results are undefined.
  * @param n
  *   The number of objects to dequeue from the ring to the obj_table.
  * @param available
@@ -894,10 +871,10 @@ rte_ring_enqueue_burst(struct rte_ring *r, void * const *obj_table,
  *   - n: Actual number of objects dequeued, 0 if ring is empty
  */
 static __rte_always_inline unsigned
-rte_ring_mc_dequeue_burst(struct rte_ring *r, void **obj_table,
-		unsigned int n, unsigned int *available)
+rte_ring_mc_dequeue_burst_elem(struct rte_ring *r, void *obj_table,
+		unsigned int esize, unsigned int n, unsigned int *available)
 {
-	return __rte_ring_do_dequeue(r, obj_table, n,
+	return __rte_ring_do_dequeue_elem(r, obj_table, esize, n,
 			RTE_RING_QUEUE_VARIABLE, __IS_MC, available);
 }
 
@@ -910,6 +887,10 @@ rte_ring_mc_dequeue_burst(struct rte_ring *r, void **obj_table,
  *   A pointer to the ring structure.
  * @param obj_table
  *   A pointer to a table of void * pointers (objects) that will be filled.
+ * @param esize
+ *   The size of ring element, in bytes. It must be a multiple of 4.
+ *   Currently, sizes 4, 8 and 16 are supported. This should be the same
+ *   as passed while creating the ring, otherwise the results are undefined.
  * @param n
  *   The number of objects to dequeue from the ring to the obj_table.
  * @param available
@@ -919,10 +900,10 @@ rte_ring_mc_dequeue_burst(struct rte_ring *r, void **obj_table,
  *   - n: Actual number of objects dequeued, 0 if ring is empty
  */
 static __rte_always_inline unsigned
-rte_ring_sc_dequeue_burst(struct rte_ring *r, void **obj_table,
-		unsigned int n, unsigned int *available)
+rte_ring_sc_dequeue_burst_elem(struct rte_ring *r, void *obj_table,
+		unsigned int esize, unsigned int n, unsigned int *available)
 {
-	return __rte_ring_do_dequeue(r, obj_table, n,
+	return __rte_ring_do_dequeue_elem(r, obj_table, esize, n,
 			RTE_RING_QUEUE_VARIABLE, __IS_SC, available);
 }
 
@@ -937,6 +918,10 @@ rte_ring_sc_dequeue_burst(struct rte_ring *r, void **obj_table,
  *   A pointer to the ring structure.
  * @param obj_table
  *   A pointer to a table of void * pointers (objects) that will be filled.
+ * @param esize
+ *   The size of ring element, in bytes. It must be a multiple of 4.
+ *   Currently, sizes 4, 8 and 16 are supported. This should be the same
+ *   as passed while creating the ring, otherwise the results are undefined.
  * @param n
  *   The number of objects to dequeue from the ring to the obj_table.
  * @param available
@@ -946,10 +931,10 @@ rte_ring_sc_dequeue_burst(struct rte_ring *r, void **obj_table,
  *   - Number of objects dequeued
  */
 static __rte_always_inline unsigned
-rte_ring_dequeue_burst(struct rte_ring *r, void **obj_table,
-		unsigned int n, unsigned int *available)
+rte_ring_dequeue_burst_elem(struct rte_ring *r, void *obj_table,
+		unsigned int esize, unsigned int n, unsigned int *available)
 {
-	return __rte_ring_do_dequeue(r, obj_table, n,
+	return __rte_ring_do_dequeue_elem(r, obj_table, esize, n,
 				RTE_RING_QUEUE_VARIABLE,
 				r->cons.single, available);
 }
@@ -958,4 +943,4 @@ rte_ring_dequeue_burst(struct rte_ring *r, void **obj_table,
 }
 #endif
 
-#endif /* _RTE_RING_H_ */
+#endif /* _RTE_RING_ELEM_H_ */

@@ -33,6 +33,7 @@
 #include <rte_tailq.h>
 
 #include "rte_ring.h"
+#include "rte_ring_elem.h"
 
 TAILQ_HEAD(rte_ring_list, rte_tailq_entry);
 
@@ -46,21 +47,40 @@ EAL_REGISTER_TAILQ(rte_ring_tailq)
 
 /* return the size of memory occupied by a ring */
 ssize_t
-rte_ring_get_memsize(unsigned count)
+rte_ring_get_memsize_elem(unsigned count, unsigned esize)
 {
 	ssize_t sz;
+
+	/* Supported esize values are 4/8/16.
+	 * Others can be added on need basis.
+	 */
+	if ((esize != 4) && (esize != 8) && (esize != 16)) {
+		RTE_LOG(ERR, RING,
+			"Unsupported esize value. Supported values are 4, 8 and 16\n");
+
+		return -EINVAL;
+	}
 
 	/* count must be a power of 2 */
 	if ((!POWEROF2(count)) || (count > RTE_RING_SZ_MASK )) {
 		RTE_LOG(ERR, RING,
-			"Requested size is invalid, must be power of 2, and "
-			"do not exceed the size limit %u\n", RTE_RING_SZ_MASK);
+			"Requested number of elements is invalid, must be "
+			"power of 2, and do not exceed the limit %u\n",
+			RTE_RING_SZ_MASK);
+
 		return -EINVAL;
 	}
 
-	sz = sizeof(struct rte_ring) + count * sizeof(void *);
+	sz = sizeof(struct rte_ring) + count * esize;
 	sz = RTE_ALIGN(sz, RTE_CACHE_LINE_SIZE);
 	return sz;
+}
+
+/* return the size of memory occupied by a ring */
+ssize_t
+rte_ring_get_memsize(unsigned count)
+{
+	return rte_ring_get_memsize_elem(count, sizeof(void *));
 }
 
 void
@@ -114,10 +134,10 @@ rte_ring_init(struct rte_ring *r, const char *name, unsigned count,
 	return 0;
 }
 
-/* create the ring */
+/* create the ring for a given element size */
 struct rte_ring *
-rte_ring_create(const char *name, unsigned count, int socket_id,
-		unsigned flags)
+rte_ring_create_elem(const char *name, unsigned count, unsigned esize,
+		int socket_id, unsigned flags)
 {
 	char mz_name[RTE_MEMZONE_NAMESIZE];
 	struct rte_ring *r;
@@ -135,7 +155,7 @@ rte_ring_create(const char *name, unsigned count, int socket_id,
 	if (flags & RING_F_EXACT_SZ)
 		count = rte_align32pow2(count + 1);
 
-	ring_size = rte_ring_get_memsize(count);
+	ring_size = rte_ring_get_memsize_elem(count, esize);
 	if (ring_size < 0) {
 		rte_errno = ring_size;
 		return NULL;
@@ -180,6 +200,15 @@ rte_ring_create(const char *name, unsigned count, int socket_id,
 	rte_mcfg_tailq_write_unlock();
 
 	return r;
+}
+
+/* create the ring */
+struct rte_ring *
+rte_ring_create(const char *name, unsigned count, int socket_id,
+		unsigned flags)
+{
+	return rte_ring_create_elem(name, count, sizeof(void *), socket_id,
+		flags);
 }
 
 /* free the ring */
