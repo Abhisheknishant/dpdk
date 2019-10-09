@@ -1881,6 +1881,141 @@ virtio_dev_tx_single_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 	return 0;
 }
 
+static __rte_unused int
+virtio_dev_tx_batch_packed_zmbuf(struct virtio_net *dev,
+					struct vhost_virtqueue *vq,
+					struct rte_mempool *mbuf_pool,
+					struct rte_mbuf **pkts)
+{
+	struct zcopy_mbuf *zmbufs[PACKED_BATCH_SIZE];
+	uintptr_t desc_addrs[PACKED_BATCH_SIZE];
+	uint16_t ids[PACKED_BATCH_SIZE];
+	uint16_t i;
+
+	uint16_t avail_idx = vq->last_avail_idx;
+
+	if (vhost_dequeue_batch_packed(dev, vq, mbuf_pool, pkts, avail_idx,
+				       desc_addrs, ids))
+		return -1;
+
+	UNROLL_PRAGMA(UNROLL_PRAGMA_PARAM)
+	for (i = 0; i < PACKED_BATCH_SIZE; i++)
+		zmbufs[i] = get_zmbuf(vq);
+
+	UNROLL_PRAGMA(UNROLL_PRAGMA_PARAM)
+	for (i = 0; i < PACKED_BATCH_SIZE; i++) {
+		if (!zmbufs[i])
+			goto free_pkt;
+	}
+
+	UNROLL_PRAGMA(UNROLL_PRAGMA_PARAM)
+	for (i = 0; i < PACKED_BATCH_SIZE; i++) {
+		zmbufs[i]->mbuf = pkts[i];
+		zmbufs[i]->desc_idx = avail_idx + i;
+		zmbufs[i]->desc_count = 1;
+	}
+
+	UNROLL_PRAGMA(UNROLL_PRAGMA_PARAM)
+	for (i = 0; i < PACKED_BATCH_SIZE; i++)
+		rte_mbuf_refcnt_update(pkts[i], 1);
+
+	UNROLL_PRAGMA(UNROLL_PRAGMA_PARAM)
+	for (i = 0; i < PACKED_BATCH_SIZE; i++)
+		TAILQ_INSERT_TAIL(&vq->zmbuf_list, zmbufs[i], next);
+
+	vq->nr_zmbuf += PACKED_BATCH_SIZE;
+	vq->last_avail_idx += PACKED_BATCH_SIZE;
+	if (vq->last_avail_idx >= vq->size) {
+		vq->last_avail_idx -= vq->size;
+		vq->avail_wrap_counter ^= 1;
+	}
+
+	return 0;
+
+free_pkt:
+	UNROLL_PRAGMA(UNROLL_PRAGMA_PARAM)
+	for (i = 0; i < PACKED_BATCH_SIZE; i++)
+		rte_pktmbuf_free(pkts[i]);
+
+	return -1;
+}
+
+static __rte_unused int
+virtio_dev_tx_single_packed_zmbuf(struct virtio_net *dev,
+	struct vhost_virtqueue *vq, struct rte_mempool *mbuf_pool,
+	struct rte_mbuf **pkts)
+{
+	uint16_t buf_id, desc_count;
+	struct zcopy_mbuf *zmbuf;
+
+	if (vhost_dequeue_single_packed(dev, vq, mbuf_pool, pkts, &buf_id,
+					&desc_count))
+		return -1;
+
+	zmbuf = get_zmbuf(vq);
+	if (!zmbuf) {
+		rte_pktmbuf_free(*pkts);
+		return -1;
+	}
+	zmbuf->mbuf = *pkts;
+	zmbuf->desc_idx = vq->last_avail_idx;
+	zmbuf->desc_count = desc_count;
+
+	rte_mbuf_refcnt_update(*pkts, 1);
+
+	vq->nr_zmbuf += 1;
+	TAILQ_INSERT_TAIL(&vq->zmbuf_list, zmbuf, next);
+
+	vq->last_avail_idx += desc_count;
+	if (vq->last_avail_idx >= vq->size) {
+		vq->last_avail_idx -= vq->size;
+		vq->avail_wrap_counter ^= 1;
+	}
+
+	return 0;
+}
+
+static __rte_always_inline void
+free_zmbuf(struct vhost_virtqueue *vq)
+{
+	struct zcopy_mbuf *next = NULL;
+	struct zcopy_mbuf *zmbuf;
+
+	for (zmbuf = TAILQ_FIRST(&vq->zmbuf_list);
+	     zmbuf != NULL; zmbuf = next) {
+		next = TAILQ_NEXT(zmbuf, next);
+
+		uint16_t last_used_idx = vq->last_used_idx;
+
+		if (mbuf_is_consumed(zmbuf->mbuf)) {
+			uint16_t flags = 0;
+
+			if (vq->used_wrap_counter)
+				flags = PACKED_TX_USED_FLAG;
+			else
+				flags = PACKED_TX_USED_WRAP_FLAG;
+
+			vq->desc_packed[last_used_idx].id = zmbuf->desc_idx;
+			vq->desc_packed[last_used_idx].len = 0;
+
+			rte_smp_wmb();
+			vq->desc_packed[last_used_idx].flags = flags;
+
+			vq->last_used_idx += zmbuf->desc_count;
+			if (vq->last_used_idx >= vq->size) {
+				vq->used_wrap_counter ^= 1;
+				vq->last_used_idx -= vq->size;
+			}
+
+			TAILQ_REMOVE(&vq->zmbuf_list, zmbuf, next);
+			restore_mbuf(zmbuf->mbuf);
+			rte_pktmbuf_free(zmbuf->mbuf);
+			put_zmbuf(zmbuf);
+			vq->nr_zmbuf -= 1;
+		}
+	}
+}
+
 static __rte_noinline uint16_t
 virtio_dev_tx_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 	struct rte_mempool *mbuf_pool, struct rte_mbuf **pkts, uint16_t count)
