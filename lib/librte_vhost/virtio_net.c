@@ -170,6 +170,49 @@ update_shadow_used_ring_packed(struct vhost_virtqueue *vq,
 }
 
 static __rte_always_inline void
+flush_used_batch_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
+	uint64_t *lens, uint16_t *ids, uint16_t flags)
+{
+	uint16_t i;
+
+	UNROLL_PRAGMA(UNROLL_PRAGMA_PARAM)
+	for (i = 0; i < PACKED_BATCH_SIZE; i++) {
+		vq->desc_packed[vq->last_used_idx + i].id = ids[i];
+		vq->desc_packed[vq->last_used_idx + i].len = lens[i];
+	}
+
+	rte_smp_wmb();
+	UNROLL_PRAGMA(UNROLL_PRAGMA_PARAM)
+	for (i = 0; i < PACKED_BATCH_SIZE; i++)
+		vq->desc_packed[vq->last_used_idx + i].flags = flags;
+
+	vhost_log_cache_used_vring(dev, vq, vq->last_used_idx *
+				   sizeof(struct vring_packed_desc),
+				   sizeof(struct vring_packed_desc) *
+				   PACKED_BATCH_SIZE);
+	vhost_log_cache_sync(dev, vq);
+
+	vq->last_used_idx += PACKED_BATCH_SIZE;
+	if (vq->last_used_idx >= vq->size) {
+		vq->used_wrap_counter ^= 1;
+		vq->last_used_idx -= vq->size;
+	}
+}
+
+static __rte_always_inline void
+flush_enqueue_batch_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
+	uint64_t *lens, uint16_t *ids)
+{
+	uint16_t flags = 0;
+
+	if (vq->used_wrap_counter)
+		flags = PACKED_RX_USED_FLAG;
+	else
+		flags = PACKED_RX_USED_WRAP_FLAG;
+	flush_used_batch_packed(dev, vq, lens, ids, flags);
+}
+
+static __rte_always_inline void
 update_enqueue_shadow_used_ring_packed(struct vhost_virtqueue *vq,
 	uint16_t desc_idx, uint32_t len, uint16_t count)
 {
@@ -937,6 +980,7 @@ virtio_dev_rx_batch_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 	struct virtio_net_hdr_mrg_rxbuf *hdrs[PACKED_BATCH_SIZE];
 	uint32_t buf_offset = dev->vhost_hlen;
 	uint64_t lens[PACKED_BATCH_SIZE];
+	uint16_t ids[PACKED_BATCH_SIZE];
 	uint16_t i;
 
 	if (unlikely(avail_idx & PACKED_BATCH_MASK))
@@ -1002,6 +1046,12 @@ virtio_dev_rx_batch_packed(struct virtio_net *dev, struct vhost_virtqueue *vq,
 			   rte_pktmbuf_mtod_offset(pkts[i], void *, 0),
 			   pkts[i]->pkt_len);
 	}
+
+	UNROLL_PRAGMA(UNROLL_PRAGMA_PARAM)
+	for (i = 0; i < PACKED_BATCH_SIZE; i++)
+		ids[i] = descs[avail_idx + i].id;
+
+	flush_enqueue_batch_packed(dev, vq, lens, ids);
 
 	return 0;
 }
