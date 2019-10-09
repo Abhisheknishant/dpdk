@@ -3512,7 +3512,8 @@ i40e_dev_info_get(struct rte_eth_dev *dev, struct rte_eth_dev_info *dev_info)
 		DEV_RX_OFFLOAD_VLAN_EXTEND |
 		DEV_RX_OFFLOAD_VLAN_FILTER |
 		DEV_RX_OFFLOAD_JUMBO_FRAME |
-		DEV_RX_OFFLOAD_RSS_HASH;
+		DEV_RX_OFFLOAD_RSS_HASH |
+		DEV_RX_OFFLOAD_FLOW_MARK;
 
 	dev_info->tx_queue_offload_capa = DEV_TX_OFFLOAD_MBUF_FAST_FREE;
 	dev_info->tx_offload_capa =
