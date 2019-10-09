@@ -94,6 +94,11 @@ API Changes
    Also, make sure to start the actual text at the margin.
    =========================================================
 
+* event: The function ``rte_event_eth_tx_adapter_enqueue`` takes an additional
+  input as ``flags``. Flag ``RTE_EVENT_ETH_TX_ADAPTER_ENQUEUE_SAME_DEST`` which
+  has been introduced in this release is used when used when all the packets
+  enqueued in the tx adapter are destined for the same Ethernet port & Tx queue.
+
 
 ABI Changes
 -----------
@@ -146,7 +151,7 @@ The libraries prepended with a plus sign were incremented in this version.
      librte_eal.so.11
      librte_efd.so.1
      librte_ethdev.so.12
-     librte_eventdev.so.7
+     librte_eventdev.so.8
      librte_flow_classify.so.1
      librte_gro.so.1
      librte_gso.so.1
