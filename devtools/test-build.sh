@@ -63,6 +63,7 @@ print_help () {
 [ -z $MAKE ] && echo "Cannot find make or gmake" && exit 1
 
 J=$DPDK_MAKE_JOBS
+builds_dir=${DPDK_TEST_BUILD_DIR:-.}
 short=false
 unset verbose
 maxerr=-Wfatal-errors
@@ -234,7 +235,7 @@ for conf in $configs ; do
 	. $(dirname $(readlink -f $0))/load-devel-config
 
 	options=$(echo $conf | sed 's,[^~+]*,,')
-	dir=$conf
+	dir=$builds_dir/$conf
 	config $dir $target $options
 
 	echo "================== Build $dir"

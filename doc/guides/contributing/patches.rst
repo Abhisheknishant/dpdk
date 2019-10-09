@@ -495,6 +495,12 @@ Compilation of patches is to be tested with ``devtools/test-meson-builds.sh`` sc
 
 The script internally checks for dependencies, then builds for several
 combinations of compilation configuration.
+By default, each build will be put in a subfolder of the current working directory.
+However, if it is preferred to place the builds in a different location,
+the environment variable ``DPDK_TEST_BUILD_DIR`` can be set to that desired location.
+For example, setting ``DPDK_TEST_BUILD_DIR=__builds`` will put all builds
+in a single subfolder called "__builds" created in the current directory.
+Setting ``DPDK_TEST_BUILD_DIR`` to an absolute directory path e.g. ``/tmp`` is also supported.
 
 
 Sending Patches
