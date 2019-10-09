@@ -16,6 +16,12 @@ CFLAGS += -I vhost_user
 CFLAGS += -fno-strict-aliasing
 LDLIBS += -lpthread
 
+AVX512_SUPPORT=$(shell $(CC) -march=native -dM -E - </dev/null |grep AVX512F)
+
+ifneq ($(AVX512_SUPPORT),)
+CFLAGS += -DDISABLE_SWPREFETCH
+endif
+
 ifeq ($(RTE_TOOLCHAIN), gcc)
 ifeq ($(shell test $(GCC_VERSION) -ge 83 && echo 1), 1)
 CFLAGS += -DSUPPORT_GCC_UNROLL_PRAGMA

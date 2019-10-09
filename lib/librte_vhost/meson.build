@@ -15,6 +15,10 @@ elif (toolchain == 'clang' and cc.version().version_compare('>=3.7.0'))
 elif (toolchain == 'icc' and cc.version().version_compare('>=16.0.0'))
 	cflags += '-DSUPPORT_ICC_UNROLL_PRAGMA'
 endif
+r = run_command(toolchain, '-march=native', '-dM', '-E', '-', '</dev/null', '|', 'grep AVX512F')
+if (r.stdout().strip() != '')
+	cflags += '-DDISABLE_SWPREFETCH'
+endif
 dpdk_conf.set('RTE_LIBRTE_VHOST_POSTCOPY',
 	      cc.has_header('linux/userfaultfd.h'))
 version = 4
