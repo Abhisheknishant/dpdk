@@ -244,8 +244,16 @@ eth_af_packet_tx(void *queue, struct rte_mbuf **bufs, uint16_t nb_pkts)
 	}
 
 	/* kick-off transmits */
-	if (sendto(pkt_q->sockfd, NULL, 0, MSG_DONTWAIT, NULL, 0) == -1) {
-		/* error sending -- no packets transmitted */
+	if (sendto(pkt_q->sockfd, NULL, 0, MSG_DONTWAIT, NULL, 0) == -1 &&
+			errno != ENOBUFS) {
+		/* Error sending.
+		 * When sendto call fails and ENOBUFS error is being set
+		 * some of the packets are actually successfully transmitted.
+		 * There is no available count of those packets, so in order
+		 * to make the statistics more accurate, all of the previously
+		 * enqueued packets will be considered successful, even though
+		 * this is not entirely correct.
+		 */
 		num_tx = 0;
 		num_tx_bytes = 0;
 	}
