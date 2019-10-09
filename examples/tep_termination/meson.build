@@ -11,6 +11,7 @@ if not is_linux
 endif
 deps += ['hash', 'vhost']
 cflags += '-Wno-deprecated-declarations'
+allow_experimental_apis = true
 sources = files(
 	'main.c', 'vxlan.c', 'vxlan_setup.c'
 )

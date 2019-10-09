@@ -312,6 +312,7 @@ configure_eth_port(uint16_t port_id)
 			return ret;
 	}
 
+	rte_eth_dev_set_supported_ptypes(port_id, RTE_PTYPE_UNKNOWN, NULL, 0);
 	ret = rte_eth_dev_start(port_id);
 	if (ret < 0)
 		return ret;
