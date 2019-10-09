@@ -876,7 +876,13 @@ private asymmetric session data. Once this is done, session should be freed usin
 
 Asymmetric Sessionless Support
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Currently asymmetric crypto framework does not support sessionless.
+Asymmetric crypto framework support sessionless operations.
+
+Fields that should be set by user are:
+- rte_crypto_asym_xform *xform member of struct rte_crypto_asym_op should point
+to the asymmetric crypto xform. Note that this xform should be immutable for the lifetime
+of associated crypto_op.
+- uint8_t sess_type member of rte_crypto_op should be set to RTE_CRYPTO_OP_SESSIONLESS.
 
 Transforms and Transform Chaining
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
