@@ -275,8 +275,14 @@ eth_memif_rx(void *queue, struct rte_mbuf **bufs, uint16_t nb_pkts)
 	ring_size = 1 << mq->log2_ring_size;
 	mask = ring_size - 1;
 
-	cur_slot = (type == MEMIF_RING_S2M) ? mq->last_head : mq->last_tail;
-	last_slot = (type == MEMIF_RING_S2M) ? ring->head : ring->tail;
+	if (type == MEMIF_RING_S2M) {
+		cur_slot = mq->last_head;
+		last_slot = __atomic_load_n(&ring->head, __ATOMIC_ACQUIRE);
+	} else {
+		cur_slot = mq->last_tail;
+		last_slot = __atomic_load_n(&ring->tail, __ATOMIC_ACQUIRE);
+	}
+
 	if (cur_slot == last_slot)
 		goto refill;
 	n_slots = last_slot - cur_slot;
@@ -344,8 +350,7 @@ next_slot:
 
 no_free_bufs:
 	if (type == MEMIF_RING_S2M) {
-		rte_mb();
-		ring->tail = cur_slot;
+		__atomic_store_n(&ring->tail, cur_slot, __ATOMIC_RELEASE);
 		mq->last_head = cur_slot;
 	} else {
 		mq->last_tail = cur_slot;
@@ -353,7 +358,7 @@ no_free_bufs:
 
 refill:
 	if (type == MEMIF_RING_M2S) {
-		head = ring->head;
+		head = __atomic_load_n(&ring->head, __ATOMIC_ACQUIRE);
 		n_slots = ring_size - head + mq->last_tail;
 
 		while (n_slots--) {
@@ -361,8 +366,7 @@ refill:
 			d0 = &ring->desc[s0];
 			d0->length = pmd->run.pkt_buffer_size;
 		}
-		rte_mb();
-		ring->head = head;
+		__atomic_store_n(&ring->head, head, __ATOMIC_RELEASE);
 	}
 
 	mq->n_pkts += n_rx_pkts;
@@ -398,14 +402,16 @@ eth_memif_tx(void *queue, struct rte_mbuf **bufs, uint16_t nb_pkts)
 	ring_size = 1 << mq->log2_ring_size;
 	mask = ring_size - 1;
 
-	n_free = ring->tail - mq->last_tail;
+	n_free = __atomic_load_n(&ring->tail, __ATOMIC_ACQUIRE) - mq->last_tail;
 	mq->last_tail += n_free;
-	slot = (type == MEMIF_RING_S2M) ? ring->head : ring->tail;
 
-	if (type == MEMIF_RING_S2M)
-		n_free = ring_size - ring->head + mq->last_tail;
-	else
-		n_free = ring->head - ring->tail;
+	if (type == MEMIF_RING_S2M) {
+		slot = __atomic_load_n(&ring->head, __ATOMIC_ACQUIRE);
+		n_free = ring_size - slot + mq->last_tail;
+	} else {
+		slot = __atomic_load_n(&ring->tail, __ATOMIC_ACQUIRE);
+		n_free = __atomic_load_n(&ring->head, __ATOMIC_ACQUIRE) - slot;
+	}
 
 	while (n_tx_pkts < nb_pkts && n_free) {
 		mbuf_head = *bufs++;
@@ -464,11 +470,10 @@ next_in_chain:
 	}
 
 no_free_slots:
-	rte_mb();
 	if (type == MEMIF_RING_S2M)
-		ring->head = slot;
+		__atomic_store_n(&ring->head, slot, __ATOMIC_RELEASE);
 	else
-		ring->tail = slot;
+		__atomic_store_n(&ring->tail, slot, __ATOMIC_RELEASE);
 
 	if ((ring->flags & MEMIF_RING_FLAG_MASK_INT) == 0) {
 		a = 1;
@@ -611,8 +616,8 @@ memif_init_rings(struct rte_eth_dev *dev)
 
 	for (i = 0; i < pmd->run.num_s2m_rings; i++) {
 		ring = memif_get_ring(pmd, proc_private, MEMIF_RING_S2M, i);
-		ring->head = 0;
-		ring->tail = 0;
+		__atomic_store_n(&ring->head, 0, __ATOMIC_RELAXED);
+		__atomic_store_n(&ring->tail, 0, __ATOMIC_RELAXED);
 		ring->cookie = MEMIF_COOKIE;
 		ring->flags = 0;
 		for (j = 0; j < (1 << pmd->run.log2_ring_size); j++) {
@@ -627,8 +632,8 @@ memif_init_rings(struct rte_eth_dev *dev)
 
 	for (i = 0; i < pmd->run.num_m2s_rings; i++) {
 		ring = memif_get_ring(pmd, proc_private, MEMIF_RING_M2S, i);
-		ring->head = 0;
-		ring->tail = 0;
+		__atomic_store_n(&ring->head, 0, __ATOMIC_RELAXED);
+		__atomic_store_n(&ring->tail, 0, __ATOMIC_RELAXED);
 		ring->cookie = MEMIF_COOKIE;
 		ring->flags = 0;
 		for (j = 0; j < (1 << pmd->run.log2_ring_size); j++) {
@@ -734,8 +739,8 @@ memif_connect(struct rte_eth_dev *dev)
 				MIF_LOG(ERR, "Wrong ring");
 				return -1;
 			}
-			ring->head = 0;
-			ring->tail = 0;
+			__atomic_store_n(&ring->head, 0, __ATOMIC_RELAXED);
+			__atomic_store_n(&ring->tail, 0, __ATOMIC_RELAXED);
 			mq->last_head = 0;
 			mq->last_tail = 0;
 			/* enable polling mode */
@@ -750,8 +755,8 @@ memif_connect(struct rte_eth_dev *dev)
 				MIF_LOG(ERR, "Wrong ring");
 				return -1;
 			}
-			ring->head = 0;
-			ring->tail = 0;
+			__atomic_store_n(&ring->head, 0, __ATOMIC_RELAXED);
+			__atomic_store_n(&ring->tail, 0, __ATOMIC_RELAXED);
 			mq->last_head = 0;
 			mq->last_tail = 0;
 			/* enable polling mode */

@@ -6,7 +6,7 @@
 #define _MEMIF_H_
 
 #define MEMIF_COOKIE		0x3E31F20
-#define MEMIF_VERSION_MAJOR	2
+#define MEMIF_VERSION_MAJOR	3
 #define MEMIF_VERSION_MINOR	0
 #define MEMIF_VERSION		((MEMIF_VERSION_MAJOR << 8) | MEMIF_VERSION_MINOR)
 #define MEMIF_NAME_SZ		32
@@ -169,9 +169,9 @@ typedef struct {
 	uint32_t cookie;			/**< MEMIF_COOKIE */
 	uint16_t flags;				/**< flags */
 #define MEMIF_RING_FLAG_MASK_INT 1		/**< disable interrupt mode */
-	volatile uint16_t head;			/**< pointer to ring buffer head */
+	uint16_t head;			/**< pointer to ring buffer head */
 	MEMIF_CACHELINE_ALIGN_MARK(cacheline1);
-	volatile uint16_t tail;			/**< pointer to ring buffer tail */
+	uint16_t tail;			/**< pointer to ring buffer tail */
 	MEMIF_CACHELINE_ALIGN_MARK(cacheline2);
 	memif_desc_t desc[0];			/**< buffer descriptors */
 } memif_ring_t;
