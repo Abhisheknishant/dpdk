@@ -85,6 +85,11 @@ New Features
   Added stateful decompression support in the Intel QuickAssist Technology PMD.
   Please note that stateful compression is not supported.
 
+* **Added cryptodev API to use asymmetric session-less operation.**
+
+  Added session-less option to cryptodev asymmetric API. It works the same way
+  as symmetric crypto does namely xform is used directly by the crypto op.
+
 
 Removed Items
 -------------
