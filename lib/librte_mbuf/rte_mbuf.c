@@ -261,7 +261,7 @@ int rte_mbuf_check(const struct rte_mbuf *m, int is_header,
  *  Note: The compiler should optimize this parameter away when using a
  *  constant value, such as RTE_PKTMBUF_FREE_PENDING_SZ.
  */
-static __rte_always_inline void
+static void
 __rte_pktmbuf_free_seg_via_array(struct rte_mbuf *m,
 	struct rte_mbuf ** const pending, unsigned int * const nb_pending,
 	const unsigned int pending_sz)
