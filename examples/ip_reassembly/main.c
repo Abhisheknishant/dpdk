@@ -1163,6 +1163,8 @@ main(int argc, char **argv)
 		if ((enabled_port_mask & (1 << portid)) == 0) {
 			continue;
 		}
+		rte_eth_dev_set_supported_ptypes(portid, RTE_PTYPE_UNKNOWN,
+						 NULL, 0);
 		/* Start device */
 		ret = rte_eth_dev_start(portid);
 		if (ret < 0)

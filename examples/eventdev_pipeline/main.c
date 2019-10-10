@@ -392,6 +392,8 @@ main(int argc, char **argv)
 
 	/* Start the Ethernet port. */
 	RTE_ETH_FOREACH_DEV(portid) {
+		rte_eth_dev_set_supported_ptypes(portid, RTE_PTYPE_UNKNOWN,
+						 NULL, 0);
 		err = rte_eth_dev_start(portid);
 		if (err < 0)
 			rte_exit(EXIT_FAILURE, "Error starting ethdev %d\n",
