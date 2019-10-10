@@ -132,6 +132,12 @@ The public API headers are grouped by topics:
   [tailq]              (@ref rte_tailq.h),
   [bitmap]             (@ref rte_bitmap.h)
 
+- **ipsec**:
+  [ipsec]              (@ref rte_ipsec.h),
+  [ipsec_sa]           (@ref rte_ipsec_sa.h),
+  [ipsec_group]        (@ref rte_ipsec_group.h),
+  [ipsec_sad]          (@ref rte_ipsec_sad.h)
+
 - **packet framework**:
   * [port]             (@ref rte_port.h):
     [ethdev]           (@ref rte_port_ethdev.h),
