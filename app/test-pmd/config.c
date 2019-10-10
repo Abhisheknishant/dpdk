@@ -534,9 +534,14 @@ port_infos_display(portid_t port_id)
 			printf("  filter off \n");
 
 		if (vlan_offload & ETH_VLAN_EXTEND_OFFLOAD)
-			printf("  qinq(extend) on \n");
+			printf("  extend on\n");
 		else
-			printf("  qinq(extend) off \n");
+			printf("  extend off\n");
+
+		if (vlan_offload & ETH_QINQ_STRIP_OFFLOAD)
+			printf("  qinq strip on\n");
+		else
+			printf("  qinq strip off\n");
 	}
 
 	if (dev_info.hash_key_size > 0)
