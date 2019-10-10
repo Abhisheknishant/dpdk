@@ -1288,7 +1288,8 @@ qede_dev_info_get(struct rte_eth_dev *eth_dev,
 				     DEV_RX_OFFLOAD_SCATTER	|
 				     DEV_RX_OFFLOAD_JUMBO_FRAME |
 				     DEV_RX_OFFLOAD_VLAN_FILTER |
-				     DEV_RX_OFFLOAD_VLAN_STRIP);
+				     DEV_RX_OFFLOAD_VLAN_STRIP  |
+				     DEV_RX_OFFLOAD_RSS_HASH);
 	dev_info->rx_queue_offload_capa = 0;
 
 	/* TX offloads are on a per-packet basis, so it is applicable

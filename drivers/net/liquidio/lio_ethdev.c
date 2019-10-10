@@ -407,7 +407,8 @@ lio_dev_info_get(struct rte_eth_dev *eth_dev,
 	devinfo->rx_offload_capa = (DEV_RX_OFFLOAD_IPV4_CKSUM		|
 				    DEV_RX_OFFLOAD_UDP_CKSUM		|
 				    DEV_RX_OFFLOAD_TCP_CKSUM		|
-				    DEV_RX_OFFLOAD_VLAN_STRIP);
+				    DEV_RX_OFFLOAD_VLAN_STRIP		|
+				    DEV_RX_OFFLOAD_RSS_HASH);
 	devinfo->tx_offload_capa = (DEV_TX_OFFLOAD_IPV4_CKSUM		|
 				    DEV_TX_OFFLOAD_UDP_CKSUM		|
 				    DEV_TX_OFFLOAD_TCP_CKSUM		|
