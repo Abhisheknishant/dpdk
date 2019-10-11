@@ -194,6 +194,7 @@ static int spi_txrx(struct altera_spi_device *dev)
 				return -EIO;
 			if (status & ALTERA_SPI_STATUS_RRDY_MSK)
 				break;
+			udelay(1);
 			if (retry++ > SPI_MAX_RETRY) {
 				dev_err(dev, "%s, read timeout\n", __func__);
 				return -EBUSY;
