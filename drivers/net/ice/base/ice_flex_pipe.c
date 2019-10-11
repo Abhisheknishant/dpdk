@@ -4219,7 +4219,7 @@ static const struct ice_fd_src_dst_pair ice_fd_pairs[] = {
 	{ ICE_PROT_SCTP_IL, 1, 2 }
 };
 
-#define ICE_FD_SRC_DST_PAIR_COUNT	ARRAY_SIZE(ice_fd_pairs)
+#define ICE_FD_SRC_DST_PAIR_COUNT	RTE_DIM(ice_fd_pairs)
 
 /**
  * ice_update_fd_swap - set register appropriately for a FD FV extraction

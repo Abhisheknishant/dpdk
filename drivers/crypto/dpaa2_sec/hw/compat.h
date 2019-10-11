@@ -67,14 +67,6 @@
 #endif
 #endif /* pr_warn */
 
-/**
- * ARRAY_SIZE - returns the number of elements in an array
- * @x: array
- */
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#endif
-
 #ifndef ALIGN
 #define ALIGN(x, a) (((x) + ((__typeof__(x))(a) - 1)) & \
 			~((__typeof__(x))(a) - 1))

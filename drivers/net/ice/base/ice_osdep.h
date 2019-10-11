@@ -90,7 +90,6 @@ typedef uint64_t        s64;
 #define min(a, b) RTE_MIN(a, b)
 #define max(a, b) RTE_MAX(a, b)
 
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 #define FIELD_SIZEOF(t, f) (sizeof(((t *)0)->f))
 #define MAKEMASK(m, s) ((m) << (s))
 

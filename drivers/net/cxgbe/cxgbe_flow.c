@@ -891,13 +891,13 @@ cxgbe_rtef_parse_items(struct rte_flow *flow,
 {
 	struct adapter *adap = ethdev2adap(flow->dev);
 	const struct rte_flow_item *i;
-	char repeat[ARRAY_SIZE(parseitem)] = {0};
+	char repeat[RTE_DIM(parseitem)] = {0};
 
 	for (i = items; i->type != RTE_FLOW_ITEM_TYPE_END; i++) {
 		struct chrte_fparse *idx;
 		int ret;
 
-		if (i->type >= ARRAY_SIZE(parseitem))
+		if (i->type >= RTE_DIM(parseitem))
 			return rte_flow_error_set(e, ENOTSUP,
 						  RTE_FLOW_ERROR_TYPE_ITEM,
 						  i, "Item not supported");

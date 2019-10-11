@@ -794,7 +794,7 @@ ice_flow_xtract_raws(struct ice_hw *hw, struct ice_flow_prof_params *params,
 		return ICE_SUCCESS;
 
 	if (params->prof->segs[seg].raws_cnt >
-	    ARRAY_SIZE(params->prof->segs[seg].raws))
+	    RTE_DIM(params->prof->segs[seg].raws))
 		return ICE_ERR_MAX_LIMIT;
 
 	/* Offsets within the segment headers are not supported */

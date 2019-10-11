@@ -2357,17 +2357,17 @@ ef10_parttbl_get(
 	switch (enp->en_family) {
 	case EFX_FAMILY_HUNTINGTON:
 		*parttblp = hunt_parttbl;
-		*parttbl_rowsp = EFX_ARRAY_SIZE(hunt_parttbl);
+		*parttbl_rowsp = RTE_DIM(hunt_parttbl);
 		break;
 
 	case EFX_FAMILY_MEDFORD:
 		*parttblp = medford_parttbl;
-		*parttbl_rowsp = EFX_ARRAY_SIZE(medford_parttbl);
+		*parttbl_rowsp = RTE_DIM(medford_parttbl);
 		break;
 
 	case EFX_FAMILY_MEDFORD2:
 		*parttblp = medford2_parttbl;
-		*parttbl_rowsp = EFX_ARRAY_SIZE(medford2_parttbl);
+		*parttbl_rowsp = RTE_DIM(medford2_parttbl);
 		break;
 
 	default:

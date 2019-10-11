@@ -417,11 +417,11 @@ int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 	switch (vdev->proxy) {
 	case PROXY_BY_INDEX:
 		err =  vnic_dev_cmd_proxy(vdev, CMD_PROXY_BY_INDEX, cmd,
-				args, ARRAY_SIZE(args), wait);
+				args, RTE_DIM(args), wait);
 		break;
 	case PROXY_BY_BDF:
 		err =  vnic_dev_cmd_proxy(vdev, CMD_PROXY_BY_BDF, cmd,
-				args, ARRAY_SIZE(args), wait);
+				args, RTE_DIM(args), wait);
 		break;
 	case PROXY_NONE:
 	default:

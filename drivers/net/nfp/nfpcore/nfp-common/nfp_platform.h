@@ -22,10 +22,6 @@
 #define BIT_ULL(x) (1ULL << (x))
 #endif
 
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#endif
-
 #define NFP_ERRNO(err) (errno = (err), -1)
 #define NFP_ERRNO_RET(err, ret) (errno = (err), (ret))
 #define NFP_NOERR(errv) (errno)

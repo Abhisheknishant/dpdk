@@ -190,7 +190,7 @@ efx_loopback_type_name(
 	__in		efx_nic_t *enp,
 	__in		efx_loopback_type_t type)
 {
-	EFX_STATIC_ASSERT(EFX_ARRAY_SIZE(__efx_loopback_type_name) ==
+	EFX_STATIC_ASSERT(RTE_DIM(__efx_loopback_type_name) ==
 	    EFX_LOOPBACK_NTYPES);
 
 	_NOTE(ARGUNUSED(enp))

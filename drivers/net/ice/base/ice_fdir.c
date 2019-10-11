@@ -350,7 +350,7 @@ static const struct ice_fdir_base_pkt ice_fdir_pkt[] = {
 	},
 };
 
-#define ICE_FDIR_NUM_PKT ARRAY_SIZE(ice_fdir_pkt)
+#define ICE_FDIR_NUM_PKT RTE_DIM(ice_fdir_pkt)
 
 /* Flow Direcotr (FD) filter program descriptor Context */
 static const struct ice_ctx_ele ice_fd_fltr_desc_ctx_info[] = {

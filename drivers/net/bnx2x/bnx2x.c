@@ -11054,14 +11054,12 @@ static void bnx2x_tx_hw_flushed(struct bnx2x_softc *sc, uint32_t poll_count)
 	uint32_t i;
 
 	/* Verify the command queues are flushed P0, P1, P4 */
-	for (i = 0; i < ARRAY_SIZE(cmd_regs); i++) {
+	for (i = 0; i < RTE_DIM(cmd_regs); i++)
 		bnx2x_pbf_pN_cmd_flushed(sc, &cmd_regs[i], poll_count);
-	}
 
 	/* Verify the transmission buffers are flushed P0, P1, P4 */
-	for (i = 0; i < ARRAY_SIZE(buf_regs); i++) {
+	for (i = 0; i < RTE_DIM(buf_regs); i++)
 		bnx2x_pbf_pN_buf_flushed(sc, &buf_regs[i], poll_count);
-	}
 }
 
 static void bnx2x_hw_enable_status(struct bnx2x_softc *sc)

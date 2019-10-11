@@ -63,8 +63,6 @@
 #define _CMD_VTYPE(cmd)          (((cmd) >> _CMD_VTYPESHIFT) & _CMD_VTYPEMASK)
 #define _CMD_N(cmd)              (((cmd) >> _CMD_NSHIFT) & _CMD_NMASK)
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-
 enum vnic_devcmd_cmd {
 	CMD_NONE                = _CMDC(_CMD_DIR_NONE, _CMD_VTYPE_NONE, 0),
 

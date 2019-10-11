@@ -34,8 +34,6 @@
 #define opae_zmalloc(size) rte_zmalloc(NULL, size, 0)
 #define opae_free(addr) rte_free(addr)
 
-#define ARRAY_SIZE(arr) RTE_DIM(arr)
-
 #define min(a, b) RTE_MIN(a, b)
 #define max(a, b) RTE_MAX(a, b)
 

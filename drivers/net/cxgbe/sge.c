@@ -2298,7 +2298,7 @@ void t4_free_sge_resources(struct adapter *adap)
 	}
 
 	/* clean up control Tx queues */
-	for (i = 0; i < ARRAY_SIZE(adap->sge.ctrlq); i++) {
+	for (i = 0; i < RTE_DIM(adap->sge.ctrlq); i++) {
 		struct sge_ctrl_txq *cq = &adap->sge.ctrlq[i];
 
 		if (cq->q.desc) {

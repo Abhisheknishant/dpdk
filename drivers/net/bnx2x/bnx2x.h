@@ -91,12 +91,6 @@
 #define PCIM_EXP_CTL_MAX_READ_REQUEST  PCIEM_CTL_MAX_READ_REQUEST
 #endif
 
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
-#endif
-#ifndef ARRSIZE
-#define ARRSIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
-#endif
 #ifndef DIV_ROUND_UP
 #define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 #endif

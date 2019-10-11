@@ -268,7 +268,7 @@ hns3_is_special_opcode(uint16_t opcode)
 				  HNS3_OPC_QUERY_64_BIT_REG};
 	uint32_t i;
 
-	for (i = 0; i < ARRAY_SIZE(spec_opcode); i++)
+	for (i = 0; i < RTE_DIM(spec_opcode); i++)
 		if (spec_opcode[i] == opcode)
 			return true;
 

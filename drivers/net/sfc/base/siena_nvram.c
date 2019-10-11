@@ -246,7 +246,7 @@ siena_nvram_type_to_partn(
 	EFSYS_ASSERT3U(type, <, EFX_NVRAM_NTYPES);
 	EFSYS_ASSERT(partnp != NULL);
 
-	for (i = 0; i < EFX_ARRAY_SIZE(siena_parttbl); i++) {
+	for (i = 0; i < RTE_DIM(siena_parttbl); i++) {
 		siena_parttbl_entry_t *entry = &siena_parttbl[i];
 
 		if (entry->port == emip->emi_port && entry->nvtype == type) {
@@ -274,7 +274,7 @@ siena_nvram_test(
 	 * Iterate over the list of supported partition types
 	 * applicable to *this* port
 	 */
-	for (i = 0; i < EFX_ARRAY_SIZE(siena_parttbl); i++) {
+	for (i = 0; i < RTE_DIM(siena_parttbl); i++) {
 		entry = &siena_parttbl[i];
 
 		if (entry->port != emip->emi_port ||
@@ -517,7 +517,7 @@ siena_nvram_partn_get_version(
 	 * that have access to this partition.
 	 */
 	version[0] = version[1] = version[2] = version[3] = 0;
-	for (i = 0; i < EFX_ARRAY_SIZE(siena_parttbl); i++) {
+	for (i = 0; i < RTE_DIM(siena_parttbl); i++) {
 		siena_mc_fw_version_t *verp;
 		unsigned int nitems;
 		uint16_t temp[4];

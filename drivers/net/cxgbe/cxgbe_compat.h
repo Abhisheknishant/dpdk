@@ -144,8 +144,6 @@ typedef uint64_t  dma_addr_t;
 		(type *)((char *)__mptr - offsetof(type, member)); })
 #endif
 
-#define ARRAY_SIZE(arr) RTE_DIM(arr)
-
 #define cpu_to_be16(o) rte_cpu_to_be_16(o)
 #define cpu_to_be32(o) rte_cpu_to_be_32(o)
 #define cpu_to_be64(o) rte_cpu_to_be_64(o)

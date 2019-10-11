@@ -143,7 +143,7 @@ int t4vf_wr_mbox_core(struct adapter *adapter,
 		 */
 		if (sleep_ok) {
 			ms = delay[delay_idx];  /* last element may repeat */
-			if (delay_idx < ARRAY_SIZE(delay) - 1)
+			if (delay_idx < RTE_DIM(delay) - 1)
 				delay_idx++;
 			msleep(ms);
 		} else {
@@ -186,7 +186,7 @@ int t4vf_wr_mbox_core(struct adapter *adapter,
 	for (i = 0; i < FW_CMD_MAX_TIMEOUT; i++) {
 		if (sleep_ok) {
 			ms = delay[delay_idx];  /* last element may repeat */
-			if (delay_idx < ARRAY_SIZE(delay) - 1)
+			if (delay_idx < RTE_DIM(delay) - 1)
 				delay_idx++;
 			msleep(ms);
 		} else {

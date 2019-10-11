@@ -1209,7 +1209,7 @@ ef10_filter_insert_multicast_list(
 		count = 0;
 
 	if (count + (brdcst ? 1 : 0) >
-	    EFX_ARRAY_SIZE(eftp->eft_mulcst_filter_indexes)) {
+	    RTE_DIM(eftp->eft_mulcst_filter_indexes)) {
 		/* Too many MAC addresses */
 		rc = EINVAL;
 		goto fail1;
@@ -1378,8 +1378,8 @@ ef10_filter_insert_encap_filters(
 	uint32_t i;
 	efx_rc_t rc;
 
-	EFX_STATIC_ASSERT(EFX_ARRAY_SIZE(ef10_filter_encap_list) <=
-			    EFX_ARRAY_SIZE(table->eft_encap_filter_indexes));
+	EFX_STATIC_ASSERT(RTE_DIM(ef10_filter_encap_list) <=
+			    RTE_DIM(table->eft_encap_filter_indexes));
 
 	/*
 	 * On Medford, full-featured firmware can identify packets as being
@@ -1396,7 +1396,7 @@ ef10_filter_insert_encap_filters(
 	 * may well, however, fail to insert on unprivileged functions.)
 	 */
 	table->eft_encap_filter_count = 0;
-	for (i = 0; i < EFX_ARRAY_SIZE(ef10_filter_encap_list); i++) {
+	for (i = 0; i < RTE_DIM(ef10_filter_encap_list); i++) {
 		efx_filter_spec_t spec;
 		ef10_filter_encap_entry_t *encap_filter =
 			&ef10_filter_encap_list[i];
@@ -1448,7 +1448,7 @@ ef10_filter_remove_old(
 	ef10_filter_table_t *table = enp->en_filter.ef_ef10_filter_table;
 	uint32_t i;
 
-	for (i = 0; i < EFX_ARRAY_SIZE(table->eft_entry); i++) {
+	for (i = 0; i < RTE_DIM(table->eft_entry); i++) {
 		if (ef10_filter_entry_is_auto_old(table, i)) {
 			(void) ef10_filter_delete_internal(enp, i);
 		}
@@ -1708,7 +1708,7 @@ fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	/* Clear auto old flags */
-	for (i = 0; i < EFX_ARRAY_SIZE(table->eft_entry); i++) {
+	for (i = 0; i < RTE_DIM(table->eft_entry); i++) {
 		if (ef10_filter_entry_is_auto_old(table, i)) {
 			ef10_filter_set_entry_not_auto_old(table, i);
 		}

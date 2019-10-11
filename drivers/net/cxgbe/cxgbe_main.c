@@ -208,7 +208,7 @@ static int closest_timer(const struct sge *s, int time)
 	unsigned int i, match = 0;
 	int delta, min_delta = INT_MAX;
 
-	for (i = 0; i < ARRAY_SIZE(s->timer_val); i++) {
+	for (i = 0; i < RTE_DIM(s->timer_val); i++) {
 		delta = time - s->timer_val[i];
 		if (delta < 0)
 			delta = -delta;
@@ -225,7 +225,7 @@ static int closest_thres(const struct sge *s, int thres)
 	unsigned int i, match = 0;
 	int delta, min_delta = INT_MAX;
 
-	for (i = 0; i < ARRAY_SIZE(s->counter_val); i++) {
+	for (i = 0; i < RTE_DIM(s->counter_val); i++) {
 		delta = thres - s->counter_val[i];
 		if (delta < 0)
 			delta = -delta;
@@ -547,7 +547,7 @@ void cxgbe_cfg_queues(struct rte_eth_dev *eth_dev)
 			qidx += pi->n_rx_qsets;
 		}
 
-		for (i = 0; i < ARRAY_SIZE(s->ethrxq); i++) {
+		for (i = 0; i < RTE_DIM(s->ethrxq); i++) {
 			struct sge_eth_rxq *r = &s->ethrxq[i];
 
 			init_rspq(adap, &r->rspq, 5, 32, 1024, 64);
@@ -555,7 +555,7 @@ void cxgbe_cfg_queues(struct rte_eth_dev *eth_dev)
 			r->fl.size = (r->usembufs ? 1024 : 72);
 		}
 
-		for (i = 0; i < ARRAY_SIZE(s->ethtxq); i++)
+		for (i = 0; i < RTE_DIM(s->ethtxq); i++)
 			s->ethtxq[i].q.size = 1024;
 
 		init_rspq(adap, &adap->sge.fw_evtq, 0, 0, 1024, 64);
@@ -1325,7 +1325,7 @@ void t4_os_portmod_changed(const struct adapter *adap, int port_id)
 
 	if (pi->mod_type == FW_PORT_MOD_TYPE_NONE)
 		dev_info(adap, "Port%d: port module unplugged\n", pi->port_id);
-	else if (pi->mod_type < ARRAY_SIZE(mod_str))
+	else if (pi->mod_type < RTE_DIM(mod_str))
 		dev_info(adap, "Port%d: %s port module inserted\n", pi->port_id,
 			 mod_str[pi->mod_type]);
 	else if (pi->mod_type == FW_PORT_MOD_TYPE_NOTSUPPORTED)

@@ -1408,7 +1408,7 @@ ef10_ev_rxlabel_init(
 #endif
 
 	_NOTE(ARGUNUSED(type))
-	EFSYS_ASSERT3U(label, <, EFX_ARRAY_SIZE(eep->ee_rxq_state));
+	EFSYS_ASSERT3U(label, <, RTE_DIM(eep->ee_rxq_state));
 	eersp = &eep->ee_rxq_state[label];
 
 	EFSYS_ASSERT3U(eersp->eers_rx_mask, ==, 0);
@@ -1457,7 +1457,7 @@ ef10_ev_rxlabel_fini(
 {
 	efx_evq_rxq_state_t *eersp;
 
-	EFSYS_ASSERT3U(label, <, EFX_ARRAY_SIZE(eep->ee_rxq_state));
+	EFSYS_ASSERT3U(label, <, RTE_DIM(eep->ee_rxq_state));
 	eersp = &eep->ee_rxq_state[label];
 
 	EFSYS_ASSERT3U(eersp->eers_rx_mask, !=, 0);

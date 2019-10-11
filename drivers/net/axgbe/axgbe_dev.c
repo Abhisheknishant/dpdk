@@ -640,7 +640,7 @@ static int axgbe_write_rss_lookup_table(struct axgbe_port *pdata)
 	unsigned int i;
 	int ret;
 
-	for (i = 0; i < ARRAY_SIZE(pdata->rss_table); i++) {
+	for (i = 0; i < RTE_DIM(pdata->rss_table); i++) {
 		ret = axgbe_write_rss_reg(pdata,
 					  AXGBE_RSS_LOOKUP_TABLE_TYPE, i,
 					  pdata->rss_table[i]);

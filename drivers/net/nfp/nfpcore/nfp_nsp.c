@@ -60,7 +60,7 @@ nfp_nsp_print_extended_error(uint32_t ret_val)
 	if (!ret_val)
 		return;
 
-	for (i = 0; i < (int)ARRAY_SIZE(nsp_errors); i++)
+	for (i = 0; i < (int)RTE_DIM(nsp_errors); i++)
 		if (ret_val == (uint32_t)nsp_errors[i].code)
 			printf("err msg: %s\n", nsp_errors[i].msg);
 }

@@ -134,7 +134,7 @@ nicvf_reg_dump(struct nicvf *nic,  uint64_t *data)
 
 	dump_stdout = data ? 0 : 1;
 
-	for (i = 0; i < NICVF_ARRAY_SIZE(nicvf_reg_tbl); i++)
+	for (i = 0; i < RTE_DIM(nicvf_reg_tbl); i++)
 		if (dump_stdout)
 			nicvf_log("%24s  = 0x%" PRIx64 "\n",
 				nicvf_reg_tbl[i].name,
@@ -142,7 +142,7 @@ nicvf_reg_dump(struct nicvf *nic,  uint64_t *data)
 		else
 			*data++ = nicvf_reg_read(nic, nicvf_reg_tbl[i].offset);
 
-	for (i = 0; i < NICVF_ARRAY_SIZE(nicvf_multi_reg_tbl); i++)
+	for (i = 0; i < RTE_DIM(nicvf_multi_reg_tbl); i++)
 		if (dump_stdout)
 			nicvf_log("%24s  = 0x%" PRIx64 "\n",
 				nicvf_multi_reg_tbl[i].name,
@@ -153,7 +153,7 @@ nicvf_reg_dump(struct nicvf *nic,  uint64_t *data)
 					nicvf_multi_reg_tbl[i].offset);
 
 	for (q = 0; q < MAX_CMP_QUEUES_PER_QS; q++)
-		for (i = 0; i < NICVF_ARRAY_SIZE(nicvf_qset_cq_reg_tbl); i++)
+		for (i = 0; i < RTE_DIM(nicvf_qset_cq_reg_tbl); i++)
 			if (dump_stdout)
 				nicvf_log("%30s(%d)  = 0x%" PRIx64 "\n",
 					nicvf_qset_cq_reg_tbl[i].name, q,
@@ -164,7 +164,7 @@ nicvf_reg_dump(struct nicvf *nic,  uint64_t *data)
 					nicvf_qset_cq_reg_tbl[i].offset, q);
 
 	for (q = 0; q < MAX_RCV_QUEUES_PER_QS; q++)
-		for (i = 0; i < NICVF_ARRAY_SIZE(nicvf_qset_rq_reg_tbl); i++)
+		for (i = 0; i < RTE_DIM(nicvf_qset_rq_reg_tbl); i++)
 			if (dump_stdout)
 				nicvf_log("%30s(%d)  = 0x%" PRIx64 "\n",
 					nicvf_qset_rq_reg_tbl[i].name, q,
@@ -175,7 +175,7 @@ nicvf_reg_dump(struct nicvf *nic,  uint64_t *data)
 					nicvf_qset_rq_reg_tbl[i].offset, q);
 
 	for (q = 0; q < MAX_SND_QUEUES_PER_QS; q++)
-		for (i = 0; i < NICVF_ARRAY_SIZE(nicvf_qset_sq_reg_tbl); i++)
+		for (i = 0; i < RTE_DIM(nicvf_qset_sq_reg_tbl); i++)
 			if (dump_stdout)
 				nicvf_log("%30s(%d)  = 0x%" PRIx64 "\n",
 					nicvf_qset_sq_reg_tbl[i].name, q,
@@ -186,7 +186,7 @@ nicvf_reg_dump(struct nicvf *nic,  uint64_t *data)
 					nicvf_qset_sq_reg_tbl[i].offset, q);
 
 	for (q = 0; q < MAX_RCV_BUF_DESC_RINGS_PER_QS; q++)
-		for (i = 0; i < NICVF_ARRAY_SIZE(nicvf_qset_rbdr_reg_tbl); i++)
+		for (i = 0; i < RTE_DIM(nicvf_qset_rbdr_reg_tbl); i++)
 			if (dump_stdout)
 				nicvf_log("%30s(%d)  = 0x%" PRIx64 "\n",
 					nicvf_qset_rbdr_reg_tbl[i].name, q,
@@ -203,15 +203,15 @@ nicvf_reg_get_count(void)
 {
 	int nr_regs;
 
-	nr_regs = NICVF_ARRAY_SIZE(nicvf_reg_tbl);
-	nr_regs += NICVF_ARRAY_SIZE(nicvf_multi_reg_tbl);
-	nr_regs += NICVF_ARRAY_SIZE(nicvf_qset_cq_reg_tbl) *
+	nr_regs = RTE_DIM(nicvf_reg_tbl);
+	nr_regs += RTE_DIM(nicvf_multi_reg_tbl);
+	nr_regs += RTE_DIM(nicvf_qset_cq_reg_tbl) *
 			MAX_CMP_QUEUES_PER_QS;
-	nr_regs += NICVF_ARRAY_SIZE(nicvf_qset_rq_reg_tbl) *
+	nr_regs += RTE_DIM(nicvf_qset_rq_reg_tbl) *
 			MAX_RCV_QUEUES_PER_QS;
-	nr_regs += NICVF_ARRAY_SIZE(nicvf_qset_sq_reg_tbl) *
+	nr_regs += RTE_DIM(nicvf_qset_sq_reg_tbl) *
 			MAX_SND_QUEUES_PER_QS;
-	nr_regs += NICVF_ARRAY_SIZE(nicvf_qset_rbdr_reg_tbl) *
+	nr_regs += RTE_DIM(nicvf_qset_rbdr_reg_tbl) *
 			MAX_RCV_BUF_DESC_RINGS_PER_QS;
 
 	return nr_regs;
@@ -470,7 +470,7 @@ nicvf_qsize_rbdr_roundup(uint32_t val)
 			RBDR_QUEUE_SZ_32K, RBDR_QUEUE_SZ_64K,
 			RBDR_QUEUE_SZ_128K, RBDR_QUEUE_SZ_256K,
 			RBDR_QUEUE_SZ_512K};
-	return nicvf_roundup_list(val, list, NICVF_ARRAY_SIZE(list));
+	return nicvf_roundup_list(val, list, RTE_DIM(list));
 }
 
 int
@@ -579,7 +579,7 @@ nicvf_qsize_sq_roundup(uint32_t val)
 			SND_QUEUE_SZ_4K, SND_QUEUE_SZ_8K,
 			SND_QUEUE_SZ_16K, SND_QUEUE_SZ_32K,
 			SND_QUEUE_SZ_64K};
-	return nicvf_roundup_list(val, list, NICVF_ARRAY_SIZE(list));
+	return nicvf_roundup_list(val, list, RTE_DIM(list));
 }
 
 int
@@ -684,7 +684,7 @@ nicvf_qsize_cq_roundup(uint32_t val)
 			CMP_QUEUE_SZ_4K, CMP_QUEUE_SZ_8K,
 			CMP_QUEUE_SZ_16K, CMP_QUEUE_SZ_32K,
 			CMP_QUEUE_SZ_64K};
-	return nicvf_roundup_list(val, list, NICVF_ARRAY_SIZE(list));
+	return nicvf_roundup_list(val, list, RTE_DIM(list));
 }
 
 

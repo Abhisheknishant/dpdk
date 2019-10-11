@@ -472,7 +472,7 @@ ef10_mac_stats_get_mask(
 	efx_rc_t rc;
 
 	if ((rc = efx_mac_stats_mask_add_ranges(maskp, mask_size,
-	    ef10_common, EFX_ARRAY_SIZE(ef10_common))) != 0)
+	    ef10_common, RTE_DIM(ef10_common))) != 0)
 		goto fail1;
 
 	if (epp->ep_phy_cap_mask & (1 << MC_CMD_PHY_CAP_40000FDX_LBN)) {
@@ -481,18 +481,18 @@ ef10_mac_stats_get_mask(
 		};
 
 		if ((rc = efx_mac_stats_mask_add_ranges(maskp, mask_size,
-		    ef10_40g_extra, EFX_ARRAY_SIZE(ef10_40g_extra))) != 0)
+		    ef10_40g_extra, RTE_DIM(ef10_40g_extra))) != 0)
 			goto fail2;
 
 		if (encp->enc_mac_stats_40g_tx_size_bins) {
 			if ((rc = efx_mac_stats_mask_add_ranges(maskp,
 			    mask_size, ef10_tx_size_bins,
-			    EFX_ARRAY_SIZE(ef10_tx_size_bins))) != 0)
+			    RTE_DIM(ef10_tx_size_bins))) != 0)
 				goto fail3;
 		}
 	} else {
 		if ((rc = efx_mac_stats_mask_add_ranges(maskp, mask_size,
-		    ef10_tx_size_bins, EFX_ARRAY_SIZE(ef10_tx_size_bins))) != 0)
+		    ef10_tx_size_bins, RTE_DIM(ef10_tx_size_bins))) != 0)
 			goto fail4;
 	}
 
@@ -502,7 +502,7 @@ ef10_mac_stats_get_mask(
 		};
 
 		if ((rc = efx_mac_stats_mask_add_ranges(maskp, mask_size,
-		    ef10_pm_and_rxdp, EFX_ARRAY_SIZE(ef10_pm_and_rxdp))) != 0)
+		    ef10_pm_and_rxdp, RTE_DIM(ef10_pm_and_rxdp))) != 0)
 			goto fail5;
 	}
 
@@ -513,7 +513,7 @@ ef10_mac_stats_get_mask(
 		};
 
 		if ((rc = efx_mac_stats_mask_add_ranges(maskp, mask_size,
-		    ef10_vadaptor, EFX_ARRAY_SIZE(ef10_vadaptor))) != 0)
+		    ef10_vadaptor, RTE_DIM(ef10_vadaptor))) != 0)
 			goto fail6;
 	}
 
@@ -523,7 +523,7 @@ ef10_mac_stats_get_mask(
 			    EFX_MAC_FEC_CORRECTED_SYMBOLS_LANE3 },
 		};
 		if ((rc = efx_mac_stats_mask_add_ranges(maskp, mask_size,
-		    ef10_fec, EFX_ARRAY_SIZE(ef10_fec))) != 0)
+		    ef10_fec, RTE_DIM(ef10_fec))) != 0)
 			goto fail7;
 	}
 
@@ -534,7 +534,7 @@ ef10_mac_stats_get_mask(
 		};
 
 		if ((rc = efx_mac_stats_mask_add_ranges(maskp, mask_size,
-		    ef10_rxdp_sdt, EFX_ARRAY_SIZE(ef10_rxdp_sdt))) != 0)
+		    ef10_rxdp_sdt, RTE_DIM(ef10_rxdp_sdt))) != 0)
 			goto fail8;
 	}
 
@@ -543,7 +543,7 @@ ef10_mac_stats_get_mask(
 			{ EFX_MAC_RXDP_HLB_IDLE, EFX_MAC_RXDP_HLB_TIMEOUT },
 		};
 		if ((rc = efx_mac_stats_mask_add_ranges(maskp, mask_size,
-		    ef10_hlb, EFX_ARRAY_SIZE(ef10_hlb))) != 0)
+		    ef10_hlb, RTE_DIM(ef10_hlb))) != 0)
 			goto fail9;
 	}
 

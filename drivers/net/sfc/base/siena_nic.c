@@ -743,10 +743,10 @@ siena_nic_register_test(
 	efx_rc_t rc;
 
 	/* Fill out the register mask entries */
-	EFX_STATIC_ASSERT(EFX_ARRAY_SIZE(__siena_register_masks)
-		    == EFX_ARRAY_SIZE(__siena_registers) * 4);
+	EFX_STATIC_ASSERT(RTE_DIM(__siena_register_masks)
+		    == RTE_DIM(__siena_registers) * 4);
 
-	nitems = EFX_ARRAY_SIZE(__siena_registers);
+	nitems = RTE_DIM(__siena_registers);
 	dwordp = __siena_register_masks;
 	for (count = 0; count < nitems; ++count) {
 		rsp = __siena_registers + count;
@@ -757,10 +757,10 @@ siena_nic_register_test(
 	}
 
 	/* Fill out the register table entries */
-	EFX_STATIC_ASSERT(EFX_ARRAY_SIZE(__siena_table_masks)
-		    == EFX_ARRAY_SIZE(__siena_tables) * 4);
+	EFX_STATIC_ASSERT(RTE_DIM(__siena_table_masks)
+		    == RTE_DIM(__siena_tables) * 4);
 
-	nitems = EFX_ARRAY_SIZE(__siena_tables);
+	nitems = RTE_DIM(__siena_tables);
 	dwordp = __siena_table_masks;
 	for (count = 0; count < nitems; ++count) {
 		rsp = __siena_tables + count;
@@ -771,21 +771,21 @@ siena_nic_register_test(
 	}
 
 	if ((rc = siena_nic_test_registers(enp, __siena_registers,
-	    EFX_ARRAY_SIZE(__siena_registers))) != 0)
+	    RTE_DIM(__siena_registers))) != 0)
 		goto fail1;
 
 	if ((rc = siena_nic_test_tables(enp, __siena_tables,
 	    EFX_PATTERN_BYTE_ALTERNATE,
-	    EFX_ARRAY_SIZE(__siena_tables))) != 0)
+	    RTE_DIM(__siena_tables))) != 0)
 		goto fail2;
 
 	if ((rc = siena_nic_test_tables(enp, __siena_tables,
 	    EFX_PATTERN_BYTE_CHANGING,
-	    EFX_ARRAY_SIZE(__siena_tables))) != 0)
+	    RTE_DIM(__siena_tables))) != 0)
 		goto fail3;
 
 	if ((rc = siena_nic_test_tables(enp, __siena_tables,
-	    EFX_PATTERN_BIT_SWEEP, EFX_ARRAY_SIZE(__siena_tables))) != 0)
+	    EFX_PATTERN_BIT_SWEEP, RTE_DIM(__siena_tables))) != 0)
 		goto fail4;
 
 	return (0);

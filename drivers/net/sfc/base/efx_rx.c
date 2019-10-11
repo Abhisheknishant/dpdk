@@ -566,7 +566,7 @@ efx_rx_scale_mode_set(
 		unsigned int type_nflags;
 
 		rc = efx_rx_scale_hash_flags_get(enp, alg, type_flags,
-				    EFX_ARRAY_SIZE(type_flags), &type_nflags);
+				    RTE_DIM(type_flags), &type_nflags);
 		if (rc != 0)
 			goto fail2;
 

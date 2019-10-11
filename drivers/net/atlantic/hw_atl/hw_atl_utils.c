@@ -647,7 +647,7 @@ static int hw_atl_utils_get_mac_permanent(struct aq_hw_s *self,
 					    aq_hw_read_reg(self, 0x00000374U) +
 					    (40U * 4U),
 					    mac_addr,
-					    ARRAY_SIZE(mac_addr));
+					    RTE_DIM(mac_addr));
 	if (err < 0) {
 		mac_addr[0] = 0U;
 		mac_addr[1] = 0U;
@@ -827,7 +827,7 @@ static const u32 hw_atl_utils_hw_mac_regs[] = {
 
 unsigned int hw_atl_utils_hw_get_reg_length(void)
 {
-	return ARRAY_SIZE(hw_atl_utils_hw_mac_regs);
+	return RTE_DIM(hw_atl_utils_hw_mac_regs);
 }
 
 int hw_atl_utils_hw_get_regs(struct aq_hw_s *self,

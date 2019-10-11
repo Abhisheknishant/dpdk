@@ -121,8 +121,6 @@ uint32_t iavf_read_addr(volatile void *addr)
 #define wr32(a, reg, value) \
 	IAVF_PCI_REG_WRITE(IAVF_PCI_REG_ADDR((a), (reg)), (value))
 
-#define ARRAY_SIZE(arr) (sizeof(arr)/sizeof(arr[0]))
-
 #define iavf_debug(h, m, s, ...)                                \
 do {                                                            \
 	if (((m) & (h)->debug_mask))                            \

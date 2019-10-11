@@ -54,8 +54,6 @@
 #define ENA_HASH_KEY_SIZE	40
 #define ETH_GSTRING_LEN	32
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-
 #define ENA_MIN_RING_DESC	128
 
 enum ethtool_stringset {
@@ -119,9 +117,9 @@ static const struct ena_stats ena_stats_rx_strings[] = {
 	ENA_STAT_RX_ENTRY(bad_req_id),
 };
 
-#define ENA_STATS_ARRAY_GLOBAL	ARRAY_SIZE(ena_stats_global_strings)
-#define ENA_STATS_ARRAY_TX	ARRAY_SIZE(ena_stats_tx_strings)
-#define ENA_STATS_ARRAY_RX	ARRAY_SIZE(ena_stats_rx_strings)
+#define ENA_STATS_ARRAY_GLOBAL	RTE_DIM(ena_stats_global_strings)
+#define ENA_STATS_ARRAY_TX	RTE_DIM(ena_stats_tx_strings)
+#define ENA_STATS_ARRAY_RX	RTE_DIM(ena_stats_rx_strings)
 
 #define QUEUE_OFFLOADS (DEV_TX_OFFLOAD_TCP_CKSUM |\
 			DEV_TX_OFFLOAD_UDP_CKSUM |\

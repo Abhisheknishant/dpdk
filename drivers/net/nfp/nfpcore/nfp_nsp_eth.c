@@ -138,7 +138,7 @@ nfp_eth_rate2speed(enum nfp_eth_rate rate)
 {
 	int i;
 
-	for (i = 0; i < (int)ARRAY_SIZE(nsp_eth_rate_tbl); i++)
+	for (i = 0; i < (int)RTE_DIM(nsp_eth_rate_tbl); i++)
 		if (nsp_eth_rate_tbl[i].rate == rate)
 			return nsp_eth_rate_tbl[i].speed;
 
@@ -150,7 +150,7 @@ nfp_eth_speed2rate(unsigned int speed)
 {
 	int i;
 
-	for (i = 0; i < (int)ARRAY_SIZE(nsp_eth_rate_tbl); i++)
+	for (i = 0; i < (int)RTE_DIM(nsp_eth_rate_tbl); i++)
 		if (nsp_eth_rate_tbl[i].speed == speed)
 			return nsp_eth_rate_tbl[i].rate;
 

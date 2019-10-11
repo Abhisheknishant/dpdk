@@ -821,7 +821,7 @@ ef10_nic_alloc_piobufs(
 	unsigned int i;
 
 	EFSYS_ASSERT3U(max_piobuf_count, <=,
-	    EFX_ARRAY_SIZE(enp->en_arch.ef10.ena_piobuf_handle));
+	    RTE_DIM(enp->en_arch.ef10.ena_piobuf_handle));
 
 	enp->en_arch.ef10.ena_piobuf_count = 0;
 
@@ -1718,7 +1718,7 @@ ef10_external_port_mapping(
 	 * Infer the internal port -> external number mapping from
 	 * the possible port modes for this NIC.
 	 */
-	for (i = 0; i < EFX_ARRAY_SIZE(__ef10_external_port_mappings); ++i) {
+	for (i = 0; i < RTE_DIM(__ef10_external_port_mappings); ++i) {
 		struct ef10_external_port_map_s *eepmp =
 		    &__ef10_external_port_mappings[i];
 		if (eepmp->family != enp->en_family)

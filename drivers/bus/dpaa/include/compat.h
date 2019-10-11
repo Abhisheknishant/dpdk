@@ -67,11 +67,6 @@
 #define __stringify_1(x) #x
 #define __stringify(x)	__stringify_1(x)
 
-#ifdef ARRAY_SIZE
-#undef ARRAY_SIZE
-#endif
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
-
 /* Debugging */
 #define prflush(fmt, args...) \
 	do { \

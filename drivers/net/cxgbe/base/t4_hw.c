@@ -387,7 +387,7 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox,
 		 */
 		if (sleep_ok) {
 			ms = delay[delay_idx];  /* last element may repeat */
-			if (delay_idx < ARRAY_SIZE(delay) - 1)
+			if (delay_idx < RTE_DIM(delay) - 1)
 				delay_idx++;
 			msleep(ms);
 		} else {
@@ -470,7 +470,7 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox,
 	for (i = 0; i < timeout && !(pcie_fw & F_PCIE_FW_ERR); i += ms) {
 		if (sleep_ok) {
 			ms = delay[delay_idx];  /* last element may repeat */
-			if (delay_idx < ARRAY_SIZE(delay) - 1)
+			if (delay_idx < RTE_DIM(delay) - 1)
 				delay_idx++;
 			msleep(ms);
 		} else {
@@ -1923,12 +1923,12 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 	switch (chip_version) {
 	case CHELSIO_T5:
 		reg_ranges = t5_reg_ranges;
-		reg_ranges_size = ARRAY_SIZE(t5_reg_ranges);
+		reg_ranges_size = RTE_DIM(t5_reg_ranges);
 		break;
 
 	case CHELSIO_T6:
 		reg_ranges = t6_reg_ranges;
-		reg_ranges_size = ARRAY_SIZE(t6_reg_ranges);
+		reg_ranges_size = RTE_DIM(t6_reg_ranges);
 		break;
 
 	default:
@@ -2653,7 +2653,7 @@ static int t4_get_exprom_version(struct adapter *adapter, u32 *vers)
 	int ret;
 
 	ret = t4_read_flash(adapter, FLASH_EXP_ROM_START,
-			    ARRAY_SIZE(exprom_header_buf),
+			    RTE_DIM(exprom_header_buf),
 			    exprom_header_buf, 0);
 	if (ret)
 		return ret;
@@ -3112,7 +3112,7 @@ const char *t4_get_port_type_description(enum fw_port_type port_type)
 		"KR_SFP28",
 	};
 
-	if (port_type < ARRAY_SIZE(port_type_description))
+	if (port_type < RTE_DIM(port_type_description))
 		return port_type_description[port_type];
 	return "UNKNOWN";
 }
@@ -4492,7 +4492,7 @@ static const char *t4_link_down_rc_str(unsigned char link_down_rc)
 		"Reserved",
 	};
 
-	if (link_down_rc >= ARRAY_SIZE(reason))
+	if (link_down_rc >= RTE_DIM(reason))
 		return "Bad Reason Code";
 
 	return reason[link_down_rc];
@@ -4815,7 +4815,7 @@ int t4_get_flash_params(struct adapter *adapter)
 	/**
 	 * Check to see if it's one of our non-standard supported Flash parts.
 	 */
-	for (part = 0; part < ARRAY_SIZE(supported_flash); part++) {
+	for (part = 0; part < RTE_DIM(supported_flash); part++) {
 		if (supported_flash[part].vendor_and_model_id == flashid) {
 			adapter->params.sf_size =
 				supported_flash[part].size_mb;

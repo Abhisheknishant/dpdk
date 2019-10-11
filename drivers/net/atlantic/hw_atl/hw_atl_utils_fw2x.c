@@ -221,7 +221,7 @@ int aq_fw2x_get_mac_permanent(struct aq_hw_s *self, u8 *mac)
 		err = hw_atl_utils_fw_downld_dwords(self,
 						    efuse_addr + (40U * 4U),
 						    mac_addr,
-						    ARRAY_SIZE(mac_addr));
+						    RTE_DIM(mac_addr));
 		if (err)
 			return err;
 		mac_addr[0] = rte_constant_bswap32(mac_addr[0]);

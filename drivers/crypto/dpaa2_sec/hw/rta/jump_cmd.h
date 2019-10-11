@@ -132,12 +132,12 @@ rta_jump(struct program *program, uint64_t address,
 	/* write test condition field */
 	if ((jump_type != LOCAL_JUMP_INC) && (jump_type != LOCAL_JUMP_DEC)) {
 		__rta_map_flags(test_condition, jump_test_cond,
-				ARRAY_SIZE(jump_test_cond), &opcode);
+				RTE_DIM(jump_test_cond), &opcode);
 	} else {
 		uint32_t val = 0;
 
 		ret = __rta_map_opcode(src_dst, jump_src_dst,
-				       ARRAY_SIZE(jump_src_dst), &val);
+				       RTE_DIM(jump_src_dst), &val);
 		if (ret < 0) {
 			pr_err("JUMP_INCDEC: SRC_DST not supported. SEC PC: %d; Instr: %d\n",
 			       program->current_pc,
@@ -147,7 +147,7 @@ rta_jump(struct program *program, uint64_t address,
 		opcode |= val;
 
 		__rta_map_flags(test_condition, jump_test_math_cond,
-				ARRAY_SIZE(jump_test_math_cond), &opcode);
+				RTE_DIM(jump_test_math_cond), &opcode);
 	}
 
 	/* write local offset field for local jumps and user-defined halt */

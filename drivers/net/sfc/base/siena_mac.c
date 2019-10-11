@@ -223,7 +223,7 @@ siena_mac_stats_get_mask(
 	_NOTE(ARGUNUSED(enp))
 
 	if ((rc = efx_mac_stats_mask_add_ranges(maskp, mask_size,
-	    siena_stats, EFX_ARRAY_SIZE(siena_stats))) != 0)
+	    siena_stats, RTE_DIM(siena_stats))) != 0)
 		goto fail1;
 
 	return (0);

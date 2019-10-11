@@ -17,8 +17,6 @@
 #define	PCI_SUB_DEVICE_ID_CN81XX_NICVF			0xA234
 #define	PCI_SUB_DEVICE_ID_CN83XX_NICVF			0xA334
 
-#define NICVF_ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
-
 #define NICVF_GET_RX_STATS(reg) \
 	nicvf_reg_read(nic, NIC_VNIC_RX_STAT_0_13 | (reg << 3))
 #define NICVF_GET_TX_STATS(reg) \

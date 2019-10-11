@@ -118,7 +118,7 @@ rta_nfifo_load(struct program *program, uint32_t src,
 	opcode |= val;
 
 	/* write type field */
-	ret = __rta_map_opcode(data, nfifo_data, ARRAY_SIZE(nfifo_data), &val);
+	ret = __rta_map_opcode(data, nfifo_data, RTE_DIM(nfifo_data), &val);
 	if (ret < 0) {
 		pr_err("NFIFO: Invalid data. SEC PC: %d; Instr: %d\n",
 		       program->current_pc, program->current_instruction);

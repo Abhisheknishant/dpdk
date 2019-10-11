@@ -5231,7 +5231,7 @@ static int ecore_func_send_tx_start(struct bnx2x_softc *sc, struct ecore_func_st
 	rdata->dcb_version = tx_start_params->dcb_version;
 	rdata->dont_add_pri_0 = tx_start_params->dont_add_pri_0;
 
-	for (i = 0; i < ARRAY_SIZE(rdata->traffic_type_to_priority_cos); i++)
+	for (i = 0; i < RTE_DIM(rdata->traffic_type_to_priority_cos); i++)
 		rdata->traffic_type_to_priority_cos[i] =
 		    tx_start_params->traffic_type_to_priority_cos[i];
 

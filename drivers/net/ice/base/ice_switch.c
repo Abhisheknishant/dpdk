@@ -4774,7 +4774,7 @@ ice_fill_valid_words(struct ice_adv_lkup_elem *rule,
 
 	for (j = 0; j < sizeof(rule->m_u) / sizeof(u16); j++)
 		if (((u16 *)&rule->m_u)[j] &&
-		    (unsigned long)rule->type < ARRAY_SIZE(ice_prot_ext)) {
+		    (unsigned long)rule->type < RTE_DIM(ice_prot_ext)) {
 			/* No more space to accommodate */
 			if (word >= ICE_MAX_CHAIN_WORDS)
 				return 0;

@@ -1956,7 +1956,7 @@ int qman_query_wq(u8 query_dedicated, struct qm_mcr_querywq *wq)
 		int i, array_len;
 
 		wq->channel.id = be16_to_cpu(mcr->querywq.channel.id);
-		array_len = ARRAY_SIZE(mcr->querywq.wq_len);
+		array_len = RTE_DIM(mcr->querywq.wq_len);
 		for (i = 0; i < array_len; i++)
 			wq->wq_len[i] = be32_to_cpu(mcr->querywq.wq_len[i]);
 	}
@@ -2023,7 +2023,7 @@ int qman_query_cgr(struct qman_cgr *cgr, struct qm_mcr_querycgr *cgrd)
 		be32_to_cpu(cgrd->cgr.wr_parm_r.word);
 	cgrd->cgr.cscn_targ =  be32_to_cpu(cgrd->cgr.cscn_targ);
 	cgrd->cgr.__cs_thres = be16_to_cpu(cgrd->cgr.__cs_thres);
-	for (i = 0; i < ARRAY_SIZE(cgrd->cscn_targ_swp); i++)
+	for (i = 0; i < RTE_DIM(cgrd->cscn_targ_swp); i++)
 		cgrd->cscn_targ_swp[i] =
 			be32_to_cpu(cgrd->cscn_targ_swp[i]);
 	return 0;
@@ -2049,7 +2049,7 @@ int qman_query_congestion(struct qm_mcr_querycongestion *congestion)
 		pr_err("QUERY_CONGESTION failed: %s\n", mcr_result_str(res));
 		return -EIO;
 	}
-	for (i = 0; i < ARRAY_SIZE(congestion->state.state); i++)
+	for (i = 0; i < RTE_DIM(congestion->state.state); i++)
 		congestion->state.state[i] =
 			be32_to_cpu(congestion->state.state[i]);
 	return 0;
