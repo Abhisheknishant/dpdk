@@ -3183,8 +3183,8 @@ ice_get_rss_lut(struct ice_vsi *vsi, uint8_t *lut, uint16_t lut_size)
 		return -EINVAL;
 
 	if (pf->flags & ICE_FLAG_RSS_AQ_CAPABLE) {
-		ret = ice_aq_get_rss_lut(hw, vsi->idx, TRUE,
-					 lut, lut_size);
+		ret = ice_aq_get_rss_lut(hw, vsi->idx,
+			ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_PF, lut, lut_size);
 		if (ret) {
 			PMD_DRV_LOG(ERR, "Failed to get RSS lookup table");
 			return -EINVAL;
@@ -3214,8 +3214,8 @@ ice_set_rss_lut(struct ice_vsi *vsi, uint8_t *lut, uint16_t lut_size)
 	hw = ICE_VSI_TO_HW(vsi);
 
 	if (pf->flags & ICE_FLAG_RSS_AQ_CAPABLE) {
-		ret = ice_aq_set_rss_lut(hw, vsi->idx, TRUE,
-					 lut, lut_size);
+		ret = ice_aq_set_rss_lut(hw, vsi->idx,
+			ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_PF, lut, lut_size);
 		if (ret) {
 			PMD_DRV_LOG(ERR, "Failed to set RSS lookup table");
 			return -EINVAL;
