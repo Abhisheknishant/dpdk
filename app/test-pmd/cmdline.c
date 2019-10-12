@@ -18090,6 +18090,9 @@ search_rx_offload(const char *name)
 	int found = 0;
 	unsigned int bit;
 
+	if (!strcmp(name, "crc_strip"))
+		name = "keep_crc";
+
 	single_offload = 1;
 	for (bit = 0; bit < sizeof(single_offload) * CHAR_BIT; bit++) {
 		single_name = rte_eth_dev_rx_offload_name(single_offload);
@@ -18119,6 +18122,7 @@ cmd_config_per_port_rx_offload_parsed(void *parsed_result,
 	uint16_t nb_rx_queues;
 	int q;
 	int ret;
+	int res_on_off = 1;
 
 	if (port->port_status != RTE_PORT_STOPPED) {
 		printf("Error: Can't config offload when Port %d "
@@ -18137,7 +18141,11 @@ cmd_config_per_port_rx_offload_parsed(void *parsed_result,
 		return;
 
 	nb_rx_queues = dev_info.nb_rx_queues;
-	if (!strcmp(res->on_off, "on")) {
+	res_on_off = strcmp(res->on_off, "on");
+
+	if (!strcmp(res->offload, "crc_strip"))
+		res_on_off = ~res_on_off;
+	if (!res_on_off) {
 		port->dev_conf.rxmode.offloads |= single_offload;
 		for (q = 0; q < nb_rx_queues; q++)
 			port->rx_conf[q].offloads |= single_offload;
