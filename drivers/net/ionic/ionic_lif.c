@@ -10,6 +10,9 @@
 #include "ionic_lif.h"
 #include "ionic_ethdev.h"
 
+static int ionic_lif_addr_add(struct ionic_lif *lif, const uint8_t *addr);
+static int ionic_lif_addr_del(struct ionic_lif *lif, const uint8_t *addr);
+
 int
 ionic_qcq_enable(struct ionic_qcq *qcq)
 {
@@ -58,6 +61,105 @@ ionic_qcq_disable(struct ionic_qcq *qcq)
 	}
 
 	return ionic_adminq_post_wait(lif, &ctx);
+}
+
+int
+ionic_lif_stop(struct ionic_lif *lif)
+{
+	/* Carrier OFF here */
+
+	return 0;
+}
+
+void
+ionic_lif_reset(struct ionic_lif *lif)
+{
+	struct ionic_dev *idev = &lif->adapter->idev;
+
+	ionic_drv_print_call();
+
+	ionic_dev_cmd_lif_reset(idev, lif->index);
+	ionic_dev_cmd_wait_check(idev, IONIC_DEVCMD_TIMEOUT);
+}
+
+static int
+ionic_lif_addr_add(struct ionic_lif *lif, const uint8_t *addr)
+{
+	ionic_init_print(INFO, "%s: stubbed\n", __func__);
+
+	return 0;
+}
+
+static int
+ionic_lif_addr_del(struct ionic_lif *lif, const uint8_t *addr)
+{
+	ionic_init_print(INFO, "%s: stubbed\n", __func__);
+
+	return 0;
+}
+
+static void
+ionic_lif_rx_mode(struct ionic_lif *lif, uint32_t rx_mode)
+{
+	struct ionic_admin_ctx ctx = {
+		.pending_work = true,
+		.cmd.rx_mode_set = {
+			.opcode = IONIC_CMD_RX_MODE_SET,
+			.lif_index = lif->index,
+			.rx_mode = rx_mode,
+		},
+	};
+	int err;
+
+	if (rx_mode & IONIC_RX_MODE_F_UNICAST)
+		ionic_init_print(DEBUG, "rx_mode IONIC_RX_MODE_F_UNICAST");
+	if (rx_mode & IONIC_RX_MODE_F_MULTICAST)
+		ionic_init_print(DEBUG, "rx_mode IONIC_RX_MODE_F_MULTICAST");
+	if (rx_mode & IONIC_RX_MODE_F_BROADCAST)
+		ionic_init_print(DEBUG, "rx_mode IONIC_RX_MODE_F_BROADCAST");
+	if (rx_mode & IONIC_RX_MODE_F_PROMISC)
+		ionic_init_print(DEBUG, "rx_mode IONIC_RX_MODE_F_PROMISC");
+	if (rx_mode & IONIC_RX_MODE_F_ALLMULTI)
+		ionic_init_print(DEBUG, "rx_mode IONIC_RX_MODE_F_ALLMULTI");
+
+	err = ionic_adminq_post_wait(lif, &ctx);
+
+	if (err)
+		ionic_init_print(ERR, "Failure setting RX mode");
+}
+
+static void
+ionic_set_rx_mode(struct ionic_lif *lif, uint32_t rx_mode)
+{
+	if (lif->rx_mode != rx_mode) {
+		lif->rx_mode = rx_mode;
+		ionic_lif_rx_mode(lif, rx_mode);
+	}
+}
+
+
+int
+ionic_lif_change_mtu(struct ionic_lif *lif, int new_mtu)
+{
+	struct ionic_admin_ctx ctx = {
+		.pending_work = true,
+		.cmd.lif_setattr = {
+			.opcode = IONIC_CMD_LIF_SETATTR,
+			.index = lif->index,
+			.attr = IONIC_LIF_ATTR_MTU,
+			.mtu = new_mtu,
+		},
+	};
+	int err;
+
+	err = ionic_adminq_post_wait(lif, &ctx);
+
+	if (err)
+		return err;
+
+	lif->mtu = new_mtu;
+
+	return 0;
 }
 
 int
@@ -596,6 +698,124 @@ ionic_lif_notifyq_init(struct ionic_lif *lif)
 }
 
 int
+ionic_lif_set_features(struct ionic_lif *lif)
+{
+	struct ionic_admin_ctx ctx = {
+		.pending_work = true,
+		.cmd.lif_setattr = {
+			.opcode = IONIC_CMD_LIF_SETATTR,
+			.index = lif->index,
+			.attr = IONIC_LIF_ATTR_FEATURES,
+			.features = lif->features,
+		},
+	};
+	int err;
+
+	err = ionic_adminq_post_wait(lif, &ctx);
+	if (err)
+		return err;
+
+	lif->hw_features = (ctx.cmd.lif_setattr.features &
+			ctx.comp.lif_setattr.features);
+
+	if (lif->hw_features & IONIC_ETH_HW_VLAN_TX_TAG)
+		ionic_init_print(DEBUG, "feature IONIC_ETH_HW_VLAN_TX_TAG");
+	if (lif->hw_features & IONIC_ETH_HW_VLAN_RX_STRIP)
+		ionic_init_print(DEBUG, "feature IONIC_ETH_HW_VLAN_RX_STRIP");
+	if (lif->hw_features & IONIC_ETH_HW_VLAN_RX_FILTER)
+		ionic_init_print(DEBUG, "feature IONIC_ETH_HW_VLAN_RX_FILTER");
+	if (lif->hw_features & IONIC_ETH_HW_RX_HASH)
+		ionic_init_print(DEBUG, "feature IONIC_ETH_HW_RX_HASH");
+	if (lif->hw_features & IONIC_ETH_HW_TX_SG)
+		ionic_init_print(DEBUG, "feature IONIC_ETH_HW_TX_SG");
+	if (lif->hw_features & IONIC_ETH_HW_RX_SG)
+		ionic_init_print(DEBUG, "feature IONIC_ETH_HW_RX_SG");
+	if (lif->hw_features & IONIC_ETH_HW_TX_CSUM)
+		ionic_init_print(DEBUG, "feature IONIC_ETH_HW_TX_CSUM");
+	if (lif->hw_features & IONIC_ETH_HW_RX_CSUM)
+		ionic_init_print(DEBUG, "feature IONIC_ETH_HW_RX_CSUM");
+	if (lif->hw_features & IONIC_ETH_HW_TSO)
+		ionic_init_print(DEBUG, "feature IONIC_ETH_HW_TSO");
+	if (lif->hw_features & IONIC_ETH_HW_TSO_IPV6)
+		ionic_init_print(DEBUG, "feature IONIC_ETH_HW_TSO_IPV6");
+	if (lif->hw_features & IONIC_ETH_HW_TSO_ECN)
+		ionic_init_print(DEBUG, "feature IONIC_ETH_HW_TSO_ECN");
+	if (lif->hw_features & IONIC_ETH_HW_TSO_GRE)
+		ionic_init_print(DEBUG, "feature IONIC_ETH_HW_TSO_GRE");
+	if (lif->hw_features & IONIC_ETH_HW_TSO_GRE_CSUM)
+		ionic_init_print(DEBUG, "feature IONIC_ETH_HW_TSO_GRE_CSUM");
+	if (lif->hw_features & IONIC_ETH_HW_TSO_IPXIP4)
+		ionic_init_print(DEBUG, "feature IONIC_ETH_HW_TSO_IPXIP4");
+	if (lif->hw_features & IONIC_ETH_HW_TSO_IPXIP6)
+		ionic_init_print(DEBUG, "feature IONIC_ETH_HW_TSO_IPXIP6");
+	if (lif->hw_features & IONIC_ETH_HW_TSO_UDP)
+		ionic_init_print(DEBUG, "feature IONIC_ETH_HW_TSO_UDP");
+	if (lif->hw_features & IONIC_ETH_HW_TSO_UDP_CSUM)
+		ionic_init_print(DEBUG, "feature IONIC_ETH_HW_TSO_UDP_CSUM");
+
+	return 0;
+}
+
+static int
+ionic_station_set(struct ionic_lif *lif)
+{
+	struct ionic_admin_ctx ctx = {
+		.pending_work = true,
+		.cmd.lif_getattr = {
+			.opcode = IONIC_CMD_LIF_GETATTR,
+			.index = lif->index,
+			.attr = IONIC_LIF_ATTR_MAC,
+		},
+	};
+	int err;
+
+	ionic_init_print_call();
+
+	err = ionic_adminq_post_wait(lif, &ctx);
+
+	if (err)
+		return err;
+
+	if (!rte_is_zero_ether_addr((struct rte_ether_addr *)
+			lif->mac_addr)) {
+		ionic_init_print(INFO, "deleting station MAC addr");
+
+		ionic_lif_addr_del(lif, lif->mac_addr);
+	}
+
+	memcpy(lif->mac_addr, ctx.comp.lif_getattr.mac, ETH_ALEN);
+
+	if (rte_is_zero_ether_addr((struct rte_ether_addr *)lif->mac_addr)) {
+		ionic_init_print(NOTICE, "empty MAC addr (VF?)");
+		return 0;
+	}
+
+	ionic_init_print(DEBUG, "adding station MAC addr");
+
+	ionic_lif_addr_add(lif, lif->mac_addr);
+
+	return 0;
+}
+
+static void
+ionic_lif_set_name(struct ionic_lif *lif)
+{
+	struct ionic_admin_ctx ctx = {
+		.pending_work = true,
+		.cmd.lif_setattr = {
+			.opcode = IONIC_CMD_LIF_SETATTR,
+			.index = lif->index,
+			.attr = IONIC_LIF_ATTR_NAME,
+		},
+	};
+
+	snprintf(ctx.cmd.lif_setattr.name, sizeof(ctx.cmd.lif_setattr.name),
+		"%d", lif->port_id);
+
+	ionic_adminq_post_wait(lif, &ctx);
+}
+
+int
 ionic_lif_init(struct ionic_lif *lif)
 {
 	struct ionic_dev *idev = &lif->adapter->idev;
@@ -620,9 +840,26 @@ ionic_lif_init(struct ionic_lif *lif)
 	if (err)
 		goto err_out_adminq_deinit;
 
+	lif->features = 0;
+
+	err = ionic_lif_set_features(lif);
+
+	if (err)
+		goto err_out_notifyq_deinit;
+
+	err = ionic_station_set(lif);
+
+	if (err)
+		goto err_out_notifyq_deinit;
+
+	ionic_lif_set_name(lif);
+
 	lif->state |= IONIC_LIF_F_INITED;
 
 	return 0;
+
+err_out_notifyq_deinit:
+	ionic_lif_qcq_deinit(lif, lif->notifyqcq);
 
 err_out_adminq_deinit:
 	ionic_lif_qcq_deinit(lif, lif->adminqcq);
@@ -640,6 +877,37 @@ ionic_lif_deinit(struct ionic_lif *lif)
 	ionic_lif_qcq_deinit(lif, lif->adminqcq);
 
 	lif->state &= ~IONIC_LIF_F_INITED;
+}
+
+int
+ionic_lif_configure(struct ionic_lif *lif)
+{
+	lif->port_id = lif->eth_dev->data->port_id;
+
+	return 0;
+}
+
+int
+ionic_lif_start(struct ionic_lif *lif)
+{
+	uint32_t rx_mode = 0;
+
+	ionic_init_print(DEBUG, "Setting RX mode on port %u",
+		lif->port_id);
+
+	rx_mode |= IONIC_RX_MODE_F_UNICAST;
+	rx_mode |= IONIC_RX_MODE_F_MULTICAST;
+	rx_mode |= IONIC_RX_MODE_F_BROADCAST;
+
+	lif->rx_mode = 0; /* set by ionic_set_rx_mode */
+
+	ionic_set_rx_mode(lif, rx_mode);
+
+	ionic_link_status_check(lif);
+
+	/* Carrier ON here */
+
+	return 0;
 }
 
 int

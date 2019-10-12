@@ -18,6 +18,17 @@
 
 static int  eth_ionic_dev_init(struct rte_eth_dev *eth_dev, void *init_params);
 static int  eth_ionic_dev_uninit(struct rte_eth_dev *eth_dev);
+static int  ionic_dev_info_get(struct rte_eth_dev *eth_dev,
+		struct rte_eth_dev_info *dev_info);
+static int  ionic_dev_configure(struct rte_eth_dev *dev);
+static int  ionic_dev_mtu_set(struct rte_eth_dev *dev, uint16_t mtu);
+static int  ionic_dev_start(struct rte_eth_dev *dev);
+static void ionic_dev_stop(struct rte_eth_dev *dev);
+static void ionic_dev_close(struct rte_eth_dev *dev);
+static int  ionic_dev_set_link_up(struct rte_eth_dev *dev);
+static int  ionic_dev_set_link_down(struct rte_eth_dev *dev);
+static int  ionic_dev_link_update(struct rte_eth_dev *eth_dev,
+		int wait_to_complete);
 
 int ionic_logtype_init;
 int ionic_logtype_driver;
@@ -30,6 +41,15 @@ static const struct rte_pci_id pci_id_ionic_map[] = {
 };
 
 static const struct eth_dev_ops ionic_eth_dev_ops = {
+	.dev_infos_get          = ionic_dev_info_get,
+	.dev_configure          = ionic_dev_configure,
+	.mtu_set                = ionic_dev_mtu_set,
+	.dev_start              = ionic_dev_start,
+	.dev_stop               = ionic_dev_stop,
+	.dev_close              = ionic_dev_close,
+	.link_update            = ionic_dev_link_update,
+	.dev_set_link_up        = ionic_dev_set_link_up,
+	.dev_set_link_down      = ionic_dev_set_link_down,
 };
 
 /*
@@ -39,6 +59,104 @@ static const struct eth_dev_ops ionic_eth_dev_ops = {
 static LIST_HEAD(ionic_pci_adapters_list, ionic_adapter) ionic_pci_adapters =
 		LIST_HEAD_INITIALIZER(ionic_pci_adapters);
 static rte_spinlock_t ionic_pci_adapters_lock = RTE_SPINLOCK_INITIALIZER;
+
+/*
+ * Set device link up, enable tx.
+ */
+static int
+ionic_dev_set_link_up(struct rte_eth_dev *eth_dev)
+{
+	struct ionic_lif *lif = IONIC_ETH_DEV_TO_LIF(eth_dev);
+	struct ionic_adapter *adapter = lif->adapter;
+	struct ionic_dev *idev = &adapter->idev;
+	int err;
+
+	ionic_init_print_call();
+
+	ionic_dev_cmd_port_state(idev, IONIC_PORT_ADMIN_STATE_UP);
+
+	err = ionic_dev_cmd_wait_check(idev, IONIC_DEVCMD_TIMEOUT);
+
+	if (err) {
+		ionic_init_print(WARNING, "Failed to bring port UP\n");
+		return err;
+	}
+
+	return 0;
+}
+
+/*
+ * Set device link down, disable tx.
+ */
+static int
+ionic_dev_set_link_down(struct rte_eth_dev *eth_dev)
+{
+	struct ionic_lif *lif = IONIC_ETH_DEV_TO_LIF(eth_dev);
+	struct ionic_adapter *adapter = lif->adapter;
+	struct ionic_dev *idev = &adapter->idev;
+	int err;
+
+	ionic_init_print_call();
+
+	ionic_dev_cmd_port_state(idev, IONIC_PORT_ADMIN_STATE_DOWN);
+
+	err = ionic_dev_cmd_wait_check(idev, IONIC_DEVCMD_TIMEOUT);
+
+	if (err) {
+		ionic_init_print(WARNING, "Failed to bring port DOWN\n");
+		return err;
+	}
+
+	return 0;
+}
+
+static int
+ionic_dev_link_update(struct rte_eth_dev *eth_dev,
+		int wait_to_complete __rte_unused)
+{
+	struct ionic_lif *lif = IONIC_ETH_DEV_TO_LIF(eth_dev);
+	struct ionic_adapter *adapter = lif->adapter;
+	struct rte_eth_link link;
+
+	ionic_init_print_call();
+
+	/* Initialize */
+	memset(&link, 0, sizeof(link));
+	link.link_autoneg = ETH_LINK_AUTONEG;
+
+	if (!adapter->link_up) {
+		/* Interface is down */
+		link.link_status = ETH_LINK_DOWN;
+		link.link_duplex = ETH_LINK_HALF_DUPLEX;
+		link.link_speed = ETH_SPEED_NUM_NONE;
+	} else {
+		/* Interface is up */
+		link.link_status = ETH_LINK_UP;
+		link.link_duplex = ETH_LINK_FULL_DUPLEX;
+		switch (adapter->link_speed) {
+		case  10000:
+			link.link_speed = ETH_SPEED_NUM_10G;
+			break;
+		case  25000:
+			link.link_speed = ETH_SPEED_NUM_25G;
+			break;
+		case  40000:
+			link.link_speed = ETH_SPEED_NUM_40G;
+			break;
+		case  50000:
+			link.link_speed = ETH_SPEED_NUM_50G;
+			break;
+		case 100000:
+			link.link_speed = ETH_SPEED_NUM_100G;
+			break;
+		default:
+			link.link_speed = ETH_SPEED_NUM_NONE;
+			break;
+		}
+	}
+
+	return rte_eth_linkstatus_set(eth_dev, &link);
+}
 
 /**
  * Interrupt handler triggered by NIC for handling
@@ -65,6 +183,183 @@ ionic_dev_interrupt_handler(void *param)
 }
 
 static int
+ionic_dev_mtu_set(struct rte_eth_dev *eth_dev, uint16_t mtu)
+{
+	struct ionic_lif *lif = IONIC_ETH_DEV_TO_LIF(eth_dev);
+	/*
+	 * Size = MTU + Ethernet header + VLAN + QinQ
+	 * Also add ETHER_CRC_LEN if the adapter is able to keep CRC
+	 */
+	uint32_t frame_size = mtu + RTE_ETHER_HDR_LEN + 4 + 4;
+	int err;
+
+	ionic_init_print_call();
+
+	/* Check that mtu is within the allowed range */
+	if (mtu < IONIC_MIN_MTU || mtu > IONIC_MAX_MTU)
+		return -EINVAL;
+
+	err = ionic_lif_change_mtu(lif, mtu);
+
+	if (err)
+		return err;
+
+	/* Update max frame size */
+	eth_dev->data->dev_conf.rxmode.max_rx_pkt_len = frame_size;
+
+	return 0;
+}
+
+static int
+ionic_dev_info_get(struct rte_eth_dev *eth_dev,
+		struct rte_eth_dev_info *dev_info)
+{
+	struct ionic_lif *lif = IONIC_ETH_DEV_TO_LIF(eth_dev);
+	struct ionic_adapter *adapter = lif->adapter;
+	struct ionic_identity *ident = &adapter->ident;
+
+	ionic_init_print_call();
+
+	dev_info->max_rx_queues = (uint16_t)
+		ident->lif.eth.config.queue_count[IONIC_QTYPE_RXQ];
+	dev_info->max_tx_queues = (uint16_t)
+		ident->lif.eth.config.queue_count[IONIC_QTYPE_TXQ];
+	/* Also add ETHER_CRC_LEN if the adapter is able to keep CRC */
+	dev_info->min_rx_bufsize = IONIC_MIN_MTU + RTE_ETHER_HDR_LEN;
+	dev_info->max_rx_pktlen = IONIC_MAX_MTU + RTE_ETHER_HDR_LEN;
+	dev_info->max_mac_addrs = adapter->max_mac_addrs;
+
+	dev_info->speed_capa =
+		ETH_LINK_SPEED_10G |
+		ETH_LINK_SPEED_25G |
+		ETH_LINK_SPEED_40G |
+		ETH_LINK_SPEED_50G |
+		ETH_LINK_SPEED_100G;
+
+	return 0;
+}
+
+static int
+ionic_dev_configure(struct rte_eth_dev *eth_dev)
+{
+	struct ionic_lif *lif = IONIC_ETH_DEV_TO_LIF(eth_dev);
+	int err;
+
+	ionic_init_print_call();
+
+	err = ionic_lif_configure(lif);
+
+	if (err) {
+		ionic_drv_print(ERR, "Cannot configure LIF: %d", err);
+		return err;
+	}
+
+	return 0;
+}
+
+static inline uint32_t
+ionic_parse_link_speeds(uint16_t link_speeds)
+{
+	if (link_speeds & ETH_LINK_SPEED_100G)
+		return 100000;
+	else if (link_speeds & ETH_LINK_SPEED_50G)
+		return 50000;
+	else if (link_speeds & ETH_LINK_SPEED_40G)
+		return 40000;
+	else if (link_speeds & ETH_LINK_SPEED_25G)
+		return 25000;
+	else if (link_speeds & ETH_LINK_SPEED_10G)
+		return 10000;
+	else
+		return 0;
+}
+
+/*
+ * Configure device link speed and setup link.
+ * It returns 0 on success.
+ */
+static int
+ionic_dev_start(struct rte_eth_dev *eth_dev)
+{
+	struct ionic_lif *lif = IONIC_ETH_DEV_TO_LIF(eth_dev);
+	struct ionic_adapter *adapter = lif->adapter;
+	struct ionic_dev *idev = &adapter->idev;
+	uint32_t allowed_speeds;
+	int err;
+
+	ionic_init_print_call();
+
+	err = ionic_lif_start(lif);
+
+	if (err) {
+		ionic_drv_print(ERR, "Cannot start LIF: %d", err);
+		return err;
+	}
+
+	if (eth_dev->data->dev_conf.link_speeds & ETH_LINK_SPEED_FIXED) {
+		uint32_t speed = ionic_parse_link_speeds(eth_dev->data->dev_conf.link_speeds);
+
+		if (speed)
+			ionic_dev_cmd_port_speed(idev, speed);
+	}
+
+	allowed_speeds =
+		ETH_LINK_SPEED_FIXED |
+		ETH_LINK_SPEED_10G |
+		ETH_LINK_SPEED_25G |
+		ETH_LINK_SPEED_40G |
+		ETH_LINK_SPEED_50G |
+		ETH_LINK_SPEED_100G;
+
+	if (eth_dev->data->dev_conf.link_speeds & ~allowed_speeds) {
+		ionic_init_print(ERR, "Invalid link setting");
+		return -EINVAL;
+	}
+
+	ionic_dev_link_update(eth_dev, 0);
+
+	return 0;
+}
+
+/*
+ * Stop device: disable rx and tx functions to allow for reconfiguring.
+ */
+static void
+ionic_dev_stop(struct rte_eth_dev *eth_dev)
+{
+	struct ionic_lif *lif = IONIC_ETH_DEV_TO_LIF(eth_dev);
+	int err;
+
+	ionic_init_print_call();
+
+	err = ionic_lif_stop(lif);
+
+	if (err) {
+		ionic_drv_print(ERR, "Cannot stop LIF: %d", err);
+		return;
+	}
+}
+
+/*
+ * Reset and stop device.
+ */
+static void
+ionic_dev_close(struct rte_eth_dev *eth_dev)
+{
+	struct ionic_lif *lif = IONIC_ETH_DEV_TO_LIF(eth_dev);
+	int err;
+
+	ionic_init_print_call();
+
+	err = ionic_lif_stop(lif);
+
+	if (err) {
+		ionic_drv_print(ERR, "Cannot stop LIF: %d", err);
+		return;
+	}
+}
+
+static int
 eth_ionic_dev_init(struct rte_eth_dev *eth_dev, void *init_params)
 {
 	struct rte_pci_device *pci_dev = RTE_ETH_DEV_TO_PCI(eth_dev);
@@ -87,6 +382,20 @@ eth_ionic_dev_init(struct rte_eth_dev *eth_dev, void *init_params)
 	lif->adapter = adapter;
 	adapter->lifs[adapter->nlifs] = lif;
 
+	ionic_init_print(DEBUG, "Up to %u MAC addresses supported",
+			adapter->max_mac_addrs);
+
+	/* Allocate memory for storing MAC addresses */
+	eth_dev->data->mac_addrs = rte_zmalloc("ionic",
+			RTE_ETHER_ADDR_LEN * adapter->max_mac_addrs, 0);
+
+	if (eth_dev->data->mac_addrs == NULL) {
+		ionic_init_print(ERR, "Failed to allocate %u bytes needed to "
+				"store MAC addresses",
+				RTE_ETHER_ADDR_LEN * adapter->max_mac_addrs);
+		return -ENOMEM;
+	}
+
 	err = ionic_lif_alloc(lif);
 
 	if (err) {
@@ -101,6 +410,10 @@ eth_ionic_dev_init(struct rte_eth_dev *eth_dev, void *init_params)
 		ionic_init_print(ERR, "Cannot init LIFs: %d, aborting", err);
 		return err;
 	}
+
+	/* Copy the MAC address */
+	rte_ether_addr_copy((struct rte_ether_addr *)lif->mac_addr,
+			&eth_dev->data->mac_addrs[0]);
 
 	ionic_init_print(DEBUG, "Port %u initialized", eth_dev->data->port_id);
 
@@ -296,6 +609,8 @@ eth_ionic_pci_probe(struct rte_pci_driver *pci_drv __rte_unused,
 		ionic_init_print(ERR, "Cannot size LIFs: %d, aborting", err);
 		return err;
 	}
+
+	adapter->max_mac_addrs = adapter->ident.lif.eth.max_ucast_filters;
 
 	adapter->nlifs = 0;
 	for (i = 0; i < adapter->ident.dev.nlifs; i++) {
