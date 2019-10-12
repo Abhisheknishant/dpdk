@@ -28,8 +28,7 @@ Installation
 
 In order to enable this virtual crypto PMD, user must:
 
-* Download ARMv8 crypto library source code from
-  `here <https://github.com/caviumnetworks/armv8_crypto>`_
+* Use ARMv8 crypto library source code from vendor SDK
 
 * Export the environmental variable ARMV8_CRYPTO_LIB_PATH with
   the path where the ``armv8_crypto`` library was downloaded
