@@ -22,6 +22,7 @@
  */
 static unsigned int ccp_pmd_init_done;
 uint8_t ccp_cryptodev_driver_id;
+extern void *sha_ctx;
 
 struct ccp_pmd_init_params {
 	struct rte_cryptodev_pmd_init_params def_p;
@@ -279,6 +280,7 @@ cryptodev_ccp_remove(struct rte_vdev_device *dev)
 
 	ccp_pmd_init_done = 0;
 	name = rte_vdev_device_name(dev);
+	rte_free((void*) sha_ctx);
 	if (name == NULL)
 		return -EINVAL;
 
@@ -296,7 +298,6 @@ cryptodev_ccp_create(const char *name,
 {
 	struct rte_cryptodev *dev;
 	struct ccp_private *internals;
-	uint8_t cryptodev_cnt = 0;
 
 	if (init_params->def_p.name[0] == '\0')
 		strlcpy(init_params->def_p.name, name,
@@ -361,7 +362,7 @@ cryptodev_ccp_probe(struct rte_vdev_device *vdev)
 		.auth_opt = CCP_PMD_AUTH_OPT_CCP,
 	};
 	const char *input_args;
-
+	sha_ctx = (void *)rte_malloc(NULL,SHA512_DIGEST_SIZE,64);
 	if (ccp_pmd_init_done) {
 		RTE_LOG(INFO, PMD, "CCP PMD already initialized\n");
 		return -EFAULT;

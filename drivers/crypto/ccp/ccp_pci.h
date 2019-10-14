@@ -12,6 +12,7 @@
 #define SYSFS_PCI_DEVICES "/sys/bus/pci/devices"
 #define PROC_MODULES "/proc/modules"
 
+
 int ccp_check_pci_uio_module(void);
 
 int ccp_parse_pci_addr_format(const char *buf, int bufsize, uint16_t *domain,
