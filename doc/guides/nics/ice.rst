@@ -240,3 +240,11 @@ file is used by both the kernel driver and the DPDK PMD.
 ~~~~~~~~~~~~~~~~
 
 Ice code released in 19.02 is for evaluation only.
+
+Incorrect Rx statistics when packet is oversize
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When a packet is over maximum frame size, the packet is dropped.
+However, when calling `rte_eth_stats_get`, the Rx statistics will be
+showed as received.
+
