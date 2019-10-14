@@ -2596,7 +2596,8 @@ i40e_rx_queue_config(struct i40e_rx_queue *rxq)
 	struct i40e_pf *pf = I40E_VSI_TO_PF(rxq->vsi);
 	struct i40e_hw *hw = I40E_VSI_TO_HW(rxq->vsi);
 	struct rte_eth_dev_data *data = pf->dev_data;
-	uint16_t buf_size, len;
+	uint16_t buf_size;
+	uint32_t len;
 
 	buf_size = (uint16_t)(rte_pktmbuf_data_room_size(rxq->mp) -
 		RTE_PKTMBUF_HEADROOM);
