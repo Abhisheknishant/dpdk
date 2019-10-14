@@ -115,6 +115,14 @@ New Features
   Added eBPF JIT support for arm64 architecture to improve the eBPF program
   performance.
 
+* **Updated the IPSec library and IPsec Security Gateway application.**
+
+  Added the following features to ``librte_ipsec`` and the ``ipsec-secgw``
+  sample application:
+
+  * Support fragmented packets in inline crypto processing mode with fallback
+    ``lookaside-none`` session.
+
 
 Removed Items
 -------------
