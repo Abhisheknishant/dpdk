@@ -20,6 +20,7 @@ extern "C" {
  ***/
 
 #include <stdint.h>
+#include "rte_sched_common.h"
 
 /**
  * Find best rational approximation
@@ -37,7 +38,7 @@ extern "C" {
  * @return
  *   0 upon success, error code otherwise
  */
-int rte_approx(double alpha, double d, uint32_t *p, uint32_t *q);
+int rte_approx(double alpha, double d, sched_counter_t *p, sched_counter_t *q);
 
 #ifdef __cplusplus
 }

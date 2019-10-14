@@ -14,8 +14,16 @@ extern "C" {
 
 #define __rte_aligned_16 __attribute__((__aligned__(16)))
 
-static inline uint32_t
-rte_sched_min_val_2_u32(uint32_t x, uint32_t y)
+//#define COUNTER_SIZE_64
+
+#ifdef COUNTER_SIZE_64
+typedef uint64_t sched_counter_t;
+#else
+typedef uint32_t sched_counter_t;
+#endif
+
+static inline sched_counter_t
+rte_sched_min_val_2(sched_counter_t x, sched_counter_t y)
 {
 	return (x < y)? x : y;
 }

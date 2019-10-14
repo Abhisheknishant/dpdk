@@ -18,22 +18,23 @@
  */
 
 /* fraction comparison: compare (a/b) and (c/d) */
-static inline uint32_t
-less(uint32_t a, uint32_t b, uint32_t c, uint32_t d)
+static inline sched_counter_t
+less(sched_counter_t a, sched_counter_t b, sched_counter_t c, sched_counter_t d)
 {
 	return a*d < b*c;
 }
 
-static inline uint32_t
-less_or_equal(uint32_t a, uint32_t b, uint32_t c, uint32_t d)
+static inline sched_counter_t
+less_or_equal(sched_counter_t a, sched_counter_t b, sched_counter_t c,
+	sched_counter_t d)
 {
 	return a*d <= b*c;
 }
 
 /* check whether a/b is a valid approximation */
-static inline uint32_t
-matches(uint32_t a, uint32_t b,
-	uint32_t alpha_num, uint32_t d_num, uint32_t denum)
+static inline sched_counter_t
+matches(sched_counter_t a, sched_counter_t b,
+	sched_counter_t alpha_num, sched_counter_t d_num, sched_counter_t denum)
 {
 	if (less_or_equal(a, b, alpha_num - d_num, denum))
 		return 0;
@@ -45,33 +46,39 @@ matches(uint32_t a, uint32_t b,
 }
 
 static inline void
-find_exact_solution_left(uint32_t p_a, uint32_t q_a, uint32_t p_b, uint32_t q_b,
-	uint32_t alpha_num, uint32_t d_num, uint32_t denum, uint32_t *p, uint32_t *q)
+find_exact_solution_left(sched_counter_t p_a, sched_counter_t q_a,
+	sched_counter_t p_b, sched_counter_t q_b, sched_counter_t alpha_num,
+	sched_counter_t d_num, sched_counter_t denum, sched_counter_t *p,
+	sched_counter_t *q)
 {
-	uint32_t k_num = denum * p_b - (alpha_num + d_num) * q_b;
-	uint32_t k_denum = (alpha_num + d_num) * q_a - denum * p_a;
-	uint32_t k = (k_num / k_denum) + 1;
+	sched_counter_t k_num = denum * p_b - (alpha_num + d_num) * q_b;
+	sched_counter_t k_denum = (alpha_num + d_num) * q_a - denum * p_a;
+	sched_counter_t k = (k_num / k_denum) + 1;
 
 	*p = p_b + k * p_a;
 	*q = q_b + k * q_a;
 }
 
 static inline void
-find_exact_solution_right(uint32_t p_a, uint32_t q_a, uint32_t p_b, uint32_t q_b,
-	uint32_t alpha_num, uint32_t d_num, uint32_t denum, uint32_t *p, uint32_t *q)
+find_exact_solution_right(sched_counter_t p_a, sched_counter_t q_a,
+	sched_counter_t p_b, sched_counter_t q_b, sched_counter_t alpha_num,
+	sched_counter_t d_num, sched_counter_t denum, sched_counter_t *p,
+	sched_counter_t *q)
 {
-	uint32_t k_num = - denum * p_b + (alpha_num - d_num) * q_b;
-	uint32_t k_denum = - (alpha_num - d_num) * q_a + denum * p_a;
-	uint32_t k = (k_num / k_denum) + 1;
+	sched_counter_t k_num = -denum * p_b + (alpha_num - d_num) * q_b;
+	sched_counter_t k_denum = -(alpha_num - d_num) * q_a + denum * p_a;
+	sched_counter_t k = (k_num / k_denum) + 1;
 
 	*p = p_b + k * p_a;
 	*q = q_b + k * q_a;
 }
 
 static int
-find_best_rational_approximation(uint32_t alpha_num, uint32_t d_num, uint32_t denum, uint32_t *p, uint32_t *q)
+find_best_rational_approximation(sched_counter_t alpha_num,
+	sched_counter_t d_num, sched_counter_t denum, sched_counter_t *p,
+	sched_counter_t *q)
 {
-	uint32_t p_a, q_a, p_b, q_b;
+	sched_counter_t p_a, q_a, p_b, q_b;
 
 	/* check assumptions on the inputs */
 	if (!((0 < d_num) && (d_num < alpha_num) && (alpha_num < denum) && (d_num + alpha_num < denum))) {
@@ -85,8 +92,8 @@ find_best_rational_approximation(uint32_t alpha_num, uint32_t d_num, uint32_t de
 	q_b = 1;
 
 	while (1) {
-		uint32_t new_p_a, new_q_a, new_p_b, new_q_b;
-		uint32_t x_num, x_denum, x;
+		sched_counter_t new_p_a, new_q_a, new_p_b, new_q_b;
+		sched_counter_t x_num, x_denum, x;
 		int aa, bb;
 
 		/* compute the number of steps to the left */
@@ -139,9 +146,9 @@ find_best_rational_approximation(uint32_t alpha_num, uint32_t d_num, uint32_t de
 	}
 }
 
-int rte_approx(double alpha, double d, uint32_t *p, uint32_t *q)
+int rte_approx(double alpha, double d, sched_counter_t *p, sched_counter_t *q)
 {
-	uint32_t alpha_num, d_num, denum;
+	sched_counter_t alpha_num, d_num, denum;
 
 	/* Check input arguments */
 	if (!((0.0 < d) && (d < alpha) && (alpha < 1.0))) {
@@ -159,8 +166,8 @@ int rte_approx(double alpha, double d, uint32_t *p, uint32_t *q)
 		d *= 10;
 		denum *= 10;
 	}
-	alpha_num = (uint32_t) alpha;
-	d_num = (uint32_t) d;
+	alpha_num = (sched_counter_t) alpha;
+	d_num = (sched_counter_t) d;
 
 	/* Perform approximation */
 	return find_best_rational_approximation(alpha_num, d_num, denum, p, q);

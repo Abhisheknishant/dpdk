@@ -177,6 +177,11 @@ API Changes
 * ethdev: changed ``rte_eth_dev_owner_delete`` return value from ``void`` to
   ``int`` to provide a way to report various error conditions.
 
+* sched: The pipe nodes configuration parameters such as number of pipes,
+  pipe queue sizes, pipe profiles, etc., are moved from port level structure
+  to subport level. This allows different subports of the same port to
+  have different configuration for the pipe nodes.
+
 
 ABI Changes
 -----------
@@ -264,7 +269,7 @@ The libraries prepended with a plus sign were incremented in this version.
      librte_rcu.so.1
      librte_reorder.so.1
      librte_ring.so.2
-     librte_sched.so.3
+   + librte_sched.so.4
      librte_security.so.2
      librte_stack.so.1
      librte_table.so.3
