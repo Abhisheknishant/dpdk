@@ -214,8 +214,12 @@ l2fwd_launch_one_lcore(void *args)
 {
 	struct l2fwd_resources *rsrc = args;
 	struct l2fwd_poll_resources *poll_rsrc = rsrc->poll_rsrc;
+	struct l2fwd_event_resources *evt_rsrc = rsrc->evt_rsrc;
 
-	poll_rsrc->poll_main_loop(rsrc);
+	if (rsrc->event_mode)
+		evt_rsrc->ops.l2fwd_event_loop(rsrc);
+	else
+		poll_rsrc->poll_main_loop(rsrc);
 
 	return 0;
 }
