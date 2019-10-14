@@ -1302,6 +1302,7 @@ ice_interrupt_handler(void *param)
 	uint8_t pf_num;
 	uint8_t event;
 	uint16_t queue;
+	int ret;
 #ifdef ICE_LSE_SPT
 	uint32_t int_fw_ctl;
 #endif
@@ -1329,7 +1330,10 @@ ice_interrupt_handler(void *param)
 #else
 	if (oicr & PFINT_OICR_LINK_STAT_CHANGE_M) {
 		PMD_DRV_LOG(INFO, "OICR: link state change event");
-		ice_link_update(dev, 0);
+		ret = ice_link_update(dev, 0);
+		if (!ret)
+			_rte_eth_dev_callback_process
+				(dev, RTE_ETH_EVENT_INTR_LSC, NULL);
 	}
 #endif
 
