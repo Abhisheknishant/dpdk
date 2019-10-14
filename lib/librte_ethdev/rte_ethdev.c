@@ -4211,6 +4211,77 @@ rte_eth_tx_queue_info_get(uint16_t port_id, uint16_t queue_id,
 }
 
 int
+rte_eth_rx_burst_mode_get(uint16_t port_id, uint16_t queue_id,
+			  struct rte_eth_burst_mode *mode)
+{
+	struct rte_eth_dev *dev;
+
+	RTE_ETH_VALID_PORTID_OR_ERR_RET(port_id, -ENODEV);
+
+	if (mode == NULL)
+		return -EINVAL;
+
+	dev = &rte_eth_devices[port_id];
+
+	if (queue_id >= dev->data->nb_rx_queues) {
+		RTE_ETHDEV_LOG(ERR, "Invalid RX queue_id=%u\n", queue_id);
+		return -EINVAL;
+	}
+
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->rx_burst_mode_get, -ENOTSUP);
+	memset(mode, 0, sizeof(*mode));
+	return eth_err(port_id,
+		       dev->dev_ops->rx_burst_mode_get(dev, queue_id, mode));
+}
+
+int
+rte_eth_tx_burst_mode_get(uint16_t port_id, uint16_t queue_id,
+			  struct rte_eth_burst_mode *mode)
+{
+	struct rte_eth_dev *dev;
+
+	RTE_ETH_VALID_PORTID_OR_ERR_RET(port_id, -ENODEV);
+
+	if (mode == NULL)
+		return -EINVAL;
+
+	dev = &rte_eth_devices[port_id];
+
+	if (queue_id >= dev->data->nb_tx_queues) {
+		RTE_ETHDEV_LOG(ERR, "Invalid TX queue_id=%u\n", queue_id);
+		return -EINVAL;
+	}
+
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->tx_burst_mode_get, -ENOTSUP);
+	memset(mode, 0, sizeof(*mode));
+	return eth_err(port_id,
+		       dev->dev_ops->tx_burst_mode_get(dev, queue_id, mode));
+}
+
+const char *
+rte_eth_burst_mode_option_name(uint64_t option)
+{
+	switch (option) {
+	case RTE_ETH_BURST_SCALAR: return "Scalar";
+	case RTE_ETH_BURST_VECTOR: return "Vector";
+
+	case RTE_ETH_BURST_ALTIVEC: return "AltiVec";
+	case RTE_ETH_BURST_NEON: return "Neon";
+	case RTE_ETH_BURST_SSE: return "SSE";
+	case RTE_ETH_BURST_AVX2: return "AVX2";
+	case RTE_ETH_BURST_AVX512: return "AVX512";
+
+	case RTE_ETH_BURST_SCATTERED: return "Scattered";
+	case RTE_ETH_BURST_BULK_ALLOC: return "Bulk Alloc";
+	case RTE_ETH_BURST_SIMPLE: return "Simple";
+
+	case RTE_ETH_BURST_PER_QUEUE: return "Per Queue";
+	}
+
+	return "";
+}
+
+int
 rte_eth_dev_set_mc_addr_list(uint16_t port_id,
 			     struct rte_ether_addr *mc_addr_set,
 			     uint32_t nb_mc_addr)
