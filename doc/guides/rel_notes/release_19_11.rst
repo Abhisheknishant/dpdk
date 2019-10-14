@@ -115,6 +115,12 @@ New Features
   Added eBPF JIT support for arm64 architecture to improve the eBPF program
   performance.
 
+* **Added new example l2fwd-event application.**
+
+  Added an example application `l2fwd-event` that adds event device support to
+  traditional l2fwd example. It demonstrates usage of poll and event mode IO
+  mechanism under a single application.
+
 
 Removed Items
 -------------

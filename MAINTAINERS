@@ -1478,6 +1478,7 @@ F: examples/l2fwd-cat/
 M: Sunil Kumar Kori <skori@marvell.com>
 M: Pavan Nikhilesh <pbhagavatula@marvell.com>
 F: examples/l2fwd-event/
+F: doc/guides/sample_app_ug/l2_forward_event.rst
 T: git://dpdk.org/next/dpdk-next-eventdev
 
 F: examples/l3fwd/
