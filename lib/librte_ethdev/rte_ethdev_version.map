@@ -283,4 +283,7 @@ EXPERIMENTAL {
 
 	# added in 19.08
 	rte_eth_read_clock;
+
+	# added in 19.11
+	rte_eth_dev_rss_hash_index_get;
 };

@@ -364,6 +364,10 @@ typedef int (*rss_hash_conf_get_t)(struct rte_eth_dev *dev,
 				   struct rte_eth_rss_conf *rss_conf);
 /**< @internal Get current RSS hash configuration of an Ethernet device */
 
+typedef int (*rss_hash_index_get_t)(struct rte_eth_dev *dev,
+				    uint32_t hash, uint32_t *hash_idx);
+/**< @internal Get RSS hash id of given hash value */
+
 typedef int (*eth_dev_led_on_t)(struct rte_eth_dev *dev);
 /**< @internal Turn on SW controllable LED on an Ethernet device */
 
@@ -595,6 +599,7 @@ struct eth_dev_ops {
 
 	rss_hash_update_t          rss_hash_update; /** Configure RSS hash protocols. */
 	rss_hash_conf_get_t        rss_hash_conf_get; /** Get current RSS hash configuration. */
+	rss_hash_index_get_t       rss_hash_index_get; /** Get RSS hash idx. */
 	reta_update_t              reta_update;   /** Update redirection table. */
 	reta_query_t               reta_query;    /** Query redirection table. */
 

@@ -3306,6 +3306,26 @@ rte_eth_dev_rss_hash_conf_get(uint16_t port_id,
 			      struct rte_eth_rss_conf *rss_conf);
 
  /**
+ * Get hash index of the given hash value that received in mbuf from this port.
+ *
+ * @param port_id
+ *   The port identifier of the Ethernet device.
+ * @param hash
+ *   The hash value used to compute hash_idx.
+ * @param hash_idx
+ *   Where to store the computed hash_idx
+ * @return
+ *   - (0) if successful.
+ *   - (-ENODEV) if port identifier is invalid.
+ *   - (-EIO) if device is removed.
+ *   - (-ENOTSUP) if hardware doesn't support RSS.
+ */
+__rte_experimental
+int
+rte_eth_dev_rss_hash_index_get(uint16_t port_id,
+			       uint32_t hash, uint32_t *hash_idx);
+
+ /**
  * Add UDP tunneling port for a specific type of tunnel.
  * The packets with this UDP port will be identified as this type of tunnel.
  * Before enabling any offloading function for a tunnel, users can call this API
