@@ -328,6 +328,24 @@ otx2_nix_rss_hash_conf_get(struct rte_eth_dev *eth_dev,
 }
 
 int
+otx2_nix_rss_hash_index_get(struct rte_eth_dev *eth_dev,
+			    uint32_t hash, uint32_t *hash_idx)
+{
+	struct otx2_eth_dev *dev = otx2_eth_pmd_priv(eth_dev);
+	union flow_tag {
+		uint32_t hash;
+		uint8_t byte[4];
+	} tag;
+
+	tag.hash = hash;
+
+	*hash_idx = (tag.byte[0] ^ tag.byte[1] ^ tag.byte[2] ^ tag.byte[3]) %
+			dev->rss_info.rss_size;
+
+	return 0;
+}
+
+int
 otx2_nix_rss_config(struct rte_eth_dev *eth_dev)
 {
 	struct otx2_eth_dev *dev = otx2_eth_pmd_priv(eth_dev);
