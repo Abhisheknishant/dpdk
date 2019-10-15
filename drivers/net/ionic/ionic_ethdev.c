@@ -40,6 +40,30 @@ static LIST_HEAD(ionic_pci_adapters_list, ionic_adapter) ionic_pci_adapters =
 		LIST_HEAD_INITIALIZER(ionic_pci_adapters);
 static rte_spinlock_t ionic_pci_adapters_lock = RTE_SPINLOCK_INITIALIZER;
 
+/**
+ * Interrupt handler triggered by NIC for handling
+ * specific interrupt.
+ *
+ * @param param
+ *  The address of parameter regsitered before.
+ *
+ * @return
+ *  void
+ */
+static void
+ionic_dev_interrupt_handler(void *param)
+{
+	struct ionic_adapter *adapter = (struct ionic_adapter *)param;
+	uint32_t i;
+
+	ionic_drv_print(DEBUG, "->");
+
+	for (i = 0; i < adapter->nlifs; i++) {
+		if (adapter->lifs[i])
+			ionic_notifyq_handler(adapter->lifs[i], -1);
+	}
+}
+
 static int
 eth_ionic_dev_init(struct rte_eth_dev *eth_dev, void *init_params)
 {
@@ -102,6 +126,70 @@ eth_ionic_dev_uninit(struct rte_eth_dev *eth_dev)
 	eth_dev->dev_ops = NULL;
 
 	return 0;
+}
+
+static int
+ionic_configure_intr(struct ionic_adapter *adapter)
+{
+	struct rte_pci_device *pci_dev = adapter->pci_dev;
+	struct rte_intr_handle *intr_handle = &pci_dev->intr_handle;
+	int err;
+
+	ionic_init_print(DEBUG, "Configuring %u intrs", adapter->nintrs);
+
+	if (rte_intr_efd_enable(intr_handle, adapter->nintrs)) {
+		ionic_init_print(ERR, "Fail to create eventfd");
+		return -1;
+	}
+
+	if (rte_intr_dp_is_en(intr_handle))
+		ionic_init_print(DEBUG,
+				"Packet I/O interrupt on datapath is enabled");
+
+	if (!intr_handle->intr_vec) {
+		intr_handle->intr_vec = rte_zmalloc("intr_vec",
+			adapter->nintrs * sizeof(int), 0);
+
+		if (!intr_handle->intr_vec) {
+			ionic_init_print(ERR, "Failed to allocate %u vectors",
+				adapter->nintrs);
+			return -ENOMEM;
+		}
+	}
+
+	err = rte_intr_callback_register(intr_handle,
+			ionic_dev_interrupt_handler,
+			adapter);
+
+	if (err) {
+		ionic_init_print(ERR,
+				"Failure registering interrupts handler (%d)",
+				err);
+		return err;
+	}
+
+	/* enable intr mapping */
+	err = rte_intr_enable(intr_handle);
+
+	if (err) {
+		ionic_init_print(ERR, "Failure enabling interrupts (%d)", err);
+		return err;
+	}
+
+	return 0;
+}
+
+static void
+ionic_unconfigure_intr(struct ionic_adapter *adapter)
+{
+	struct rte_pci_device *pci_dev = adapter->pci_dev;
+	struct rte_intr_handle *intr_handle = &pci_dev->intr_handle;
+
+	rte_intr_disable(intr_handle);
+
+	rte_intr_callback_unregister(intr_handle,
+			ionic_dev_interrupt_handler,
+			adapter);
 }
 
 static int
@@ -228,6 +316,13 @@ eth_ionic_pci_probe(struct rte_pci_driver *pci_drv __rte_unused,
 		adapter->nlifs++;
 	}
 
+	err = ionic_configure_intr(adapter);
+
+	if (err) {
+		ionic_init_print(ERR, "Failed to configure interrupts");
+		return err;
+	}
+
 	rte_spinlock_lock(&ionic_pci_adapters_lock);
 	LIST_INSERT_HEAD(&ionic_pci_adapters, adapter, pci_adapters);
 	rte_spinlock_unlock(&ionic_pci_adapters_lock);
@@ -254,6 +349,8 @@ eth_ionic_pci_remove(struct rte_pci_device *pci_dev)
 	rte_spinlock_unlock(&ionic_pci_adapters_lock);
 
 	if (adapter) {
+		ionic_unconfigure_intr(adapter);
+
 		for (i = 0; i < adapter->nlifs; i++) {
 			lif = adapter->lifs[i];
 			rte_eth_dev_destroy(lif->eth_dev, eth_ionic_dev_uninit);
