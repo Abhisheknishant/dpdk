@@ -32,6 +32,7 @@ all_examples = [
 	'multi_process/symmetric_mp',
 	'netmap_compat', 'ntb', 'packet_ordering',
 	'performance-thread/l3fwd-thread',
+	'performance-thread/pthread_shim',
 	'ptpclient',
 	'qos_meter', 'qos_sched',
 	'quota_watermark', 'rxtx_callbacks',
