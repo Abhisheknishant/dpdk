@@ -28,6 +28,8 @@
 #define BIT_ULL(nr)        (1ULL << (nr))
 #define BITS_TO_LONGS(nr)  div_round_up(nr, 8 * sizeof(long))
 
+#define ETH_ALEN        6
+
 #ifndef PAGE_SHIFT
 #define PAGE_SHIFT      12
 #define PAGE_SIZE       (1 << PAGE_SHIFT)
