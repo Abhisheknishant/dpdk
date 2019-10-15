@@ -4,5 +4,6 @@
 version = 1
 
 sources = files(
+	'ionic_ethdev.c'
 )
 
