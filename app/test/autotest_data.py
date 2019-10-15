@@ -653,6 +653,12 @@ non_parallel_test_list = [
         "Report":  None,
     },
     {
+        "Name":    "Hash index verify autotest",
+        "Command": "hash_index_verify_autotest",
+        "Func":    default_autotest,
+        "Report":  None,
+    },
+    {
         "Name":    "Ring pmd perf autotest",
         "Command": "ring_pmd_perf_autotest",
         "Func":    default_autotest,
