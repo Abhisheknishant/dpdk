@@ -39,6 +39,30 @@
 
 #define VHOST_LOG_CACHE_NR 32
 
+#define PACKED_BATCH_SIZE (RTE_CACHE_LINE_SIZE / \
+			    sizeof(struct vring_packed_desc))
+#define PACKED_BATCH_MASK (PACKED_BATCH_SIZE - 1)
+
+#ifdef SUPPORT_GCC_UNROLL_PRAGMA
+#define for_each_try_unroll(iter, val, size) _Pragma("GCC unroll 4") \
+	for (iter = val; iter < size; iter++)
+#endif
+
+#ifdef SUPPORT_CLANG_UNROLL_PRAGMA
+#define for_each_try_unroll(iter, val, size) _Pragma("unroll 4") \
+	for (iter = val; iter < size; iter++)
+#endif
+
+#ifdef SUPPORT_ICC_UNROLL_PRAGMA
+#define for_each_try_unroll(iter, val, size) _Pragma("unroll (4)") \
+	for (iter = val; iter < size; iter++)
+#endif
+
+#ifndef for_each_try_unroll
+#define for_each_try_unroll(iter, val, num) \
+	for (iter = val; iter < num; iter++)
+#endif
+
 /**
  * Structure contains buffer address, length and descriptor index
  * from vring to do scatter RX.
