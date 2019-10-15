@@ -103,6 +103,22 @@ eth_ionic_pci_probe(struct rte_pci_driver *pci_drv __rte_unused,
 		return err;
 	}
 
+	/* Configure the ports */
+	err = ionic_port_identify(adapter);
+
+	if (err) {
+		ionic_init_print(ERR, "Cannot identify port: %d, aborting\n",
+				err);
+		return err;
+	}
+
+	err = ionic_port_init(adapter);
+
+	if (err) {
+		ionic_init_print(ERR, "Cannot init port: %d, aborting\n", err);
+		return err;
+	}
+
 	rte_spinlock_lock(&ionic_pci_adapters_lock);
 	LIST_INSERT_HEAD(&ionic_pci_adapters, adapter, pci_adapters);
 	rte_spinlock_unlock(&ionic_pci_adapters_lock);
