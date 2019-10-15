@@ -1250,7 +1250,7 @@ type1_map(const struct rte_memseg_list *msl, const struct rte_memseg *ms,
 {
 	int *vfio_container_fd = arg;
 
-	if (msl->external)
+	if (msl->external & !internal_config.iso_cmem)
 		return 0;
 
 	return vfio_type1_dma_mem_map(*vfio_container_fd, ms->addr_64, ms->iova,

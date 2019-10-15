@@ -78,6 +78,7 @@ eal_long_options[] = {
 	{OPT_VDEV,              1, NULL, OPT_VDEV_NUM             },
 	{OPT_VFIO_INTR,         1, NULL, OPT_VFIO_INTR_NUM        },
 	{OPT_VMWARE_TSC_MAP,    0, NULL, OPT_VMWARE_TSC_MAP_NUM   },
+	{OPT_ISO_CMEM,          0, NULL, OPT_ISO_CMEM_NUM         },
 	{OPT_LEGACY_MEM,        0, NULL, OPT_LEGACY_MEM_NUM       },
 	{OPT_SINGLE_FILE_SEGMENTS, 0, NULL, OPT_SINGLE_FILE_SEGMENTS_NUM},
 	{OPT_MATCH_ALLOCATIONS, 0, NULL, OPT_MATCH_ALLOCATIONS_NUM},
@@ -1325,6 +1326,10 @@ eal_parse_common_option(int opt, const char *optarg,
 
 	case OPT_NO_HPET_NUM:
 		conf->no_hpet = 1;
+		break;
+
+	case OPT_ISO_CMEM_NUM:
+		conf->iso_cmem = 1;
 		break;
 
 	case OPT_VMWARE_TSC_MAP_NUM:
