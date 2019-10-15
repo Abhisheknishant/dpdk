@@ -283,4 +283,9 @@ EXPERIMENTAL {
 
 	# added in 19.08
 	rte_eth_read_clock;
+
+	# added in 19.11
+	rte_eth_rx_hairpin_queue_setup;
+	rte_eth_tx_hairpin_queue_setup;
+	rte_eth_dev_hairpin_capability_get;
 };
