@@ -15,6 +15,7 @@
 #define __BNX2X_H__
 
 #include <rte_byteorder.h>
+#include <rte_bitops.h>
 #include <rte_spinlock.h>
 #include <rte_bus_pci.h>
 #include <rte_io.h>
@@ -1809,10 +1810,6 @@ static const uint32_t dmae_reg_go_c[] = {
 #define PCI_PM_D0    1
 #define PCI_PM_D3hot 2
 
-int  bnx2x_test_bit(int nr, volatile unsigned long * addr);
-void bnx2x_set_bit(unsigned int nr, volatile unsigned long * addr);
-void bnx2x_clear_bit(int nr, volatile unsigned long * addr);
-int  bnx2x_test_and_clear_bit(int nr, volatile unsigned long * addr);
 int  bnx2x_cmpxchg(volatile int *addr, int old, int new);
 
 int bnx2x_dma_alloc(struct bnx2x_softc *sc, size_t size,
