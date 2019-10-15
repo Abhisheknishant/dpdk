@@ -115,6 +115,11 @@ New Features
   Added eBPF JIT support for arm64 architecture to improve the eBPF program
   performance.
 
+* **Added external buffers support for dpdk-test-compress-perf tool.**
+
+  Added a command line option to dpdk-test-compress-perf tool to allocate
+  and use memory zones as external buffers instead of keeping the data directly
+  in mbuf areas.
 
 Removed Items
 -------------
