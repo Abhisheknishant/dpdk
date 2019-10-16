@@ -546,6 +546,20 @@ vdev_unplug(struct rte_device *dev)
 	return rte_vdev_uninit(dev->name);
 }
 
+static enum rte_iova_mode
+rte_vdev_get_iommu_class(void)
+{
+	struct rte_devargs *devargs = NULL;
+
+	if (rte_eal_check_module("rte_kni") == 1) {
+		RTE_EAL_DEVARGS_FOREACH("vdev", devargs) {
+			return RTE_IOVA_PA;
+		}
+	}
+
+	return RTE_IOVA_DC;
+}
+
 static struct rte_bus rte_vdev_bus = {
 	.scan = vdev_scan,
 	.probe = vdev_probe,
@@ -554,6 +568,7 @@ static struct rte_bus rte_vdev_bus = {
 	.unplug = vdev_unplug,
 	.parse = vdev_parse,
 	.dev_iterate = rte_vdev_dev_iterate,
+	.get_iommu_class = rte_vdev_get_iommu_class,
 };
 
 RTE_REGISTER_BUS(vdev, rte_vdev_bus);
