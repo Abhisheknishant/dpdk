@@ -322,6 +322,7 @@ memif_msg_receive_add_ring(struct rte_eth_dev *dev, memif_msg_t *msg, int fd)
 	mq->log2_ring_size = ar->log2_ring_size;
 	mq->region = ar->region;
 	mq->ring_offset = ar->offset;
+	mq->in_port = dev->data->port_id;
 
 	return 0;
 }
@@ -464,6 +465,7 @@ memif_msg_enq_add_ring(struct rte_eth_dev *dev, uint8_t idx,
 	ar->log2_ring_size = mq->log2_ring_size;
 	ar->flags = (type == MEMIF_RING_S2M) ? MEMIF_MSG_ADD_RING_FLAG_S2M : 0;
 	ar->private_hdr_size = 0;
+	mq->in_port = dev->data->port_id;
 
 	return 0;
 }
