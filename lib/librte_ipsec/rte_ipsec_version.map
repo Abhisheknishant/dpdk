@@ -11,5 +11,12 @@ EXPERIMENTAL {
 	rte_ipsec_ses_from_crypto;
 	rte_ipsec_session_prepare;
 
+	rte_ipsec_sad_add;
+	rte_ipsec_sad_create;
+	rte_ipsec_sad_del;
+	rte_ipsec_sad_find_existing;
+	rte_ipsec_sad_destroy;
+	rte_ipsec_sad_lookup;
+
 	local: *;
 };
