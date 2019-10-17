@@ -198,9 +198,12 @@ extern "C" {
 #define PKT_RX_OUTER_L4_CKSUM_GOOD	(1ULL << 22)
 #define PKT_RX_OUTER_L4_CKSUM_INVALID	((1ULL << 21) | (1ULL << 22))
 
-/* add new RX flags here */
+/* add new RX flags here, don't forget to update PKT_FIRST_FREE */
 
-/* add new TX flags here */
+#define PKT_FIRST_FREE (1ULL << 23)
+#define PKT_LAST_FREE (1ULL << 39)
+
+/* add new TX flags here, don't forget to update PKT_LAST_FREE  */
 
 /**
  * Indicate that the metadata field in the mbuf is in use.
@@ -738,6 +741,7 @@ struct rte_mbuf {
 	 */
 	struct rte_mbuf_ext_shared_info *shinfo;
 
+	uint64_t dynfield1[2]; /**< Reserved for dynamic fields. */
 } __rte_cache_aligned;
 
 /**
@@ -1684,6 +1688,20 @@ rte_pktmbuf_attach_extbuf(struct rte_mbuf *m, void *buf_addr,
  */
 #define rte_pktmbuf_detach_extbuf(m) rte_pktmbuf_detach(m)
 
+/**
+ * Copy dynamic fields from m_src to m_dst.
+ *
+ * @param m_dst
+ *   The destination mbuf.
+ * @param m_src
+ *   The source mbuf.
+ */
+static inline void
+rte_mbuf_dynfield_copy(struct rte_mbuf *mdst, const struct rte_mbuf *msrc)
+{
+	memcpy(&mdst->dynfield1, msrc->dynfield1, sizeof(mdst->dynfield1));
+}
+
 /* internal */
 static inline void
 __rte_pktmbuf_copy_hdr(struct rte_mbuf *mdst, const struct rte_mbuf *msrc)
@@ -1695,6 +1713,7 @@ __rte_pktmbuf_copy_hdr(struct rte_mbuf *mdst, const struct rte_mbuf *msrc)
 	mdst->hash = msrc->hash;
 	mdst->packet_type = msrc->packet_type;
 	mdst->timestamp = msrc->timestamp;
+	rte_mbuf_dynfield_copy(mdst, msrc);
 }
 
 /**
