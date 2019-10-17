@@ -24,6 +24,7 @@ extern "C" {
 #include <stdint.h>
 #include <sys/queue.h>
 #include <errno.h>
+#include <string.h>
 #include <rte_common.h>
 #include <rte_config.h>
 #include <rte_memory.h>
@@ -108,35 +109,16 @@ __rte_experimental
 struct rte_ring *rte_ring_create_elem(const char *name, unsigned count,
 				unsigned esize, int socket_id, unsigned flags);
 
-/* the actual enqueue of pointers on the ring.
- * Placed here since identical code needed in both
- * single and multi producer enqueue functions.
- */
-#define ENQUEUE_PTRS_ELEM(r, ring_start, prod_head, obj_table, esize, n) do { \
-	if (esize == 4) \
-		ENQUEUE_PTRS_32(r, ring_start, prod_head, obj_table, n); \
-	else if (esize == 8) \
-		ENQUEUE_PTRS_64(r, ring_start, prod_head, obj_table, n); \
-	else if (esize == 16) \
-		ENQUEUE_PTRS_128(r, ring_start, prod_head, obj_table, n); \
-} while (0)
-
-#define ENQUEUE_PTRS_32(r, ring_start, prod_head, obj_table, n) do { \
+#define ENQUEUE_PTRS_GEN(r, ring_start, prod_head, obj_table, esize, n) do { \
 	unsigned int i; \
 	const uint32_t size = (r)->size; \
 	uint32_t idx = prod_head & (r)->mask; \
 	uint32_t *ring = (uint32_t *)ring_start; \
 	uint32_t *obj = (uint32_t *)obj_table; \
+	uint32_t sz = n * (esize / sizeof(uint32_t)); \
 	if (likely(idx + n < size)) { \
-		for (i = 0; i < (n & ((~(unsigned)0x7))); i += 8, idx += 8) { \
-			ring[idx] = obj[i]; \
-			ring[idx + 1] = obj[i + 1]; \
-			ring[idx + 2] = obj[i + 2]; \
-			ring[idx + 3] = obj[i + 3]; \
-			ring[idx + 4] = obj[i + 4]; \
-			ring[idx + 5] = obj[i + 5]; \
-			ring[idx + 6] = obj[i + 6]; \
-			ring[idx + 7] = obj[i + 7]; \
+		for (i = 0; i < (sz & ((~(unsigned)0x7))); i += 8, idx += 8) { \
+			memcpy (ring + i, obj + i, 8 * sizeof (uint32_t)); \
 		} \
 		switch (n & 0x7) { \
 		case 7: \
@@ -162,87 +144,16 @@ struct rte_ring *rte_ring_create_elem(const char *name, unsigned count,
 	} \
 } while (0)
 
-#define ENQUEUE_PTRS_64(r, ring_start, prod_head, obj_table, n) do { \
-	unsigned int i; \
-	const uint32_t size = (r)->size; \
-	uint32_t idx = prod_head & (r)->mask; \
-	uint64_t *ring = (uint64_t *)ring_start; \
-	uint64_t *obj = (uint64_t *)obj_table; \
-	if (likely(idx + n < size)) { \
-		for (i = 0; i < (n & ((~(unsigned)0x3))); i += 4, idx += 4) { \
-			ring[idx] = obj[i]; \
-			ring[idx + 1] = obj[i + 1]; \
-			ring[idx + 2] = obj[i + 2]; \
-			ring[idx + 3] = obj[i + 3]; \
-		} \
-		switch (n & 0x3) { \
-		case 3: \
-			ring[idx++] = obj[i++]; /* fallthrough */ \
-		case 2: \
-			ring[idx++] = obj[i++]; /* fallthrough */ \
-		case 1: \
-			ring[idx++] = obj[i++]; \
-		} \
-	} else { \
-		for (i = 0; idx < size; i++, idx++)\
-			ring[idx] = obj[i]; \
-		for (idx = 0; i < n; i++, idx++) \
-			ring[idx] = obj[i]; \
-	} \
-} while (0)
-
-#define ENQUEUE_PTRS_128(r, ring_start, prod_head, obj_table, n) do { \
-	unsigned int i; \
-	const uint32_t size = (r)->size; \
-	uint32_t idx = prod_head & (r)->mask; \
-	__uint128_t *ring = (__uint128_t *)ring_start; \
-	__uint128_t *obj = (__uint128_t *)obj_table; \
-	if (likely(idx + n < size)) { \
-		for (i = 0; i < (n >> 1); i += 2, idx += 2) { \
-			ring[idx] = obj[i]; \
-			ring[idx + 1] = obj[i + 1]; \
-		} \
-		switch (n & 0x1) { \
-		case 1: \
-			ring[idx++] = obj[i++]; \
-		} \
-	} else { \
-		for (i = 0; idx < size; i++, idx++)\
-			ring[idx] = obj[i]; \
-		for (idx = 0; i < n; i++, idx++) \
-			ring[idx] = obj[i]; \
-	} \
-} while (0)
-
-/* the actual copy of pointers on the ring to obj_table.
- * Placed here since identical code needed in both
- * single and multi consumer dequeue functions.
- */
-#define DEQUEUE_PTRS_ELEM(r, ring_start, cons_head, obj_table, esize, n) do { \
-	if (esize == 4) \
-		DEQUEUE_PTRS_32(r, ring_start, cons_head, obj_table, n); \
-	else if (esize == 8) \
-		DEQUEUE_PTRS_64(r, ring_start, cons_head, obj_table, n); \
-	else if (esize == 16) \
-		DEQUEUE_PTRS_128(r, ring_start, cons_head, obj_table, n); \
-} while (0)
-
-#define DEQUEUE_PTRS_32(r, ring_start, cons_head, obj_table, n) do { \
+#define DEQUEUE_PTRS_GEN(r, ring_start, cons_head, obj_table, esize, n) do { \
 	unsigned int i; \
 	uint32_t idx = cons_head & (r)->mask; \
 	const uint32_t size = (r)->size; \
 	uint32_t *ring = (uint32_t *)ring_start; \
 	uint32_t *obj = (uint32_t *)obj_table; \
+	uint32_t sz = n * (esize / sizeof(uint32_t)); \
 	if (likely(idx + n < size)) { \
-		for (i = 0; i < (n & (~(unsigned)0x7)); i += 8, idx += 8) {\
-			obj[i] = ring[idx]; \
-			obj[i + 1] = ring[idx + 1]; \
-			obj[i + 2] = ring[idx + 2]; \
-			obj[i + 3] = ring[idx + 3]; \
-			obj[i + 4] = ring[idx + 4]; \
-			obj[i + 5] = ring[idx + 5]; \
-			obj[i + 6] = ring[idx + 6]; \
-			obj[i + 7] = ring[idx + 7]; \
+		for (i = 0; i < (sz & ((~(unsigned)0x7))); i += 8, idx += 8) { \
+			memcpy (obj + i, ring + i, 8 * sizeof (uint32_t)); \
 		} \
 		switch (n & 0x7) { \
 		case 7: \
@@ -257,58 +168,6 @@ struct rte_ring *rte_ring_create_elem(const char *name, unsigned count,
 			obj[i++] = ring[idx++]; /* fallthrough */ \
 		case 2: \
 			obj[i++] = ring[idx++]; /* fallthrough */ \
-		case 1: \
-			obj[i++] = ring[idx++]; /* fallthrough */ \
-		} \
-	} else { \
-		for (i = 0; idx < size; i++, idx++) \
-			obj[i] = ring[idx]; \
-		for (idx = 0; i < n; i++, idx++) \
-			obj[i] = ring[idx]; \
-	} \
-} while (0)
-
-#define DEQUEUE_PTRS_64(r, ring_start, cons_head, obj_table, n) do { \
-	unsigned int i; \
-	uint32_t idx = cons_head & (r)->mask; \
-	const uint32_t size = (r)->size; \
-	uint64_t *ring = (uint64_t *)ring_start; \
-	uint64_t *obj = (uint64_t *)obj_table; \
-	if (likely(idx + n < size)) { \
-		for (i = 0; i < (n & (~(unsigned)0x3)); i += 4, idx += 4) {\
-			obj[i] = ring[idx]; \
-			obj[i + 1] = ring[idx + 1]; \
-			obj[i + 2] = ring[idx + 2]; \
-			obj[i + 3] = ring[idx + 3]; \
-		} \
-		switch (n & 0x3) { \
-		case 3: \
-			obj[i++] = ring[idx++]; /* fallthrough */ \
-		case 2: \
-			obj[i++] = ring[idx++]; /* fallthrough */ \
-		case 1: \
-			obj[i++] = ring[idx++]; \
-		} \
-	} else { \
-		for (i = 0; idx < size; i++, idx++) \
-			obj[i] = ring[idx]; \
-		for (idx = 0; i < n; i++, idx++) \
-			obj[i] = ring[idx]; \
-	} \
-} while (0)
-
-#define DEQUEUE_PTRS_128(r, ring_start, cons_head, obj_table, n) do { \
-	unsigned int i; \
-	uint32_t idx = cons_head & (r)->mask; \
-	const uint32_t size = (r)->size; \
-	__uint128_t *ring = (__uint128_t *)ring_start; \
-	__uint128_t *obj = (__uint128_t *)obj_table; \
-	if (likely(idx + n < size)) { \
-		for (i = 0; i < (n >> 1); i += 2, idx += 2) { \
-			obj[i] = ring[idx]; \
-			obj[i + 1] = ring[idx + 1]; \
-		} \
-		switch (n & 0x1) { \
 		case 1: \
 			obj[i++] = ring[idx++]; /* fallthrough */ \
 		} \
@@ -373,7 +232,7 @@ __rte_ring_do_enqueue_elem(struct rte_ring *r, void * const obj_table,
 	if (n == 0)
 		goto end;
 
-	ENQUEUE_PTRS_ELEM(r, &r[1], prod_head, obj_table, esize, n);
+	ENQUEUE_PTRS_GEN(r, &r[1], prod_head, obj_table, esize, n);
 
 	update_tail(&r->prod, prod_head, prod_next, is_sp, 1);
 end:
@@ -420,7 +279,7 @@ __rte_ring_do_dequeue_elem(struct rte_ring *r, void *obj_table,
 	if (n == 0)
 		goto end;
 
-	DEQUEUE_PTRS_ELEM(r, &r[1], cons_head, obj_table, esize, n);
+	DEQUEUE_PTRS_GEN(r, &r[1], cons_head, obj_table, esize, n);
 
 	update_tail(&r->cons, cons_head, cons_next, is_sc, 0);
 
