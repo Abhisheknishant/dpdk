@@ -32,9 +32,8 @@ bpf_load(const struct rte_bpf_prm *prm)
 	bsz = sizeof(bpf[0]);
 	sz = insz + xsz + bsz;
 
-	buf = mmap(NULL, sz, PROT_READ | PROT_WRITE,
-		MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	if (buf == MAP_FAILED)
+	buf = rte_malloc("bpf", sz, 0);
+	if (buf == NULL)
 		return NULL;
 
 	bpf = (void *)buf;

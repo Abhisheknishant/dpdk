@@ -22,7 +22,7 @@ rte_bpf_destroy(struct rte_bpf *bpf)
 	if (bpf != NULL) {
 		if (bpf->jit.func != NULL)
 			munmap(bpf->jit.func, bpf->jit.sz);
-		munmap(bpf, bpf->sz);
+		rte_free(bpf);
 	}
 }
 
