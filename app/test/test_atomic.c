@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: BSD-3-Clause
  * Copyright(c) 2010-2014 Intel Corporation
+ * Copyright(c) 2019 Arm Limited
  */
 
 #include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <inttypes.h>
 #include <sys/queue.h>
 
 #include <rte_memory.h>
@@ -13,6 +15,8 @@
 #include <rte_atomic.h>
 #include <rte_eal.h>
 #include <rte_lcore.h>
+#include <rte_random.h>
+#include <rte_hash_crc.h>
 
 #include "test.h"
 
@@ -20,7 +24,7 @@
  * Atomic Variables
  * ================
  *
- * - The main test function performs three subtests. The first test
+ * - The main test function performs four subtests. The first test
  *   checks that the usual inc/dec/add/sub functions are working
  *   correctly:
  *
@@ -61,11 +65,26 @@
  *       atomic_sub(&count, tmp+1);
  *
  *   - At the end of the test, the *count* value must be 0.
+ *
+ * - Test "atomic exchange"
+ *
+ *   - Create a 64 bit token that can be tested for data integrity
+ *
+ *   - Invoke ``test_atomic_exchange`` on each lcore.  Before doing
+ *     anything else, the cores wait for a synchronization event.
+ *     Each core then does the follwoing for N iterations:
+ *
+ *       Generate a new token with a data integrity check
+ *       Exchange the new token for previously generated token
+ *       Increment a counter if a corrupt token was received
+ *
+ *   - At the end of the test, the number of corrupted tokens must be 0.
+ *
  */
 
 #define NUM_ATOMIC_TYPES 3
 
-#define N 10000
+#define N 1000000
 
 static rte_atomic16_t a16;
 static rte_atomic32_t a32;
@@ -216,6 +235,124 @@ test_atomic_dec_and_test(__attribute__((unused)) void *arg)
 	return 0;
 }
 
+/*
+ * Helper definitions/variables/functions for
+ * atomic exchange tests
+ */
+typedef union {
+	uint16_t u16;
+	uint8_t  u8[2];
+} rte_u16_t;
+
+typedef union {
+	uint32_t u32;
+	uint16_t u16[2];
+	uint8_t  u8[4];
+} rte_u32_t;
+
+typedef union {
+	uint64_t u64;
+	uint32_t u32[2];
+	uint16_t u16[4];
+	uint8_t  u8[8];
+} rte_u64_t;
+
+const uint8_t CRC8_POLY = 0x91;
+uint8_t crc8_table[256];
+
+volatile uint16_t token16;
+volatile uint32_t token32;
+volatile uint64_t token64;
+
+static void
+build_crc8_table(void)
+{
+	uint8_t val;
+
+	for (int i = 0; i < 256; i++) {
+		val = i;
+		for (int j = 0; j < 8; j++) {
+			if (val & 1)
+				val ^= CRC8_POLY;
+			val >>= 1;
+		}
+		crc8_table[i] = val;
+	}
+}
+
+static uint8_t
+get_crc8(uint8_t *message, int length)
+{
+	uint8_t crc = 0;
+
+	for (int i = 0; i < length; i++)
+		crc = crc8_table[crc ^ message[i]];
+	return crc;
+}
+
+/*
+ * The atomic exchange test sets up a token in memory and
+ * then spins up multiple lcores whose job is to generate
+ * new tokens, exchange that new token for the old one held
+ * in memory, and then verify that the old token is still
+ * valid (i.e. the exchange did not corrupt the token).
+ *
+ * A token is made up of random data and 8 bits of crc
+ * covering that random data.  The following is an example
+ * of a 64bit token.
+ *
+ * +------------+------------+
+ * | 63      56 | 55       0 |
+ * +------------+------------+
+ * |    CRC8    |    Data    |
+ * +------------+------------+
+ */
+static int
+test_atomic_exchange(__attribute__((unused)) void *arg)
+{
+	rte_u16_t nt16, ot16; /* new token, old token */
+	rte_u32_t nt32, ot32;
+	rte_u64_t nt64, ot64;
+
+	/* Wait until all of the other threads have been dispatched */
+	while (rte_atomic32_read(&synchro) == 0)
+		;
+
+	/*
+	 * Let the battle begin! Every thread attempts to steal the current
+	 * token with an atomic exchange operation and install its own newly
+	 * generated token. If the old token is valid (i.e. it has the
+	 * appropriate crc32 hash for the data) then the test iteration has
+	 * passed.  If the token is invalid, increment the counter.
+	 */
+	for (int i = 0; i < N; i++) {
+
+		/* Test 64bit Atomic Exchange */
+		nt64.u64 = rte_rand();
+		nt64.u8[7] = get_crc8(&nt64.u8[0], sizeof(nt64) - 1);
+		ot64.u64 = rte_atomic64_exchange(&token64, nt64.u64);
+		if (ot64.u8[7] != get_crc8(&ot64.u8[0], sizeof(ot64) - 1))
+			rte_atomic64_inc(&count);
+
+		/* Test 32bit Atomic Exchange */
+		nt32.u32 = (uint32_t)rte_rand();
+		nt32.u8[3] = get_crc8(&nt32.u8[0], sizeof(nt32) - 1);
+		ot32.u32 = rte_atomic32_exchange(&token32, nt32.u32);
+		if (ot32.u8[3] != get_crc8(&ot32.u8[0], sizeof(ot32) - 1))
+			rte_atomic64_inc(&count);
+
+		/* Test 16bit Atomic Exchange */
+		nt16.u16 = (uint16_t)rte_rand();
+		nt16.u8[1] = get_crc8(&nt16.u8[0], sizeof(nt16) - 1);
+		ot16.u16 = rte_atomic16_exchange(&token16, nt16.u16);
+		if (ot16.u8[1] != get_crc8(&ot16.u8[0], sizeof(ot16) - 1))
+			rte_atomic64_inc(&count);
+	}
+
+	return 0;
+}
+
+
 static int
 test_atomic(void)
 {
@@ -337,6 +474,38 @@ test_atomic(void)
 
 	if (rte_atomic64_read(&count) != NUM_ATOMIC_TYPES) {
 		printf("Atomic dec and test failed\n");
+		return -1;
+	}
+
+	/*
+	 * Test 16/32/64bit atomic exchange.
+	 */
+	rte_u64_t t;
+
+	printf("exchange test\n");
+
+	rte_atomic32_clear(&synchro);
+	rte_atomic64_clear(&count);
+
+	/* Generate the CRC8 lookup table */
+	build_crc8_table();
+
+	/* Create the initial tokens used by the test */
+	t.u64 = rte_rand();
+	token16 = (get_crc8(&t.u8[0], sizeof(token16) - 1) << 8)
+		| (t.u16[0] & 0x00ff);
+	token32 = ((uint32_t)get_crc8(&t.u8[0], sizeof(token32) - 1) << 24)
+		| (t.u32[0] & 0x00ffffff);
+	token64 = ((uint64_t)get_crc8(&t.u8[0], sizeof(token64) - 1) << 56)
+		| (t.u64 & 0x00ffffffffffffff);
+
+	rte_eal_mp_remote_launch(test_atomic_exchange, NULL, SKIP_MASTER);
+	rte_atomic32_set(&synchro, 1);
+	rte_eal_mp_wait_lcore();
+	rte_atomic32_clear(&synchro);
+
+	if (rte_atomic64_read(&count) > 0) {
+		printf("Atomic exchange test failed\n");
 		return -1;
 	}
 
