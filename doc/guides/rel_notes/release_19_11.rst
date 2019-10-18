@@ -115,6 +115,9 @@ New Features
   Added eBPF JIT support for arm64 architecture to improve the eBPF program
   performance.
 
+* **Added Lock-free Stack for aarch64.**
+
+  The lock-free stack implementation is enabled for aarch64 platforms.
 
 Removed Items
 -------------
