@@ -661,6 +661,12 @@ pci_ioport_map(struct rte_pci_device *dev, int bar __rte_unused,
 		 dev->addr.domain, dev->addr.bus,
 		 dev->addr.devid, dev->addr.function);
 
+	if (rte_eal_iopl_init() != 0) {
+		RTE_LOG(ERR, EAL, "%s(): insufficient ioport permissions for PCI device %s\n",
+			__func__, dev->name);
+		return -1;
+	}
+
 	fp = fopen("/proc/ioports", "r");
 	if (fp == NULL) {
 		RTE_LOG(ERR, EAL, "%s(): can't open ioports\n", __func__);
@@ -718,7 +724,11 @@ rte_pci_ioport_map(struct rte_pci_device *dev, int bar,
 		break;
 #endif
 	case RTE_KDRV_IGB_UIO:
+#if defined(RTE_ARCH_X86)
+		ret = pci_ioport_map(dev, bar, p);
+#else
 		ret = pci_uio_ioport_map(dev, bar, p);
+#endif
 		break;
 	case RTE_KDRV_UIO_GENERIC:
 #if defined(RTE_ARCH_X86)
