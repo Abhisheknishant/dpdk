@@ -16,6 +16,32 @@ extern "C" {
 #include <rte_common.h>
 #include "generic/rte_spinlock.h"
 
+/* armv7a does support WFE, but an explicit wake-up signal using SEV is
+ * required (must be preceded by DSB to drain the store buffer) and
+ * this is less performant, so keep armv7a implementation unchanged.
+ */
+#ifdef RTE_ARM_USE_WFE
+static inline void
+rte_spinlock_lock(rte_spinlock_t *sl)
+{
+	unsigned int tmp;
+	/* http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.
+	 * faqs/ka16809.html
+	 */
+	asm volatile(
+		"1:	ldaxr %w[tmp], %w[locked]\n"
+		"cbnz   %w[tmp], 2f\n"
+		"stxr   %w[tmp], %w[one], %w[locked]\n"
+		"cbnz   %w[tmp], 1b\n"
+		"ret\n"
+		"2:	sevl\n"
+		"wfe\n"
+		"jmp	1b\n"
+		: [tmp] "=&r" (tmp), [locked] "+Q"(sl->locked)
+		: [one] "r" (1)
+}
+#endif
+
 static inline int rte_tm_supported(void)
 {
 	return 0;

@@ -57,7 +57,7 @@ rte_spinlock_init(rte_spinlock_t *sl)
 static inline void
 rte_spinlock_lock(rte_spinlock_t *sl);
 
-#ifdef RTE_FORCE_INTRINSICS
+#if defined(RTE_FORCE_INTRINSICS) && !defined(RTE_ARM_USE_WFE)
 static inline void
 rte_spinlock_lock(rte_spinlock_t *sl)
 {
