@@ -343,6 +343,29 @@ struct rte_vxlan_gpe_hdr {
 /**< VXLAN-GPE tunnel header length. */
 
 /**
+ * Simplified GTP protocol header.
+ * Contains 8-bit flag, 8-bit message type,
+ * 16-bit message length, 32-bit TEID.
+ * No optional fields and next extension header.
+ */
+struct rte_gtp_hdr {
+	uint8_t gtp_hdr_info;
+	uint8_t msg_type;
+	uint16_t msg_len;
+	uint32_t teid;
+} __attribute__((__packed__));
+
+/* GTP header length */
+#define RTE_ETHER_GTP_HLEN \
+	(sizeof(struct rte_udp_hdr) + sizeof(struct rte_gtp_hdr))
+/* GTP next protocal type */
+#define RTE_GTP_TYPE_IPV4 0x40
+#define RTE_GTP_TYPE_IPV6 0x60
+/* GTP destination port number */
+#define RTE_GTPC_UDP_PORT 2123
+#define RTE_GTPU_UDP_PORT 2152
+
+/**
  * Extract VLAN tag information into mbuf
  *
  * Software version of VLAN stripping
