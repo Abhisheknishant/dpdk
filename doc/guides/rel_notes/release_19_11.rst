@@ -124,6 +124,9 @@ New Features
   Added eBPF JIT support for arm64 architecture to improve the eBPF program
   performance.
 
+* **Updated the IPSec library.**
+
+ Added SA Database API to ``librte_ipsec``
 
 Removed Items
 -------------
