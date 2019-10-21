@@ -41,6 +41,8 @@ struct kni_dev {
 	/* kni list */
 	struct list_head list;
 
+	uint8_t iova_mode;
+
 	uint32_t core_id;            /* Core ID to bind */
 	char name[RTE_KNI_NAMESIZE]; /* Network device name */
 	struct task_struct *pthread;
@@ -84,7 +86,36 @@ struct kni_dev {
 	void *va[MBUF_BURST_SZ];
 	void *alloc_pa[MBUF_BURST_SZ];
 	void *alloc_va[MBUF_BURST_SZ];
+
+	struct task_struct *usr_tsk;
 };
+
+static inline phys_addr_t iova_to_phys(struct task_struct *tsk,
+				       unsigned long iova)
+{
+	unsigned int flags = FOLL_TOUCH;
+	phys_addr_t offset, phys_addr;
+	struct page *page = NULL;
+	int ret;
+
+	offset = iova & (PAGE_SIZE - 1);
+
+	/* Read one page struct info */
+	ret =  get_user_pages_remote(tsk, tsk->mm, iova, 1,
+				     flags, &page, 0, 0);
+	if (ret < 0)
+		return 0;
+
+	phys_addr = page_to_phys(page) | offset;
+	put_page(page);
+
+	return phys_addr;
+}
+
+static inline void *iova_to_kva(struct task_struct *tsk, unsigned long iova)
+{
+	return phys_to_virt(iova_to_phys(tsk, iova));
+}
 
 void kni_net_release_fifo_phy(struct kni_dev *kni);
 void kni_net_rx(struct kni_dev *kni);
