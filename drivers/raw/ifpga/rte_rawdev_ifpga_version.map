@@ -2,3 +2,9 @@ DPDK_18.05 {
 
 	local: *;
 };
+
+EXPERIMENTAL {
+	global:
+
+	ifpga_rawdev_get;
+} DPDK_18.05;

@@ -9,12 +9,12 @@ endif
 dpdk_driver_classes = ['common',
 	       'bus',
 	       'mempool', # depends on common and bus.
+               'raw',
 	       'net',     # depends on common, bus and mempool.
 	       'crypto',  # depends on common, bus and mempool (net in future).
 	       'compress', # depends on common, bus, mempool.
 	       'event',   # depends on common, bus, mempool and net.
-	       'baseband', # depends on common and bus.
-	       'raw']     # depends on common, bus, mempool, net and event.
+	       'baseband']
 
 default_cflags = machine_args
 if cc.has_argument('-Wno-format-truncation')
@@ -157,6 +157,9 @@ foreach class:dpdk_driver_classes
 
 			set_variable('shared_@0@'.format(lib_name), shared_dep)
 			set_variable('static_@0@'.format(lib_name), static_dep)
+			dependency_name = ''.join(lib_name.split('rte_'))
+			message('drivers/@0@: Defining dependency "@1@"'.format(
+					drv_path, dependency_name))
 		endif # build
 	endforeach
 
