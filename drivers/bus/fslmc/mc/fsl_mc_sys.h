@@ -31,12 +31,10 @@ struct fsl_mc_io {
 #include <errno.h>
 #include <sys/uio.h>
 #include <linux/byteorder/little_endian.h>
+#include <rte_atomic.h>
 
-#ifndef dmb
-#define dmb() {__asm__ __volatile__("" : : : "memory"); }
-#endif
-#define __iormb()	dmb()
-#define __iowmb()	dmb()
+#define __iormb()	rte_io_rmb()
+#define __iowmb()	rte_io_wmb()
 #define __arch_getq(a)		(*(volatile uint64_t *)(a))
 #define __arch_putq(v, a)	(*(volatile uint64_t *)(a) = (v))
 #define __arch_putq32(v, a)	(*(volatile uint32_t *)(a) = (v))
