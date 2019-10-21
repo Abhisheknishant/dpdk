@@ -682,6 +682,10 @@ Below are some firmware configurations listed.
 
     FLEX_PARSER_PROFILE_ENABLE=2
 
+- enable Geneve flow matching::
+
+   FLEX_PARSER_PROFILE_ENABLE=0
+
 Prerequisites
 -------------
 
