@@ -6,6 +6,7 @@ include $(RTE_SDK)/mk/rte.vars.mk
 # library name
 LIB = librte_kni.a
 
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 CFLAGS += $(WERROR_FLAGS) -I$(SRCDIR) -O3 -fno-strict-aliasing
 LDLIBS += -lrte_eal -lrte_mempool -lrte_mbuf -lrte_ethdev
 

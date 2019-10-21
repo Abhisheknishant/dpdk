@@ -187,6 +187,54 @@ unsigned rte_kni_tx_burst(struct rte_kni *kni, struct rte_mbuf **mbufs,
 		unsigned num);
 
 /**
+ * Create a kni packet mbuf pool.
+ *
+ * This function creates and initializes a packet mbuf pool for KNI applications
+ * It calls the required mempool populate routine based on the IOVA mode.
+ *
+ * @param name
+ *   The name of the mbuf pool.
+ * @param n
+ *   The number of elements in the mbuf pool. The optimum size (in terms
+ *   of memory usage) for a mempool is when n is a power of two minus one:
+ *   n = (2^q - 1).
+ * @param cache_size
+ *   Size of the per-core object cache. See rte_mempool_create() for
+ *   details.
+ * @param priv_size
+ *   Size of application private are between the rte_mbuf structure
+ *   and the data buffer. This value must be aligned to RTE_MBUF_PRIV_ALIGN.
+ * @param data_room_size
+ *   Size of data buffer in each mbuf, including RTE_PKTMBUF_HEADROOM.
+ * @param socket_id
+ *   The socket identifier where the memory should be allocated. The
+ *   value can be *SOCKET_ID_ANY* if there is no NUMA constraint for the
+ *   reserved zone.
+ * @return
+ *   The pointer to the new allocated mempool, on success. NULL on error
+ *   with rte_errno set appropriately. Possible rte_errno values include:
+ *    - E_RTE_NO_CONFIG - function could not get pointer to rte_config structure
+ *    - E_RTE_SECONDARY - function was called from a secondary process instance
+ *    - EINVAL - cache size provided is too large, or priv_size is not aligned.
+ *    - ENOSPC - the maximum number of memzones has already been allocated
+ *    - EEXIST - a memzone with the same name already exists
+ *    - ENOMEM - no appropriate memory area found in which to create memzone
+ */
+__rte_experimental
+struct rte_mempool *rte_kni_pktmbuf_pool_create(const char *name,
+		unsigned int n, unsigned int cache_size, uint16_t priv_size,
+		uint16_t data_room_size, int socket_id);
+
+/**
+ * Free the given packet mempool.
+ *
+ * @param mp
+ *  The mempool pointer.
+ */
+__rte_experimental
+void rte_kni_pktmbuf_pool_free(struct rte_mempool *mp);
+
+/**
  * Get the KNI context of its name.
  *
  * @param name

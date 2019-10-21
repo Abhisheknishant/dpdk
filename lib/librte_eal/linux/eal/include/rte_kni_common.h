@@ -123,6 +123,7 @@ struct rte_kni_device_info {
 	unsigned mbuf_size;
 	unsigned int mtu;
 	uint8_t mac_addr[6];
+	uint8_t iova_mode;
 };
 
 #define KNI_DEVICE "kni"

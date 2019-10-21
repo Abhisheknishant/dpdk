@@ -19,5 +19,8 @@ DPDK_2.0 {
 EXPERIMENTAL {
 	global:
 
+	# added in 19.11
 	rte_kni_update_link;
+	rte_kni_pktmbuf_pool_create;
+	rte_kni_pktmbuf_pool_free;
 };

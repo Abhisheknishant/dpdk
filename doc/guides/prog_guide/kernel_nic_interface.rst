@@ -300,6 +300,32 @@ The sk_buff is then freed and the mbuf sent in the tx_q FIFO.
 The DPDK TX thread dequeues the mbuf and sends it to the PMD via ``rte_eth_tx_burst()``.
 It then puts the mbuf back in the cache.
 
+IOVA = VA: Support
+------------------
+
+KNI can be operated in IOVA_VA scheme when
+
+- LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0) and
+- eal option `iova-mode=va` is passed or bus IOVA scheme in the DPDK is selected
+  as RTE_IOVA_VA.
+
+Packet Pool APIs for IOVA=VA mode
+---------------------------------
+
+``rte_kni_pktmbuf_pool_create`` and ``rte_kni_pktmbuf_pool_free`` APIs need to
+be used for creating packet pools for running KNI applications in IOVA=VA mode.
+Packet pool's mbuf memory should be physically contiguous for the KNI kernel
+module to work in IOVA=VA mode, this memory requirement was taken care inside
+those KNI packet pool create APIs.
+
+Command-line option for legacy KNI
+----------------------------------
+
+Existing KNI applications can use ``--legacy-kni`` eal command-line option to
+work with DPDK 19.11 and later versions. When this option is selected, IOVA mode
+will be forced to PA mode to enable old KNI applications work with the latest
+DPDK without code changes.
+
 Ethtool
 -------
 

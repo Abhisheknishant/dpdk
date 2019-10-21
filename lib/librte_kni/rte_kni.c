@@ -21,6 +21,7 @@
 #include <rte_tailq.h>
 #include <rte_rwlock.h>
 #include <rte_eal_memconfig.h>
+#include <rte_mbuf_pool_ops.h>
 #include <rte_kni_common.h>
 #include "rte_kni_fifo.h"
 
@@ -97,11 +98,6 @@ static volatile int kni_fd = -1;
 int
 rte_kni_init(unsigned int max_kni_ifaces __rte_unused)
 {
-	if (rte_eal_iova_mode() != RTE_IOVA_PA) {
-		RTE_LOG(ERR, KNI, "KNI requires IOVA as PA\n");
-		return -1;
-	}
-
 	/* Check FD and open */
 	if (kni_fd < 0) {
 		kni_fd = open("/dev/" KNI_DEVICE, O_RDWR);
@@ -299,6 +295,8 @@ rte_kni_alloc(struct rte_mempool *pktmbuf_pool,
 	kni->pktmbuf_pool = pktmbuf_pool;
 	kni->group_id = conf->group_id;
 	kni->mbuf_size = conf->mbuf_size;
+
+	dev_info.iova_mode = (rte_eal_iova_mode() == RTE_IOVA_VA) ? 1 : 0;
 
 	ret = ioctl(kni_fd, RTE_KNI_IOCTL_CREATE, &dev_info);
 	if (ret < 0)
@@ -685,6 +683,65 @@ kni_allocate_mbufs(struct rte_kni *kni)
 		for (j = ret; j < i; j++)
 			rte_pktmbuf_free(pkts[j]);
 	}
+}
+
+struct rte_mempool *
+rte_kni_pktmbuf_pool_create(const char *name, unsigned int n,
+	unsigned int cache_size, uint16_t priv_size, uint16_t data_room_size,
+	int socket_id)
+{
+	struct rte_pktmbuf_pool_private mbp_priv;
+	const char *mp_ops_name;
+	struct rte_mempool *mp;
+	unsigned int elt_size;
+	int ret;
+
+	if (RTE_ALIGN(priv_size, RTE_MBUF_PRIV_ALIGN) != priv_size) {
+		RTE_LOG(ERR, MBUF, "mbuf priv_size=%u is not aligned\n",
+			priv_size);
+		rte_errno = EINVAL;
+		return NULL;
+	}
+	elt_size = sizeof(struct rte_mbuf) + (unsigned int)priv_size +
+		(unsigned int)data_room_size;
+	mbp_priv.mbuf_data_room_size = data_room_size;
+	mbp_priv.mbuf_priv_size = priv_size;
+
+	mp = rte_mempool_create_empty(name, n, elt_size, cache_size,
+		 sizeof(struct rte_pktmbuf_pool_private), socket_id, 0);
+	if (mp == NULL)
+		return NULL;
+
+	mp_ops_name = rte_mbuf_best_mempool_ops();
+	ret = rte_mempool_set_ops_byname(mp, mp_ops_name, NULL);
+	if (ret != 0) {
+		RTE_LOG(ERR, MBUF, "error setting mempool handler\n");
+		rte_mempool_free(mp);
+		rte_errno = -ret;
+		return NULL;
+	}
+	rte_pktmbuf_pool_init(mp, &mbp_priv);
+
+	if (rte_eal_iova_mode() == RTE_IOVA_VA)
+		ret = rte_mempool_populate_from_pg_sz_chunks(mp);
+	else
+		ret = rte_mempool_populate_default(mp);
+
+	if (ret < 0) {
+		rte_mempool_free(mp);
+		rte_errno = -ret;
+		return NULL;
+	}
+
+	rte_mempool_obj_iter(mp, rte_pktmbuf_init, NULL);
+
+	return mp;
+}
+
+void
+rte_kni_pktmbuf_pool_free(struct rte_mempool *mp)
+{
+	rte_mempool_free(mp);
 }
 
 struct rte_kni *

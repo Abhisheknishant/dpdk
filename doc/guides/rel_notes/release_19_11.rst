@@ -124,6 +124,19 @@ New Features
   Added EAL option ``--legacy-kni`` to make existing KNI applications work
   with DPDK 19.11 and later.
 
+* **Added IOVA as VA support for KNI.**
+
+  Added IOVA as VA support for KNI. When KNI needs to operate in IOVA = VA
+  mode, packet pool's mbuf memory should be physically contiguous. This memory
+  requirement taken care using the new ``rte_kni_pktmbuf_pool_create`` and
+  ``rte_kni_pktmbuf_pool_free`` routines.
+
+  The ``examples/kni/`` updated to use this API to enable IOVA as VA or
+  IOVA as PA mode.
+
+  When "--legacy-kni" selected, IOVA mode will be forced to PA mode to enable
+  old KNI application work with the latest DPDK without code changes.
+
 Removed Items
 -------------
 

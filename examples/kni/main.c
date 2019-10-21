@@ -1017,8 +1017,9 @@ main(int argc, char** argv)
 		rte_exit(EXIT_FAILURE, "Could not parse input parameters\n");
 
 	/* Create the mbuf pool */
-	pktmbuf_pool = rte_pktmbuf_pool_create("mbuf_pool", NB_MBUF,
+	pktmbuf_pool = rte_kni_pktmbuf_pool_create("mbuf_pool", NB_MBUF,
 		MEMPOOL_CACHE_SZ, 0, MBUF_DATA_SZ, rte_socket_id());
+
 	if (pktmbuf_pool == NULL) {
 		rte_exit(EXIT_FAILURE, "Could not initialise mbuf pool\n");
 		return -1;
@@ -1085,6 +1086,9 @@ main(int argc, char** argv)
 			continue;
 		kni_free_kni(port);
 	}
+
+	rte_kni_pktmbuf_pool_free(pktmbuf_pool);
+
 	for (i = 0; i < RTE_MAX_ETHPORTS; i++)
 		if (kni_port_params_array[i]) {
 			rte_free(kni_port_params_array[i]);
