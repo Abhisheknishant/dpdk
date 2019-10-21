@@ -82,6 +82,8 @@ struct internal_config {
 	rte_cpuset_t ctrl_cpuset;         /**< cpuset for ctrl threads */
 	volatile unsigned int init_complete;
 	/**< indicates whether EAL has completed initialization */
+	volatile unsigned legacy_kni;
+	/**< true to enable legacy kni behavior */
 };
 extern struct internal_config internal_config; /**< Global EAL configuration. */
 

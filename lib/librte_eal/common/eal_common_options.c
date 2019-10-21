@@ -81,6 +81,7 @@ eal_long_options[] = {
 	{OPT_LEGACY_MEM,        0, NULL, OPT_LEGACY_MEM_NUM       },
 	{OPT_SINGLE_FILE_SEGMENTS, 0, NULL, OPT_SINGLE_FILE_SEGMENTS_NUM},
 	{OPT_MATCH_ALLOCATIONS, 0, NULL, OPT_MATCH_ALLOCATIONS_NUM},
+	{OPT_LEGACY_KNI,        0, NULL, OPT_LEGACY_KNI_NUM       },
 	{0,                     0, NULL, 0                        }
 };
 
@@ -1408,6 +1409,9 @@ eal_parse_common_option(int opt, const char *optarg,
 			return -1;
 		}
 		break;
+	case OPT_LEGACY_KNI_NUM:
+		conf->legacy_kni = 1;
+		break;
 
 	/* don't know what to do, leave this to caller */
 	default:
@@ -1636,6 +1640,7 @@ eal_common_usage(void)
 	       "                      (ex: --vdev=net_pcap0,iface=eth2).\n"
 	       "  --"OPT_IOVA_MODE"   Set IOVA mode. 'pa' for IOVA_PA\n"
 	       "                      'va' for IOVA_VA\n"
+	       "  --"OPT_LEGACY_KNI"  Run KNI in IOVA_PA mode (legacy mode)\n"
 	       "  -d LIB.so|DIR       Add a driver or driver directory\n"
 	       "                      (can be used multiple times)\n"
 	       "  --"OPT_VMWARE_TSC_MAP"    Use VMware TSC map instead of native RDTSC\n"

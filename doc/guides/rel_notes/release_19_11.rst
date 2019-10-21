@@ -119,6 +119,10 @@ New Features
   Added eBPF JIT support for arm64 architecture to improve the eBPF program
   performance.
 
+* **Added EAL option to operate KNI in legacy mode.**
+
+  Added EAL option ``--legacy-kni`` to make existing KNI applications work
+  with DPDK 19.11 and later.
 
 Removed Items
 -------------

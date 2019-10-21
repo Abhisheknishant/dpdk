@@ -69,6 +69,8 @@ enum {
 	OPT_IOVA_MODE_NUM,
 #define OPT_MATCH_ALLOCATIONS  "match-allocations"
 	OPT_MATCH_ALLOCATIONS_NUM,
+#define OPT_LEGACY_KNI      "legacy-kni"
+	OPT_LEGACY_KNI_NUM,
 	OPT_LONG_MAX_NUM
 };
 
