@@ -2633,12 +2633,14 @@ i40e_rx_queue_config(struct i40e_rx_queue *rxq)
 		}
 	} else {
 		if (rxq->max_pkt_len < RTE_ETHER_MIN_LEN ||
-			rxq->max_pkt_len > RTE_ETHER_MAX_LEN) {
+			rxq->max_pkt_len > RTE_ETHER_MAX_LEN +
+				I40E_VLAN_TAG_SIZE * 2) {
 			PMD_DRV_LOG(ERR, "maximum packet length must be "
 				    "larger than %u and smaller than %u, "
 				    "as jumbo frame is disabled",
 				    (uint32_t)RTE_ETHER_MIN_LEN,
-				    (uint32_t)RTE_ETHER_MAX_LEN);
+				    (uint32_t)RTE_ETHER_MAX_LEN +
+						I40E_VLAN_TAG_SIZE * 2);
 			return I40E_ERR_CONFIG;
 		}
 	}
