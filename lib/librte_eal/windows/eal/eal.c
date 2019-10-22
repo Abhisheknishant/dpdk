@@ -24,6 +24,23 @@ rte_eal_get_configuration(void)
 	return &rte_config;
 }
 
+/* Parse the arguments for --log-level only */
+static void
+eal_log_level_parse(__rte_unused int argc, __rte_unused char **argv)
+{
+	/* TODO */
+	/* This is a stub, not the expected result */
+}
+
+/* Parse the argument given in the command line of the application */
+static int
+eal_parse_args(__rte_unused int argc, __rte_unused char **argv)
+{
+	/* TODO */
+	/* This is a stub, not the expected result */
+	return 0;
+}
+
 static int
 sync_func(void *arg __rte_unused)
 {
@@ -39,9 +56,11 @@ rte_eal_init_alert(const char *msg)
 
  /* Launch threads, called at application init(). */
 int
-rte_eal_init(int argc __rte_unused, char **argv __rte_unused)
+rte_eal_init(int argc, char **argv)
 {
-	int i;
+	int i, fctret;
+
+	eal_log_level_parse(argc, argv);
 
 	/* create a map of all processors in the system */
 	eal_create_cpu_map();
@@ -51,6 +70,10 @@ rte_eal_init(int argc __rte_unused, char **argv __rte_unused)
 		rte_errno = ENOTSUP;
 		return -1;
 	}
+
+	fctret = eal_parse_args(argc, argv);
+	if (fctret < 0)
+		exit(1);
 
 	eal_thread_init_master(rte_config.master_lcore);
 
@@ -80,5 +103,5 @@ rte_eal_init(int argc __rte_unused, char **argv __rte_unused)
 	 */
 	rte_eal_mp_remote_launch(sync_func, NULL, SKIP_MASTER);
 	rte_eal_mp_wait_lcore();
-	return 0;
+	return fctret;
 }

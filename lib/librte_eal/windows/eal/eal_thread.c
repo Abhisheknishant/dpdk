@@ -151,3 +151,11 @@ eal_thread_create(pthread_t *thread)
 
 	return 0;
 }
+
+int
+rte_thread_setname(__rte_unused pthread_t id, __rte_unused const char *name)
+{
+	/* TODO */
+	/* This is a stub, not the expected result */
+	return 0;
+}
