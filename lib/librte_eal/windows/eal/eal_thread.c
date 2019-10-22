@@ -10,10 +10,13 @@
 #include <rte_lcore.h>
 #include <rte_per_lcore.h>
 #include <rte_common.h>
+#include <rte_memory.h>
 #include <eal_thread.h>
 
 
 RTE_DEFINE_PER_LCORE(unsigned int, _lcore_id) = LCORE_ID_ANY;
+RTE_DEFINE_PER_LCORE(unsigned int, _socket_id) = (unsigned int)SOCKET_ID_ANY;
+RTE_DEFINE_PER_LCORE(rte_cpuset_t, _cpuset);
 
 /*
  * Send a message to a slave lcore identified by slave_id to call a
