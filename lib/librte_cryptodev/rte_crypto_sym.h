@@ -703,6 +703,13 @@ struct rte_crypto_sym_op {
 					 * auth.data.length and is typically
 					 * equal to auth.data.offset +
 					 * auth.data.length + digest_length.
+					 * - for wireless algorithms, i.e.
+					 * SNOW 3G, KASUMI and ZUC, as the
+					 * cipher.data.length,
+					 * cipher.data.offset,
+					 * auth.data.length and
+					 * auth.data.offset are in bits, they
+					 * must be 8-bit multiples.
 					 *
 					 * Note, that for security reasons, it
 					 * is PMDs' responsibility to not
