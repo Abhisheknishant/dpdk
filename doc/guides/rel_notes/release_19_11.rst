@@ -128,6 +128,8 @@ New Features
 
   Added support for asymmetric session-less operations.
 
+  Added support for RSA algorithm with pair (n, d) private key representation.
+
 
 Removed Items
 -------------
