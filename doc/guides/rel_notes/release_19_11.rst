@@ -124,6 +124,10 @@ New Features
   Added eBPF JIT support for arm64 architecture to improve the eBPF program
   performance.
 
+* **Updated the Intel QuickAssist Technology (QAT) asymmetric crypto PMD.**
+
+  Added support for asymmetric session-less operations.
+
 
 Removed Items
 -------------
