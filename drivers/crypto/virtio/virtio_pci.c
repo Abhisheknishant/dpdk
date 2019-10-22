@@ -24,6 +24,70 @@
 #define PCI_CAP_ID_VNDR		0x09
 #define PCI_CAP_ID_MSIX		0x11
 
+static __rte_always_inline uint8_t
+virtio_pci_read8(const volatile void *addr)
+{
+	uint8_t val;
+	val = rte_read8_relaxed(addr);
+	rte_smp_rmb();
+	return val;
+}
+
+static __rte_always_inline uint16_t
+virtio_pci_read16(const volatile void *addr)
+{
+	uint16_t val;
+	val = rte_read16_relaxed(addr);
+	rte_smp_rmb();
+	return val;
+}
+
+static __rte_always_inline uint32_t
+virtio_pci_read32(const volatile void *addr)
+{
+	uint32_t val;
+	val = rte_read32_relaxed(addr);
+	rte_smp_rmb();
+	return val;
+}
+
+static __rte_always_inline uint64_t
+virtio_pci_read64(const volatile void *addr)
+{
+	uint64_t val;
+	val = rte_read64_relaxed(addr);
+	rte_smp_rmb();
+	return val;
+}
+
+static __rte_always_inline void
+virtio_pci_write8(uint8_t value, volatile void *addr)
+{
+	rte_smp_wmb();
+	rte_write8_relaxed(value, addr);
+}
+
+static __rte_always_inline void
+virtio_pci_write16(uint16_t value, volatile void *addr)
+{
+	rte_smp_wmb();
+	rte_write16_relaxed(value, addr);
+}
+
+static __rte_always_inline void
+virtio_pci_write32(uint32_t value, volatile void *addr)
+{
+	rte_smp_wmb();
+	rte_write32_relaxed(value, addr);
+}
+
+static __rte_always_inline void
+virtio_pci_write64(uint64_t value, volatile void *addr)
+{
+	rte_smp_wmb();
+	rte_write64_relaxed(value, addr);
+}
+
 /*
  * The remaining space is defined by each driver as the per-driver
  * configuration space.
@@ -52,8 +116,8 @@ check_vq_phys_addr_ok(struct virtqueue *vq)
 static inline void
 io_write64_twopart(uint64_t val, uint32_t *lo, uint32_t *hi)
 {
-	rte_write32(val & ((1ULL << 32) - 1), lo);
-	rte_write32(val >> 32,		     hi);
+	virtio_pci_write32(val & ((1ULL << 32) - 1), lo);
+	virtio_pci_write32(val >> 32,		     hi);
 }
 
 static void
@@ -65,13 +129,13 @@ modern_read_dev_config(struct virtio_crypto_hw *hw, size_t offset,
 	uint8_t old_gen, new_gen;
 
 	do {
-		old_gen = rte_read8(&hw->common_cfg->config_generation);
+		old_gen = virtio_pci_read8(&hw->common_cfg->config_generation);
 
 		p = dst;
 		for (i = 0;  i < length; i++)
-			*p++ = rte_read8((uint8_t *)hw->dev_cfg + offset + i);
+			*p++ = virtio_pci_read8((uint8_t *)hw->dev_cfg + offset + i);
 
-		new_gen = rte_read8(&hw->common_cfg->config_generation);
+		new_gen = virtio_pci_read8(&hw->common_cfg->config_generation);
 	} while (old_gen != new_gen);
 }
 
@@ -83,7 +147,7 @@ modern_write_dev_config(struct virtio_crypto_hw *hw, size_t offset,
 	const uint8_t *p = src;
 
 	for (i = 0;  i < length; i++)
-		rte_write8((*p++), (((uint8_t *)hw->dev_cfg) + offset + i));
+		virtio_pci_write8((*p++), (((uint8_t *)hw->dev_cfg) + offset + i));
 }
 
 static uint64_t
@@ -91,11 +155,11 @@ modern_get_features(struct virtio_crypto_hw *hw)
 {
 	uint32_t features_lo, features_hi;
 
-	rte_write32(0, &hw->common_cfg->device_feature_select);
-	features_lo = rte_read32(&hw->common_cfg->device_feature);
+	virtio_pci_write32(0, &hw->common_cfg->device_feature_select);
+	features_lo = virtio_pci_read32(&hw->common_cfg->device_feature);
 
-	rte_write32(1, &hw->common_cfg->device_feature_select);
-	features_hi = rte_read32(&hw->common_cfg->device_feature);
+	virtio_pci_write32(1, &hw->common_cfg->device_feature_select);
+	features_hi = virtio_pci_read32(&hw->common_cfg->device_feature);
 
 	return ((uint64_t)features_hi << 32) | features_lo;
 }
@@ -103,25 +167,25 @@ modern_get_features(struct virtio_crypto_hw *hw)
 static void
 modern_set_features(struct virtio_crypto_hw *hw, uint64_t features)
 {
-	rte_write32(0, &hw->common_cfg->guest_feature_select);
-	rte_write32(features & ((1ULL << 32) - 1),
+	virtio_pci_write32(0, &hw->common_cfg->guest_feature_select);
+	virtio_pci_write32(features & ((1ULL << 32) - 1),
 		    &hw->common_cfg->guest_feature);
 
-	rte_write32(1, &hw->common_cfg->guest_feature_select);
-	rte_write32(features >> 32,
+	virtio_pci_write32(1, &hw->common_cfg->guest_feature_select);
+	virtio_pci_write32(features >> 32,
 		    &hw->common_cfg->guest_feature);
 }
 
 static uint8_t
 modern_get_status(struct virtio_crypto_hw *hw)
 {
-	return rte_read8(&hw->common_cfg->device_status);
+	return virtio_pci_read8(&hw->common_cfg->device_status);
 }
 
 static void
 modern_set_status(struct virtio_crypto_hw *hw, uint8_t status)
 {
-	rte_write8(status, &hw->common_cfg->device_status);
+	virtio_pci_write8(status, &hw->common_cfg->device_status);
 }
 
 static void
@@ -134,30 +198,30 @@ modern_reset(struct virtio_crypto_hw *hw)
 static uint8_t
 modern_get_isr(struct virtio_crypto_hw *hw)
 {
-	return rte_read8(hw->isr);
+	return virtio_pci_read8(hw->isr);
 }
 
 static uint16_t
 modern_set_config_irq(struct virtio_crypto_hw *hw, uint16_t vec)
 {
-	rte_write16(vec, &hw->common_cfg->msix_config);
-	return rte_read16(&hw->common_cfg->msix_config);
+	virtio_pci_write16(vec, &hw->common_cfg->msix_config);
+	return virtio_pci_read16(&hw->common_cfg->msix_config);
 }
 
 static uint16_t
 modern_set_queue_irq(struct virtio_crypto_hw *hw, struct virtqueue *vq,
 		uint16_t vec)
 {
-	rte_write16(vq->vq_queue_index, &hw->common_cfg->queue_select);
-	rte_write16(vec, &hw->common_cfg->queue_msix_vector);
-	return rte_read16(&hw->common_cfg->queue_msix_vector);
+	virtio_pci_write16(vq->vq_queue_index, &hw->common_cfg->queue_select);
+	virtio_pci_write16(vec, &hw->common_cfg->queue_msix_vector);
+	return virtio_pci_read16(&hw->common_cfg->queue_msix_vector);
 }
 
 static uint16_t
 modern_get_queue_num(struct virtio_crypto_hw *hw, uint16_t queue_id)
 {
-	rte_write16(queue_id, &hw->common_cfg->queue_select);
-	return rte_read16(&hw->common_cfg->queue_size);
+	virtio_pci_write16(queue_id, &hw->common_cfg->queue_select);
+	return virtio_pci_read16(&hw->common_cfg->queue_size);
 }
 
 static int
@@ -175,7 +239,7 @@ modern_setup_queue(struct virtio_crypto_hw *hw, struct virtqueue *vq)
 							 ring[vq->vq_nentries]),
 				   VIRTIO_PCI_VRING_ALIGN);
 
-	rte_write16(vq->vq_queue_index, &hw->common_cfg->queue_select);
+	virtio_pci_write16(vq->vq_queue_index, &hw->common_cfg->queue_select);
 
 	io_write64_twopart(desc_addr, &hw->common_cfg->queue_desc_lo,
 				      &hw->common_cfg->queue_desc_hi);
@@ -184,11 +248,11 @@ modern_setup_queue(struct virtio_crypto_hw *hw, struct virtqueue *vq)
 	io_write64_twopart(used_addr, &hw->common_cfg->queue_used_lo,
 				      &hw->common_cfg->queue_used_hi);
 
-	notify_off = rte_read16(&hw->common_cfg->queue_notify_off);
+	notify_off = virtio_pci_read16(&hw->common_cfg->queue_notify_off);
 	vq->notify_addr = (void *)((uint8_t *)hw->notify_base +
 				notify_off * hw->notify_off_multiplier);
 
-	rte_write16(1, &hw->common_cfg->queue_enable);
+	virtio_pci_write16(1, &hw->common_cfg->queue_enable);
 
 	VIRTIO_CRYPTO_INIT_LOG_DBG("queue %u addresses:", vq->vq_queue_index);
 	VIRTIO_CRYPTO_INIT_LOG_DBG("\t desc_addr: %" PRIx64, desc_addr);
@@ -203,7 +267,7 @@ modern_setup_queue(struct virtio_crypto_hw *hw, struct virtqueue *vq)
 static void
 modern_del_queue(struct virtio_crypto_hw *hw, struct virtqueue *vq)
 {
-	rte_write16(vq->vq_queue_index, &hw->common_cfg->queue_select);
+	virtio_pci_write16(vq->vq_queue_index, &hw->common_cfg->queue_select);
 
 	io_write64_twopart(0, &hw->common_cfg->queue_desc_lo,
 				  &hw->common_cfg->queue_desc_hi);
@@ -212,14 +276,14 @@ modern_del_queue(struct virtio_crypto_hw *hw, struct virtqueue *vq)
 	io_write64_twopart(0, &hw->common_cfg->queue_used_lo,
 				  &hw->common_cfg->queue_used_hi);
 
-	rte_write16(0, &hw->common_cfg->queue_enable);
+	virtio_pci_write16(0, &hw->common_cfg->queue_enable);
 }
 
 static void
 modern_notify_queue(struct virtio_crypto_hw *hw __rte_unused,
 		struct virtqueue *vq)
 {
-	rte_write16(vq->vq_queue_index, vq->notify_addr);
+	virtio_pci_write16(vq->vq_queue_index, vq->notify_addr);
 }
 
 const struct virtio_pci_ops virtio_crypto_modern_ops = {
