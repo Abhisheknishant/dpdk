@@ -37,6 +37,7 @@ all_examples = [
 	'qos_meter', 'qos_sched',
 	'quota_watermark', 'rxtx_callbacks',
 	'server_node_efd/node',
+	'server_node_efd/server',
 	'service_cores',
 	'skeleton', 'tep_termination',
 	'timer', 'vdpa',
