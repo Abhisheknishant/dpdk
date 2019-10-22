@@ -13,7 +13,11 @@
 #include <eal_thread.h>
 #include <eal_internal_cfg.h>
 #include <eal_filesystem.h>
+#include <eal_options.h>
 #include <eal_private.h>
+
+ /* Allow the application to print its usage message too if set */
+static rte_usage_hook_t	rte_application_usage_hook;
 
 /* define fd variable here, because file needs to be kept open for the
  * duration of the program, as we hold a write lock on it in the primary proc
@@ -73,21 +77,122 @@ enum rte_proc_type_t
 	return ptype;
 }
 
+/* display usage */
+static void
+eal_usage(const char *prgname)
+{
+	printf("\nUsage: %s ", prgname);
+	eal_common_usage();
+	/* Allow the application to print its usage message too
+	 *if hook is set
+	 */
+	if (rte_application_usage_hook) {
+		printf("===== Application Usage =====\n\n");
+		rte_application_usage_hook(prgname);
+	}
+}
+
 /* Parse the arguments for --log-level only */
 static void
-eal_log_level_parse(__rte_unused int argc, __rte_unused char **argv)
+eal_log_level_parse(int argc, char **argv)
 {
-	/* TODO */
-	/* This is a stub, not the expected result */
+	int opt;
+	char **argvopt;
+	int option_index;
+
+	argvopt = argv;
+
+	eal_reset_internal_config(&internal_config);
+
+	while ((opt = getopt_long(argc, argvopt, eal_short_options,
+		eal_long_options, &option_index)) != EOF) {
+
+		int ret;
+
+		/* getopt is not happy, stop right now */
+		if (opt == '?')
+			break;
+
+		ret = (opt == OPT_LOG_LEVEL_NUM) ?
+			eal_parse_common_option(opt, optarg,
+				&internal_config) : 0;
+
+		/* common parser is not happy */
+		if (ret < 0)
+			break;
+	}
+
+	optind = 0; /* reset getopt lib */
 }
 
 /* Parse the argument given in the command line of the application */
 static int
-eal_parse_args(__rte_unused int argc, __rte_unused char **argv)
+eal_parse_args(int argc, char **argv)
 {
-	/* TODO */
-	/* This is a stub, not the expected result */
-	return 0;
+	int opt, ret;
+	char **argvopt;
+	int option_index;
+	char *prgname = argv[0];
+
+	argvopt = argv;
+
+	while ((opt = getopt_long(argc, argvopt, eal_short_options,
+		eal_long_options, &option_index)) != EOF) {
+
+		int ret;
+
+		/* getopt is not happy, stop right now */
+		if (opt == '?') {
+			eal_usage(prgname);
+			return -1;
+		}
+
+		ret = eal_parse_common_option(opt, optarg, &internal_config);
+		/* common parser is not happy */
+		if (ret < 0) {
+			eal_usage(prgname);
+			return -1;
+		}
+		/* common parser handled this option */
+		if (ret == 0)
+			continue;
+
+		switch (opt) {
+		case 'h':
+			eal_usage(prgname);
+			exit(EXIT_SUCCESS);
+		default:
+			if (opt < OPT_LONG_MIN_NUM && isprint(opt)) {
+				RTE_LOG(ERR, EAL, "Option %c is not supported "
+					"on Windows\n", opt);
+			} else if (opt >= OPT_LONG_MIN_NUM &&
+				opt < OPT_LONG_MAX_NUM) {
+				RTE_LOG(ERR, EAL, "Option %s is not supported "
+					"on Windows\n",
+					eal_long_options[option_index].name);
+			} else {
+				RTE_LOG(ERR, EAL, "Option %d is not supported "
+					"on Windows\n", opt);
+			}
+			eal_usage(prgname);
+			return -1;
+		}
+	}
+
+	if (eal_adjust_config(&internal_config) != 0)
+		return -1;
+
+	/* sanity checks */
+	if (eal_check_common_options(&internal_config) != 0) {
+		eal_usage(prgname);
+		return -1;
+	}
+
+	if (optind >= 0)
+		argv[optind - 1] = prgname;
+	ret = optind - 1;
+	optind = 0; /* reset getopt lib */
+	return ret;
 }
 
 static int
