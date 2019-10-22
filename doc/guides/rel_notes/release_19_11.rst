@@ -202,6 +202,8 @@ ABI Changes
    Also, make sure to start the actual text at the margin.
    =========================================================
 
+* eal: made the ``lcore_config`` struct and global symbol private.
+
 
 Shared Library Versions
 -----------------------
