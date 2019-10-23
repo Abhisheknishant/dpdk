@@ -16,19 +16,19 @@ Obtain the cross tool chain
 The latest cross compile tool chain can be downloaded from:
 https://developer.arm.com/open-source/gnu-toolchain/gnu-a/downloads.
 
-Following is the step to get the version 8.2, latest one at the time of this writing.
+Following is the example to get the version 8.3, latest one at the time of this writing.
 
 .. code-block:: console
 
-   wget https://developer.arm.com/-/media/Files/downloads/gnu-a/8.2-2019.01/gcc-arm-8.2-2019.01-x86_64-aarch64-linux-gnu.tar.xz
+   wget https://developer.arm.com/-/media/Files/downloads/gnu-a/8.3-2019.03/binrel/gcc-arm-8.3-2019.03-x86_64-aarch64-linux-gnu.tar.xz
 
 Unzip and add into the PATH
 ---------------------------
 
 .. code-block:: console
 
-   tar -xvf gcc-arm-8.2-2019.01-x86_64-aarch64-linux-gnu.tar.xz
-   export PATH=$PATH:<cross_install_dir>/gcc-arm-8.2-2019.01-x86_64-aarch64-linux-gnu/bin
+   tar -xvf gcc-arm-<version>-x86_64-aarch64-linux-gnu.tar.xz
+   export PATH=$PATH:<cross_install_dir>/gcc-arm-<version>-x86_64-aarch64-linux-gnu/bin
 
 .. note::
 
@@ -50,7 +50,6 @@ NUMA is required by most modern machines, not needed for non-NUMA architectures.
 
    git clone https://github.com/numactl/numactl.git
    cd numactl
-   git checkout v2.0.11 -b v2.0.11
    ./autogen.sh
    autoconf -i
    ./configure --host=aarch64-linux-gnu CC=aarch64-linux-gnu-gcc --prefix=<numa install dir>
@@ -71,9 +70,9 @@ Copy the NUMA header files and lib to the cross compiler's directories:
 
 .. code-block:: console
 
-   cp <numa_install_dir>/include/numa*.h <cross_install_dir>/gcc-arm-8.2-2019.01-x86_64-aarch64-linux-gnu/bin/../aarch64-linux-gnu/libc/usr/include/
-   cp <numa_install_dir>/lib/libnuma.a <cross_install_dir>/gcc-arm-8.2-2019.01-x86_64-aarch64-linux-gnu/lib/gcc/aarch64-linux-gnu/8.2/
-   cp <numa_install_dir>/lib/libnuma.so <cross_install_dir>/gcc-arm-8.2-2019.01-x86_64-aarch64-linux-gnu/lib/gcc/aarch64-linux-gnu/8.2/
+   cp <numa_install_dir>/include/numa*.h <cross_install_dir>/gcc-arm-<version>-x86_64-aarch64-linux-gnu/bin/../aarch64-linux-gnu/libc/usr/include/
+   cp <numa_install_dir>/lib/libnuma.a <cross_install_dir>/gcc-arm-<version>-x86_64-aarch64-linux-gnu/lib/gcc/aarch64-linux-gnu/<version>/
+   cp <numa_install_dir>/lib/libnuma.so <cross_install_dir>/gcc-arm-<version>-x86_64-aarch64-linux-gnu/lib/gcc/aarch64-linux-gnu/<version>/
 
 .. _configure_and_cross_compile_dpdk_build:
 
