@@ -45,7 +45,6 @@ DPDK_2.0 {
 	rte_log;
 	rte_log_cur_msg_loglevel;
 	rte_log_cur_msg_logtype;
-	rte_logs;
 	rte_malloc;
 	rte_malloc_dump_stats;
 	rte_malloc_get_socket_stats;

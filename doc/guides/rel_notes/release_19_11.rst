@@ -215,6 +215,8 @@ ABI Changes
 * eal: removed the ``rte_malloc_virt2phy`` function, replaced by
   ``rte_malloc_virt2iova`` since v17.11.
 
+* eal: made the ``rte_logs`` struct and global symbol private.
+
 * pci: removed the following deprecated functions since dpdk:
 
   - ``eal_parse_pci_BDF`` replaced by ``rte_pci_addr_parse``
