@@ -52,6 +52,7 @@ common_headers = files(
 	'include/rte_alarm.h',
 	'include/rte_branch_prediction.h',
 	'include/rte_bus.h',
+	'include/rte_io_bitops.h',
 	'include/rte_bitmap.h',
 	'include/rte_class.h',
 	'include/rte_common.h',
