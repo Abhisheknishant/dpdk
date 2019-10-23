@@ -308,20 +308,32 @@ rte_eal_config_create(void)
 {
 	void *rte_mem_cfg_addr;
 	int retval;
+	size_t page_sz, mmap_len;
 
 	const char *pathname = eal_runtime_config_path();
 
 	if (internal_config.no_shconf)
 		return 0;
-
+	mmap_len = sizeof(*rte_config.mem_config);
 	/* map the config before hugepage address so that we don't waste a page */
 	if (internal_config.base_virtaddr != 0)
 		rte_mem_cfg_addr = (void *)
 			RTE_ALIGN_FLOOR(internal_config.base_virtaddr -
 			sizeof(struct rte_mem_config), sysconf(_SC_PAGE_SIZE));
-	else
-		rte_mem_cfg_addr = NULL;
-
+	else{
+		page_sz = sysconf(_SC_PAGESIZE);
+		if (page_sz == (size_t)-1) {
+			RTE_LOG(ERR, EAL, 
+				"Cannot get SC_PAGESIZE for rte_mem_config\n");
+			return -1;
+		}
+		rte_mem_cfg_addr = eal_get_virtual_area(NULL, &mmap_len, page_sz, 0, 0);
+		if (rte_mem_cfg_addr == NULL) {
+			RTE_LOG(ERR, EAL, 
+				"Cannot get virtual addr for rte_mem_config\n");
+			return -1;
+		}
+	}
 	if (mem_cfg_fd < 0){
 		mem_cfg_fd = open(pathname, O_RDWR | O_CREAT, 0600);
 		if (mem_cfg_fd < 0) {
@@ -349,8 +361,10 @@ rte_eal_config_create(void)
 		return -1;
 	}
 
-	rte_mem_cfg_addr = mmap(rte_mem_cfg_addr, sizeof(*rte_config.mem_config),
-				PROT_READ | PROT_WRITE, MAP_SHARED, mem_cfg_fd, 0);
+	rte_mem_cfg_addr = mmap(rte_mem_cfg_addr, mmap_len,
+				PROT_READ | PROT_WRITE,
+				MAP_FIXED | MAP_SHARED,
+				mem_cfg_fd, 0);
 
 	if (rte_mem_cfg_addr == MAP_FAILED){
 		close(mem_cfg_fd);
