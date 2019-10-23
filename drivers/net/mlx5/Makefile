@@ -82,7 +82,10 @@ endif
 
 # User-defined CFLAGS.
 ifeq ($(CONFIG_RTE_LIBRTE_MLX5_DEBUG),y)
-CFLAGS += -pedantic -UNDEBUG -DPEDANTIC
+CFLAGS += -pedantic -UNDEBUGi
+ifneq ($(CONFIG_RTE_TOOLCHAIN), "icc")
+CFLAGS += -DPEDANTIC
+endif
 AUTO_CONFIG_CFLAGS += -Wno-pedantic
 else
 CFLAGS += -DNDEBUG -UPEDANTIC
