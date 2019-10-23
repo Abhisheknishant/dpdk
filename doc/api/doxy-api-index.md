@@ -102,6 +102,7 @@ The public API headers are grouped by topics:
   [frag/reass]         (@ref rte_ip_frag.h),
   [LPM IPv4 route]     (@ref rte_lpm.h),
   [LPM IPv6 route]     (@ref rte_lpm6.h)
+  [VXLAN]              (@ref rte_vxlan.h)
 
 - **QoS**:
   [metering]           (@ref rte_meter.h),
