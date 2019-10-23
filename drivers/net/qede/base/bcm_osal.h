@@ -8,6 +8,7 @@
 #define __BCM_OSAL_H
 
 #include <rte_byteorder.h>
+#include <rte_io_bitops.h>
 #include <rte_spinlock.h>
 #include <rte_malloc.h>
 #include <rte_atomic.h>
@@ -311,17 +312,14 @@ typedef struct osal_list_t {
 #define OSAL_BITS_PER_UL_MASK		(OSAL_BITS_PER_UL - 1)
 
 /* Bitops */
-void qede_set_bit(u32, unsigned long *);
 #define OSAL_SET_BIT(bit, bitmap) \
-	qede_set_bit(bit, bitmap)
+	rte_io_set_bit(bit, bitmap)
 
-void qede_clr_bit(u32, unsigned long *);
 #define OSAL_CLEAR_BIT(bit, bitmap) \
-	qede_clr_bit(bit, bitmap)
+	rte_io_clear_bit(bit, bitmap)
 
-bool qede_test_bit(u32, unsigned long *);
 #define OSAL_TEST_BIT(bit, bitmap) \
-	qede_test_bit(bit, bitmap)
+	rte_io_test_bit(bit, bitmap)
 
 u32 qede_find_first_bit(unsigned long *, u32);
 #define OSAL_FIND_FIRST_BIT(bitmap, length) \
