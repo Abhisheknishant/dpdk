@@ -217,6 +217,9 @@ ABI Changes
 
 * eal: made the ``rte_logs`` struct and global symbol private.
 
+* eal: made the ``rte_config`` struct and ``rte_eal_get_configuration``
+  function private.
+
 * pci: removed the following deprecated functions since dpdk:
 
   - ``eal_parse_pci_BDF`` replaced by ``rte_pci_addr_parse``
