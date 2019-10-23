@@ -13,7 +13,7 @@
 #include <rte_random.h>
 #include <rte_reciprocal.h>
 
-#define MAX_ITERATIONS	(1ULL << 32)
+#define MAX_ITERATIONS	(1ULL << 16)
 #define DIVIDE_ITER	(100)
 
 static int
