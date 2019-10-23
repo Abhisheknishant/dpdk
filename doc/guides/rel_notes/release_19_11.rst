@@ -209,6 +209,9 @@ ABI Changes
 
 * eal: made the ``lcore_config`` struct and global symbol private.
 
+* eal: removed the ``rte_cpu_check_supported`` function, replaced by
+  ``rte_cpu_is_supported`` since dpdk v17.08.
+
 
 Shared Library Versions
 -----------------------
