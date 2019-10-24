@@ -1,4 +1,7 @@
 DPDK_18.05 {
+	global:
+
+	ifpga_rawdev_get;
 
 	local: *;
 };
