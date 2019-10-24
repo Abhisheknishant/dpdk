@@ -2708,7 +2708,6 @@ rmv_port_callback(void *arg)
 	no_link_check = 1;
 	stop_port(port_id);
 	no_link_check = org_no_link_check;
-	close_port(port_id);
 	detach_port_device(port_id);
 	if (need_to_start)
 		start_packet_forwarding(0);
