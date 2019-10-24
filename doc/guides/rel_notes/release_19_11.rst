@@ -228,6 +228,9 @@ API Changes
   has been introduced in this release is used when used when all the packets
   enqueued in the tx adapter are destined for the same Ethernet port & Tx queue.
 
+* cmdline: the cmdline_numtype enum values have been been prefixed
+  by ``CMDLINE_`` to avoid conflicts with user code.
+
 
 ABI Changes
 -----------

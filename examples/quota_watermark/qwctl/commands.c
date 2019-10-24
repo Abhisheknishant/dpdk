@@ -74,7 +74,7 @@ cmdline_parse_token_string_t cmd_set_variable =
 		TOKEN_STRING_INITIALIZER(struct cmd_set_tokens, variable, NULL);
 
 cmdline_parse_token_num_t cmd_set_value =
-		TOKEN_NUM_INITIALIZER(struct cmd_set_tokens, value, UINT32);
+		TOKEN_NUM_INITIALIZER(struct cmd_set_tokens, value, CMDLINE_UINT32);
 
 static void
 cmd_set_handler(__attribute__((unused)) void *parsed_result,
