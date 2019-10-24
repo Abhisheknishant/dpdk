@@ -195,9 +195,9 @@ Limitations
 
 - LRO:
 
-  - Requires DevX to be enabled.
+  - Requires DevX and DV flow to be enabled.
   - KEEP_CRC offload cannot be supported with LRO.
-  - The first mbuf length, without head-room,  must be big enough to include the
+  - The first mbuf length, without head-room, must be big enough to include the
     TCP header (122B).
 
 Statistics
@@ -575,7 +575,7 @@ Run-time configuration
   A nonzero value enables the DV flow steering assuming it is supported
   by the driver.
 
-  Disabled by default.
+  Enabled by default if supported.
 
 - ``dv_esw_en`` parameter [int]
 
