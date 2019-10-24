@@ -218,7 +218,10 @@ eal_parse_sysfs_value(const char *filename, unsigned long *val)
 static int
 rte_eal_config_create(void)
 {
-	void *rte_mem_cfg_addr;
+	size_t page_sz = sysconf(_SC_PAGE_SIZE);
+	size_t cfg_len = sizeof(*rte_config.mem_config);
+	size_t cfg_len_aligned = RTE_ALIGN(cfg_len, page_sz);
+	void *rte_mem_cfg_addr, *mapped_mem_cfg_addr;
 	int retval;
 
 	const char *pathname = eal_runtime_config_path();
@@ -235,7 +238,7 @@ rte_eal_config_create(void)
 		}
 	}
 
-	retval = ftruncate(mem_cfg_fd, sizeof(*rte_config.mem_config));
+	retval = ftruncate(mem_cfg_fd, cfg_len);
 	if (retval < 0){
 		close(mem_cfg_fd);
 		mem_cfg_fd = -1;
@@ -253,15 +256,28 @@ rte_eal_config_create(void)
 		return -1;
 	}
 
-	rte_mem_cfg_addr = mmap(NULL, sizeof(*rte_config.mem_config),
-				PROT_READ | PROT_WRITE, MAP_SHARED, mem_cfg_fd, 0);
-
-	if (rte_mem_cfg_addr == MAP_FAILED){
+	/* reserve space for config */
+	rte_mem_cfg_addr = eal_get_virtual_area(NULL, &cfg_len_aligned, page_sz,
+			0, 0);
+	if (rte_mem_cfg_addr == NULL) {
 		RTE_LOG(ERR, EAL, "Cannot mmap memory for rte_config\n");
 		close(mem_cfg_fd);
 		mem_cfg_fd = -1;
 		return -1;
 	}
+
+	/* remap the actual file into the space we've just reserved */
+	mapped_mem_cfg_addr = mmap(rte_mem_cfg_addr,
+			cfg_len_aligned, PROT_READ | PROT_WRITE,
+			MAP_SHARED | MAP_FIXED, mem_cfg_fd, 0);
+	if (mapped_mem_cfg_addr == MAP_FAILED) {
+		RTE_LOG(ERR, EAL, "Cannot remap memory for rte_config\n");
+		munmap(rte_mem_cfg_addr, cfg_len);
+		close(mem_cfg_fd);
+		mem_cfg_fd = -1;
+		return -1;
+	}
+
 	memcpy(rte_mem_cfg_addr, &early_mem_config, sizeof(early_mem_config));
 	rte_config.mem_config = rte_mem_cfg_addr;
 
