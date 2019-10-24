@@ -2506,6 +2506,10 @@ ice_dev_start(struct rte_eth_dev *dev)
 
 	pf->adapter_stopped = false;
 
+	/* Set the max frame size */
+	ice_aq_set_mac_cfg(hw,
+		pf->dev_data->dev_conf.rxmode.max_rx_pkt_len, NULL);
+
 	return 0;
 
 	/* stop the started queues if failed to start all queues */
