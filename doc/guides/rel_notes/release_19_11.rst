@@ -224,6 +224,15 @@ New Features
   * Added a console command to testpmd app, ``show port (port_id) ptypes`` which
     gives ability to print port supported ptypes in different protocol layers.
 
+* **Added Rx offload flag to enable or disable flow action type update**
+
+  *  Add new Rx offload flag `DEV_RX_OFFLOAD_FLOW_MARK` that can be used to
+     enable/disable PMDs write to `rte_mbuf::hash::fdir::hi` and
+     `rte_mbuf::ol_flags` when flow actions `RTE_FLOW_ACTION_MARK` and
+     `RTE_FLOW_ACTION_FLAG` are enabled.
+  *  PMDs notify the validity of `rte_mbuf::hash:fdir::hi` to the application
+     by enabling `PKT_RX_FDIR_ID` flag in `rte_mbuf::ol_flags`.
+
 
 Removed Items
 -------------

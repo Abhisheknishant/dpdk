@@ -588,6 +588,18 @@ Supports packet type parsing and returns a list of supported types.
 * **[related]    API**: ``rte_eth_dev_get_supported_ptypes()``.
 
 
+.. _nic_features_flow_flag_mark:
+
+Flow flag/mark update
+---------------------
+
+Supports flow action type update to ``mbuf.ol_flags`` and ``mbuf.hash.fdir.hi``.
+
+* **[uses]     rte_eth_rxconf,rte_eth_rxmode**: ``offloads:DEV_RX_OFFLOAD_FLOW_MARK``.
+* **[provides] mbuf**: ``mbuf.ol_flags:PKT_RX_FDIR``, ``mbuf.ol_flags:PKT_RX_FDIR_ID;``,
+  ``mbuf.hash.fdir.hi``
+
+
 .. _nic_features_timesync:
 
 Timesync

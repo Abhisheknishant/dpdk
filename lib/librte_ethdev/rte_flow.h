@@ -1538,7 +1538,8 @@ enum rte_flow_action_type {
 
 	/**
 	 * Attaches an integer value to packets and sets PKT_RX_FDIR and
-	 * PKT_RX_FDIR_ID mbuf flags.
+	 * PKT_RX_FDIR_ID mbuf flags when
+	 * `rx_mode:offloads:DEV_RX_OFFLOAD_FLOW_MARK` is enabled.
 	 *
 	 * See struct rte_flow_action_mark.
 	 */
@@ -1546,7 +1547,8 @@ enum rte_flow_action_type {
 
 	/**
 	 * Flags packets. Similar to MARK without a specific value; only
-	 * sets the PKT_RX_FDIR mbuf flag.
+	 * sets the PKT_RX_FDIR mbuf flag when
+	 * `rx_mode:offloads:DEV_RX_OFFLOAD_FLOW_MARK` is enabled.
 	 *
 	 * No associated configuration structure.
 	 */
