@@ -194,6 +194,8 @@ Removed Items
 
   * L3 Forwarding in a Virtualization Environment
 
+  * Quota and Watermark
+
 
 API Changes
 -----------
