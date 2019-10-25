@@ -472,6 +472,13 @@ Show ptypes supported for a specific port::
 
    testpmd> show port (port_id) ptypes
 
+set port supported ptypes
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Inform packet types classification interested in for a specific port::
+
+   testpmd> set port (port_id) ptypes_mask (mask)
+
 show device info
 ~~~~~~~~~~~~~~~~
 

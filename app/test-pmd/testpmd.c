@@ -2064,6 +2064,7 @@ start_port(portid_t pid)
 	queueid_t qi;
 	struct rte_port *port;
 	struct rte_ether_addr mac_addr;
+	static uint8_t clr_ptypes = 1;
 
 	if (port_id_is_invalid(pid, ENABLED_WARN))
 		return 0;
@@ -2193,6 +2194,11 @@ start_port(portid_t pid)
 			}
 		}
 		configure_rxtx_dump_callbacks(verbose_level);
+		if (clr_ptypes) {
+			clr_ptypes = 0;
+			rte_eth_dev_set_supported_ptypes(pi, RTE_PTYPE_UNKNOWN,
+					NULL, 0);
+		}
 		/* start port */
 		if (rte_eth_dev_start(pi) < 0) {
 			printf("Fail to start port %d\n", pi);
