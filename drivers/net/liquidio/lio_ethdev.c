@@ -412,7 +412,8 @@ lio_dev_info_get(struct rte_eth_dev *eth_dev,
 	devinfo->rx_offload_capa = (DEV_RX_OFFLOAD_IPV4_CKSUM		|
 				    DEV_RX_OFFLOAD_UDP_CKSUM		|
 				    DEV_RX_OFFLOAD_TCP_CKSUM		|
-				    DEV_RX_OFFLOAD_VLAN_STRIP);
+				    DEV_RX_OFFLOAD_VLAN_STRIP		|
+				    DEV_RX_OFFLOAD_RSS_HASH);
 	devinfo->tx_offload_capa = (DEV_TX_OFFLOAD_IPV4_CKSUM		|
 				    DEV_TX_OFFLOAD_UDP_CKSUM		|
 				    DEV_TX_OFFLOAD_TCP_CKSUM		|
@@ -1735,6 +1736,13 @@ lio_dev_configure(struct rte_eth_dev *eth_dev)
 
 	PMD_INIT_FUNC_TRACE();
 
+	if (!(eth_dev->data->dev_conf.rxmode.offloads &
+						DEV_RX_OFFLOAD_RSS_HASH)) {
+		lio_dev_info(lio_dev,
+			     "RX_OFFLOAD_RSS_HASH cannot be disabled\n");
+		eth_dev->data->dev_conf.rxmode.offloads |=
+						DEV_RX_OFFLOAD_RSS_HASH;
+	}
 	/* Inform firmware about change in number of queues to use.
 	 * Disable IO queues and reset registers for re-configuration.
 	 */

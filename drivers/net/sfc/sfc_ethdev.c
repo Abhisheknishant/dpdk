@@ -206,6 +206,11 @@ sfc_dev_configure(struct rte_eth_dev *dev)
 	sfc_log_init(sa, "entry n_rxq=%u n_txq=%u",
 		     dev_data->nb_rx_queues, dev_data->nb_tx_queues);
 
+	if (!(dev_data->dev_conf.rxmode.offloads & DEV_RX_OFFLOAD_RSS_HASH)) {
+		sfc_info(sa, "RX_OFFLOAD_RSS_HASH cannot be disabled");
+		dev_data->dev_conf.rxmode.offloads |= DEV_RX_OFFLOAD_RSS_HASH;
+	}
+
 	sfc_adapter_lock(sa);
 	switch (sa->state) {
 	case SFC_ADAPTER_CONFIGURED:

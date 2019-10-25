@@ -461,6 +461,11 @@ fm10k_dev_configure(struct rte_eth_dev *dev)
 
 	PMD_INIT_FUNC_TRACE();
 
+	if (!(dev->data->dev_conf.rxmode.offloads & DEV_RX_OFFLOAD_RSS_HASH)) {
+		PMD_INIT_LOG(INFO, "RX_OFFLOAD_RSS_HASH cannot be disabled");
+		dev->data->dev_conf.rxmode.offloads |= DEV_RX_OFFLOAD_RSS_HASH;
+	}
+
 	/* multipe queue mode checking */
 	ret  = fm10k_check_mq_mode(dev);
 	if (ret != 0) {
@@ -1805,7 +1810,8 @@ static uint64_t fm10k_get_rx_port_offloads_capa(struct rte_eth_dev *dev)
 			   DEV_RX_OFFLOAD_UDP_CKSUM   |
 			   DEV_RX_OFFLOAD_TCP_CKSUM   |
 			   DEV_RX_OFFLOAD_JUMBO_FRAME |
-			   DEV_RX_OFFLOAD_HEADER_SPLIT);
+			   DEV_RX_OFFLOAD_HEADER_SPLIT |
+			   DEV_RX_OFFLOAD_RSS_HASH);
 }
 
 static int

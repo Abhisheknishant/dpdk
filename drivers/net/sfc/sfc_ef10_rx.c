@@ -797,7 +797,8 @@ struct sfc_dp_rx sfc_ef10_rx = {
 				  SFC_DP_RX_FEAT_INTR,
 	.dev_offload_capa	= DEV_RX_OFFLOAD_CHECKSUM |
 				  DEV_RX_OFFLOAD_OUTER_IPV4_CKSUM,
-	.queue_offload_capa	= DEV_RX_OFFLOAD_SCATTER,
+	.queue_offload_capa	= DEV_RX_OFFLOAD_SCATTER |
+				  DEV_RX_OFFLOAD_RSS_HASH,
 	.get_dev_info		= sfc_ef10_rx_get_dev_info,
 	.qsize_up_rings		= sfc_ef10_rx_qsize_up_rings,
 	.qcreate		= sfc_ef10_rx_qcreate,

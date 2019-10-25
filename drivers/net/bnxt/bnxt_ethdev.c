@@ -117,7 +117,8 @@ static const struct rte_pci_id bnxt_pci_id_map[] = {
 				     DEV_RX_OFFLOAD_KEEP_CRC | \
 				     DEV_RX_OFFLOAD_VLAN_EXTEND | \
 				     DEV_RX_OFFLOAD_TCP_LRO | \
-				     DEV_RX_OFFLOAD_SCATTER)
+				     DEV_RX_OFFLOAD_SCATTER | \
+				     DEV_RX_OFFLOAD_RSS_HASH)
 
 static int bnxt_vlan_offload_set_op(struct rte_eth_dev *dev, int mask);
 static void bnxt_print_link_info(struct rte_eth_dev *eth_dev);
@@ -680,6 +681,12 @@ static int bnxt_dev_configure_op(struct rte_eth_dev *eth_dev)
 
 	bp->rx_cp_nr_rings = bp->rx_nr_rings;
 	bp->tx_cp_nr_rings = bp->tx_nr_rings;
+
+	if (!(rx_offloads & DEV_RX_OFFLOAD_RSS_HASH)) {
+		PMD_DRV_LOG(INFO, "RX_OFFLOAD_RSS_HASH cannot be disabled\n");
+		rx_offloads |= DEV_RX_OFFLOAD_RSS_HASH;
+		eth_dev->data->dev_conf.rxmode.offloads = rx_offloads;
+	}
 
 	if (rx_offloads & DEV_RX_OFFLOAD_JUMBO_FRAME) {
 		eth_dev->data->mtu =
