@@ -1056,6 +1056,7 @@ fill_ipsec_app_sa_prm(struct rte_ipsec_sa_prm *prm,
 	prm->flags = app_prm->flags;
 	prm->ipsec_xform.options.esn = app_prm->enable_esn;
 	prm->replay_win_sz = app_prm->window_size;
+	prm->ipsec_xform.replay_win_sz = prm->replay_win_sz;
 }
 
 static int
