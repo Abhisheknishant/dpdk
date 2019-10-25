@@ -2550,12 +2550,40 @@ dpaa2_sec_ipsec_aead_init(struct rte_crypto_aead_xform *aead_xform,
 
 	switch (aead_xform->algo) {
 	case RTE_CRYPTO_AEAD_AES_GCM:
-		aeaddata->algtype = OP_ALG_ALGSEL_AES;
+		switch (session->digest_length) {
+		case 8:
+			aeaddata->algtype = OP_PCL_IPSEC_AES_GCM8;
+			break;
+		case 12:
+			aeaddata->algtype = OP_PCL_IPSEC_AES_GCM12;
+			break;
+		case 16:
+			aeaddata->algtype = OP_PCL_IPSEC_AES_GCM16;
+			break;
+		default:
+			DPAA2_SEC_ERR("Crypto: Undefined GCM digest %d",
+				      session->digest_length);
+			return -1;
+		}
 		aeaddata->algmode = OP_ALG_AAI_GCM;
 		session->aead_alg = RTE_CRYPTO_AEAD_AES_GCM;
 		break;
 	case RTE_CRYPTO_AEAD_AES_CCM:
-		aeaddata->algtype = OP_ALG_ALGSEL_AES;
+		switch (session->digest_length) {
+		case 8:
+			aeaddata->algtype = OP_PCL_IPSEC_AES_CCM8;
+			break;
+		case 12:
+			aeaddata->algtype = OP_PCL_IPSEC_AES_CCM12;
+			break;
+		case 16:
+			aeaddata->algtype = OP_PCL_IPSEC_AES_CCM16;
+			break;
+		default:
+			DPAA2_SEC_ERR("Crypto: Undefined CCM digest %d",
+				      session->digest_length);
+			return -1;
+		}
 		aeaddata->algmode = OP_ALG_AAI_CCM;
 		session->aead_alg = RTE_CRYPTO_AEAD_AES_CCM;
 		break;
@@ -2764,6 +2792,8 @@ dpaa2_sec_set_ipsec_session(struct rte_cryptodev *dev,
 		aead_xform = &conf->crypto_xform->aead;
 		ret = dpaa2_sec_ipsec_aead_init(aead_xform,
 					session, &cipherdata);
+		authdata.keylen = 0;
+		authdata.algtype = 0;
 	} else {
 		DPAA2_SEC_ERR("XFORM not specified");
 		ret = -EINVAL;
