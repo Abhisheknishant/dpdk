@@ -198,6 +198,8 @@ Removed Items
 
   * Netmap Compatibility
 
+  * Load Balancer
+
 
 API Changes
 -----------
