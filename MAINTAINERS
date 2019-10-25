@@ -86,6 +86,7 @@ F: doc/
 
 Developers and Maintainers Tools
 M: Thomas Monjalon <thomas@monjalon.net>
+F: .editorconfig
 F: MAINTAINERS
 F: devtools/check-dup-includes.sh
 F: devtools/check-maintainers.sh
