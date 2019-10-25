@@ -188,6 +188,10 @@ Removed Items
                                      ipv4_cksum|udp_cksum|tcp_cksum|timestamp|
                                      vlan_strip|vlan_filter|vlan_extend on|off
 
+* The following sample applications have been removed in this release:
+
+  * Exception Path
+
 
 API Changes
 -----------
