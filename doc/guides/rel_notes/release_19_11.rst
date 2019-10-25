@@ -196,6 +196,8 @@ Removed Items
 
   * Quota and Watermark
 
+  * Netmap Compatibility
+
 
 API Changes
 -----------

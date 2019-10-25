@@ -43,7 +43,6 @@ Sample Applications User Guides
     vhost_scsi
     vhost_crypto
     vdpa
-    netmap_compatibility
     ip_pipeline
     test_pipeline
     eventdev_pipeline
