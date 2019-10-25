@@ -54,7 +54,7 @@ After the X.11 release, an LTS branch will be created for it at
 http://git.dpdk.org/dpdk-stable where bugfixes will be backported to.
 
 A LTS release may align with the declaration of a new major ABI version,
-please read the :ref:`abi_policy` for more information.
+please read the :doc:`abi_policy` for more information.
 
 It is anticipated that there will be at least 4 releases per year of the LTS
 or approximately 1 every 3 months. However, the cadence can be shorter or
