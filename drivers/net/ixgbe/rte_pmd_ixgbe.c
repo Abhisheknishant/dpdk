@@ -518,6 +518,7 @@ rte_pmd_ixgbe_macsec_enable(uint16_t port, uint8_t en, uint8_t rp)
 	struct ixgbe_hw *hw;
 	struct rte_eth_dev *dev;
 	uint32_t ctrl;
+	struct ixgbe_macsec_ctrl macsec_contrl;
 
 	RTE_ETH_VALID_PORTID_OR_ERR_RET(port, -ENODEV);
 
@@ -592,6 +593,12 @@ rte_pmd_ixgbe_macsec_enable(uint16_t port, uint8_t en, uint8_t rp)
 	 */
 	ixgbe_enable_sec_tx_path_generic(hw);
 
+	macsec_contrl.encrypt_en = (bool)en;
+	macsec_contrl.replayprotect_en = (bool)rp;
+
+	/* Enable macsec setup  */
+	ixgbe_dev_macsec_ctrl_setup_enable(dev, &macsec_contrl);
+
 	return 0;
 }
 
@@ -655,6 +662,8 @@ rte_pmd_ixgbe_macsec_disable(uint16_t port)
 	 * just call the hand-written one directly for now.
 	 */
 	ixgbe_enable_sec_tx_path_generic(hw);
+
+	ixgbe_dev_macsec_ctrl_setup_disable(dev);
 
 	return 0;
 }
