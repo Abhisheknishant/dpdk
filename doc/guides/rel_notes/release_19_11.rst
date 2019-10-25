@@ -320,6 +320,12 @@ ABI Changes
 * eal: removed the ``rte_malloc_virt2phy`` function, replaced by
   ``rte_malloc_virt2iova`` since v17.11.
 
+* pci: removed the following deprecated functions since dpdk:
+
+  - ``eal_parse_pci_BDF`` replaced by ``rte_pci_addr_parse``
+  - ``eal_parse_pci_DomBDF`` replaced by ``rte_pci_addr_parse``
+  - ``rte_eal_compare_pci_addr`` replaced by ``rte_pci_addr_cmp``
+
 
 Shared Library Versions
 -----------------------
