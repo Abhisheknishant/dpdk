@@ -524,11 +524,8 @@ otx2_flow_destroy(struct rte_eth_dev *dev,
 		NIX_RX_ACT_MATCH_MASK;
 
 	if (match_id && match_id < OTX2_FLOW_ACTION_FLAG_DEFAULT) {
-		if (rte_atomic32_read(&npc->mark_actions) == 0)
-			return -EINVAL;
-
-		/* Clear mark offload flag if there are no more mark actions */
-		if (rte_atomic32_sub_return(&npc->mark_actions, 1) == 0) {
+		/* Clear mark offload flag if there is no more mark action */
+		if (hw->rx_offloads & DEV_RX_OFFLOAD_FLOW_MARK) {
 			hw->rx_offload_flags &= ~NIX_RX_OFFLOAD_MARK_UPDATE_F;
 			otx2_eth_set_rx_function(dev);
 		}
@@ -820,8 +817,6 @@ otx2_flow_init(struct otx2_eth_dev *hw)
 		otx2_err("Failed to fetch NPC keyx config from idev");
 		return rc;
 	}
-
-	rte_atomic32_init(&npc->mark_actions);
 
 	npc->mcam_entries = NPC_MCAM_TOT_ENTRIES >> npc->keyw[NPC_MCAM_RX];
 	/* Free, free_rev, live and live_rev entries */
