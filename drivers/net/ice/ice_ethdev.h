@@ -8,6 +8,7 @@
 #include <rte_kvargs.h>
 
 #include <rte_ethdev_driver.h>
+#include <rte_mbuf_dyn.h>
 
 #include "base/ice_common.h"
 #include "base/ice_adminq_cmd.h"
@@ -240,6 +241,23 @@ struct ice_vsi {
 	struct ice_eth_stats eth_stats;
 	bool offset_loaded;
 };
+
+enum proto_xtr_type {
+	PROTO_XTR_NONE,
+	PROTO_XTR_VLAN,
+	PROTO_XTR_IPV4,
+	PROTO_XTR_IPV6,
+	PROTO_XTR_IPV6_FLOW,
+	PROTO_XTR_TCP,
+};
+
+extern int proto_xtr_metadata;
+
+extern uint64_t proto_xtr_ol_vlan;
+extern uint64_t proto_xtr_ol_ipv4;
+extern uint64_t proto_xtr_ol_ipv6;
+extern uint64_t proto_xtr_ol_ipv6_flow;
+extern uint64_t proto_xtr_ol_tcp;
 
 enum ice_fdir_tunnel_type {
 	ICE_FDIR_TUNNEL_TYPE_NONE = 0,

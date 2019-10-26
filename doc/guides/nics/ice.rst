@@ -82,8 +82,8 @@ Runtime Config Options
 
 - ``Protocol extraction for per queue``
 
-  Configure the RX queues to do protocol extraction into ``rte_mbuf::udata64``
-  for protocol handling acceleration, like checking the TCP SYN packets quickly.
+  Configure the RX queues to do protocol extraction into mbuf for protocol
+  handling acceleration, like checking the TCP SYN packets quickly.
 
   The argument format is::
 
@@ -111,7 +111,9 @@ Runtime Config Options
   This setting means queues 1, 2-3, 8-9 are TCP extraction, queues 10-23 are
   IPv6 extraction, other queues use the default VLAN extraction.
 
-  The extraction will be copied into the lower 32 bit of ``rte_mbuf::udata64``.
+  The extraction metadata will be copied into the registered dynamic mbuf field
+  with name: "proto-xtr-metadata", size: 4B, align: __alignof__(uint32_t), and
+  the related dynamic mbuf flags in ``rte_mbuf::ol_flags`` will be set.
 
   .. table:: Protocol extraction : ``vlan``
 
@@ -125,6 +127,8 @@ Runtime Config Options
 
   VLAN2 - C-VLAN (second for QinQ).
 
+  Dynamic mbuf flag : "proto-xtr-ol-vlan"
+
   .. table:: Protocol extraction : ``ipv4``
 
    +----------------------------+----------------------------+
@@ -136,6 +140,8 @@ Runtime Config Options
   IPHDR1 - IPv4 header word 4, "TTL" and "Protocol" fields.
 
   IPHDR2 - IPv4 header word 0, "Ver", "Hdr Len" and "Type of Service" fields.
+
+  Dynamic mbuf flag : "proto-xtr-ol-ipv4"
 
   .. table:: Protocol extraction : ``ipv6``
 
@@ -150,6 +156,8 @@ Runtime Config Options
   IPHDR2 - IPv6 header word 0, "Ver", "Traffic class" and high 4 bits of
   "Flow Label" fields.
 
+  Dynamic mbuf flag : "proto-xtr-ol-ipv6"
+
   .. table:: Protocol extraction : ``ipv6_flow``
 
    +----------------------------+----------------------------+
@@ -163,6 +171,8 @@ Runtime Config Options
   IPHDR2 - IPv6 header word 0, "Ver", "Traffic class" and high 4 bits of
   "Flow Label" fields.
 
+  Dynamic mbuf flag : "proto-xtr-ol-ipv6-flow"
+
   .. table:: Protocol extraction : ``tcp``
 
    +----------------------------+----------------------------+
@@ -175,11 +185,7 @@ Runtime Config Options
 
   TCPHDR2 - Reserved
 
-  Use ``get_proto_xtr_flds(struct rte_mbuf *mb)`` to access the protocol
-  extraction, do not use ``rte_mbuf::udata64`` directly.
-
-  The ``dump_proto_xtr_flds(struct rte_mbuf *mb)`` routine shows how to
-  access the protocol extraction result in ``struct rte_mbuf``.
+  Dynamic mbuf flag : "proto-xtr-ol-tcp"
 
 Driver compilation and testing
 ------------------------------
