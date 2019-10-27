@@ -231,6 +231,11 @@ New Features
   * Added a console command to testpmd app, ``show port (port_id) ptypes`` which
     gives ability to print port supported ptypes in different protocol layers.
 
+* **Added hairpin queue.**
+
+  On supported NICs, we can now setup haipin queue which will offload packets
+  from the wire, backto the wire.
+
 
 Removed Items
 -------------
