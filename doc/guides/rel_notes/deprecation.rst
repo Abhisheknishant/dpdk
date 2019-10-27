@@ -96,6 +96,10 @@ Deprecation Notices
   struct ``rte_eth_dev_info`` for the port capability and in struct
   ``rte_eth_rxmode`` for the port configuration.
 
+* ethdev: DEV_TX_OFFLOAD_MATCH_METADATA will be removed, static metadata
+  mbuf field will be removed in 20.02, metadata feature will use dynamic mbuf
+  field and flag instead.
+
 * cryptodev: support for using IV with all sizes is added, J0 still can
   be used but only when IV length in following structs ``rte_crypto_auth_xform``,
   ``rte_crypto_aead_xform`` is set to zero. When IV length is greater or equal

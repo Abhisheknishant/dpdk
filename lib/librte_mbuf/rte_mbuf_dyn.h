@@ -234,6 +234,10 @@ int rte_mbuf_dynflag_lookup(const char *name,
 __rte_experimental
 void rte_mbuf_dyn_dump(FILE *out);
 
-/* Placeholder for dynamic fields and flags declarations. */
-
+/*
+ * Placeholder for dynamic fields and flags declarations.
+ * This is centralizing point to gather all field names
+ * and parameters together.
+ */
+#define MBUF_DYNF_METADATA_NAME "rte_flow_dynfield_metadata"
 #endif

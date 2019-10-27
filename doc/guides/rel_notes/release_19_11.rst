@@ -232,6 +232,21 @@ New Features
     gives ability to print port supported ptypes in different protocol layers.
 
 
+* **Add support of support dynamic fields and flags in mbuf.**
+
+  This new feature adds the ability to dynamically register some room
+  for a field or a flag in the mbuf structure. This is typically used
+  for specific offload features, where adding a static field or flag
+  in the mbuf is not justified.
+
+* **Extended metadata support in rte_flow.**
+
+  Flow metadata is extended to both Rx and Tx.
+
+  * Tx metadata can also be set by SET_META action of rte_flow.
+  * Rx metadata is delivered to host via a dynamic field of ``rte_mbuf`` with
+    PKT_RX_DYNF_METADATA.
+
 Removed Items
 -------------
 

@@ -316,6 +316,9 @@ enum index {
 	ACTION_RAW_ENCAP_INDEX_VALUE,
 	ACTION_RAW_DECAP_INDEX,
 	ACTION_RAW_DECAP_INDEX_VALUE,
+	ACTION_SET_META,
+	ACTION_SET_META_DATA,
+	ACTION_SET_META_MASK,
 };
 
 /** Maximum size for pattern in struct rte_flow_item_raw. */
@@ -1067,6 +1070,7 @@ static const enum index next_action[] = {
 	ACTION_DEC_TCP_ACK,
 	ACTION_RAW_ENCAP,
 	ACTION_RAW_DECAP,
+	ACTION_SET_META,
 	ZERO,
 };
 
@@ -1265,6 +1269,13 @@ static const enum index action_raw_decap[] = {
 	ZERO,
 };
 
+static const enum index action_set_meta[] = {
+	ACTION_SET_META_DATA,
+	ACTION_SET_META_MASK,
+	ACTION_NEXT,
+	ZERO,
+};
+
 static int parse_set_raw_encap_decap(struct context *, const struct token *,
 				     const char *, unsigned int,
 				     void *, unsigned int);
@@ -1329,6 +1340,10 @@ static int parse_vc_action_raw_encap_index(struct context *,
 static int parse_vc_action_raw_decap_index(struct context *,
 					   const struct token *, const char *,
 					   unsigned int, void *, unsigned int);
+static int parse_vc_action_set_meta(struct context *ctx,
+				    const struct token *token, const char *str,
+				    unsigned int len, void *buf,
+				    unsigned int size);
 static int parse_destroy(struct context *, const struct token *,
 			 const char *, unsigned int,
 			 void *, unsigned int);
@@ -3378,7 +3393,31 @@ static const struct token token_list[] = {
 		.help = "index of raw_encap/raw_decap data",
 		.next = NEXT(next_item),
 		.call = parse_port,
-	}
+	},
+	[ACTION_SET_META] = {
+		.name = "set_meta",
+		.help = "set metadata",
+		.priv = PRIV_ACTION(SET_META,
+			sizeof(struct rte_flow_action_set_meta)),
+		.next = NEXT(action_set_meta),
+		.call = parse_vc_action_set_meta,
+	},
+	[ACTION_SET_META_DATA] = {
+		.name = "data",
+		.help = "metadata value",
+		.next = NEXT(action_set_meta, NEXT_ENTRY(UNSIGNED)),
+		.args = ARGS(ARGS_ENTRY_HTON
+			     (struct rte_flow_action_set_meta, data)),
+		.call = parse_vc_conf,
+	},
+	[ACTION_SET_META_MASK] = {
+		.name = "mask",
+		.help = "mask for metadata value",
+		.next = NEXT(action_set_meta, NEXT_ENTRY(UNSIGNED)),
+		.args = ARGS(ARGS_ENTRY_HTON
+			     (struct rte_flow_action_set_meta, mask)),
+		.call = parse_vc_conf,
+	},
 };
 
 /** Remove and return last entry from argument stack. */
@@ -4816,6 +4855,22 @@ parse_vc_action_raw_decap(struct context *ctx, const struct token *token,
 	action_raw_decap_data->conf.size = raw_decap_confs[0].size;
 	action->conf = &action_raw_decap_data->conf;
 	return ret;
+}
+
+static int
+parse_vc_action_set_meta(struct context *ctx, const struct token *token,
+			 const char *str, unsigned int len, void *buf,
+			 unsigned int size)
+{
+	int ret;
+
+	ret = parse_vc(ctx, token, str, len, buf, size);
+	if (ret < 0)
+		return ret;
+	ret = rte_flow_dynf_metadata_register();
+	if (ret < 0)
+		return -1;
+	return len;
 }
 
 /** Parse tokens for destroy command. */

@@ -12,9 +12,17 @@
 #include <rte_errno.h>
 #include <rte_branch_prediction.h>
 #include <rte_string_fns.h>
+#include <rte_mbuf.h>
+#include <rte_mbuf_dyn.h>
 #include "rte_ethdev.h"
 #include "rte_flow_driver.h"
 #include "rte_flow.h"
+
+/* Mbuf dynamic field name for metadata. */
+int rte_flow_dynf_metadata_offs = -1;
+
+/* Mbuf dynamic field flag bit number for metadata. */
+uint64_t rte_flow_dynf_metadata_mask;
 
 /**
  * Flow elements description tables.
@@ -157,7 +165,40 @@ static const struct rte_flow_desc_data rte_flow_desc_action[] = {
 	MK_FLOW_ACTION(DEC_TCP_SEQ, sizeof(rte_be32_t)),
 	MK_FLOW_ACTION(INC_TCP_ACK, sizeof(rte_be32_t)),
 	MK_FLOW_ACTION(DEC_TCP_ACK, sizeof(rte_be32_t)),
+	MK_FLOW_ACTION(SET_META, sizeof(struct rte_flow_action_set_meta)),
 };
+
+int
+rte_flow_dynf_metadata_register(void)
+{
+	int offset;
+	int flag;
+
+	static const struct rte_mbuf_dynfield desc_offs = {
+		.name = MBUF_DYNF_METADATA_NAME,
+		.size = sizeof(uint32_t),
+		.align = __alignof__(uint32_t),
+		.flags = 0,
+	};
+	static const struct rte_mbuf_dynflag desc_flag = {
+		.name = MBUF_DYNF_METADATA_NAME,
+	};
+
+	offset = rte_mbuf_dynfield_register(&desc_offs);
+	if (offset < 0)
+		goto error;
+	flag = rte_mbuf_dynflag_register(&desc_flag);
+	if (flag < 0)
+		goto error;
+	rte_flow_dynf_metadata_offs = offset;
+	rte_flow_dynf_metadata_mask = (1ULL << flag);
+	return 0;
+
+error:
+	rte_flow_dynf_metadata_offs = -1;
+	rte_flow_dynf_metadata_mask = 0ULL;
+	return -rte_errno;
+}
 
 static int
 flow_err(uint16_t port_id, int ret, struct rte_flow_error *error)
