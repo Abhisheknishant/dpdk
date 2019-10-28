@@ -20,6 +20,7 @@
 #include <rte_rawdev_pmd.h>
 #include <rte_bus_ifpga.h>
 #include <ifpga_logs.h>
+#include <rte_pmd_i40e.h>
 
 #include "ipn3ke_rawdev_api.h"
 #include "ipn3ke_flow.h"
@@ -2918,8 +2919,11 @@ ipn3ke_rpst_init(struct rte_eth_dev *ethdev, void *init_params)
 	rpst->switch_domain_id = representor_param->switch_domain_id;
 	rpst->port_id = representor_param->port_id;
 	rpst->hw = representor_param->hw;
-	rpst->i40e_pf_eth = NULL;
-	rpst->i40e_pf_eth_port_id = 0xFFFF;
+	rpst->i40e_pf_eth = representor_param->i40e_pf_eth;
+	rpst->i40e_pf_eth_port_id = representor_param->i40e_pf_eth_port_id;
+	if (rpst->i40e_pf_eth)
+		rte_pmd_i40e_set_switch_dev(rpst->i40e_pf_eth_port_id,
+					    rpst->ethdev);
 
 	ethdev->data->mac_addrs = rte_zmalloc("ipn3ke", RTE_ETHER_ADDR_LEN, 0);
 	if (!ethdev->data->mac_addrs) {
