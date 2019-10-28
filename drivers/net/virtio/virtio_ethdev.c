@@ -1697,6 +1697,10 @@ virtio_init_device(struct rte_eth_dev *eth_dev, uint64_t req_features)
 	else
 		eth_dev->data->dev_flags &= ~RTE_ETH_DEV_INTR_LSC;
 
+	/* multicast and promisc mode are always enabled */
+	eth_dev->data->promiscuous = 1;
+	eth_dev->data->all_multicast = 1;
+
 	/* Setting up rx_header size for the device */
 	if (vtpci_with_feature(hw, VIRTIO_NET_F_MRG_RXBUF) ||
 	    vtpci_with_feature(hw, VIRTIO_F_VERSION_1) ||

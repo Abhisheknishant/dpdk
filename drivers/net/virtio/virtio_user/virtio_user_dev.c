@@ -587,7 +587,7 @@ static uint32_t
 virtio_user_handle_ctrl_msg(struct virtio_user_dev *dev, struct vring *vring,
 			    uint16_t idx_hdr)
 {
-	struct virtio_net_ctrl_hdr *hdr;
+	struct virtio_pmd_ctrl *ctrl;
 	virtio_net_ctrl_ack status = ~0;
 	uint16_t i, idx_data, idx_status;
 	uint32_t n_descs = 0;
@@ -606,13 +606,22 @@ virtio_user_handle_ctrl_msg(struct virtio_user_dev *dev, struct vring *vring,
 	idx_status = i;
 	n_descs++;
 
-	hdr = (void *)(uintptr_t)vring->desc[idx_hdr].addr;
-	if (hdr->class == VIRTIO_NET_CTRL_MQ &&
-	    hdr->cmd == VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET) {
+	ctrl = (void *)(uintptr_t)vring->desc[idx_hdr].addr;
+	if (ctrl->hdr.class == VIRTIO_NET_CTRL_MQ &&
+	    ctrl->hdr.cmd == VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET) {
 		uint16_t queues;
 
 		queues = *(uint16_t *)(uintptr_t)vring->desc[idx_data].addr;
 		status = virtio_user_handle_mq(dev, queues);
+	} else if (ctrl->hdr.class == VIRTIO_NET_CTRL_RX) {
+		if (ctrl->hdr.cmd == VIRTIO_NET_CTRL_RX_PROMISC ||
+		    ctrl->hdr.cmd == VIRTIO_NET_CTRL_RX_ALLMULTI) {
+			if (ctrl->data[0])
+				status = 0;
+		}
+	} else if (ctrl->hdr.class == VIRTIO_NET_CTRL_MAC ||
+		   ctrl->hdr.class == VIRTIO_NET_CTRL_VLAN) {
+		status = 0;
 	}
 
 	/* Update status */
@@ -635,7 +644,7 @@ virtio_user_handle_ctrl_msg_packed(struct virtio_user_dev *dev,
 				   struct vring_packed *vring,
 				   uint16_t idx_hdr)
 {
-	struct virtio_net_ctrl_hdr *hdr;
+	struct virtio_pmd_ctrl *ctrl;
 	virtio_net_ctrl_ack status = ~0;
 	uint16_t idx_data, idx_status;
 	/* initialize to one, header is first */
@@ -656,14 +665,22 @@ virtio_user_handle_ctrl_msg_packed(struct virtio_user_dev *dev,
 		n_descs++;
 	}
 
-	hdr = (void *)(uintptr_t)vring->desc[idx_hdr].addr;
-	if (hdr->class == VIRTIO_NET_CTRL_MQ &&
-	    hdr->cmd == VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET) {
+	ctrl = (void *)(uintptr_t)vring->desc[idx_hdr].addr;
+	if (ctrl->hdr.class == VIRTIO_NET_CTRL_MQ &&
+	    ctrl->hdr.cmd == VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET) {
 		uint16_t queues;
 
-		queues = *(uint16_t *)(uintptr_t)
-				vring->desc[idx_data].addr;
+		queues = *(uint16_t *)(uintptr_t)vring->desc[idx_data].addr;
 		status = virtio_user_handle_mq(dev, queues);
+	} else if (ctrl->hdr.class == VIRTIO_NET_CTRL_RX) {
+		if (ctrl->hdr.cmd == VIRTIO_NET_CTRL_RX_PROMISC ||
+		    ctrl->hdr.cmd == VIRTIO_NET_CTRL_RX_ALLMULTI) {
+			if (ctrl->data[0])
+				status = 0;
+		}
+	} else if (ctrl->hdr.class == VIRTIO_NET_CTRL_MAC ||
+		   ctrl->hdr.class == VIRTIO_NET_CTRL_VLAN) {
+		status = 0;
 	}
 
 	/* Update status */
