@@ -238,8 +238,7 @@ static struct lcore_params lcore_params_array_default[] = {
 };
 
 struct lcore_params *lcore_params = lcore_params_array_default;
-uint16_t nb_lcore_params = sizeof(lcore_params_array_default) /
-				sizeof(lcore_params_array_default[0]);
+uint16_t nb_lcore_params = RTE_DIM(lcore_params_array_default);
 
 static struct rte_eth_conf port_conf = {
 	.rxmode = {
@@ -326,11 +325,9 @@ static lookup_struct_t *ipv6_l3fwd_lookup_struct[NB_SOCKETS];
 
 #define L3FWD_HASH_ENTRIES	1024
 
-#define IPV4_L3FWD_NUM_ROUTES \
-	(sizeof(ipv4_l3fwd_route_array) / sizeof(ipv4_l3fwd_route_array[0]))
+#define IPV4_L3FWD_NUM_ROUTES RTE_DIM(ipv4_l3fwd_route_array)
 
-#define IPV6_L3FWD_NUM_ROUTES \
-	(sizeof(ipv6_l3fwd_route_array) / sizeof(ipv6_l3fwd_route_array[0]))
+#define IPV6_L3FWD_NUM_ROUTES RTE_DIM(ipv6_l3fwd_route_array)
 
 static uint16_t ipv4_l3fwd_out_if[L3FWD_HASH_ENTRIES] __rte_cache_aligned;
 static uint16_t ipv6_l3fwd_out_if[L3FWD_HASH_ENTRIES] __rte_cache_aligned;
@@ -354,8 +351,7 @@ static struct ipv4_l3fwd_route ipv4_l3fwd_route_array[] = {
 	{RTE_IPV4(8,1,1,0), 24, 7},
 };
 
-#define IPV4_L3FWD_NUM_ROUTES \
-	(sizeof(ipv4_l3fwd_route_array) / sizeof(ipv4_l3fwd_route_array[0]))
+#define IPV4_L3FWD_NUM_ROUTES RTE_DIM(ipv4_l3fwd_route_array)
 
 #define IPV4_L3FWD_LPM_MAX_RULES     1024
 

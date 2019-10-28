@@ -65,10 +65,8 @@ static struct ipv6_l3fwd_lpm_route ipv6_l3fwd_lpm_route_array[] = {
 	{{32, 1, 2, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0}, 48, 7},
 };
 
-#define IPV4_L3FWD_LPM_NUM_ROUTES \
-	(sizeof(ipv4_l3fwd_lpm_route_array) / sizeof(ipv4_l3fwd_lpm_route_array[0]))
-#define IPV6_L3FWD_LPM_NUM_ROUTES \
-	(sizeof(ipv6_l3fwd_lpm_route_array) / sizeof(ipv6_l3fwd_lpm_route_array[0]))
+#define IPV4_L3FWD_LPM_NUM_ROUTES RTE_DIM(ipv4_l3fwd_lpm_route_array)
+#define IPV6_L3FWD_LPM_NUM_ROUTES RTE_DIM(ipv6_l3fwd_lpm_route_array)
 
 #define IPV4_L3FWD_LPM_MAX_RULES         1024
 #define IPV4_L3FWD_LPM_NUMBER_TBL8S (1 << 8)

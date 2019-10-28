@@ -155,8 +155,7 @@ static struct mcast_group_params mcast_group_table[] = {
 		{RTE_IPV4(224,0,0,115), 0xF},
 };
 
-#define N_MCAST_GROUPS \
-	(sizeof (mcast_group_table) / sizeof (mcast_group_table[0]))
+#define N_MCAST_GROUPS RTE_DIM(mcast_group_table)
 
 
 /* Send burst of packets on an output interface */
