@@ -1839,10 +1839,13 @@ int dpni_set_congestion_notification(struct fsl_mc_io *mc_io,
 	cmd_params->qtype = qtype;
 	cmd_params->tc = tc_id;
 	cmd_params->congestion_point = cfg->cg_point;
-	cmd_params->cgid = (uint8_t)cfg->cgid;
-	cmd_params->dest_id = cpu_to_le32(cfg->dest_cfg.dest_id);
+	if (cfg->cg_point == DPNI_CP_CONGESTION_GROUP)
+		cmd_params->cgid = (uint8_t)cfg->cgid;
+	if (cfg->dest_cfg.dest_type != DPNI_DEST_NONE) {
+		cmd_params->dest_id = cpu_to_le32(cfg->dest_cfg.dest_id);
+		cmd_params->dest_priority = cfg->dest_cfg.priority;
+	}
 	cmd_params->notification_mode = cpu_to_le16(cfg->notification_mode);
-	cmd_params->dest_priority = cfg->dest_cfg.priority;
 	cmd_params->message_iova = cpu_to_le64(cfg->message_iova);
 	cmd_params->message_ctx = cpu_to_le64(cfg->message_ctx);
 	cmd_params->threshold_entry = cpu_to_le32(cfg->threshold_entry);
