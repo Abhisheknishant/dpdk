@@ -660,6 +660,10 @@ virtio_user_pmd_probe(struct rte_vdev_device *dev)
 		goto end;
 	}
 
+	/* multicast and promisc mode are always enabled */
+	eth_dev->data->promiscuous = 1;
+	eth_dev->data->all_multicast = 1;
+
 	hw = eth_dev->data->dev_private;
 	if (virtio_user_dev_init(hw->virtio_user_dev, path, queues, cq,
 			 queue_size, mac_addr, &ifname, server_mode,
