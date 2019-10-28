@@ -72,13 +72,9 @@ const char * ether_addr_invalid_strs[] = {
 		" ",
 };
 
-#define ETHERADDR_VALID_STRS_SIZE \
-	(sizeof(ether_addr_valid_strs) / sizeof(ether_addr_valid_strs[0]))
-#define ETHERADDR_GARBAGE_STRS_SIZE \
-	(sizeof(ether_addr_garbage_strs) / sizeof(ether_addr_garbage_strs[0]))
-#define ETHERADDR_INVALID_STRS_SIZE \
-	(sizeof(ether_addr_invalid_strs) / sizeof(ether_addr_invalid_strs[0]))
-
+#define ETHERADDR_VALID_STRS_SIZE RTE_DIM(ether_addr_valid_strs)
+#define ETHERADDR_GARBAGE_STRS_SIZE RTE_DIM(ether_addr_garbage_strs)
+#define ETHERADDR_INVALID_STRS_SIZE RTE_DIM(ether_addr_invalid_strs)
 
 
 static int

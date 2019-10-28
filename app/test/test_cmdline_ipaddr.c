@@ -264,18 +264,12 @@ const char * ipaddr_invalid_strs[] = {
 		" ",
 };
 
-#define IPADDR_VALID_STRS_SIZE \
-	(sizeof(ipaddr_valid_strs) / sizeof(ipaddr_valid_strs[0]))
-#define IPADDR_GARBAGE_ADDR4_STRS_SIZE \
-	(sizeof(ipaddr_garbage_addr4_strs) / sizeof(ipaddr_garbage_addr4_strs[0]))
-#define IPADDR_GARBAGE_ADDR6_STRS_SIZE \
-	(sizeof(ipaddr_garbage_addr6_strs) / sizeof(ipaddr_garbage_addr6_strs[0]))
-#define IPADDR_GARBAGE_NETWORK4_STRS_SIZE \
-	(sizeof(ipaddr_garbage_network4_strs) / sizeof(ipaddr_garbage_network4_strs[0]))
-#define IPADDR_GARBAGE_NETWORK6_STRS_SIZE \
-	(sizeof(ipaddr_garbage_network6_strs) / sizeof(ipaddr_garbage_network6_strs[0]))
-#define IPADDR_INVALID_STRS_SIZE \
-	(sizeof(ipaddr_invalid_strs) / sizeof(ipaddr_invalid_strs[0]))
+#define IPADDR_VALID_STRS_SIZE RTE_DIM(ipaddr_valid_strs)
+#define IPADDR_GARBAGE_ADDR4_STRS_SIZE RTE_DIM(ipaddr_garbage_addr4_strs)
+#define IPADDR_GARBAGE_ADDR6_STRS_SIZE RTE_DIM(ipaddr_garbage_addr6_strs)
+#define IPADDR_GARBAGE_NETWORK4_STRS_SIZE RTE_DIM(ipaddr_garbage_network4_strs)
+#define IPADDR_GARBAGE_NETWORK6_STRS_SIZE RTE_DIM(ipaddr_garbage_network6_strs)
+#define IPADDR_INVALID_STRS_SIZE RTE_DIM(ipaddr_invalid_strs)
 
 static void
 dump_addr(cmdline_ipaddr_t addr)

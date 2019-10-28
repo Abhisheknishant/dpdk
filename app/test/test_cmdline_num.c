@@ -216,17 +216,11 @@ const char * num_invalid_strs[] = {
 		"\0",
 };
 
-#define NUM_POSITIVE_STRS_SIZE \
-	(sizeof(num_valid_positive_strs) / sizeof(num_valid_positive_strs[0]))
-#define NUM_NEGATIVE_STRS_SIZE \
-	(sizeof(num_valid_negative_strs) / sizeof(num_valid_negative_strs[0]))
-#define NUM_POSITIVE_GARBAGE_STRS_SIZE \
-	(sizeof(num_garbage_positive_strs) / sizeof(num_garbage_positive_strs[0]))
-#define NUM_NEGATIVE_GARBAGE_STRS_SIZE \
-	(sizeof(num_garbage_negative_strs) / sizeof(num_garbage_negative_strs[0]))
-#define NUM_INVALID_STRS_SIZE \
-	(sizeof(num_invalid_strs) / sizeof(num_invalid_strs[0]))
-
+#define NUM_POSITIVE_STRS_SIZE RTE_DIM(num_valid_positive_strs)
+#define NUM_NEGATIVE_STRS_SIZE RTE_DIM(num_valid_negative_strs)
+#define NUM_POSITIVE_GARBAGE_STRS_SIZE RTE_DIM(num_garbage_positive_strs)
+#define NUM_NEGATIVE_GARBAGE_STRS_SIZE RTE_DIM(num_garbage_negative_strs)
+#define NUM_INVALID_STRS_SIZE RTE_DIM(num_invalid_strs)
 
 
 static int

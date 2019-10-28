@@ -64,7 +64,7 @@ rte_lpm_test tests[] = {
 	test18
 };
 
-#define NUM_LPM_TESTS (sizeof(tests)/sizeof(tests[0]))
+#define NUM_LPM_TESTS RTE_DIM(tests)
 #define MAX_DEPTH 32
 #define MAX_RULES 256
 #define NUMBER_TBL8S 256

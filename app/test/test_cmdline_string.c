@@ -115,16 +115,11 @@ const char * string_help_strs[] = {
 
 
 
-#define STRING_PARSE_STRS_SIZE \
-	(sizeof(string_parse_strs) / sizeof(string_parse_strs[0]))
-#define STRING_HELP_STRS_SIZE \
-	(sizeof(string_help_strs) / sizeof(string_help_strs[0]))
-#define STRING_ELT_STRS_SIZE \
-	(sizeof(string_elt_strs) / sizeof(string_elt_strs[0]))
-#define STRING_NB_STRS_SIZE \
-	(sizeof(string_nb_strs) / sizeof(string_nb_strs[0]))
-#define STRING_INVALID_STRS_SIZE \
-	(sizeof(string_invalid_strs) / sizeof(string_invalid_strs[0]))
+#define STRING_PARSE_STRS_SIZE RTE_DIM(string_parse_strs)
+#define STRING_HELP_STRS_SIZE RTE_DIM(string_help_strs)
+#define STRING_ELT_STRS_SIZE RTE_DIM(string_elt_strs)
+#define STRING_NB_STRS_SIZE RTE_DIM(string_nb_strs)
+#define STRING_INVALID_STRS_SIZE RTE_DIM(string_invalid_strs)
 
 #define SMALL_BUF 8
 

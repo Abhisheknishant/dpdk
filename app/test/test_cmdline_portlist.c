@@ -6,6 +6,7 @@
 #include <string.h>
 #include <inttypes.h>
 
+#include <rte_common.h>
 #include <cmdline_parse.h>
 #include <cmdline_parse_portlist.h>
 
@@ -88,14 +89,9 @@ const char * portlist_invalid_strs[] = {
 		"0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,2",
 };
 
-#define PORTLIST_VALID_STRS_SIZE \
-	(sizeof(portlist_valid_strs) / sizeof(portlist_valid_strs[0]))
-#define PORTLIST_GARBAGE_STRS_SIZE \
-	(sizeof(portlist_garbage_strs) / sizeof(portlist_garbage_strs[0]))
-#define PORTLIST_INVALID_STRS_SIZE \
-	(sizeof(portlist_invalid_strs) / sizeof(portlist_invalid_strs[0]))
-
-
+#define PORTLIST_VALID_STRS_SIZE RTE_DIM(portlist_valid_strs)
+#define PORTLIST_GARBAGE_STRS_SIZE RTE_DIM(portlist_garbage_strs)
+#define PORTLIST_INVALID_STRS_SIZE RTE_DIM(portlist_invalid_strs)
 
 
 /* test invalid parameters */
