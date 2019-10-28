@@ -1365,6 +1365,7 @@ secondary_msl_create_walk(const struct rte_memseg_list *msl,
 	struct rte_memseg_list *primary_msl, *local_msl;
 	char name[PATH_MAX];
 	int msl_idx, ret;
+	char proc_id[HOST_NAME_MAX] = { 0 };
 
 	if (msl->external)
 		return 0;
@@ -1374,8 +1375,18 @@ secondary_msl_create_walk(const struct rte_memseg_list *msl,
 	local_msl = &local_memsegs[msl_idx];
 
 	/* create distinct fbarrays for each secondary */
-	snprintf(name, RTE_FBARRAY_NAME_LEN, "%s_%i",
-		primary_msl->memseg_arr.name, getpid());
+	/* If run secondary in a container, the name of fbarray file should
+	 * not be decided with pid because getpid() always returns 1.
+	 * In docker, hostname is assigned as a short form of full container
+	 * ID. So use hostname as unique ID among containers instead.
+	 */
+	if (getpid() == 1)
+		gethostname(proc_id, HOST_NAME_MAX);
+	else
+		sprintf(proc_id, "%d", (int)getpid());
+
+	snprintf(name, RTE_FBARRAY_NAME_LEN, "%s_%s",
+			primary_msl->memseg_arr.name, proc_id);
 
 	ret = rte_fbarray_init(&local_msl->memseg_arr, name,
 		primary_msl->memseg_arr.len,
