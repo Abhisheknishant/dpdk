@@ -288,4 +288,5 @@ EXPERIMENTAL {
 	rte_eth_rx_burst_mode_get;
 	rte_eth_tx_burst_mode_get;
 	rte_eth_burst_mode_option_name;
+	rte_eth_dev_set_supported_ptypes;
 };
