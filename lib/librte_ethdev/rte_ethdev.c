@@ -1135,6 +1135,41 @@ rte_eth_dev_tx_offload_name(uint64_t offload)
 	return name;
 }
 
+static int
+_rte_eth_dev_validate_offloads(uint16_t port_id, uint64_t req_offloads,
+			       uint64_t set_offloads,
+			       const char *(*f)(uint64_t))
+{
+	uint64_t offloads_diff = req_offloads ^ set_offloads;
+	uint64_t offloads_req_diff, offloads_set_diff;
+	uint64_t offload;
+	uint8_t err = 0;
+
+	/* Check if any offload is advertised but not enabled. */
+	offloads_req_diff = offloads_diff & req_offloads;
+	while (offloads_req_diff) {
+		offload = 1ULL << __builtin_ctzll(offloads_req_diff);
+		offloads_req_diff &= ~offload;
+		RTE_ETHDEV_LOG(ERR, "Port %u failed to enable %s offload",
+			       port_id, f(offload));
+		err = 1;
+	}
+
+	if (err)
+		return -EINVAL;
+
+	/* Chech if any offload couldn't be disabled. */
+	offloads_set_diff = offloads_diff & set_offloads;
+	while (offloads_set_diff) {
+		offload = 1ULL << __builtin_ctzll(offloads_set_diff);
+		offloads_set_diff &= ~offload;
+		RTE_ETHDEV_LOG(INFO, "Port %u failed to disable %s offload",
+			       port_id, f(offload));
+	}
+
+	return 0;
+}
+
 int
 rte_eth_dev_configure(uint16_t port_id, uint16_t nb_rx_q, uint16_t nb_tx_q,
 		      const struct rte_eth_conf *dev_conf)
@@ -1355,6 +1390,30 @@ rte_eth_dev_configure(uint16_t port_id, uint16_t nb_rx_q, uint16_t nb_tx_q,
 		rte_eth_dev_rx_queue_config(dev, 0);
 		rte_eth_dev_tx_queue_config(dev, 0);
 		ret = eth_err(port_id, diag);
+		goto rollback;
+	}
+
+	/* Validate Rx offloads. */
+	diag = _rte_eth_dev_validate_offloads(port_id,
+			dev_conf->rxmode.offloads,
+			dev->data->dev_conf.rxmode.offloads,
+			rte_eth_dev_rx_offload_name);
+	if (diag != 0) {
+		rte_eth_dev_rx_queue_config(dev, 0);
+		rte_eth_dev_tx_queue_config(dev, 0);
+		ret = diag;
+		goto rollback;
+	}
+
+	/* Validate Tx offloads. */
+	diag = _rte_eth_dev_validate_offloads(port_id,
+			dev_conf->txmode.offloads,
+			dev->data->dev_conf.txmode.offloads,
+			rte_eth_dev_tx_offload_name);
+	if (diag != 0) {
+		rte_eth_dev_rx_queue_config(dev, 0);
+		rte_eth_dev_tx_queue_config(dev, 0);
+		ret = diag;
 		goto rollback;
 	}
 
