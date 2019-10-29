@@ -1073,6 +1073,11 @@ const struct eth_dev_ops mlx5_dev_ops_isolate = {
 	.get_module_eeprom = mlx5_get_module_eeprom,
 };
 
+/* Available operations for VF connected to a representor. */
+const struct eth_dev_ops mlx5_remote_vf_ops = {
+	.mac_addr_set = mlx5_vf_mac_addr_set,
+};
+
 /**
  * Verify and store value for device argument.
  *
@@ -2130,6 +2135,7 @@ mlx5_dev_spawn(struct rte_device *dpdk_dev,
 	eth_dev->rx_pkt_burst = removed_rx_burst;
 	eth_dev->tx_pkt_burst = removed_tx_burst;
 	eth_dev->dev_ops = &mlx5_dev_ops;
+	eth_dev->vf_ops = &mlx5_remote_vf_ops;
 	/* Register MAC address. */
 	claim_zero(mlx5_mac_addr_add(eth_dev, &mac, 0, 0));
 	if (config.vf && config.vf_nl_en)

@@ -203,6 +203,25 @@ mlx5_mac_addr_set(struct rte_eth_dev *dev, struct rte_ether_addr *mac_addr)
 }
 
 /**
+ * DPDK callback to set primary MAC address of the remote VF.
+ *
+ * @param dev
+ *   Pointer to Ethernet device structure of a representor.
+ * @param mac_addr
+ *   MAC address to register in the remote VF.
+ *
+ * @return
+ *   0 on success, a negative errno value otherwise and rte_errno is set.
+ */
+int mlx5_vf_mac_addr_set(struct rte_eth_dev *dev, struct rte_ether_addr *mac)
+{
+	DRV_LOG(DEBUG, "VF represented by port %u setting primary MAC address",
+		dev->data->port_id);
+	/* TODO: should not be this dev but its VF */
+	return mlx5_nl_mac_addr_add(dev, mac, 0);
+}
+
+/**
  * DPDK callback to set multicast addresses list.
  *
  * @see rte_eth_dev_set_mc_addr_list()
