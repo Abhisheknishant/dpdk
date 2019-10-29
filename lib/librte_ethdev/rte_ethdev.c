@@ -1257,11 +1257,17 @@ rte_eth_dev_configure(uint16_t port_id, uint16_t nb_rx_q, uint16_t nb_tx_q,
 			goto rollback;
 		}
 	} else {
+		/**
+		 * The overhead from MTU to max frame size.
+		 * Considering VLAN and QinQ packet, the VLAN tag size
+		 * needs to be added to RTE_ETHER_MAX_LEN.
+		 */
 		if (dev_conf->rxmode.max_rx_pkt_len < RTE_ETHER_MIN_LEN ||
-			dev_conf->rxmode.max_rx_pkt_len > RTE_ETHER_MAX_LEN)
+			dev_conf->rxmode.max_rx_pkt_len > RTE_ETHER_MAX_LEN
+				+ RTE_ETHER_VLAN_LEN * 2)
 			/* Use default value */
 			dev->data->dev_conf.rxmode.max_rx_pkt_len =
-							RTE_ETHER_MAX_LEN;
+				RTE_ETHER_MAX_LEN + RTE_ETHER_VLAN_LEN * 2;
 	}
 
 	/* Any requested offloading must be within its device capabilities */

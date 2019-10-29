@@ -26,6 +26,7 @@ extern "C" {
 #define RTE_ETHER_ADDR_LEN  6 /**< Length of Ethernet address. */
 #define RTE_ETHER_TYPE_LEN  2 /**< Length of Ethernet type field. */
 #define RTE_ETHER_CRC_LEN   4 /**< Length of Ethernet CRC. */
+#define RTE_ETHER_VLAN_LEN  4 /**< Length of Ethernet VLAN tag. */
 #define RTE_ETHER_HDR_LEN   \
 	(RTE_ETHER_ADDR_LEN * 2 + \
 		RTE_ETHER_TYPE_LEN) /**< Length of Ethernet header. */

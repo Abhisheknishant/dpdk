@@ -1772,7 +1772,8 @@ i40evf_rxq_init(struct rte_eth_dev *dev, struct i40e_rx_queue *rxq)
 	 * Check if the jumbo frame and maximum packet length are set correctly
 	 */
 	if (dev_data->dev_conf.rxmode.offloads & DEV_RX_OFFLOAD_JUMBO_FRAME) {
-		if (rxq->max_pkt_len <= RTE_ETHER_MAX_LEN ||
+		if (rxq->max_pkt_len <= RTE_ETHER_MAX_LEN +
+				I40E_VLAN_TAG_SIZE * 2 ||
 		    rxq->max_pkt_len > I40E_FRAME_SIZE_MAX) {
 			PMD_DRV_LOG(ERR, "maximum packet length must be "
 				"larger than %u and smaller than %u, as jumbo "
@@ -1782,12 +1783,14 @@ i40evf_rxq_init(struct rte_eth_dev *dev, struct i40e_rx_queue *rxq)
 		}
 	} else {
 		if (rxq->max_pkt_len < RTE_ETHER_MIN_LEN ||
-		    rxq->max_pkt_len > RTE_ETHER_MAX_LEN) {
+		    rxq->max_pkt_len > RTE_ETHER_MAX_LEN +
+				I40E_VLAN_TAG_SIZE * 2) {
 			PMD_DRV_LOG(ERR, "maximum packet length must be "
 				"larger than %u and smaller than %u, as jumbo "
 				"frame is disabled",
 				(uint32_t)RTE_ETHER_MIN_LEN,
-				(uint32_t)RTE_ETHER_MAX_LEN);
+				(uint32_t)RTE_ETHER_MAX_LEN +
+					I40E_VLAN_TAG_SIZE * 2);
 			return I40E_ERR_CONFIG;
 		}
 	}
@@ -2747,7 +2750,7 @@ i40evf_dev_mtu_set(struct rte_eth_dev *dev, uint16_t mtu)
 		return -EBUSY;
 	}
 
-	if (frame_size > RTE_ETHER_MAX_LEN)
+	if (frame_size > RTE_ETHER_MAX_LEN + I40E_VLAN_TAG_SIZE * 2)
 		dev_data->dev_conf.rxmode.offloads |=
 			DEV_RX_OFFLOAD_JUMBO_FRAME;
 	else
