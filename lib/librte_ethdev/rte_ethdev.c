@@ -1142,6 +1142,8 @@ rte_eth_dev_configure(uint16_t port_id, uint16_t nb_rx_q, uint16_t nb_tx_q,
 	struct rte_eth_dev *dev;
 	struct rte_eth_dev_info dev_info;
 	struct rte_eth_conf orig_conf;
+	uint64_t offloads_force_ena;
+	uint64_t offload;
 	int diag;
 	int ret;
 
@@ -1355,6 +1357,26 @@ rte_eth_dev_configure(uint16_t port_id, uint16_t nb_rx_q, uint16_t nb_tx_q,
 		rte_eth_dev_tx_queue_config(dev, 0);
 		ret = eth_err(port_id, diag);
 		goto rollback;
+	}
+
+	/* Extract Rx offload bits that can't be disabled and log them */
+	offloads_force_ena = dev_conf->rxmode.offloads ^
+			dev->data->dev_conf.rxmode.offloads;
+	while (__builtin_popcount(offloads_force_ena)) {
+		offload = 1ULL << __builtin_ctzll(offloads_force_ena);
+		offloads_force_ena &= ~offload;
+		RTE_ETHDEV_LOG(INFO, "Port %u can't disable Rx offload %s\n",
+			       port_id, rte_eth_dev_rx_offload_name(offload));
+	}
+
+	/* Extract Tx offload bits that can't be disabled and log them */
+	offloads_force_ena = dev_conf->txmode.offloads ^
+				    dev->data->dev_conf.txmode.offloads;
+	while (__builtin_popcount(offloads_force_ena)) {
+		offload = 1ULL << __builtin_ctzll(offloads_force_ena);
+		offloads_force_ena &= ~offload;
+		RTE_ETHDEV_LOG(INFO, "Port %u can't disable Tx offload %s\n",
+			       port_id, rte_eth_dev_tx_offload_name(offload));
 	}
 
 	return 0;
