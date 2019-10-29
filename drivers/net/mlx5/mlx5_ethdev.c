@@ -407,6 +407,10 @@ mlx5_dev_configure(struct rte_eth_dev *dev)
 		rte_errno = ENOMEM;
 		return -rte_errno;
 	}
+
+	if (!(dev->data->dev_conf.rxmode.offload & DEV_RX_OFFLOAD_RSS_HASH))
+		dev->data->dev_conf.rxmode.offload |= DEV_RX_OFFLOAD_RSS_HASH;
+
 	memcpy(priv->rss_conf.rss_key,
 	       use_app_rss_key ?
 	       dev->data->dev_conf.rx_adv_conf.rss_conf.rss_key :
