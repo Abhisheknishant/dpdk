@@ -593,11 +593,36 @@ rte_eth_dev_release_port(struct rte_eth_dev *eth_dev)
 int
 rte_eth_dev_is_valid_port(uint16_t port_id)
 {
+	/* legacy behaviour - without VF flag */
+	return rte_eth_dev_is_valid(port_id, 0);
+}
+
+static uint16_t
+port_id_parse(uint16_t port_id, bool *is_vf)
+{
+	*is_vf = (port_id & RTE_ETH_PORT_VF_FLAG) != 0;
+	return port_id & RTE_ETH_PORT_ID_MASK;
+}
+
+int
+rte_eth_dev_is_valid(uint16_t port_id, char allow_vf)
+{
+	bool is_vf;
+
+	port_id = port_id_parse(port_id, &is_vf);
+	if (is_vf && !allow_vf)
+		return 0; /* unallowed VF */
+
 	if (port_id >= RTE_MAX_ETHPORTS ||
 	    (rte_eth_devices[port_id].state == RTE_ETH_DEV_UNUSED))
-		return 0;
-	else
-		return 1;
+		return 0; /* invalid port */
+
+	if (!is_vf)
+		return 1; /* valid port */
+
+	if (rte_eth_devices[port_id].vf_ops == NULL)
+		return 0; /* VF flag applies only to port controlling a VF */
+	return 2; /* VF connected to a valid port on the host */
 }
 
 static int
@@ -850,6 +875,19 @@ eth_err(uint16_t port_id, int ret)
 		return -EIO;
 	return ret;
 }
+
+static inline const struct eth_dev_ops *
+eth_dev_ops_get(const struct rte_eth_dev *dev, bool is_vf)
+{
+	if (is_vf)
+		return dev->vf_ops;
+	return dev->dev_ops;
+}
+
+#define ETH_DEV_OP_CALL(dev, vf, op, ...) ({ \
+	RTE_FUNC_PTR_OR_ERR_RET((eth_dev_ops_get(dev, vf)->op), -ENOTSUP); \
+	(eth_dev_ops_get(dev, vf)->op)(dev, ## __VA_ARGS__); \
+})
 
 static int
 rte_eth_dev_rx_queue_config(struct rte_eth_dev *dev, uint16_t nb_queues)

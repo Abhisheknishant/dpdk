@@ -1345,6 +1345,13 @@ struct rte_eth_dcb_info {
 #define RTE_ETH_ALL RTE_MAX_ETHPORTS
 
 /* Macros to check for valid port */
+#define RTE_ETH_VALID_ID_OR_ERR_RET(port_id, retval) do { \
+	if (!rte_eth_dev_is_valid(port_id, 1)) { \
+		RTE_ETHDEV_LOG(ERR, "Invalid port_id=%u\n", port_id); \
+		return retval; \
+	} \
+} while (0)
+
 #define RTE_ETH_VALID_PORTID_OR_ERR_RET(port_id, retval) do { \
 	if (!rte_eth_dev_is_valid_port(port_id)) { \
 		RTE_ETHDEV_LOG(ERR, "Invalid port_id=%u\n", port_id); \
@@ -1467,6 +1474,17 @@ struct rte_eth_dev_owner {
 #define RTE_ETH_DEV_REPRESENTOR  0x0010
 /** Device does not support MAC change after started */
 #define RTE_ETH_DEV_NOLIVE_MAC_ADDR  0x0020
+
+/**
+ * Highest bit of port ID is reserved for targeting controlled VF.
+ * This bit can be combined with the port ID of a representor
+ * which implements some vf_ops.
+ * The meaning is to target the VF connected with the representor port
+ * instead of the representor port itself.
+ */
+#define RTE_ETH_PORT_VF_FLAG (1 << 15)
+/** Mask to get representor port ID from VF ID, excluding VF flag. */
+#define RTE_ETH_PORT_ID_MASK (RTE_ETH_PORT_VF_FLAG - 1)
 
 /**
  * Iterates over valid ethdev ports owned by a specific owner.
@@ -1908,6 +1926,26 @@ int rte_eth_dev_socket_id(uint16_t port_id);
  *   - 1 if device is attached
  */
 int rte_eth_dev_is_valid_port(uint16_t port_id);
+
+/**
+ * @warning
+ * @b EXPERIMENTAL: this API may change without prior notice.
+ *
+ * Check if port_id of device is attached.
+ * The port_id can represent a VF connected to port
+ * implementing some vf_ops.
+ *
+ * @param port_id
+ *   The port identifier of the Ethernet device.
+ * @param allow_vf
+ *   The bit RTE_ETH_PORT_VF_FLAG is considered valid.
+ * @return
+ *   - 0 if port is not attached or unallowed VF
+ *   - 1 if device is attached and not representing a VF
+ *   - 2 if is a remote VF connected to a port implementing vf_ops
+ */
+__rte_experimental
+int rte_eth_dev_is_valid(uint16_t port_id, char allow_vf);
 
 /**
  * Start specified RX queue of a port. It is used when rx_deferred_start

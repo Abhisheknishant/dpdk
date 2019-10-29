@@ -682,6 +682,7 @@ struct rte_eth_dev {
 	struct rte_eth_dev_data *data;  /**< Pointer to device data. */
 	void *process_private; /**< Pointer to per-process device data. */
 	const struct eth_dev_ops *dev_ops; /**< Functions exported by PMD */
+	const struct eth_dev_ops *vf_ops; /**< Functions for VF control */
 	struct rte_device *device; /**< Backing device */
 	struct rte_intr_handle *intr_handle; /**< Device interrupt handle */
 	/** User application callbacks for NIC interrupts */
