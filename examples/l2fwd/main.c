@@ -713,6 +713,8 @@ main(int argc, char **argv)
 			"Cannot set error callback for tx buffer on port %u\n",
 				 portid);
 
+		rte_eth_dev_set_supported_ptypes(portid, RTE_PTYPE_UNKNOWN,
+						 NULL, 0);
 		/* Start device */
 		ret = rte_eth_dev_start(portid);
 		if (ret < 0)
