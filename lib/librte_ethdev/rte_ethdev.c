@@ -3386,19 +3386,22 @@ int
 rte_eth_dev_default_mac_addr_set(uint16_t port_id, struct rte_ether_addr *addr)
 {
 	struct rte_eth_dev *dev;
+	bool vf; /* true if port_id targets a connected VF */
 	int ret;
 
-	RTE_ETH_VALID_PORTID_OR_ERR_RET(port_id, -ENODEV);
+	RTE_ETH_VALID_ID_OR_ERR_RET(port_id, -ENODEV);
 
 	if (!rte_is_valid_assigned_ether_addr(addr))
 		return -EINVAL;
 
+	port_id = port_id_parse(port_id, &vf);
 	dev = &rte_eth_devices[port_id];
-	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->mac_addr_set, -ENOTSUP);
-
-	ret = (*dev->dev_ops->mac_addr_set)(dev, addr);
+	ret = ETH_DEV_OP_CALL(dev, vf, mac_addr_set, addr);
 	if (ret < 0)
 		return ret;
+
+	if (vf)
+		return 0;
 
 	/* Update default address in NIC data structure */
 	rte_ether_addr_copy(addr, &dev->data->mac_addrs[0]);
