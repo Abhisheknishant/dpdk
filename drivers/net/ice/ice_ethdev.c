@@ -2277,8 +2277,6 @@ ice_dev_stop(struct rte_eth_dev *dev)
 	/* Clear all queues and release mbufs */
 	ice_clear_queues(dev);
 
-	ice_dev_set_link_down(dev);
-
 	/* Clean datapath event and queue/vec mapping */
 	rte_intr_efd_disable(intr_handle);
 	if (intr_handle->intr_vec) {
