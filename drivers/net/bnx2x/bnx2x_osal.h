@@ -22,8 +22,4 @@
 #undef __LITTLE_ENDIAN
 #endif
 
-#define __le16		uint16_t
-#define __le32		uint32_t
-#define __le64		uint64_t
-
 #endif /* BNX2X_OSAL_H */
