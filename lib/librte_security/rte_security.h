@@ -212,6 +212,10 @@ struct rte_security_ipsec_xform {
 	/**< Tunnel parameters, NULL for transport mode */
 	uint64_t esn_soft_limit;
 	/**< ESN for which the overflow event need to be raised */
+	uint32_t replay_win_sz;
+	/**< Anti replay window size to enable sequence replay attack handling.
+	 * replay checking is disabled if the window size is 0.
+	 */
 };
 
 /**
