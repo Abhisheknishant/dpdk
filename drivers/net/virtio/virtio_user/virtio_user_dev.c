@@ -613,6 +613,18 @@ virtio_user_handle_ctrl_msg(struct virtio_user_dev *dev, struct vring *vring,
 
 		queues = *(uint16_t *)(uintptr_t)vring->desc[idx_data].addr;
 		status = virtio_user_handle_mq(dev, queues);
+	} else if (hdr->class == VIRTIO_NET_CTRL_RX) {
+		if (hdr->cmd == VIRTIO_NET_CTRL_RX_PROMISC ||
+		    hdr->cmd == VIRTIO_NET_CTRL_RX_ALLMULTI) {
+			uint8_t setting;
+			setting = *(uint8_t *)(uintptr_t)
+					vring->desc[idx_data].addr;
+			if (setting)
+				status = 0;
+		}
+	} else if (hdr->class == VIRTIO_NET_CTRL_MAC ||
+		   hdr->class == VIRTIO_NET_CTRL_VLAN) {
+		status = 0;
 	}
 
 	/* Update status */
@@ -664,6 +676,18 @@ virtio_user_handle_ctrl_msg_packed(struct virtio_user_dev *dev,
 		queues = *(uint16_t *)(uintptr_t)
 				vring->desc[idx_data].addr;
 		status = virtio_user_handle_mq(dev, queues);
+	} else if (hdr->class == VIRTIO_NET_CTRL_RX) {
+		if (hdr->cmd == VIRTIO_NET_CTRL_RX_PROMISC ||
+		    hdr->cmd == VIRTIO_NET_CTRL_RX_ALLMULTI) {
+			uint8_t setting;
+			setting = *(uint8_t *)(uintptr_t)
+					vring->desc[idx_data].addr;
+			if (setting)
+				status = 0;
+		}
+	} else if (hdr->class == VIRTIO_NET_CTRL_MAC ||
+		   hdr->class == VIRTIO_NET_CTRL_VLAN) {
+		status = 0;
 	}
 
 	/* Update status */
