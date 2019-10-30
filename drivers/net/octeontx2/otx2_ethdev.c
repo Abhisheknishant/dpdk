@@ -120,7 +120,7 @@ otx2_cgx_rxtx_start(struct otx2_eth_dev *dev)
 {
 	struct otx2_mbox *mbox = dev->mbox;
 
-	if (otx2_dev_is_vf(dev))
+	if (otx2_dev_is_vf_or_sdp(dev))
 		return 0;
 
 	otx2_mbox_alloc_msg_cgx_start_rxtx(mbox);
@@ -133,7 +133,7 @@ otx2_cgx_rxtx_stop(struct otx2_eth_dev *dev)
 {
 	struct otx2_mbox *mbox = dev->mbox;
 
-	if (otx2_dev_is_vf(dev))
+	if (otx2_dev_is_vf_or_sdp(dev))
 		return 0;
 
 	otx2_mbox_alloc_msg_cgx_stop_rxtx(mbox);
@@ -166,7 +166,7 @@ nix_cgx_start_link_event(struct otx2_eth_dev *dev)
 {
 	struct otx2_mbox *mbox = dev->mbox;
 
-	if (otx2_dev_is_vf(dev))
+	if (otx2_dev_is_vf_or_sdp(dev))
 		return 0;
 
 	otx2_mbox_alloc_msg_cgx_start_linkevents(mbox);
@@ -179,7 +179,7 @@ cgx_intlbk_enable(struct otx2_eth_dev *dev, bool en)
 {
 	struct otx2_mbox *mbox = dev->mbox;
 
-	if (otx2_dev_is_vf(dev))
+	if (otx2_dev_is_vf_or_sdp(dev))
 		return 0;
 
 	if (en)
@@ -195,7 +195,7 @@ nix_cgx_stop_link_event(struct otx2_eth_dev *dev)
 {
 	struct otx2_mbox *mbox = dev->mbox;
 
-	if (otx2_dev_is_vf(dev))
+	if (otx2_dev_is_vf_or_sdp(dev))
 		return 0;
 
 	otx2_mbox_alloc_msg_cgx_stop_linkevents(mbox);
@@ -2056,6 +2056,15 @@ otx2_eth_dev_lf_detach(struct otx2_mbox *mbox)
 	return otx2_mbox_process(mbox);
 }
 
+static bool
+otx2_eth_dev_is_sdp(struct rte_pci_device *pci_dev)
+{
+	if (pci_dev->id.device_id == PCI_DEVID_OCTEONTX2_RVU_SDP_PF ||
+	    pci_dev->id.device_id == PCI_DEVID_OCTEONTX2_RVU_SDP_VF)
+		return true;
+	return false;
+}
+
 static int
 otx2_eth_dev_init(struct rte_eth_dev *eth_dev)
 {
@@ -2099,6 +2108,10 @@ otx2_eth_dev_init(struct rte_eth_dev *eth_dev)
 			goto error;
 		}
 	}
+	if (otx2_eth_dev_is_sdp(pci_dev))
+		dev->sdp_link = true;
+	else
+		dev->sdp_link = false;
 	/* Device generic callbacks */
 	dev->ops = &otx2_dev_ops;
 	dev->eth_dev = eth_dev;
@@ -2385,6 +2398,14 @@ static const struct rte_pci_id pci_nix_map[] = {
 	{
 		RTE_PCI_DEVICE(PCI_VENDOR_ID_CAVIUM,
 			       PCI_DEVID_OCTEONTX2_RVU_AF_VF)
+	},
+	{
+		RTE_PCI_DEVICE(PCI_VENDOR_ID_CAVIUM,
+			       PCI_DEVID_OCTEONTX2_RVU_SDP_PF)
+	},
+	{
+		RTE_PCI_DEVICE(PCI_VENDOR_ID_CAVIUM,
+			       PCI_DEVID_OCTEONTX2_RVU_SDP_VF)
 	},
 	{
 		.vendor_id = 0,
