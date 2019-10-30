@@ -920,6 +920,11 @@ flow_dv_validate_action_pop_vlan(struct rte_eth_dev *dev,
 					  NULL,
 					  "cannot pop vlan without a "
 					  "match on (outer) vlan in the flow");
+	if (action_flags & MLX5_FLOW_ACTION_PORT_ID)
+		return rte_flow_error_set(error, EINVAL,
+					  RTE_FLOW_ERROR_TYPE_ACTION, action,
+					  "wrong action order, port_id should "
+					  "be after pop VLAN action");
 	return 0;
 }
 
@@ -1014,6 +1019,11 @@ flow_dv_validate_action_push_vlan(uint64_t action_flags,
 					  RTE_FLOW_ERROR_TYPE_ACTION, action,
 					  "no support for multiple VLAN "
 					  "actions");
+	if (action_flags & MLX5_FLOW_ACTION_PORT_ID)
+		return rte_flow_error_set(error, EINVAL,
+					  RTE_FLOW_ERROR_TYPE_ACTION, action,
+					  "wrong action order, port_id should "
+					  "be after push VLAN");
 	(void)attr;
 	return 0;
 }
@@ -1056,6 +1066,11 @@ flow_dv_validate_action_set_vlan_pcp(uint64_t action_flags,
 					  RTE_FLOW_ERROR_TYPE_ACTION, action,
 					  "set VLAN PCP action must precede "
 					  "the push VLAN action");
+	if (action_flags & MLX5_FLOW_ACTION_PORT_ID)
+		return rte_flow_error_set(error, EINVAL,
+					  RTE_FLOW_ERROR_TYPE_ACTION, action,
+					  "wrong action order, port_id should "
+					  "be after set VLAN PCP");
 	return 0;
 }
 
@@ -1076,6 +1091,7 @@ flow_dv_validate_action_set_vlan_pcp(uint64_t action_flags,
  */
 static int
 flow_dv_validate_action_set_vlan_vid(uint64_t item_flags,
+				     uint64_t action_flags,
 				     const struct rte_flow_action actions[],
 				     struct rte_flow_error *error)
 {
@@ -1102,11 +1118,21 @@ flow_dv_validate_action_set_vlan_vid(uint64_t item_flags,
 					  RTE_FLOW_ERROR_TYPE_ACTION, action,
 					  "Multiple VLAN VID modifications are "
 					  "not supported");
-	if (!(item_flags & MLX5_FLOW_LAYER_OUTER_VLAN))
+	/*
+	 * If there is preceeding of_push_vlan action, this set_vlan_vid means
+	 * set vlan id in pushed vlan header.
+	 */
+	if (!(item_flags & MLX5_FLOW_LAYER_OUTER_VLAN) &&
+	    !(item_flags & MLX5_FLOW_ACTION_OF_PUSH_VLAN))
 		return rte_flow_error_set(error, EINVAL,
 					  RTE_FLOW_ERROR_TYPE_ACTION, action,
 					  "match on VLAN is required in order "
 					  "to set VLAN VID");
+	if (action_flags & MLX5_FLOW_ACTION_PORT_ID)
+		return rte_flow_error_set(error, EINVAL,
+					  RTE_FLOW_ERROR_TYPE_ACTION, action,
+					  "wrong action order, port_id should "
+					  "be after set VLAN VID");
 	return 0;
 }
 
@@ -3579,7 +3605,8 @@ flow_dv_validate(struct rte_eth_dev *dev, const struct rte_flow_attr *attr,
 			break;
 		case RTE_FLOW_ACTION_TYPE_OF_SET_VLAN_VID:
 			ret = flow_dv_validate_action_set_vlan_vid
-						(item_flags, actions, error);
+						(item_flags, action_flags,
+						 actions, error);
 			if (ret < 0)
 				return ret;
 			/* Count VID with push_vlan command. */
