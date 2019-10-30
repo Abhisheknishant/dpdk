@@ -1225,6 +1225,8 @@ ice_pf_enable_irq0(struct ice_hw *hw)
 		      GLINT_DYN_CTL_INTENA_M |
 		      GLINT_DYN_CTL_CLEARPBA_M |
 		      GLINT_DYN_CTL_ITR_INDX_M);
+	/* disable useless intr */
+	ICE_WRITE_REG(hw, GL_MDCK_TX_TDPU, 0x2);
 
 	ice_flush(hw);
 }
