@@ -179,9 +179,6 @@ static const struct {
 	{ RTE_ETH_BURST_AVX2, "AVX2" },
 	{ RTE_ETH_BURST_AVX512, "AVX512" },
 
-	{ RTE_ETH_BURST_SCATTERED, "Scattered" },
-	{ RTE_ETH_BURST_BULK_ALLOC, "Bulk Alloc" },
-	{ RTE_ETH_BURST_SIMPLE, "Simple" },
 	{ RTE_ETH_BURST_PER_QUEUE, "Per Queue" },
 };
 
@@ -4236,11 +4233,55 @@ rte_eth_tx_queue_info_get(uint16_t port_id, uint16_t queue_id,
 	return 0;
 }
 
+static inline const char *
+burst_mode_option_name(uint64_t option)
+{
+	const char *name = "";
+	unsigned int i;
+
+	for (i = 0; i < RTE_DIM(rte_burst_option_names); ++i) {
+		if (option == rte_burst_option_names[i].option) {
+			name = rte_burst_option_names[i].name;
+			break;
+		}
+	}
+
+	return name;
+}
+
+static int
+burst_mode_options_append(struct rte_eth_burst_mode *mode)
+{
+	int optlen, len = strlen(mode->alternate_options);
+	const char *sep = len > 0 ? ", " : "";
+	uint64_t options = mode->options;
+	int offset;
+
+	while (options != 0) {
+		offset = rte_bsf64(options);
+
+		optlen = snprintf(&mode->alternate_options[len],
+				  RTE_ETH_BURST_MODE_ALT_OPT_SIZE - len,
+				  "%s%s",
+				  sep, burst_mode_option_name(1ULL << offset));
+		if (optlen < 0 ||
+		    optlen >= (RTE_ETH_BURST_MODE_ALT_OPT_SIZE - len))
+			return -ENOSPC; /* An error or output was truncated */
+
+		len += optlen;
+		options &= ~(1ULL << offset);
+		sep = " ";
+	}
+
+	return 0;
+}
+
 int
 rte_eth_rx_burst_mode_get(uint16_t port_id, uint16_t queue_id,
 			  struct rte_eth_burst_mode *mode)
 {
 	struct rte_eth_dev *dev;
+	int ret;
 
 	RTE_ETH_VALID_PORTID_OR_ERR_RET(port_id, -ENODEV);
 
@@ -4256,8 +4297,12 @@ rte_eth_rx_burst_mode_get(uint16_t port_id, uint16_t queue_id,
 
 	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->rx_burst_mode_get, -ENOTSUP);
 	memset(mode, 0, sizeof(*mode));
-	return eth_err(port_id,
-		       dev->dev_ops->rx_burst_mode_get(dev, queue_id, mode));
+
+	ret = dev->dev_ops->rx_burst_mode_get(dev, queue_id, mode);
+	if (ret == 0)
+		ret = burst_mode_options_append(mode);
+
+	return eth_err(port_id, ret);
 }
 
 int
@@ -4265,6 +4310,7 @@ rte_eth_tx_burst_mode_get(uint16_t port_id, uint16_t queue_id,
 			  struct rte_eth_burst_mode *mode)
 {
 	struct rte_eth_dev *dev;
+	int ret;
 
 	RTE_ETH_VALID_PORTID_OR_ERR_RET(port_id, -ENODEV);
 
@@ -4280,24 +4326,12 @@ rte_eth_tx_burst_mode_get(uint16_t port_id, uint16_t queue_id,
 
 	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->tx_burst_mode_get, -ENOTSUP);
 	memset(mode, 0, sizeof(*mode));
-	return eth_err(port_id,
-		       dev->dev_ops->tx_burst_mode_get(dev, queue_id, mode));
-}
 
-const char *
-rte_eth_burst_mode_option_name(uint64_t option)
-{
-	const char *name = "";
-	unsigned int i;
+	ret = dev->dev_ops->tx_burst_mode_get(dev, queue_id, mode);
+	if (ret == 0)
+		ret = burst_mode_options_append(mode);
 
-	for (i = 0; i < RTE_DIM(rte_burst_option_names); ++i) {
-		if (option == rte_burst_option_names[i].option) {
-			name = rte_burst_option_names[i].name;
-			break;
-		}
-	}
-
-	return name;
+	return eth_err(port_id, ret);
 }
 
 int
