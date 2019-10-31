@@ -128,10 +128,6 @@ static struct ice_pattern_match_item ice_fdir_pattern_comms[] = {
 	{pattern_eth_ipv4_udp_vxlan_eth_ipv4_sctp,
 				       ICE_FDIR_INSET_VXLAN_IPV4_SCTP,       ICE_INSET_NONE},
 	{pattern_eth_ipv4_gtpu_ipv4,   ICE_FDIR_INSET_GTPU_IPV4,             ICE_INSET_NONE},
-	{pattern_eth_ipv4_gtpu_ipv4_tcp,
-				       ICE_FDIR_INSET_GTPU_IPV4,             ICE_INSET_NONE},
-	{pattern_eth_ipv4_gtpu_ipv4_udp,
-				       ICE_FDIR_INSET_GTPU_IPV4,             ICE_INSET_NONE},
 };
 
 static struct ice_flow_parser ice_fdir_parser_os;
