@@ -3024,34 +3024,24 @@ i40e_rx_burst_mode_get(struct rte_eth_dev *dev, __rte_unused uint16_t queue_id,
 	eth_rx_burst_t pkt_burst = dev->rx_pkt_burst;
 	uint64_t options;
 
-	if (pkt_burst == i40e_recv_scattered_pkts)
-		options = RTE_ETH_BURST_SCALAR | RTE_ETH_BURST_SCATTERED;
-	else if (pkt_burst == i40e_recv_pkts_bulk_alloc)
-		options = RTE_ETH_BURST_SCALAR | RTE_ETH_BURST_BULK_ALLOC;
-	else if (pkt_burst == i40e_recv_pkts)
+	if (pkt_burst == i40e_recv_scattered_pkts ||
+	    pkt_burst == i40e_recv_pkts_bulk_alloc ||
+	    pkt_burst == i40e_recv_pkts)
 		options = RTE_ETH_BURST_SCALAR;
 #ifdef RTE_ARCH_X86
-	else if (pkt_burst == i40e_recv_scattered_pkts_vec_avx2)
-		options = RTE_ETH_BURST_VECTOR | RTE_ETH_BURST_AVX2 |
-			  RTE_ETH_BURST_SCATTERED;
-	else if (pkt_burst == i40e_recv_pkts_vec_avx2)
+	else if (pkt_burst == i40e_recv_scattered_pkts_vec_avx2 ||
+		 pkt_burst == i40e_recv_pkts_vec_avx2)
 		options = RTE_ETH_BURST_VECTOR | RTE_ETH_BURST_AVX2;
-	else if (pkt_burst == i40e_recv_scattered_pkts_vec)
-		options = RTE_ETH_BURST_VECTOR | RTE_ETH_BURST_SSE |
-			  RTE_ETH_BURST_SCATTERED;
-	else if (pkt_burst == i40e_recv_pkts_vec)
+	else if (pkt_burst == i40e_recv_scattered_pkts_vec ||
+		 pkt_burst == i40e_recv_pkts_vec)
 		options = RTE_ETH_BURST_VECTOR | RTE_ETH_BURST_SSE;
 #elif defined(RTE_ARCH_ARM64)
-	else if (pkt_burst == i40e_recv_scattered_pkts_vec)
-		options = RTE_ETH_BURST_VECTOR | RTE_ETH_BURST_NEON |
-			  RTE_ETH_BURST_SCATTERED;
-	else if (pkt_burst == i40e_recv_pkts_vec)
+	else if (pkt_burst == i40e_recv_scattered_pkts_vec ||
+		 pkt_burst == i40e_recv_pkts_vec)
 		options = RTE_ETH_BURST_VECTOR | RTE_ETH_BURST_NEON;
 #elif defined(RTE_ARCH_PPC_64)
-	else if (pkt_burst == i40e_recv_scattered_pkts_vec)
-		options = RTE_ETH_BURST_VECTOR | RTE_ETH_BURST_ALTIVEC |
-			  RTE_ETH_BURST_SCATTERED;
-	else if (pkt_burst == i40e_recv_pkts_vec)
+	else if (pkt_burst == i40e_recv_scattered_pkts_vec ||
+		 pkt_burst == i40e_recv_pkts_vec)
 		options = RTE_ETH_BURST_VECTOR | RTE_ETH_BURST_ALTIVEC;
 #endif
 	else
@@ -3162,9 +3152,8 @@ i40e_tx_burst_mode_get(struct rte_eth_dev *dev, __rte_unused uint16_t queue_id,
 	eth_tx_burst_t pkt_burst = dev->tx_pkt_burst;
 	uint64_t options;
 
-	if (pkt_burst == i40e_xmit_pkts_simple)
-		options = RTE_ETH_BURST_SCALAR | RTE_ETH_BURST_SIMPLE;
-	else if (pkt_burst == i40e_xmit_pkts)
+	if (pkt_burst == i40e_xmit_pkts_simple ||
+	    pkt_burst == i40e_xmit_pkts)
 		options = RTE_ETH_BURST_SCALAR;
 #ifdef RTE_ARCH_X86
 	else if (pkt_burst == i40e_xmit_pkts_vec_avx2)
