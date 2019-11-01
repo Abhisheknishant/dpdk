@@ -39,7 +39,7 @@ extern "C" {
 #include <rte_compat.h>
 #include <rte_rwlock.h>
 
-#define RTE_FBARRAY_NAME_LEN 64
+#define RTE_FBARRAY_NAME_LEN NAME_MAX
 
 struct rte_fbarray {
 	char name[RTE_FBARRAY_NAME_LEN]; /**< name associated with an array */
