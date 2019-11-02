@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright(c) 2018 Cisco Systems, Inc.
 
+cflags += ['-DALLOW_EXPERIMENTAL_API']
 sources = files(
 	'base/vnic_cq.c',
 	'base/vnic_dev.c',

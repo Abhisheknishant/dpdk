@@ -13,6 +13,7 @@ EXPORT_MAP := rte_pmd_enic_version.map
 
 LIBABIVER := 1
 
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 CFLAGS += -I$(SRCDIR)/base/
 CFLAGS += -I$(SRCDIR)
 CFLAGS += -O3
