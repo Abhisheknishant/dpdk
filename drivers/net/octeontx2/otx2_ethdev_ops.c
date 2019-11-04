@@ -2,6 +2,7 @@
  * Copyright(C) 2019 Marvell International Ltd.
  */
 
+#include <rte_ethdev.h>
 #include <rte_mbuf_pool_ops.h>
 
 #include "otx2_ethdev.h"
@@ -219,6 +220,50 @@ otx2_nix_txq_info_get(struct rte_eth_dev *eth_dev, uint16_t queue_id,
 	qinfo->conf.tx_rs_thresh = 0;
 	qinfo->conf.offloads = txq->offloads;
 	qinfo->conf.tx_deferred_start = 0;
+}
+
+int
+otx2_rx_burst_mode_get(struct rte_eth_dev *eth_dev,
+		       __rte_unused uint16_t queue_id,
+		       struct rte_eth_burst_mode *mode)
+{
+	struct otx2_eth_dev *dev = otx2_eth_pmd_priv(eth_dev);
+	uint64_t options;
+
+	if (dev->scalar_ena || dev->rx_offloads & DEV_RX_OFFLOAD_TIMESTAMP)
+		options = RTE_ETH_BURST_SCALAR;
+	else
+		options = RTE_ETH_BURST_VECTOR | RTE_ETH_BURST_NEON;
+
+	if (dev->rx_offloads & DEV_RX_OFFLOAD_SCATTER)
+		options = RTE_ETH_BURST_SCALAR | RTE_ETH_BURST_SCATTERED;
+
+	mode->options = options;
+
+	return 0;
+}
+
+int
+otx2_tx_burst_mode_get(struct rte_eth_dev *eth_dev,
+		       __rte_unused uint16_t queue_id,
+		       struct rte_eth_burst_mode *mode)
+{
+	struct otx2_eth_dev *dev = otx2_eth_pmd_priv(eth_dev);
+	uint64_t options;
+
+	if (dev->scalar_ena ||
+		(dev->tx_offload_flags &
+		 (NIX_TX_OFFLOAD_VLAN_QINQ_F | NIX_TX_OFFLOAD_TSTAMP_F)))
+		options = RTE_ETH_BURST_SCALAR;
+	else
+		options = RTE_ETH_BURST_VECTOR | RTE_ETH_BURST_NEON;
+
+	if (dev->tx_offloads & DEV_TX_OFFLOAD_MULTI_SEGS)
+		options = RTE_ETH_BURST_SCALAR | RTE_ETH_BURST_SCATTERED;
+
+	mode->options = options;
+
+	return 0;
 }
 
 static void
