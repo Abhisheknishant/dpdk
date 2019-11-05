@@ -1524,7 +1524,6 @@ exit:
 	return 0;
 }
 
-#define MLX5_MAX_LRO_SIZE (UINT8_MAX * 256u)
 #define MLX5_MAX_TCP_HDR_OFFSET ((unsigned int)(sizeof(struct rte_ether_hdr) + \
 					sizeof(struct rte_vlan_hdr) * 2 + \
 					sizeof(struct rte_ipv6_hdr)))

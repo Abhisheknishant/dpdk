@@ -48,6 +48,7 @@ ixgbe_vf_representor_dev_infos_get(struct rte_eth_dev *ethdev,
 	dev_info->min_rx_bufsize = 1024;
 	/**< Minimum size of RX buffer. */
 	dev_info->max_rx_pktlen = 9728;
+	dev_info->max_lro_pkt_size = 9728;
 	/**< Maximum configurable length of RX pkt. */
 	dev_info->max_rx_queues = IXGBE_VF_MAX_RX_QUEUES;
 	/**< Maximum number of RX queues. */
