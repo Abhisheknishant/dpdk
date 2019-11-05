@@ -2,3 +2,15 @@ DPDK_19.02 {
 
 	local: *;
 };
+
+EXPERIMENTAL {
+	global:
+
+	# added in 19.11
+	rte_net_ice_dynfield_proto_xtr_metadata;
+	rte_net_ice_dynflag_proto_xtr_vlan;
+	rte_net_ice_dynflag_proto_xtr_ipv4;
+	rte_net_ice_dynflag_proto_xtr_ipv6;
+	rte_net_ice_dynflag_proto_xtr_ipv6_flow;
+	rte_net_ice_dynflag_proto_xtr_tcp;
+};
