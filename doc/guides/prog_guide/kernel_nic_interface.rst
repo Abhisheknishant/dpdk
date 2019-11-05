@@ -300,6 +300,15 @@ The sk_buff is then freed and the mbuf sent in the tx_q FIFO.
 The DPDK TX thread dequeues the mbuf and sends it to the PMD via ``rte_eth_tx_burst()``.
 It then puts the mbuf back in the cache.
 
+IOVA = VA: Support
+------------------
+
+KNI operates in IOVA_VA scheme when
+
+- LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0) and
+- eal option `iova-mode=va` is passed or bus IOVA scheme in the DPDK is selected
+  as RTE_IOVA_VA.
+
 Ethtool
 -------
 

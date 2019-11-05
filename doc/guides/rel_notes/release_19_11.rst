@@ -231,6 +231,11 @@ New Features
   * Added a console command to testpmd app, ``show port (port_id) ptypes`` which
     gives ability to print port supported ptypes in different protocol layers.
 
+* **Added IOVA as VA support for KNI.**
+
+  Added IOVA = VA support for KNI, KNI can operate in IOVA = VA mode when
+  `iova-mode=va` eal option is passed to the application or when bus IOVA
+  scheme is selected as RTE_IOVA_VA.
 
 Removed Items
 -------------
