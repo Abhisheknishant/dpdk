@@ -69,7 +69,7 @@ find_mem_alloc_validator(const char *name, int socket_id)
 
 bool
 eal_memalloc_is_contig(const struct rte_memseg_list *msl, void *start,
-		size_t len)
+		const size_t len)
 {
 	void *end, *aligned_start, *aligned_end;
 	size_t pgsz = (size_t)msl->page_sz;
@@ -252,7 +252,7 @@ eal_memalloc_mem_event_notify(enum rte_mem_event event, const void *start,
 
 int
 eal_memalloc_mem_alloc_validator_register(const char *name,
-		rte_mem_alloc_validator_t clb, int socket_id, size_t limit)
+		rte_mem_alloc_validator_t clb, const int socket_id, const size_t limit)
 {
 	struct mem_alloc_validator_entry *entry;
 	int ret, len;
@@ -302,7 +302,7 @@ unlock:
 }
 
 int
-eal_memalloc_mem_alloc_validator_unregister(const char *name, int socket_id)
+eal_memalloc_mem_alloc_validator_unregister(const char *name, const int socket_id)
 {
 	struct mem_alloc_validator_entry *entry;
 	int ret, len;
@@ -341,7 +341,7 @@ unlock:
 }
 
 int
-eal_memalloc_mem_alloc_validate(int socket_id, size_t new_len)
+eal_memalloc_mem_alloc_validate(const int socket_id, const size_t new_len)
 {
 	struct mem_alloc_validator_entry *entry;
 	int ret = 0;

@@ -28,7 +28,7 @@ TAILQ_HEAD(mbuf_dynfield_list, rte_tailq_entry);
 static struct rte_tailq_elem mbuf_dynfield_tailq = {
 	.name = "RTE_MBUF_DYNFIELD",
 };
-EAL_REGISTER_TAILQ(mbuf_dynfield_tailq);
+EAL_REGISTER_TAILQ(mbuf_dynfield_tailq)
 
 struct mbuf_dynflag_elt {
 	TAILQ_ENTRY(mbuf_dynflag_elt) next;
@@ -40,7 +40,7 @@ TAILQ_HEAD(mbuf_dynflag_list, rte_tailq_entry);
 static struct rte_tailq_elem mbuf_dynflag_tailq = {
 	.name = "RTE_MBUF_DYNFLAG",
 };
-EAL_REGISTER_TAILQ(mbuf_dynflag_tailq);
+EAL_REGISTER_TAILQ(mbuf_dynflag_tailq)
 
 struct mbuf_dyn_shm {
 	/**

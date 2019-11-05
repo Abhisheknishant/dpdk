@@ -163,4 +163,4 @@ static struct rte_class rte_class_eth = {
 	.dev_iterate = eth_dev_iterate,
 };
 
-RTE_REGISTER_CLASS(eth, rte_class_eth);
+RTE_REGISTER_CLASS(eth, rte_class_eth)

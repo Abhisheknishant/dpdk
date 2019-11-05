@@ -39,7 +39,7 @@ RTE_DECLARE_PER_LCORE(int, _rte_errno); /**< Per core error number. */
  *   A pointer to a thread-local string containing the text describing
  *   the error.
  */
-const char *rte_strerror(int errnum);
+const char *rte_strerror(const int errnum);
 
 #ifndef __ELASTERROR
 /**

@@ -65,7 +65,7 @@ rte_dump_tailq(FILE *f)
 		const struct rte_tailq_entry_head *head = &tailq->tailq_head;
 
 		fprintf(f, "Tailq %u: qname:<%s>, tqh_first:%p, tqh_last:%p\n",
-			i, tailq->name, head->tqh_first, head->tqh_last);
+			i, tailq->name, (void*)head->tqh_first, (void*)head->tqh_last);
 	}
 	rte_mcfg_tailq_read_unlock();
 }

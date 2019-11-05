@@ -48,7 +48,7 @@ eal_memalloc_free_seg_bulk(struct rte_memseg **ms, int n_segs);
  */
 bool
 eal_memalloc_is_contig(const struct rte_memseg_list *msl, void *start,
-		size_t len);
+		const size_t len);
 
 /* synchronize local memory map to primary process */
 int
@@ -67,13 +67,13 @@ eal_memalloc_mem_event_notify(enum rte_mem_event event, const void *start,
 
 int
 eal_memalloc_mem_alloc_validator_register(const char *name,
-		rte_mem_alloc_validator_t clb, int socket_id, size_t limit);
+		rte_mem_alloc_validator_t clb, const int socket_id, const size_t limit);
 
 int
-eal_memalloc_mem_alloc_validator_unregister(const char *name, int socket_id);
+eal_memalloc_mem_alloc_validator_unregister(const char *name, const int socket_id);
 
 int
-eal_memalloc_mem_alloc_validate(int socket_id, size_t new_len);
+eal_memalloc_mem_alloc_validate(const int socket_id, const size_t new_len);
 
 /* returns fd or -errno */
 int

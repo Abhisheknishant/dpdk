@@ -84,14 +84,14 @@ rte_log_get_stream(void)
 		 * of stderr, even if the application closes and
 		 * reopens it.
 		 */
-		return default_log_stream ? : stderr;
+		return default_log_stream ? default_log_stream : stderr;
 	}
 	return f;
 }
 
 /* Set global log level */
 void
-rte_log_set_global_level(uint32_t level)
+rte_log_set_global_level(const uint32_t level)
 {
 	rte_logs.level = (uint32_t)level;
 }
@@ -104,7 +104,7 @@ rte_log_get_global_level(void)
 }
 
 int
-rte_log_get_level(uint32_t type)
+rte_log_get_level(const uint32_t type)
 {
 	if (type >= rte_logs.dynamic_types_len)
 		return -1;
@@ -113,7 +113,7 @@ rte_log_get_level(uint32_t type)
 }
 
 int
-rte_log_set_level(uint32_t type, uint32_t level)
+rte_log_set_level(const uint32_t type, const uint32_t level)
 {
 	if (type >= rte_logs.dynamic_types_len)
 		return -1;
@@ -127,7 +127,7 @@ rte_log_set_level(uint32_t type, uint32_t level)
 
 /* set log level by regular expression */
 int
-rte_log_set_level_regexp(const char *regex, uint32_t level)
+rte_log_set_level_regexp(const char *regex, const uint32_t level)
 {
 	regex_t r;
 	size_t i;

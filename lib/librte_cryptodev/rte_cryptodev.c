@@ -357,7 +357,7 @@ rte_cryptodev_asym_capability_get(uint8_t dev_id,
 			return &capability->asym.xform_capa;
 	}
 	return NULL;
-};
+}
 
 int
 rte_cryptodev_sym_capability_check_cipher(
@@ -803,7 +803,7 @@ rte_cryptodev_queue_pairs_config(struct rte_cryptodev *dev, uint16_t nb_qpairs,
 
 	if ((dev == NULL) || (nb_qpairs < 1)) {
 		CDEV_LOG_ERR("invalid param: dev %p, nb_queues %u",
-							dev, nb_qpairs);
+							(void*)dev, nb_qpairs);
 		return -EINVAL;
 	}
 

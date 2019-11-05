@@ -145,7 +145,7 @@ rte_timer_subsystem_init_v20(void)
 		priv_timer[lcore_id].prev_lcore = lcore_id;
 	}
 }
-VERSION_SYMBOL(rte_timer_subsystem_init, _v20, 2.0);
+VERSION_SYMBOL(rte_timer_subsystem_init, _v20, 2.0)
 
 /* Init the timer library. Allocate an array of timer data structs in shared
  * memory, and allocate the zeroth entry for use with original timer
@@ -211,7 +211,7 @@ rte_timer_subsystem_init_v1905(void)
 }
 MAP_STATIC_SYMBOL(int rte_timer_subsystem_init(void),
 		  rte_timer_subsystem_init_v1905);
-BIND_DEFAULT_SYMBOL(rte_timer_subsystem_init, _v1905, 19.05);
+BIND_DEFAULT_SYMBOL(rte_timer_subsystem_init, _v1905, 19.05)
 
 void
 rte_timer_subsystem_finalize(void)
@@ -572,7 +572,7 @@ rte_timer_reset_v20(struct rte_timer *tim, uint64_t ticks,
 	return __rte_timer_reset(tim,  cur_time + ticks, period, tim_lcore,
 			  fct, arg, 0, &default_timer_data);
 }
-VERSION_SYMBOL(rte_timer_reset, _v20, 2.0);
+VERSION_SYMBOL(rte_timer_reset, _v20, 2.0)
 
 int
 rte_timer_reset_v1905(struct rte_timer *tim, uint64_t ticks,
@@ -587,7 +587,7 @@ MAP_STATIC_SYMBOL(int rte_timer_reset(struct rte_timer *tim, uint64_t ticks,
 				      unsigned int tim_lcore,
 				      rte_timer_cb_t fct, void *arg),
 		  rte_timer_reset_v1905);
-BIND_DEFAULT_SYMBOL(rte_timer_reset, _v1905, 19.05);
+BIND_DEFAULT_SYMBOL(rte_timer_reset, _v1905, 19.05)
 
 int
 rte_timer_alt_reset(uint32_t timer_data_id, struct rte_timer *tim,
@@ -662,7 +662,7 @@ rte_timer_stop_v20(struct rte_timer *tim)
 {
 	return __rte_timer_stop(tim, 0, &default_timer_data);
 }
-VERSION_SYMBOL(rte_timer_stop, _v20, 2.0);
+VERSION_SYMBOL(rte_timer_stop, _v20, 2.0)
 
 int
 rte_timer_stop_v1905(struct rte_timer *tim)
@@ -671,7 +671,7 @@ rte_timer_stop_v1905(struct rte_timer *tim)
 }
 MAP_STATIC_SYMBOL(int rte_timer_stop(struct rte_timer *tim),
 		  rte_timer_stop_v1905);
-BIND_DEFAULT_SYMBOL(rte_timer_stop, _v1905, 19.05);
+BIND_DEFAULT_SYMBOL(rte_timer_stop, _v1905, 19.05)
 
 int
 rte_timer_alt_stop(uint32_t timer_data_id, struct rte_timer *tim)
@@ -822,7 +822,7 @@ rte_timer_manage_v20(void)
 {
 	__rte_timer_manage(&default_timer_data);
 }
-VERSION_SYMBOL(rte_timer_manage, _v20, 2.0);
+VERSION_SYMBOL(rte_timer_manage, _v20, 2.0)
 
 int
 rte_timer_manage_v1905(void)
@@ -836,7 +836,7 @@ rte_timer_manage_v1905(void)
 	return 0;
 }
 MAP_STATIC_SYMBOL(int rte_timer_manage(void), rte_timer_manage_v1905);
-BIND_DEFAULT_SYMBOL(rte_timer_manage, _v1905, 19.05);
+BIND_DEFAULT_SYMBOL(rte_timer_manage, _v1905, 19.05)
 
 int
 rte_timer_alt_manage(uint32_t timer_data_id,
@@ -1079,7 +1079,7 @@ rte_timer_dump_stats_v20(FILE *f)
 {
 	__rte_timer_dump_stats(&default_timer_data, f);
 }
-VERSION_SYMBOL(rte_timer_dump_stats, _v20, 2.0);
+VERSION_SYMBOL(rte_timer_dump_stats, _v20, 2.0)
 
 int
 rte_timer_dump_stats_v1905(FILE *f)
@@ -1088,7 +1088,7 @@ rte_timer_dump_stats_v1905(FILE *f)
 }
 MAP_STATIC_SYMBOL(int rte_timer_dump_stats(FILE *f),
 		  rte_timer_dump_stats_v1905);
-BIND_DEFAULT_SYMBOL(rte_timer_dump_stats, _v1905, 19.05);
+BIND_DEFAULT_SYMBOL(rte_timer_dump_stats, _v1905, 19.05)
 
 int
 rte_timer_alt_dump_stats(uint32_t timer_data_id __rte_unused, FILE *f)

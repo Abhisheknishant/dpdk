@@ -707,7 +707,7 @@ send_msg(const char *dst_path, struct rte_mp_msg *msg, int type)
 }
 
 static int
-mp_send(struct rte_mp_msg *msg, const char *peer, int type)
+mp_send(struct rte_mp_msg *msg, const char *peer, const int type)
 {
 	int dir_fd, ret = 0;
 	DIR *mp_dir;

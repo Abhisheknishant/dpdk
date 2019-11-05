@@ -123,7 +123,7 @@ FILE *rte_log_get_stream(void);
  * @param level
  *   Log level. A value between RTE_LOG_EMERG (1) and RTE_LOG_DEBUG (8).
  */
-void rte_log_set_global_level(uint32_t level);
+void rte_log_set_global_level(const uint32_t level);
 
 /**
  * Get the global log level.
@@ -141,7 +141,7 @@ uint32_t rte_log_get_global_level(void);
  * @return
  *   0 on success, a negative value if logtype is invalid.
  */
-int rte_log_get_level(uint32_t logtype);
+int rte_log_get_level(const uint32_t logtype);
 
 /**
  * Set the log level for a given type based on shell pattern.
@@ -165,7 +165,7 @@ int rte_log_set_level_pattern(const char *pattern, uint32_t level);
  * @return
  *   0 on success, a negative value if level is invalid.
  */
-int rte_log_set_level_regexp(const char *regex, uint32_t level);
+int rte_log_set_level_regexp(const char *regex, const uint32_t level);
 
 /**
  * Set the log level for a given type.
@@ -177,7 +177,7 @@ int rte_log_set_level_regexp(const char *regex, uint32_t level);
  * @return
  *   0 on success, a negative value if logtype or level is invalid.
  */
-int rte_log_set_level(uint32_t logtype, uint32_t level);
+int rte_log_set_level(uint32_t logtype, const uint32_t level);
 
 /**
  * Get the current loglevel for the message being processed.

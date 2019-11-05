@@ -1200,7 +1200,7 @@ rte_mempool_dump(FILE *f, struct rte_mempool *mp)
 	RTE_ASSERT(f != NULL);
 	RTE_ASSERT(mp != NULL);
 
-	fprintf(f, "mempool <%s>@%p\n", mp->name, mp);
+	fprintf(f, "mempool <%s>@%p\n", mp->name, (void*)mp);
 	fprintf(f, "  flags=%x\n", mp->flags);
 	fprintf(f, "  pool=%p\n", mp->pool_data);
 	fprintf(f, "  iova=0x%" PRIx64 "\n", mp->mz->iova);

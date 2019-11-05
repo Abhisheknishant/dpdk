@@ -48,13 +48,13 @@ int rte_lcore_to_cpu_id(int lcore_id)
 	return lcore_config[lcore_id].core_id;
 }
 
-rte_cpuset_t rte_lcore_cpuset(unsigned int lcore_id)
+rte_cpuset_t rte_lcore_cpuset(const unsigned int lcore_id)
 {
 	return lcore_config[lcore_id].cpuset;
 }
 
 enum rte_lcore_role_t
-rte_eal_lcore_role(unsigned int lcore_id)
+rte_eal_lcore_role(const unsigned int lcore_id)
 {
 	struct rte_config *cfg = rte_eal_get_configuration();
 
@@ -63,7 +63,7 @@ rte_eal_lcore_role(unsigned int lcore_id)
 	return cfg->lcore_role[lcore_id];
 }
 
-int rte_lcore_is_enabled(unsigned int lcore_id)
+int rte_lcore_is_enabled(const unsigned int lcore_id)
 {
 	struct rte_config *cfg = rte_eal_get_configuration();
 
@@ -92,7 +92,7 @@ unsigned int rte_get_next_lcore(unsigned int i, int skip_master, int wrap)
 }
 
 unsigned int
-rte_lcore_to_socket_id(unsigned int lcore_id)
+rte_lcore_to_socket_id(const unsigned int lcore_id)
 {
 	return lcore_config[lcore_id].socket_id;
 }
@@ -194,7 +194,7 @@ rte_socket_count(void)
 }
 
 int
-rte_socket_id_by_idx(unsigned int idx)
+rte_socket_id_by_idx(const unsigned int idx)
 {
 	const struct rte_config *config = rte_eal_get_configuration();
 	if (idx >= config->numa_node_count) {

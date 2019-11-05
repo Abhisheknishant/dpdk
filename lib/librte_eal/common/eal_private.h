@@ -234,7 +234,7 @@ int rte_eal_check_module(const char *module_name);
 /**< immediately unmap reserved virtual area. */
 void *
 eal_get_virtual_area(void *requested_addr, size_t *size,
-		size_t page_sz, int flags, int mmap_flags);
+		const size_t page_sz, const int flags, int mmap_flags);
 
 /**
  * Get cpu core_id.

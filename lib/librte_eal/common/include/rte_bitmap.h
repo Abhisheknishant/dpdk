@@ -94,9 +94,9 @@ __rte_bitmap_index2_set(struct rte_bitmap *bmp)
 }
 
 static inline uint32_t
-__rte_bitmap_get_memory_footprint(uint32_t n_bits,
-	uint32_t *array1_byte_offset, uint32_t *array1_slabs,
-	uint32_t *array2_byte_offset, uint32_t *array2_slabs)
+__rte_bitmap_get_memory_footprint(const uint32_t n_bits,
+	uint32_t * __restrict array1_byte_offset, uint32_t * __restrict array1_slabs,
+	uint32_t * __restrict array2_byte_offset, uint32_t * __restrict array2_slabs)
 {
 	uint32_t n_slabs_context, n_slabs_array1, n_cache_lines_context_and_array1;
 	uint32_t n_cache_lines_array2;
@@ -145,7 +145,7 @@ __rte_bitmap_scan_init(struct rte_bitmap *bmp)
  *   Bitmap memory footprint measured in bytes on success, 0 on error
  */
 static inline uint32_t
-rte_bitmap_get_memory_footprint(uint32_t n_bits) {
+rte_bitmap_get_memory_footprint(const uint32_t n_bits) {
 	/* Check input arguments */
 	if (n_bits == 0) {
 		return 0;
@@ -167,7 +167,7 @@ rte_bitmap_get_memory_footprint(uint32_t n_bits) {
  *   Handle to bitmap instance.
  */
 static inline struct rte_bitmap *
-rte_bitmap_init(uint32_t n_bits, uint8_t *mem, uint32_t mem_size)
+rte_bitmap_init(const uint32_t n_bits, uint8_t *mem, const uint32_t mem_size)
 {
 	struct rte_bitmap *bmp;
 	uint32_t array1_byte_offset, array1_slabs, array2_byte_offset, array2_slabs;
@@ -247,7 +247,7 @@ rte_bitmap_reset(struct rte_bitmap *bmp)
  *   0 upon success, error code otherwise
  */
 static inline void
-rte_bitmap_prefetch0(struct rte_bitmap *bmp, uint32_t pos)
+rte_bitmap_prefetch0(struct rte_bitmap *bmp, const uint32_t pos)
 {
 	uint64_t *slab2;
 	uint32_t index2;
@@ -268,7 +268,7 @@ rte_bitmap_prefetch0(struct rte_bitmap *bmp, uint32_t pos)
  *   0 when bit is cleared, non-zero when bit is set
  */
 static inline uint64_t
-rte_bitmap_get(struct rte_bitmap *bmp, uint32_t pos)
+rte_bitmap_get(struct rte_bitmap *bmp, const uint32_t pos)
 {
 	uint64_t *slab2;
 	uint32_t index2, offset2;
@@ -288,7 +288,7 @@ rte_bitmap_get(struct rte_bitmap *bmp, uint32_t pos)
  *   Bit position
  */
 static inline void
-rte_bitmap_set(struct rte_bitmap *bmp, uint32_t pos)
+rte_bitmap_set(struct rte_bitmap *bmp, const uint32_t pos)
 {
 	uint64_t *slab1, *slab2;
 	uint32_t index1, index2, offset1, offset2;
@@ -316,7 +316,7 @@ rte_bitmap_set(struct rte_bitmap *bmp, uint32_t pos)
  *   Value to be assigned to the 64-bit slab in array2
  */
 static inline void
-rte_bitmap_set_slab(struct rte_bitmap *bmp, uint32_t pos, uint64_t slab)
+rte_bitmap_set_slab(struct rte_bitmap *bmp, const uint32_t pos, const uint64_t slab)
 {
 	uint64_t *slab1, *slab2;
 	uint32_t index1, index2, offset1;
@@ -356,7 +356,7 @@ __rte_bitmap_line_not_empty(uint64_t *slab2)
  *   Bit position
  */
 static inline void
-rte_bitmap_clear(struct rte_bitmap *bmp, uint32_t pos)
+rte_bitmap_clear(struct rte_bitmap *bmp, const uint32_t pos)
 {
 	uint64_t *slab1, *slab2;
 	uint32_t index1, index2, offset1, offset2;

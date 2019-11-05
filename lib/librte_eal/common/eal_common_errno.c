@@ -18,7 +18,7 @@
 RTE_DEFINE_PER_LCORE(int, _rte_errno);
 
 const char *
-rte_strerror(int errnum)
+rte_strerror(const int errnum)
 {
 	/* BSD puts a colon in the "unknown error" messages, Linux doesn't */
 #ifdef RTE_EXEC_ENV_FREEBSD

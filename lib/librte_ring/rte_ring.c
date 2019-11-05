@@ -232,7 +232,7 @@ rte_ring_free(struct rte_ring *r)
 void
 rte_ring_dump(FILE *f, const struct rte_ring *r)
 {
-	fprintf(f, "ring <%s>@%p\n", r->name, r);
+	fprintf(f, "ring <%s>@%p\n", r->name, (const void*)r);
 	fprintf(f, "  flags=%x\n", r->flags);
 	fprintf(f, "  size=%"PRIu32"\n", r->size);
 	fprintf(f, "  capacity=%"PRIu32"\n", r->capacity);

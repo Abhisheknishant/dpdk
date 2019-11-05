@@ -41,7 +41,7 @@ rte_mtr_ops_get(uint16_t port_id, struct rte_mtr_error *error)
 }
 
 #define RTE_MTR_FUNC(port_id, func)			\
-({							\
+__extension__ ({							\
 	const struct rte_mtr_ops *ops =			\
 		rte_mtr_ops_get(port_id, error);		\
 	if (ops == NULL)					\

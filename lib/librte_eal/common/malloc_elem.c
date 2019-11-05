@@ -666,8 +666,8 @@ elem_state_to_str(enum elem_state state)
 void
 malloc_elem_dump(const struct malloc_elem *elem, FILE *f)
 {
-	fprintf(f, "Malloc element at %p (%s)\n", elem,
+	fprintf(f, "Malloc element at %p (%s)\n", (const void*)elem,
 			elem_state_to_str(elem->state));
 	fprintf(f, "  len: 0x%zx pad: 0x%" PRIx32 "\n", elem->size, elem->pad);
-	fprintf(f, "  prev: %p next: %p\n", elem->prev, elem->next);
+	fprintf(f, "  prev: %p next: %p\n", (void*)elem->prev, (void*)elem->next);
 }

@@ -43,7 +43,7 @@ static uint64_t system_page_sz;
 #define MAX_MMAP_WITH_DEFINED_ADDR_TRIES 5
 void *
 eal_get_virtual_area(void *requested_addr, size_t *size,
-		size_t page_sz, int flags, int mmap_flags)
+		const size_t page_sz, const int flags, int mmap_flags)
 {
 	bool addr_is_hint, allow_shrink, unmap, no_align;
 	uint64_t map_sz;

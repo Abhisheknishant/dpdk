@@ -50,7 +50,7 @@ rte_hexdump(FILE *f, const char * title, const void * buf, unsigned int len);
 */
 
 void
-rte_memdump(FILE *f, const char * title, const void * buf, unsigned int len);
+rte_memdump(FILE *f, const char * title, const void * buf, const unsigned int len);
 
 
 #ifdef __cplusplus

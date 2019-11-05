@@ -451,7 +451,7 @@ rte_eal_config_reattach(void)
 			/* errno is stale, don't use */
 			RTE_LOG(ERR, EAL, "Cannot mmap memory for rte_config at [%p], got [%p]"
 				" - please use '--" OPT_BASE_VIRTADDR
-				"' option\n", rte_mem_cfg_addr, mem_config);
+				"' option\n", rte_mem_cfg_addr, (void*)mem_config);
 			munmap(mem_config, sizeof(struct rte_mem_config));
 			return -1;
 		}

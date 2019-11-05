@@ -33,7 +33,7 @@ RTE_DECLARE_PER_LCORE(rte_cpuset_t, _cpuset); /**< Per thread "cpuset". */
  * @return
  *   The role of the lcore.
  */
-enum rte_lcore_role_t rte_eal_lcore_role(unsigned int lcore_id);
+enum rte_lcore_role_t rte_eal_lcore_role(const unsigned int lcore_id);
 
 /**
  * Return the Application thread ID of the execution unit.
@@ -121,7 +121,7 @@ rte_socket_count(void);
  *   - -1 on error, with errno set to EINVAL
  */
 int
-rte_socket_id_by_idx(unsigned int idx);
+rte_socket_id_by_idx(const unsigned int idx);
 
 /**
  * Get the ID of the physical socket of the specified lcore
@@ -132,7 +132,7 @@ rte_socket_id_by_idx(unsigned int idx);
  *   the ID of lcoreid's physical socket
  */
 unsigned int
-rte_lcore_to_socket_id(unsigned int lcore_id);
+rte_lcore_to_socket_id(const unsigned int lcore_id);
 
 /**
  * @warning
@@ -161,7 +161,7 @@ rte_lcore_to_cpu_id(int lcore_id);
  */
 __rte_experimental
 rte_cpuset_t
-rte_lcore_cpuset(unsigned int lcore_id);
+rte_lcore_cpuset(const unsigned int lcore_id);
 
 /**
  * Test if an lcore is enabled.
@@ -172,7 +172,7 @@ rte_lcore_cpuset(unsigned int lcore_id);
  * @return
  *   True if the given lcore is enabled; false otherwise.
  */
-int rte_lcore_is_enabled(unsigned int lcore_id);
+int rte_lcore_is_enabled(const unsigned int lcore_id);
 
 /**
  * Get the next enabled lcore ID.
