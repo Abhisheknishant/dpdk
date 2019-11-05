@@ -266,8 +266,12 @@ ice_tx_vec_queue_default(struct ice_tx_queue *txq)
 static inline int
 ice_rx_vec_dev_check_default(struct rte_eth_dev *dev)
 {
-	int i;
+	struct rte_eth_rxmode *rxmode = &dev->data->dev_conf.rxmode;
 	struct ice_rx_queue *rxq;
+	int i;
+
+	if (rxmode->offloads & DEV_RX_OFFLOAD_FLOW_MARK)
+		return -1;
 
 	for (i = 0; i < dev->data->nb_rx_queues; i++) {
 		rxq = dev->data->rx_queues[i];

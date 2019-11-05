@@ -1266,6 +1266,7 @@ ice_fdir_parse_action(struct ice_adapter *ad,
 		      struct rte_flow_error *error,
 		      struct ice_fdir_filter_conf *filter)
 {
+	struct rte_eth_rxmode *rxmode = &ad->eth_dev->data->dev_conf.rxmode;
 	struct ice_pf *pf = &ad->pf;
 	const struct rte_flow_action_queue *act_q;
 	const struct rte_flow_action_mark *mark_spec = NULL;
@@ -1317,8 +1318,13 @@ ice_fdir_parse_action(struct ice_adapter *ad,
 				return ret;
 			break;
 		case RTE_FLOW_ACTION_TYPE_MARK:
+			if (!(rxmode->offloads & DEV_RX_OFFLOAD_FLOW_MARK)) {
+				rte_flow_error_set(error, EINVAL,
+					RTE_FLOW_ERROR_TYPE_ACTION, actions,
+					"DEV_RX_OFFLOAD_FLOW_MARK is not enabled");
+				return -rte_errno;
+			}
 			mark_num++;
-
 			mark_spec = actions->conf;
 			filter->input.fltr_id = mark_spec->id;
 			break;
