@@ -419,6 +419,7 @@ lcoreid_t latencystats_lcore_id = -1;
 struct rte_eth_rxmode rx_mode = {
 	.max_rx_pkt_len = RTE_ETHER_MAX_LEN,
 		/**< Default maximum frame length. */
+	.max_lro_pkt_size = RTE_ETHER_MAX_LEN,
 };
 
 struct rte_eth_txmode tx_mode = {
