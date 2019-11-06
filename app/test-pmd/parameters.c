@@ -592,6 +592,7 @@ launch_args_parse(int argc, char** argv)
 		{ "mbuf-size",			1, 0, 0 },
 		{ "total-num-mbufs",		1, 0, 0 },
 		{ "max-pkt-len",		1, 0, 0 },
+		{ "max-lro-pkt-size",		1, 0, 0 },
 		{ "pkt-filter-mode",            1, 0, 0 },
 		{ "pkt-filter-report-hash",     1, 0, 0 },
 		{ "pkt-filter-size",            1, 0, 0 },
@@ -887,6 +888,10 @@ launch_args_parse(int argc, char** argv)
 					rte_exit(EXIT_FAILURE,
 						 "Invalid max-pkt-len=%d - should be > %d\n",
 						 n, RTE_ETHER_MIN_LEN);
+			}
+			if (!strcmp(lgopts[opt_idx].name, "max-lro-pkt-size")) {
+				n = atoi(optarg);
+				rx_mode.max_lro_pkt_size = (uint32_t) n;
 			}
 			if (!strcmp(lgopts[opt_idx].name, "pkt-filter-mode")) {
 				if (!strcmp(optarg, "signature"))
