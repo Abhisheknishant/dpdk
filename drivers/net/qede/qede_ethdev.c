@@ -1273,6 +1273,7 @@ qede_dev_info_get(struct rte_eth_dev *eth_dev,
 
 	dev_info->min_rx_bufsize = (uint32_t)QEDE_MIN_RX_BUFF_SIZE;
 	dev_info->max_rx_pktlen = (uint32_t)ETH_TX_MAX_NON_LSO_PKT_LEN;
+	dev_info->max_lro_pkt_size = (uint32_t)ETH_TX_MAX_NON_LSO_PKT_LEN;
 	dev_info->rx_desc_lim = qede_rx_desc_lim;
 	dev_info->tx_desc_lim = qede_tx_desc_lim;
 
