@@ -238,12 +238,12 @@ RTE_INIT(ice_hash_engine_init)
 static int
 ice_hash_init(struct ice_adapter *ad)
 {
-	struct ice_flow_parser *parser = NULL;
+	struct ice_flow_parser *parser;
 
-	if (ad->active_pkg_type == ICE_PKG_TYPE_OS_DEFAULT)
-		parser = &ice_hash_parser_os;
-	else if (ad->active_pkg_type == ICE_PKG_TYPE_COMMS)
+	if (ad->active_pkg_type == ICE_PKG_TYPE_COMMS)
 		parser = &ice_hash_parser_comms;
+	else
+		parser = &ice_hash_parser_os;
 
 	return ice_register_parser(parser, ad);
 }
