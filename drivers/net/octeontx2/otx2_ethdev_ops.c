@@ -2,6 +2,7 @@
  * Copyright(C) 2019 Marvell International Ltd.
  */
 
+#include <rte_ethdev.h>
 #include <rte_mbuf_pool_ops.h>
 
 #include "otx2_ethdev.h"
@@ -219,6 +220,92 @@ otx2_nix_txq_info_get(struct rte_eth_dev *eth_dev, uint16_t queue_id,
 	qinfo->conf.tx_rs_thresh = 0;
 	qinfo->conf.offloads = txq->offloads;
 	qinfo->conf.tx_deferred_start = 0;
+}
+
+int
+otx2_rx_burst_mode_get(struct rte_eth_dev *eth_dev,
+		       __rte_unused uint16_t queue_id,
+		       struct rte_eth_burst_mode *mode)
+{
+#define STRING_SIZE	1024
+	struct otx2_eth_dev *dev = otx2_eth_pmd_priv(eth_dev);
+	char info[STRING_SIZE] = {'\0'};
+	ssize_t bytes = 0;
+
+	if (dev->scalar_ena)
+		bytes += rte_strscpy(info, "Scalar", 7);
+	else
+		bytes += rte_strscpy(info, "Vector Neon", 12);
+
+	bytes += rte_strscpy(info + bytes, ", Rx Offloads:", 15);
+
+	if (dev->rx_offload_flags & NIX_RX_OFFLOAD_RSS_F)
+		bytes += rte_strscpy(info + bytes, " RSS,", 6);
+
+	if (dev->rx_offload_flags & NIX_RX_OFFLOAD_PTYPE_F)
+		bytes += rte_strscpy(info + bytes, " Ptype,", 8);
+
+	if (dev->rx_offload_flags & NIX_RX_OFFLOAD_CHECKSUM_F)
+		bytes += rte_strscpy(info + bytes, " Checksum,", 11);
+
+	if (dev->rx_offload_flags & NIX_RX_OFFLOAD_VLAN_STRIP_F)
+		bytes += rte_strscpy(info + bytes, " VLAN Strip,", 13);
+
+	if (dev->rx_offload_flags & NIX_RX_OFFLOAD_MARK_UPDATE_F)
+		bytes += rte_strscpy(info + bytes, " Mark Update,", 14);
+
+	if (dev->rx_offload_flags & NIX_RX_OFFLOAD_TSTAMP_F)
+		bytes += rte_strscpy(info + bytes, " Timestamp,", 12);
+
+	if (dev->rx_offload_flags & NIX_RX_MULTI_SEG_F)
+		bytes += rte_strscpy(info + bytes, " Scattered,", 12);
+
+	/* Copy required string into output buffer */
+	rte_strscpy(mode->info, info, bytes + 1);
+	return 0;
+}
+
+int
+otx2_tx_burst_mode_get(struct rte_eth_dev *eth_dev,
+		       __rte_unused uint16_t queue_id,
+		       struct rte_eth_burst_mode *mode)
+{
+#define STRING_SIZE	1024
+	struct otx2_eth_dev *dev = otx2_eth_pmd_priv(eth_dev);
+	char info[STRING_SIZE] = {'\0'};
+	ssize_t bytes = 0;
+
+	if (dev->scalar_ena)
+		bytes += rte_strscpy(info, "Scalar", 7);
+	else
+		bytes += rte_strscpy(info, "Vector Neon", 12);
+
+	bytes += rte_strscpy(info + bytes, ", Tx Offloads:", 15);
+
+	if (dev->tx_offload_flags & NIX_TX_OFFLOAD_L3_L4_CSUM_F)
+		bytes += rte_strscpy(info + bytes, " Inner L3/L4 csum,", 19);
+
+	if (dev->tx_offload_flags & NIX_TX_OFFLOAD_OL3_OL4_CSUM_F)
+		bytes += rte_strscpy(info + bytes, " Outer L3/L4 csum,", 19);
+
+	if (dev->tx_offload_flags & NIX_TX_OFFLOAD_VLAN_QINQ_F)
+		bytes += rte_strscpy(info + bytes, " VLAN Insertion,", 16);
+
+	if (dev->tx_offload_flags & NIX_TX_OFFLOAD_MBUF_NOFF_F)
+		bytes += rte_strscpy(info + bytes, " MBUF free disable,", 20);
+
+	if (dev->tx_offload_flags & NIX_TX_OFFLOAD_TSTAMP_F)
+		bytes += rte_strscpy(info + bytes, " Timestamp,", 12);
+
+	if (dev->tx_offload_flags & NIX_TX_OFFLOAD_TSO_F)
+		bytes += rte_strscpy(info + bytes, " TSO,", 6);
+
+	if (dev->tx_offload_flags & NIX_RX_MULTI_SEG_F)
+		bytes += rte_strscpy(info + bytes, " Scattered,", 12);
+
+	/* Copy required string into output buffer */
+	rte_strscpy(mode->info, info, bytes + 1);
+	return 0;
 }
 
 static void
