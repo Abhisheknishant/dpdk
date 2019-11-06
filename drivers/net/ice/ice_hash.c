@@ -466,6 +466,7 @@ ice_hash_create(struct ice_adapter *ad,
 				"No memory for filter_ptr");
 		return -ENOMEM;
 	}
+	filter_ptr->symm = 1;
 
 	if (hash_function == RTE_ETH_HASH_FUNCTION_SIMPLE_XOR) {
 		/* Enable registers for simple_xor hash function. */
@@ -530,7 +531,8 @@ ice_hash_destroy(struct ice_adapter *ad,
 			(1 << VSIQF_HASH_CTL_HASH_SCHEME_S);
 		ICE_WRITE_REG(hw, VSIQF_HASH_CTL(vsi->vsi_id), reg);
 	} else {
-		ret = ice_rem_vsi_rss_cfg(hw, vsi->idx);
+		ret = ice_rem_rss_cfg(hw, vsi->idx,
+			filter_ptr->hashed_flds, filter_ptr->packet_hdr);
 		if (ret) {
 			rte_flow_error_set(error, EINVAL,
 					RTE_FLOW_ERROR_TYPE_HANDLE, NULL,
