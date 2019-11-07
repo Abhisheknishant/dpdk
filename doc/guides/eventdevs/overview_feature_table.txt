@@ -70,13 +70,13 @@
                                                x x
                                                  2
    ===================================== = = = = = = =
-   Event queue priority based scheduling         Y
+   Event queue priority based scheduling       Y Y
    Event priority based scheduling
-   Event device distributed scheduling           Y
-   Event device non sequential mode              Y
-   Event queue all types                         Y
+   Event device distributed scheduling         Y Y
+   Event device non sequential mode            Y Y
+   Event queue all types                       Y Y
    Burst mode enqueue/dequeue
    Event port implicit release disable
-   Runtime event queue/port linking              Y
-   Multi queue linking per port                  Y
+   Runtime event queue/port linking            Y Y
+   Multi queue linking per port                Y Y
    ===================================== = = = = = = =
