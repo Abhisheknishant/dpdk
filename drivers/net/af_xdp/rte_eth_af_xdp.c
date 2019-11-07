@@ -595,7 +595,7 @@ eth_dev_info(struct rte_eth_dev *dev, struct rte_eth_dev_info *dev_info)
 	dev_info->max_tx_queues = internals->queue_cnt;
 
 	dev_info->min_mtu = RTE_ETHER_MIN_MTU;
-	dev_info->max_mtu = ETH_AF_XDP_FRAME_SIZE - ETH_AF_XDP_DATA_HEADROOM;
+	dev_info->max_mtu = 1500;
 
 	dev_info->default_rxportconf.nb_queues = 1;
 	dev_info->default_txportconf.nb_queues = 1;
@@ -1327,6 +1327,8 @@ rte_pmd_af_xdp_probe(struct rte_vdev_device *dev)
 		AF_XDP_LOG(ERR, "Failed to init internals\n");
 		return -1;
 	}
+
+	eth_dev_mtu_set(eth_dev, 1500);
 
 	rte_eth_dev_probing_finish(eth_dev);
 
