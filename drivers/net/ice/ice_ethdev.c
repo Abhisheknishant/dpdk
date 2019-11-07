@@ -2319,6 +2319,7 @@ ice_dev_close(struct rte_eth_dev *dev)
 	rte_free(hw->port_info);
 	hw->port_info = NULL;
 	ice_shutdown_all_ctrlq(hw);
+	ice_clear_hw_tbls(hw);
 	rte_free(pf->proto_xtr);
 	pf->proto_xtr = NULL;
 
