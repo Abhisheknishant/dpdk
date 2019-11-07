@@ -112,6 +112,11 @@ The command line options are:
 
     Set the maximum packet size to N bytes, where N >= 64. The default value is 1518.
 
+*   ``--max-lro-pkt-size=N``
+
+    Set the maximum LRO aggregated packet size to N bytes, where N >= 64.
+    The default value is 1518.
+
 *   ``--eth-peers-configfile=name``
 
     Use a configuration file containing the Ethernet addresses of the peer ports.
