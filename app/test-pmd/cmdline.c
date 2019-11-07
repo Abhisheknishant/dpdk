@@ -5490,7 +5490,7 @@ cmd_show_bypass_config_parsed(void *parsed_result,
 		"OS/board off",
 		"power supply off",
 		"timeout"};
-	int num_events = (sizeof events) / (sizeof events[0]);
+	int num_events = RTE_DIM(events);
 
 	/* Display the bypass mode.*/
 	if (rte_pmd_ixgbe_bypass_state_show(port_id, &bypass_mode) != 0) {

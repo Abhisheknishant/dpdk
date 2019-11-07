@@ -240,7 +240,7 @@ run_on_core_pair(struct lcore_pair *cores, struct rte_ring *r,
 {
 	struct thread_params param1 = {0}, param2 = {0};
 	unsigned i;
-	for (i = 0; i < sizeof(bulk_sizes)/sizeof(bulk_sizes[0]); i++) {
+	for (i = 0; i < RTE_DIM(bulk_sizes); i++) {
 		lcore_count = 0;
 		param1.size = param2.size = bulk_sizes[i];
 		param1.r = param2.r = r;
@@ -376,7 +376,7 @@ test_burst_enqueue_dequeue(struct rte_ring *r)
 	unsigned sz, i = 0;
 	void *burst[MAX_BURST] = {0};
 
-	for (sz = 0; sz < sizeof(bulk_sizes)/sizeof(bulk_sizes[0]); sz++) {
+	for (sz = 0; sz < RTE_DIM(bulk_sizes); sz++) {
 		const uint64_t sc_start = rte_rdtsc();
 		for (i = 0; i < iterations; i++) {
 			rte_ring_sp_enqueue_burst(r, burst,
@@ -414,7 +414,7 @@ test_bulk_enqueue_dequeue(struct rte_ring *r)
 	unsigned sz, i = 0;
 	void *burst[MAX_BURST] = {0};
 
-	for (sz = 0; sz < sizeof(bulk_sizes)/sizeof(bulk_sizes[0]); sz++) {
+	for (sz = 0; sz < RTE_DIM(bulk_sizes); sz++) {
 		const uint64_t sc_start = rte_rdtsc();
 		for (i = 0; i < iterations; i++) {
 			rte_ring_sp_enqueue_bulk(r, burst,

@@ -103,7 +103,7 @@ static int
 func_test(void)
 {
 	unsigned int off_src, off_dst, i;
-	unsigned int num_buf_sizes = sizeof(buf_sizes) / sizeof(buf_sizes[0]);
+	unsigned int num_buf_sizes = RTE_DIM(buf_sizes);
 	int ret;
 
 	for (off_src = 0; off_src < ALIGNMENT_UNIT; off_src++) {
