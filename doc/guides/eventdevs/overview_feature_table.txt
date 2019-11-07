@@ -1,0 +1,82 @@
+
+.. raw:: html
+
+   <style>
+      .wy-nav-content {
+         opacity: .99;
+      }
+      table#id1 {
+         cursor: default;
+         overflow: hidden;
+      }
+      table#id1 th, table#id1 td {
+         text-align: center;
+      }
+      table#id1 th {
+         font-size: 72%;
+         white-space: pre-wrap;
+         vertical-align: top;
+         padding: 0.5em 0;
+         min-width: 0.9em;
+         width: 2em;
+      }
+      table#id1 col:first-child {
+         width: 0;
+      }
+      table#id1 th:first-child {
+         vertical-align: bottom;
+      }
+      table#id1 td {
+         font-size: 70%;
+         padding: 1px;
+      }
+      table#id1 td:first-child {
+         padding-left: 1em;
+         text-align: left;
+      }
+      table#id1 tr:nth-child(2n-1) td {
+         background-color: rgba(210, 210, 210, 0.2);
+      }
+      table#id1 th:not(:first-child):hover,
+      table#id1 td:not(:first-child):hover {
+         position: relative;
+      }
+      table#id1 th:not(:first-child):hover::after,
+      table#id1 td:not(:first-child):hover::after {
+         content: '';
+         height: 6000px;
+         top: -3000px;
+         width: 100%;
+         left: 0;
+         position: absolute;
+         z-index: -1;
+         background-color: #ffb;
+      }
+      table#id1 tr:hover td {
+         background-color: #ffb;
+      }
+   </style>
+
+.. table:: Features availability in eventdev drivers
+
+   ===================================== = = = = = = =
+   Feature                               d d d o o o s
+                                         p p s c c p w
+                                         a a w t t d
+                                         a a   e e l
+                                           2   o o
+                                               n n
+                                               t t
+                                               x x
+                                                 2
+   ===================================== = = = = = = =
+   Event queue priority based scheduling
+   Event priority based scheduling
+   Event device distributed scheduling
+   Event device non sequential mode
+   Event queue all types
+   Burst mode enqueue/dequeue
+   Event port implicit release disable
+   Runtime event queue/port linking
+   Multi queue linking per port
+   ===================================== = = = = = = =
