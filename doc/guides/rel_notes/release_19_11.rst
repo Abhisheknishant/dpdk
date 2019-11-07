@@ -65,6 +65,11 @@ New Features
 
   The lock-free stack implementation is enabled for aarch64 platforms.
 
+* **Added Wait Until Equal API.**
+
+  A new API has been added to wait for a memory location to be updated with a
+  16-bit, 32-bit, 64-bit value.
+
 * **Changed mempool allocation behaviour.**
 
   Objects are no longer across pages by default.
