@@ -17,6 +17,13 @@
 #include <rte_string_fns.h> /* strlcpy */
 
 #ifdef RTE_EXEC_ENV_FREEBSD
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#include <sys/user.h>
+#endif
+
+#ifdef RTE_EXEC_ENV_FREEBSD
 #define self "curproc"
 #define exe "file"
 #else
@@ -34,7 +41,49 @@ extern uint16_t flag_for_send_pkts;
 /* close all open file descriptors, check /proc/self/fd to only
  * call close on open fds. Exclude fds 0, 1 and 2
  */
-#ifdef RTE_EXEC_ENV_LINUX
+#ifdef RTE_EXEC_ENV_FREEBSD
+static inline void
+close_files(void)
+{
+	int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_FILEDESC };
+	size_t sysctl_len;
+	void *oldp;
+	int ret;
+
+	mib[3] = getpid();
+	ret = sysctl(mib, 4, NULL, &sysctl_len, NULL, 0);
+	if (ret < 0) {
+		rte_panic("Error sysctl failed %d %d %s\n", ret, errno,
+			  strerror(errno));
+		return;
+	}
+	oldp = malloc(sysctl_len);
+	if (!oldp) {
+		rte_panic("Error malloc failed\n");
+		return;
+	}
+	ret = sysctl(mib, 4, oldp, &sysctl_len, NULL, 0);
+	if (ret < 0) {
+		ret = errno;
+		free(oldp);
+		rte_panic("Error sysctl failed %d %d %s\n", ret, errno,
+			  strerror(errno));
+	}
+	char *curr = oldp, *end = (char *)oldp + sysctl_len;
+	struct kinfo_file *kf_info;
+	while (curr < end) {
+		kf_info = (struct kinfo_file *)curr;
+		if (kf_info->kf_fd <= 2) {
+			curr += kf_info->kf_structsize;
+			continue;
+		}
+		close(kf_info->kf_fd);
+		curr += kf_info->kf_structsize;
+	}
+	free(oldp);
+}
+
+#else
 static inline void
 close_files(void)
 {
