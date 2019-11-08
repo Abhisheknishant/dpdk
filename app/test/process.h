@@ -30,6 +30,54 @@ extern void *send_pkts(void *empty);
 extern uint16_t flag_for_send_pkts;
 #endif
 
+
+/* close all open file descriptors, check /proc/self/fd to only
+ * call close on open fds. Exclude fds 0, 1 and 2
+ */
+#ifdef RTE_EXEC_ENV_LINUX
+static inline void
+close_files(void)
+{
+	const char *procdir = "/proc/self/fd/";
+	struct dirent *dirent;
+	int fd, fdir, status;
+	char *endptr;
+	DIR *dir;
+
+	dir = opendir(procdir);
+	if (dir == NULL) {
+		rte_panic("Error opening %s: %s\n", procdir,
+				strerror(errno));
+	}
+
+	fdir = dirfd(dir);
+	if (fdir < 0) {
+		status = errno;
+		closedir(dir);
+		rte_panic("Error %d obtaining fd for dir %s: %s\n",
+				fdir, procdir, strerror(status));
+	}
+
+	while ((dirent = readdir(dir)) != NULL) {
+		if (!strcmp(".", dirent->d_name) ||
+			!strcmp("..", dirent->d_name))
+			continue;
+
+		errno = 0;
+		fd = strtol(dirent->d_name, &endptr, 10);
+		if (errno != 0 || endptr[0] != '\0') {
+			printf("Error converint name fd %d %s:\n",
+				fd, dirent->d_name);
+			continue;
+		}
+		if (fd == fdir || fd <= 2)
+			continue;
+
+		close(fd);
+	}
+	closedir(dir);
+}
+#endif
 /*
  * launches a second copy of the test process using the given argv parameters,
  * which should include argv[0] as the process name. To identify in the
@@ -41,12 +89,8 @@ process_dup(const char *const argv[], int numargs, const char *env_value)
 {
 	int num;
 	char *argv_cpy[numargs + 1];
-	int i, fd, fdir, status;
-	struct dirent *dirent;
-	const char *procdir = "/proc/self/fd/";
+	int i, status;
 	char path[32];
-	char *endptr;
-	DIR *dir;
 #ifdef RTE_LIBRTE_PDUMP
 	pthread_t thread;
 #endif
@@ -61,40 +105,7 @@ process_dup(const char *const argv[], int numargs, const char *env_value)
 		argv_cpy[i] = NULL;
 		num = numargs;
 
-		/* close all open file descriptors, check /proc/self/fd to only
-		 * call close on open fds. Exclude fds 0, 1 and 2*/
-		dir = opendir(procdir);
-		if (dir == NULL) {
-			rte_panic("Error opening %s: %s\n", procdir,
-					strerror(errno));
-		}
-
-		fdir = dirfd(dir);
-		if (fdir < 0) {
-			status = errno;
-			closedir(dir);
-			rte_panic("Error %d obtaining fd for dir %s: %s\n",
-					fdir, procdir, strerror(status));
-		}
-
-		while ((dirent = readdir(dir)) != NULL) {
-			if (!strcmp(".", dirent->d_name) ||
-			    !strcmp("..", dirent->d_name))
-				continue;
-
-			errno = 0;
-			fd = strtol(dirent->d_name, &endptr, 10);
-			if (errno != 0 || endptr[0] != '\0') {
-				printf("Error converint name fd %d %s:\n",
-					fd, dirent->d_name);
-				continue;
-			}
-			if (fd == fdir || fd <= 2)
-				continue;
-
-			close(fd);
-		}
-		closedir(dir);
+		close_files();
 
 		printf("Running binary with argv[]:");
 		for (i = 0; i < num; i++)
