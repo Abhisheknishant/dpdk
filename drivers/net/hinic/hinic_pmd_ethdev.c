@@ -727,6 +727,7 @@ hinic_dev_infos_get(struct rte_eth_dev *dev, struct rte_eth_dev_info *info)
 	info->max_tx_queues  = nic_dev->nic_cap.max_sqs;
 	info->min_rx_bufsize = HINIC_MIN_RX_BUF_SIZE;
 	info->max_rx_pktlen  = HINIC_MAX_JUMBO_FRAME_SIZE;
+	info->max_lro_pktlen = HINIC_MAX_JUMBO_FRAME_SIZE;
 	info->max_mac_addrs  = HINIC_MAX_UC_MAC_ADDRS;
 	info->min_mtu = HINIC_MIN_MTU_SIZE;
 	info->max_mtu = HINIC_MAX_MTU_SIZE;

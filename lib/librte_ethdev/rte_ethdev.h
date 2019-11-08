@@ -1183,6 +1183,7 @@ struct rte_eth_dev_info {
 	const uint32_t *dev_flags; /**< Device flags */
 	uint32_t min_rx_bufsize; /**< Minimum size of RX buffer. */
 	uint32_t max_rx_pktlen; /**< Maximum configurable length of RX pkt. */
+	uint32_t max_lro_pktlen; /**< Maximum size of LRO aggregated packet. */
 	uint16_t max_rx_queues; /**< Maximum number of RX queues. */
 	uint16_t max_tx_queues; /**< Maximum number of TX queues. */
 	uint32_t max_mac_addrs; /**< Maximum number of MAC addresses. */

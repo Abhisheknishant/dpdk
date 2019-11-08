@@ -403,6 +403,9 @@ ABI Changes
   align the Ethernet header on receive and all known encapsulations
   preserve the alignment of the header.
 
+* ethdev: Added 32-bit field for maximum LRO aggregated packet size,
+  as port capability in the struct ``rte_eth_dev_info``.
+
 * security: The field ``replay_win_sz`` has been moved from ipsec library
   based ``rte_ipsec_sa_prm`` structure to security library based structure
   ``rte_security_ipsec_xform``, which specify the Anti replay window size
