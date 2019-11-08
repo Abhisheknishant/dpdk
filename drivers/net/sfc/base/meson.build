@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+#
 # Copyright (c) 2016-2018 Solarflare Communications Inc.
 # All rights reserved.
 #
