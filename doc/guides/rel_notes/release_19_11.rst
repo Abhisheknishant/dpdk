@@ -399,6 +399,14 @@ ABI Changes
   align the Ethernet header on receive and all known encapsulations
   preserve the alignment of the header.
 
+* ethdev: Added 32-bit fields for maximum LRO aggregated packet size, in
+  struct ``rte_eth_dev_info`` for the port capability and in struct
+  ``rte_eth_rxmode`` for the port configuration.
+  Application should use the new field in struct ``rte_eth_rxmode`` to configure
+  the requested size.
+  PMD should use the new field in struct ``rte_eth_dev_info`` to report the
+  supported port capability.
+
 
 Shared Library Versions
 -----------------------

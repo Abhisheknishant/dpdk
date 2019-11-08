@@ -535,6 +535,7 @@ static int bnxt_dev_info_get_op(struct rte_eth_dev *eth_dev,
 	/* Fast path specifics */
 	dev_info->min_rx_bufsize = 1;
 	dev_info->max_rx_pktlen = BNXT_MAX_PKT_LEN;
+	dev_info->max_lro_pkt_size = BNXT_MAX_PKT_LEN;
 
 	dev_info->rx_offload_capa = BNXT_DEV_RX_OFFLOAD_SUPPORT;
 	if (bp->flags & BNXT_FLAG_PTP_SUPPORTED)
