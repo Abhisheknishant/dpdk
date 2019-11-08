@@ -189,7 +189,7 @@ New Features
 
   PDCP support is added to DPAA_SEC and DPAA2_SEC PMDs using rte_security APIs.
   Support is added for all sequence number sizes for control and user plane.
-  Test application is updated for unit testing.
+  Test and test-crypto-perf application is updated for unit testing.
 
 * **Enabled Single Pass GCM acceleration on QAT GEN3.**
 
