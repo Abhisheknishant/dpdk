@@ -100,7 +100,9 @@ WERROR_FLAGS += -Wno-format-truncation
 endif
 
 # disable packed member unalign warnings
+ifneq ($(CONFIG_RTE_ARCH_ARM), y)
 WERROR_FLAGS += -Wno-address-of-packed-member
+endif
 
 export CC AS AR LD OBJCOPY OBJDUMP STRIP READELF
 export TOOLCHAIN_CFLAGS TOOLCHAIN_LDFLAGS TOOLCHAIN_ASFLAGS
