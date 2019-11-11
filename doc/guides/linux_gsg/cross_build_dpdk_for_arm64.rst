@@ -1,15 +1,15 @@
 ..  SPDX-License-Identifier: BSD-3-Clause
     Copyright(c) 2018 ARM Corporation.
 
-Cross compile DPDK for ARM64
-============================
-This chapter describes how to cross compile DPDK for ARM64 from x86 build hosts.
+Cross compile DPDK for aarch64 and aarch32
+==========================================
+This chapter describes how to cross-compile DPDK for aarch64 from x86 and compile 32-bit aarch32 DPDK from aarch64 build hosts.
 
 .. note::
 
-   Whilst it is recommended to natively build DPDK on ARM64 (just
-   like with x86), it is also possible to cross-build DPDK for ARM64. An
-   ARM64 cross compile GNU toolchain is used for this.
+   Whilst it is recommended to natively build DPDK on aarch64 (just
+   like with x86), it is also possible to cross-build DPDK for aarch64. An
+   aarch64 cross compile GNU toolchain is used for this.
 
 Obtain the cross tool chain
 ---------------------------
@@ -133,3 +133,27 @@ command::
 
 	meson arm64-build --cross-file config/arm/arm64_armv8_linux_gcc
 	ninja -C arm64-build
+
+Compiling DPDK for aarch32/armv7 on aarch64 host
+------------------------------------------
+
+Some aarch64 platforms support EL0 aarch32 mode, so the 32-bit aarch32
+applications and the legacy 32-bit armv7 applications can run in this mode.
+With the GNU C compiler for the armhf architecture toolchain
+gcc-arm-linux-gnueabihf, it can generate aarch32 binary on aarch64 natively.
+
+For Example, in 64-bit Debian, we can use the following command to build 32-bit armv7 DPDK on aarch64 natively:
+
+Install cross compile toolchain for the armhf architecure.
+command::
+
+	dpkg --add-architecture armhf
+	apt-get update
+	apt-get install -y gcc gcc-arm-linux-gnueabihf libc6:armhf make binutils
+
+Build DPDK arm-armv7a-linuxapp-gcc executables.
+command::
+
+	cd <dpdk_folder>
+	make config CROSS=arm-linux-gnueabihf- T=arm-armv7a-linuxapp-gcc
+	make -j CROSS=arm-linux-gnueabihf- T=arm-armv7a-linuxapp-gcc RTE_DEVEL_BUILD=n
