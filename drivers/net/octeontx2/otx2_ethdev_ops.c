@@ -2,6 +2,7 @@
  * Copyright(C) 2019 Marvell International Ltd.
  */
 
+#include <rte_ethdev.h>
 #include <rte_mbuf_pool_ops.h>
 
 #include "otx2_ethdev.h"
@@ -223,6 +224,200 @@ otx2_nix_txq_info_get(struct rte_eth_dev *eth_dev, uint16_t queue_id,
 	qinfo->conf.tx_rs_thresh = 0;
 	qinfo->conf.offloads = txq->offloads;
 	qinfo->conf.tx_deferred_start = 0;
+}
+
+int
+otx2_rx_burst_mode_get(struct rte_eth_dev *eth_dev,
+		       __rte_unused uint16_t queue_id,
+		       struct rte_eth_burst_mode *mode)
+{
+	ssize_t bytes = 0, str_size = RTE_ETH_BURST_MODE_INFO_SIZE, rc;
+	struct otx2_eth_dev *dev = otx2_eth_pmd_priv(eth_dev);
+
+	if (dev->scalar_ena) {
+		rc = rte_strscpy(mode->info, "Scalar", str_size - bytes);
+		if (rc < 0)
+			goto error;
+
+		bytes += rc;
+	} else {
+		rc = rte_strscpy(mode->info, "Vector Neon", str_size - bytes);
+		if (rc < 0)
+			goto error;
+
+		bytes += rc;
+	}
+
+	rc = rte_strscpy(mode->info + bytes, ", Rx Offloads:",
+			 str_size - bytes);
+	if (rc < 0)
+		goto error;
+
+	bytes += rc;
+
+	if (dev->rx_offload_flags & NIX_RX_OFFLOAD_RSS_F) {
+		rc = rte_strscpy(mode->info + bytes, " RSS,", str_size - bytes);
+		if (rc < 0)
+			goto error;
+
+		bytes += rc;
+	}
+
+	if (dev->rx_offload_flags & NIX_RX_OFFLOAD_PTYPE_F) {
+		rc = rte_strscpy(mode->info + bytes, " Ptype,",
+				 str_size - bytes);
+		if (rc < 0)
+			goto error;
+
+		bytes += rc;
+	}
+
+	if (dev->rx_offload_flags & NIX_RX_OFFLOAD_CHECKSUM_F) {
+		rc = rte_strscpy(mode->info + bytes, " Checksum,",
+				 str_size - bytes);
+		if (rc < 0)
+			goto error;
+
+		bytes += rc;
+	}
+
+	if (dev->rx_offload_flags & NIX_RX_OFFLOAD_VLAN_STRIP_F) {
+		rc = rte_strscpy(mode->info + bytes, " VLAN Strip,",
+				 str_size - bytes);
+		if (rc < 0)
+			goto error;
+
+		bytes += rc;
+	}
+
+	if (dev->rx_offload_flags & NIX_RX_OFFLOAD_MARK_UPDATE_F) {
+		rc = rte_strscpy(mode->info + bytes, " Mark Update,",
+				 str_size - bytes);
+		if (rc < 0)
+			goto error;
+
+		bytes += rc;
+	}
+
+	if (dev->rx_offload_flags & NIX_RX_OFFLOAD_TSTAMP_F) {
+		rc = rte_strscpy(mode->info + bytes, " Timestamp,",
+				 str_size - bytes);
+		if (rc < 0)
+			goto error;
+
+		bytes += rc;
+	}
+
+	if (dev->rx_offload_flags & NIX_RX_MULTI_SEG_F) {
+		rc = rte_strscpy(mode->info + bytes, " Scattered,",
+				 str_size - bytes);
+		if (rc < 0)
+			goto error;
+
+		bytes += rc;
+	}
+
+	return 0;
+
+error:
+	return rc;
+}
+
+int
+otx2_tx_burst_mode_get(struct rte_eth_dev *eth_dev,
+		       __rte_unused uint16_t queue_id,
+		       struct rte_eth_burst_mode *mode)
+{
+	ssize_t bytes = 0, str_size = RTE_ETH_BURST_MODE_INFO_SIZE, rc;
+	struct otx2_eth_dev *dev = otx2_eth_pmd_priv(eth_dev);
+
+	if (dev->scalar_ena) {
+		rc = rte_strscpy(mode->info, "Scalar", str_size - bytes);
+		if (rc < 0)
+			goto error;
+
+		bytes += rc;
+	} else {
+		rc = rte_strscpy(mode->info, "Vector Neon", str_size - bytes);
+		if (rc < 0)
+			goto error;
+
+		bytes += rc;
+	}
+
+	rc = rte_strscpy(mode->info + bytes, ", Tx Offloads:",
+			 str_size - bytes);
+	if (rc < 0)
+		goto error;
+
+	bytes += rc;
+
+	if (dev->tx_offload_flags & NIX_TX_OFFLOAD_L3_L4_CSUM_F) {
+		rc = rte_strscpy(mode->info + bytes, " Inner L3/L4 csum,",
+				 str_size - bytes);
+		if (rc < 0)
+			goto error;
+
+		bytes += rc;
+	}
+
+	if (dev->tx_offload_flags & NIX_TX_OFFLOAD_OL3_OL4_CSUM_F) {
+		rc = rte_strscpy(mode->info + bytes, " Outer L3/L4 csum,",
+				 str_size - bytes);
+		if (rc < 0)
+			goto error;
+
+		bytes += rc;
+	}
+
+	if (dev->tx_offload_flags & NIX_TX_OFFLOAD_VLAN_QINQ_F) {
+		rc = rte_strscpy(mode->info + bytes, " VLAN Insertion,",
+				 str_size - bytes);
+		if (rc < 0)
+			goto error;
+
+		bytes += rc;
+	}
+
+	if (dev->tx_offload_flags & NIX_TX_OFFLOAD_MBUF_NOFF_F) {
+		rc = rte_strscpy(mode->info + bytes, " MBUF free disable,",
+				 str_size - bytes);
+		if (rc < 0)
+			goto error;
+
+		bytes += rc;
+	}
+
+	if (dev->tx_offload_flags & NIX_TX_OFFLOAD_TSTAMP_F) {
+		rc = rte_strscpy(mode->info + bytes, " Timestamp,",
+				 str_size - bytes);
+		if (rc < 0)
+			goto error;
+
+		bytes += rc;
+	}
+
+	if (dev->tx_offload_flags & NIX_TX_OFFLOAD_TSO_F) {
+		rc = rte_strscpy(mode->info + bytes, " TSO,", str_size - bytes);
+		if (rc < 0)
+			goto error;
+
+		bytes += rc;
+	}
+
+	if (dev->tx_offload_flags & NIX_RX_MULTI_SEG_F) {
+		rc = rte_strscpy(mode->info + bytes, " Scattered,",
+				 str_size - bytes);
+		if (rc < 0)
+			goto error;
+
+		bytes += rc;
+	}
+
+	return 0;
+
+error:
+	return rc;
 }
 
 static void
