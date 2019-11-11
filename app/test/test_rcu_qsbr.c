@@ -230,7 +230,7 @@ test_rcu_qsbr_thread_unregister(void)
 		/* Update quiescent state counter */
 		for (i = 0; i < num_threads[j]; i++) {
 			/* Skip one update */
-			if (i == (RTE_MAX_LCORE - 10))
+			if (i == (unsigned int)(RTE_MAX_LCORE - 10))
 				continue;
 			rte_rcu_qsbr_quiescent(t[0],
 				(j == 2) ? (RTE_MAX_LCORE - 1) : i);
