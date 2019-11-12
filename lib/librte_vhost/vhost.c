@@ -27,6 +27,8 @@
 
 struct virtio_net *vhost_devices[MAX_VHOST_DEVICE];
 
+int vhost_logtype_config, vhost_logtype_data;
+
 /* Called with iotlb_lock read-locked */
 uint64_t
 __vhost_iova_to_vva(struct virtio_net *dev, struct vhost_virtqueue *vq,
@@ -1456,4 +1458,14 @@ int rte_vhost_extern_callback_register(int vid,
 	dev->extern_ops = *ops;
 	dev->extern_data = ctx;
 	return 0;
+}
+
+RTE_INIT(rte_vhost_init_log)
+{
+	vhost_logtype_config = rte_log_register("lib.vhost.config");
+	if (vhost_logtype_config >= 0)
+		rte_log_set_level(vhost_logtype_config, RTE_LOG_NOTICE);
+	vhost_logtype_data = rte_log_register("lib.vhost.data");
+	if (vhost_logtype_data >= 0)
+		rte_log_set_level(vhost_logtype_data, RTE_LOG_NOTICE);
 }

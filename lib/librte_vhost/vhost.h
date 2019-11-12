@@ -499,8 +499,9 @@ vhost_log_write_iova(struct virtio_net *dev, struct vhost_virtqueue *vq,
 }
 
 /* Macros for printing using RTE_LOG */
-#define RTE_LOGTYPE_VHOST_CONFIG RTE_LOGTYPE_USER1
-#define RTE_LOGTYPE_VHOST_DATA   RTE_LOGTYPE_USER1
+extern int vhost_logtype_config, vhost_logtype_data;
+#define RTE_LOGTYPE_VHOST_CONFIG vhost_logtype_config
+#define RTE_LOGTYPE_VHOST_DATA   vhost_logtype_data
 
 #ifdef RTE_LIBRTE_VHOST_DEBUG
 #define VHOST_MAX_PRINT_BUFF 6072
