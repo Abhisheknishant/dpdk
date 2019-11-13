@@ -1365,6 +1365,12 @@ secondary_msl_create_walk(const struct rte_memseg_list *msl,
 	struct rte_memseg_list *primary_msl, *local_msl;
 	char name[PATH_MAX];
 	int msl_idx, ret;
+	char hostname[HOST_NAME_MAX+1] = { 0 };
+	/* filename of secondary's fbarray is defined such as
+	 * "fbarray_memseg-1048576k-0-0_PID_HOSTNAME" and length of PID
+	 * can be 7 digits maximumly.
+	 */
+	int fbarray_sec_name_len = 32 + 7 + 1 + HOST_NAME_MAX + 1;
 
 	if (msl->external)
 		return 0;
@@ -1373,9 +1379,13 @@ secondary_msl_create_walk(const struct rte_memseg_list *msl,
 	primary_msl = &mcfg->memsegs[msl_idx];
 	local_msl = &local_memsegs[msl_idx];
 
-	/* create distinct fbarrays for each secondary */
-	snprintf(name, RTE_FBARRAY_NAME_LEN, "%s_%i",
-		primary_msl->memseg_arr.name, getpid());
+	/* Create distinct fbarrays for each secondary by using PID and
+	 * hostname. The reason why using hostname is because PID could be
+	 * duplicated among secondaries if it is launched in a container.
+	 */
+	gethostname(hostname, sizeof(hostname));
+	snprintf(name, fbarray_sec_name_len, "%s_%d_%s",
+			primary_msl->memseg_arr.name, (int)getpid(), hostname);
 
 	ret = rte_fbarray_init(&local_msl->memseg_arr, name,
 		primary_msl->memseg_arr.len,
