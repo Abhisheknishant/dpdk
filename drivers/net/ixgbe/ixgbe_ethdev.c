@@ -1298,6 +1298,8 @@ eth_ixgbe_dev_init(struct rte_eth_dev *eth_dev, void *init_params __rte_unused)
 	/* enable support intr */
 	ixgbe_enable_intr(eth_dev);
 
+	ixgbe_dev_set_link_down(eth_dev);
+
 	/* initialize filter info */
 	memset(filter_info, 0,
 	       sizeof(struct ixgbe_filter_info));
@@ -4154,11 +4156,6 @@ ixgbe_dev_link_update_share(struct rte_eth_dev *dev,
 		link_up = 0;
 
 	if (link_up == 0) {
-		if (ixgbe_get_media_type(hw) == ixgbe_media_type_fiber) {
-			intr->flags |= IXGBE_FLAG_NEED_LINK_CONFIG;
-			rte_eal_alarm_set(10,
-				ixgbe_dev_setup_link_alarm_handler, dev);
-		}
 		return rte_eth_linkstatus_set(dev, &link);
 	}
 
