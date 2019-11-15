@@ -80,6 +80,16 @@ Runtime Config Options
 
     -w 80:00.0,pipeline-mode-support=1
 
+- ``Flow Mark Support`` (default ``0``)
+
+  This is a hint to the driver to select the data path that support flow mark extraction
+  by default. This hint should be removed when any of below condition ready.
+  1) all data path support flow mark (currently vPMD does not)
+  2) a new offload like RTE_DEV_RX_OFFLOAD_FLOW_MARK be introduced as a standard way to hint.
+  Example::
+
+    -w 80:00.0,flow-mark-support=1
+
 - ``Protocol extraction for per queue``
 
   Configure the RX queues to do protocol extraction into mbuf for protocol
