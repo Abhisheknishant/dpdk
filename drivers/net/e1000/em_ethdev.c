@@ -1157,7 +1157,7 @@ eth_em_link_update(struct rte_eth_dev *dev, int wait_to_complete)
 	memset(&link, 0, sizeof(link));
 
 	/* Now we check if a transition has happened */
-	if (link_check && (link.link_status == ETH_LINK_DOWN)) {
+	if (link_check) {
 		uint16_t duplex, speed;
 		hw->mac.ops.get_link_up_info(hw, &speed, &duplex);
 		link.link_duplex = (duplex == FULL_DUPLEX) ?
@@ -1167,7 +1167,7 @@ eth_em_link_update(struct rte_eth_dev *dev, int wait_to_complete)
 		link.link_status = ETH_LINK_UP;
 		link.link_autoneg = !(dev->data->dev_conf.link_speeds &
 				ETH_LINK_SPEED_FIXED);
-	} else if (!link_check && (link.link_status == ETH_LINK_UP)) {
+	} else {
 		link.link_speed = ETH_SPEED_NUM_NONE;
 		link.link_duplex = ETH_LINK_HALF_DUPLEX;
 		link.link_status = ETH_LINK_DOWN;
