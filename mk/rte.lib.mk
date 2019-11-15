@@ -29,6 +29,18 @@ CPU_LDFLAGS += --version-script=$(SRCDIR)/$(EXPORT_MAP)
 endif
 endif
 
+#
+# If UBSAN is enabled, lib to undergo check can be chosen
+# by setting UBSAN_SANITIZE=y in respective lib Makefile
+# else set CONFIG_RTE_UBSAN_SANITIZE_ALL=y to enforce check
+# on entire repo.
+#
+ifeq ($(CONFIG_RTE_UBSAN),y)
+ifeq ($(UBSAN_ENABLE),y)
+CFLAGS += $(if $(patsubst %n,,$(CONFIG_RTE_UBSAN_SANITIZE_ALL)$(UBSAN_SANITIZE)) \
+		, -fsanitize=undefined)
+endif
+endif
 
 _BUILD = $(LIB)
 PREINSTALL = $(SYMLINK-FILES-y)

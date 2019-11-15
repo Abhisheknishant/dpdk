@@ -10,6 +10,8 @@ option('enable_docs', type: 'boolean', value: false,
 	description: 'build documentation')
 option('enable_kmods', type: 'boolean', value: true,
 	description: 'build kernel modules')
+option('enable_ubsan', type: 'boolean', value: false,
+	description: 'Enables undefined behavior sanitizer')
 option('examples', type: 'string', value: '',
 	description: 'Comma-separated list of examples to build by default')
 option('flexran_sdk', type: 'string', value: '',
