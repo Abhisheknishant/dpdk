@@ -102,5 +102,13 @@ endif
 # disable packed member unalign warnings
 WERROR_FLAGS += -Wno-address-of-packed-member
 
+ifeq ($(CONFIG_RTE_UBSAN),y)
+ifeq ($(shell test $(GCC_VERSION) -lt 49 && echo 1), 1)
+$(warning UBSAN not supported gcc < 4.9)
+else
+UBSAN_ENABLE = y
+endif
+endif
+
 export CC AS AR LD OBJCOPY OBJDUMP STRIP READELF
 export TOOLCHAIN_CFLAGS TOOLCHAIN_LDFLAGS TOOLCHAIN_ASFLAGS
