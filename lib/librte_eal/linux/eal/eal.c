@@ -1086,14 +1086,23 @@ rte_eal_init(int argc, char **argv)
 			}
 		}
 #ifdef RTE_LIBRTE_KNI
-		/* Workaround for KNI which requires physical address to work */
-		if (iova_mode == RTE_IOVA_VA &&
-				rte_eal_check_module("rte_kni") == 1) {
-			if (phys_addrs) {
+		if (rte_eal_check_module("rte_kni") == 1) {
+#if KERNEL_VERSION(4, 6, 0) > LINUX_VERSION_CODE
+			if (iova_mode == RTE_IOVA_VA) {
 				iova_mode = RTE_IOVA_PA;
-				RTE_LOG(WARNING, EAL, "Forcing IOVA as 'PA' because KNI module is loaded\n");
-			} else {
-				RTE_LOG(DEBUG, EAL, "KNI can not work since physical addresses are unavailable\n");
+				RTE_LOG(WARNING, EAL, "Forcing IOVA as 'PA' because "
+						"Kernel version supports only 'PA' mode for KNI module\n");
+			}
+#endif
+			if (rte_bus_get_iommu_class() == RTE_IOVA_DC)
+				iova_mode = RTE_IOVA_PA;
+
+			if (iova_mode == RTE_IOVA_PA) {
+				if (phys_addrs && is_iommu_enabled())
+					RTE_LOG(WARNING, EAL, "Forced IOVA as 'PA' because KNI module is loaded\n");
+
+				if (!phys_addrs)
+					RTE_LOG(DEBUG, EAL, "KNI can not work since physical addresses are unavailable\n");
 			}
 		}
 #endif

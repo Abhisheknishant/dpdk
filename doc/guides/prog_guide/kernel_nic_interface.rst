@@ -300,6 +300,21 @@ The sk_buff is then freed and the mbuf sent in the tx_q FIFO.
 The DPDK TX thread dequeues the mbuf and sends it to the PMD via ``rte_eth_tx_burst()``.
 It then puts the mbuf back in the cache.
 
+IOVA = VA: Support
+------------------
+
+KNI operates in IOVA_VA scheme when
+
+- LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0) and
+- eal option `iova-mode=va` is passed or bus IOVA scheme in the DPDK is selected
+  as RTE_IOVA_VA.
+
+KNI loopback mode tests will have performance impact in this mode due to IOVA to
+KVA address translations. However, In KNI real world use cases, the performace
+impact will be based on Linux kernel stack and scheduler latencies. Performance
+varies based on the KNI use case. If bus iommu scheme is IOVA_DC and KNI module
+is loaded, DPDK chooses IOVA as PA as existing behaviour.
+
 Ethtool
 -------
 

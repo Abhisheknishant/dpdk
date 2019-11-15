@@ -6,6 +6,8 @@
 #error "KNI is not supported"
 #endif
 
+#include <linux/version.h>
+
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -97,10 +99,12 @@ static volatile int kni_fd = -1;
 int
 rte_kni_init(unsigned int max_kni_ifaces __rte_unused)
 {
+#if KERNEL_VERSION(4, 6, 0) > LINUX_VERSION_CODE
 	if (rte_eal_iova_mode() != RTE_IOVA_PA) {
 		RTE_LOG(ERR, KNI, "KNI requires IOVA as PA\n");
 		return -1;
 	}
+#endif
 
 	/* Check FD and open */
 	if (kni_fd < 0) {
@@ -301,6 +305,8 @@ rte_kni_alloc(struct rte_mempool *pktmbuf_pool,
 	kni->pktmbuf_pool = pktmbuf_pool;
 	kni->group_id = conf->group_id;
 	kni->mbuf_size = conf->mbuf_size;
+
+	dev_info.iova_mode = (rte_eal_iova_mode() == RTE_IOVA_VA) ? 1 : 0;
 
 	ret = ioctl(kni_fd, RTE_KNI_IOCTL_CREATE, &dev_info);
 	if (ret < 0)

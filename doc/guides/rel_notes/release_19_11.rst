@@ -292,8 +292,21 @@ New Features
   compilers store their internal representation of the source code that
   the linker uses at the final stage of compilation process.
 
-  See :doc:`../prog_guide/lto` for more information:
+* **Added IOVA as VA support for KNI.**
 
+  * Added IOVA = VA support for KNI, KNI can operate in IOVA = VA mode when
+    `iova-mode=va` eal option is passed to the application or when bus IOVA
+    scheme is selected as RTE_IOVA_VA. This mode only works on Linux Kernel
+    versions 4.6.0 and above.
+
+  * KNI loopback mode tests will have performance impact in this mode due
+    to IOVA to KVA address translations. However, In KNI real world use cases,
+    the performace impact will be based on Linux kernel stack and scheduler
+    latencies. Performance varies based on the KNI use case. If bus iommu
+    scheme is IOVA_DC and KNI module is loaded, DPDK chooses IOVA as PA as
+    existing behaviour.
+
+  See :doc:`../prog_guide/lto` for more information:
 
 
 Removed Items
