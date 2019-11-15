@@ -18,7 +18,7 @@
 /**
  * KNI name is part of memzone name.
  */
-#define RTE_KNI_NAMESIZE 32
+#define RTE_KNI_NAMESIZE 16
 
 #define RTE_CACHE_LINE_MIN_SIZE 64
 
