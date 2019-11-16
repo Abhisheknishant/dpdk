@@ -10,4 +10,5 @@ DPDK_19.08 {
 	global:
 
 	octeontx_mbox_init;
+	octeontx_get_global_domain;
 };
