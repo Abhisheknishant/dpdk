@@ -26,6 +26,7 @@
 #include <fcntl.h>
 #include <zlib.h>
 #include <rte_string_fns.h>
+#include <rte_bitops.h>
 
 #define BNX2X_PMD_VER_PREFIX "BNX2X PMD"
 #define BNX2X_PMD_VERSION_MAJOR 1
@@ -128,32 +129,6 @@ static void bnx2x_handle_fp_tq(struct bnx2x_fastpath *fp);
 static void bnx2x_ack_sb(struct bnx2x_softc *sc, uint8_t igu_sb_id,
 			 uint8_t storm, uint16_t index, uint8_t op,
 			 uint8_t update);
-
-int bnx2x_test_bit(int nr, volatile unsigned long *addr)
-{
-	int res;
-
-	mb();
-	res = ((*addr) & (1UL << nr)) != 0;
-	mb();
-	return res;
-}
-
-void bnx2x_set_bit(unsigned int nr, volatile unsigned long *addr)
-{
-	__sync_fetch_and_or(addr, (1UL << nr));
-}
-
-void bnx2x_clear_bit(int nr, volatile unsigned long *addr)
-{
-	__sync_fetch_and_and(addr, ~(1UL << nr));
-}
-
-int bnx2x_test_and_clear_bit(int nr, volatile unsigned long *addr)
-{
-	unsigned long mask = (1UL << nr);
-	return __sync_fetch_and_and(addr, ~mask) & mask;
-}
 
 int bnx2x_cmpxchg(volatile int *addr, int old, int new)
 {
@@ -1427,11 +1402,11 @@ bnx2x_del_all_macs(struct bnx2x_softc *sc, struct ecore_vlan_mac_obj *mac_obj,
 
 	/* wait for completion of requested */
 	if (wait_for_comp) {
-		bnx2x_set_bit(RAMROD_COMP_WAIT, &ramrod_flags);
+		rte_set_bit32(RAMROD_COMP_WAIT, &ramrod_flags);
 	}
 
 	/* Set the mac type of addresses we want to clear */
-	bnx2x_set_bit(mac_type, &vlan_mac_flags);
+	rte_set_bit32(mac_type, &vlan_mac_flags);
 
 	rc = mac_obj->delete_all(sc, mac_obj, &vlan_mac_flags, &ramrod_flags);
 	if (rc < 0)
@@ -1458,26 +1433,26 @@ bnx2x_fill_accept_flags(struct bnx2x_softc *sc, uint32_t rx_mode,
 		break;
 
 	case BNX2X_RX_MODE_NORMAL:
-		bnx2x_set_bit(ECORE_ACCEPT_UNICAST, rx_accept_flags);
-		bnx2x_set_bit(ECORE_ACCEPT_MULTICAST, rx_accept_flags);
-		bnx2x_set_bit(ECORE_ACCEPT_BROADCAST, rx_accept_flags);
+		rte_set_bit32(ECORE_ACCEPT_UNICAST, rx_accept_flags);
+		rte_set_bit32(ECORE_ACCEPT_MULTICAST, rx_accept_flags);
+		rte_set_bit32(ECORE_ACCEPT_BROADCAST, rx_accept_flags);
 
 		/* internal switching mode */
-		bnx2x_set_bit(ECORE_ACCEPT_UNICAST, tx_accept_flags);
-		bnx2x_set_bit(ECORE_ACCEPT_MULTICAST, tx_accept_flags);
-		bnx2x_set_bit(ECORE_ACCEPT_BROADCAST, tx_accept_flags);
+		rte_set_bit32(ECORE_ACCEPT_UNICAST, tx_accept_flags);
+		rte_set_bit32(ECORE_ACCEPT_MULTICAST, tx_accept_flags);
+		rte_set_bit32(ECORE_ACCEPT_BROADCAST, tx_accept_flags);
 
 		break;
 
 	case BNX2X_RX_MODE_ALLMULTI:
-		bnx2x_set_bit(ECORE_ACCEPT_UNICAST, rx_accept_flags);
-		bnx2x_set_bit(ECORE_ACCEPT_ALL_MULTICAST, rx_accept_flags);
-		bnx2x_set_bit(ECORE_ACCEPT_BROADCAST, rx_accept_flags);
+		rte_set_bit32(ECORE_ACCEPT_UNICAST, rx_accept_flags);
+		rte_set_bit32(ECORE_ACCEPT_ALL_MULTICAST, rx_accept_flags);
+		rte_set_bit32(ECORE_ACCEPT_BROADCAST, rx_accept_flags);
 
 		/* internal switching mode */
-		bnx2x_set_bit(ECORE_ACCEPT_UNICAST, tx_accept_flags);
-		bnx2x_set_bit(ECORE_ACCEPT_ALL_MULTICAST, tx_accept_flags);
-		bnx2x_set_bit(ECORE_ACCEPT_BROADCAST, tx_accept_flags);
+		rte_set_bit32(ECORE_ACCEPT_UNICAST, tx_accept_flags);
+		rte_set_bit32(ECORE_ACCEPT_ALL_MULTICAST, tx_accept_flags);
+		rte_set_bit32(ECORE_ACCEPT_BROADCAST, tx_accept_flags);
 
 		break;
 
@@ -1488,19 +1463,20 @@ bnx2x_fill_accept_flags(struct bnx2x_softc *sc, uint32_t rx_mode,
 		 * should receive matched and unmatched (in resolution of port)
 		 * unicast packets.
 		 */
-		bnx2x_set_bit(ECORE_ACCEPT_UNMATCHED, rx_accept_flags);
-		bnx2x_set_bit(ECORE_ACCEPT_UNICAST, rx_accept_flags);
-		bnx2x_set_bit(ECORE_ACCEPT_ALL_MULTICAST, rx_accept_flags);
-		bnx2x_set_bit(ECORE_ACCEPT_BROADCAST, rx_accept_flags);
+		rte_set_bit32(ECORE_ACCEPT_UNMATCHED, rx_accept_flags);
+		rte_set_bit32(ECORE_ACCEPT_UNICAST, rx_accept_flags);
+		rte_set_bit32(ECORE_ACCEPT_ALL_MULTICAST, rx_accept_flags);
+		rte_set_bit32(ECORE_ACCEPT_BROADCAST, rx_accept_flags);
 
 		/* internal switching mode */
-		bnx2x_set_bit(ECORE_ACCEPT_ALL_MULTICAST, tx_accept_flags);
-		bnx2x_set_bit(ECORE_ACCEPT_BROADCAST, tx_accept_flags);
+		rte_set_bit32(ECORE_ACCEPT_ALL_MULTICAST, tx_accept_flags);
+		rte_set_bit32(ECORE_ACCEPT_BROADCAST, tx_accept_flags);
 
 		if (IS_MF_SI(sc)) {
-			bnx2x_set_bit(ECORE_ACCEPT_ALL_UNICAST, tx_accept_flags);
+			rte_set_bit32(ECORE_ACCEPT_ALL_UNICAST,
+					tx_accept_flags);
 		} else {
-			bnx2x_set_bit(ECORE_ACCEPT_UNICAST, tx_accept_flags);
+			rte_set_bit32(ECORE_ACCEPT_UNICAST, tx_accept_flags);
 		}
 
 		break;
@@ -1512,8 +1488,8 @@ bnx2x_fill_accept_flags(struct bnx2x_softc *sc, uint32_t rx_mode,
 
 	/* Set ACCEPT_ANY_VLAN as we do not enable filtering by VLAN */
 	if (rx_mode != BNX2X_RX_MODE_NONE) {
-		bnx2x_set_bit(ECORE_ACCEPT_ANY_VLAN, rx_accept_flags);
-		bnx2x_set_bit(ECORE_ACCEPT_ANY_VLAN, tx_accept_flags);
+		rte_set_bit32(ECORE_ACCEPT_ANY_VLAN, rx_accept_flags);
+		rte_set_bit32(ECORE_ACCEPT_ANY_VLAN, tx_accept_flags);
 	}
 
 	return 0;
@@ -1542,7 +1518,7 @@ bnx2x_set_q_rx_mode(struct bnx2x_softc *sc, uint8_t cl_id,
 	ramrod_param.rdata = BNX2X_SP(sc, rx_mode_rdata);
 	ramrod_param.rdata_mapping =
 	    (rte_iova_t)BNX2X_SP_MAPPING(sc, rx_mode_rdata),
-	    bnx2x_set_bit(ECORE_FILTER_RX_MODE_PENDING, &sc->sp_state);
+	    rte_set_bit32(ECORE_FILTER_RX_MODE_PENDING, &sc->sp_state);
 
 	ramrod_param.ramrod_flags = ramrod_flags;
 	ramrod_param.rx_mode_flags = rx_mode_flags;
@@ -1571,9 +1547,9 @@ int bnx2x_set_storm_rx_mode(struct bnx2x_softc *sc)
 		return rc;
 	}
 
-	bnx2x_set_bit(RAMROD_RX, &ramrod_flags);
-	bnx2x_set_bit(RAMROD_TX, &ramrod_flags);
-	bnx2x_set_bit(RAMROD_COMP_WAIT, &ramrod_flags);
+	rte_set_bit32(RAMROD_RX, &ramrod_flags);
+	rte_set_bit32(RAMROD_TX, &ramrod_flags);
+	rte_set_bit32(RAMROD_COMP_WAIT, &ramrod_flags);
 
 	return bnx2x_set_q_rx_mode(sc, sc->fp[0].cl_id, rx_mode_flags,
 				 rx_accept_flags, tx_accept_flags,
@@ -1698,7 +1674,7 @@ static int bnx2x_func_wait_started(struct bnx2x_softc *sc)
 			    "Forcing STARTED-->TX_STOPPED-->STARTED");
 
 		func_params.f_obj = &sc->func_obj;
-		bnx2x_set_bit(RAMROD_DRV_CLR_ONLY, &func_params.ramrod_flags);
+		rte_set_bit32(RAMROD_DRV_CLR_ONLY, &func_params.ramrod_flags);
 
 		/* STARTED-->TX_STOPPED */
 		func_params.cmd = ECORE_F_CMD_TX_STOP;
@@ -1722,7 +1698,7 @@ static int bnx2x_stop_queue(struct bnx2x_softc *sc, int index)
 
 	q_params.q_obj = &sc->sp_objs[fp->index].q_obj;
 	/* We want to wait for completion in this context */
-	bnx2x_set_bit(RAMROD_COMP_WAIT, &q_params.ramrod_flags);
+	rte_set_bit32(RAMROD_COMP_WAIT, &q_params.ramrod_flags);
 
 	/* Stop the primary connection: */
 
@@ -1783,7 +1759,7 @@ static int bnx2x_func_stop(struct bnx2x_softc *sc)
 	int rc;
 
 	/* prepare parameters for function state transitions */
-	bnx2x_set_bit(RAMROD_COMP_WAIT, &func_params.ramrod_flags);
+	rte_set_bit32(RAMROD_COMP_WAIT, &func_params.ramrod_flags);
 	func_params.f_obj = &sc->func_obj;
 	func_params.cmd = ECORE_F_CMD_STOP;
 
@@ -1797,7 +1773,7 @@ static int bnx2x_func_stop(struct bnx2x_softc *sc)
 	if (rc) {
 		PMD_DRV_LOG(NOTICE, sc, "FUNC_STOP ramrod failed. "
 			    "Running a dry transaction");
-		bnx2x_set_bit(RAMROD_DRV_CLR_ONLY, &func_params.ramrod_flags);
+		rte_set_bit32(RAMROD_DRV_CLR_ONLY, &func_params.ramrod_flags);
 		return ecore_func_state_change(sc, &func_params);
 	}
 
@@ -1809,7 +1785,7 @@ static int bnx2x_reset_hw(struct bnx2x_softc *sc, uint32_t load_code)
 	struct ecore_func_state_params func_params = { NULL };
 
 	/* Prepare parameters for function state transitions */
-	bnx2x_set_bit(RAMROD_COMP_WAIT, &func_params.ramrod_flags);
+	rte_set_bit32(RAMROD_COMP_WAIT, &func_params.ramrod_flags);
 
 	func_params.f_obj = &sc->func_obj;
 	func_params.cmd = ECORE_F_CMD_HW_RESET;
@@ -1866,11 +1842,10 @@ bnx2x_chip_cleanup(struct bnx2x_softc *sc, uint32_t unload_mode, uint8_t keep_li
 	 * a race between the completion code and this code.
 	 */
 
-	if (bnx2x_test_bit(ECORE_FILTER_RX_MODE_PENDING, &sc->sp_state)) {
-		bnx2x_set_bit(ECORE_FILTER_RX_MODE_SCHED, &sc->sp_state);
-	} else {
+	if (rte_get_bit32(ECORE_FILTER_RX_MODE_PENDING, &sc->sp_state))
+		rte_set_bit32(ECORE_FILTER_RX_MODE_SCHED, &sc->sp_state);
+	else
 		bnx2x_set_storm_rx_mode(sc);
-	}
 
 	/* Clean up multicast configuration */
 	rparam.mcast_obj = &sc->mcast_obj;
@@ -1960,12 +1935,12 @@ static void bnx2x_squeeze_objects(struct bnx2x_softc *sc)
 	/* Cleanup MACs' object first... */
 
 	/* Wait for completion of requested */
-	bnx2x_set_bit(RAMROD_COMP_WAIT, &ramrod_flags);
+	rte_set_bit32(RAMROD_COMP_WAIT, &ramrod_flags);
 	/* Perform a dry cleanup */
-	bnx2x_set_bit(RAMROD_DRV_CLR_ONLY, &ramrod_flags);
+	rte_set_bit32(RAMROD_DRV_CLR_ONLY, &ramrod_flags);
 
 	/* Clean ETH primary MAC */
-	bnx2x_set_bit(ECORE_ETH_MAC, &vlan_mac_flags);
+	rte_set_bit32(ECORE_ETH_MAC, &vlan_mac_flags);
 	rc = mac_obj->delete_all(sc, &sc->sp_objs->mac_obj, &vlan_mac_flags,
 				 &ramrod_flags);
 	if (rc != 0) {
@@ -1974,7 +1949,7 @@ static void bnx2x_squeeze_objects(struct bnx2x_softc *sc)
 
 	/* Cleanup UC list */
 	vlan_mac_flags = 0;
-	bnx2x_set_bit(ECORE_UC_LIST_MAC, &vlan_mac_flags);
+	rte_set_bit32(ECORE_UC_LIST_MAC, &vlan_mac_flags);
 	rc = mac_obj->delete_all(sc, mac_obj, &vlan_mac_flags, &ramrod_flags);
 	if (rc != 0) {
 		PMD_DRV_LOG(NOTICE, sc,
@@ -1984,7 +1959,7 @@ static void bnx2x_squeeze_objects(struct bnx2x_softc *sc)
 	/* Now clean mcast object... */
 
 	rparam.mcast_obj = &sc->mcast_obj;
-	bnx2x_set_bit(RAMROD_DRV_CLR_ONLY, &rparam.ramrod_flags);
+	rte_set_bit32(RAMROD_DRV_CLR_ONLY, &rparam.ramrod_flags);
 
 	/* Add a DEL command... */
 	rc = ecore_config_mcast(sc, &rparam, ECORE_MCAST_CMD_DEL);
@@ -4288,7 +4263,7 @@ bnx2x_handle_classification_eqe(struct bnx2x_softc *sc, union event_ring_elem *e
 	struct ecore_vlan_mac_obj *vlan_mac_obj;
 
 	/* always push next commands out, don't wait here */
-	bnx2x_set_bit(RAMROD_CONT, &ramrod_flags);
+	rte_set_bit32(RAMROD_CONT, &ramrod_flags);
 
 	switch (le32toh(elem->message.data.eth_event.echo) >> BNX2X_SWCID_SHIFT) {
 	case ECORE_FILTER_MAC_PENDING:
@@ -4319,12 +4294,12 @@ bnx2x_handle_classification_eqe(struct bnx2x_softc *sc, union event_ring_elem *e
 
 static void bnx2x_handle_rx_mode_eqe(struct bnx2x_softc *sc)
 {
-	bnx2x_clear_bit(ECORE_FILTER_RX_MODE_PENDING, &sc->sp_state);
+	rte_clear_bit32(ECORE_FILTER_RX_MODE_PENDING, &sc->sp_state);
 
 	/* send rx_mode command again if was requested */
-	if (bnx2x_test_and_clear_bit(ECORE_FILTER_RX_MODE_SCHED, &sc->sp_state)) {
+	if (rte_test_and_clear_bit32(ECORE_FILTER_RX_MODE_SCHED,
+						&sc->sp_state))
 		bnx2x_set_storm_rx_mode(sc);
-	}
 }
 
 static void bnx2x_update_eq_prod(struct bnx2x_softc *sc, uint16_t prod)
@@ -4693,7 +4668,7 @@ static int bnx2x_init_hw(struct bnx2x_softc *sc, uint32_t load_code)
 	PMD_INIT_FUNC_TRACE(sc);
 
 	/* prepare the parameters for function state transitions */
-	bnx2x_set_bit(RAMROD_COMP_WAIT, &func_params.ramrod_flags);
+	rte_set_bit32(RAMROD_COMP_WAIT, &func_params.ramrod_flags);
 
 	func_params.f_obj = &sc->func_obj;
 	func_params.cmd = ECORE_F_CMD_HW_INIT;
@@ -4988,8 +4963,8 @@ static void bnx2x_init_eth_fp(struct bnx2x_softc *sc, int idx)
 	bnx2x_update_fp_sb_idx(fp);
 
 	/* Configure Queue State object */
-	bnx2x_set_bit(ECORE_Q_TYPE_HAS_RX, &q_type);
-	bnx2x_set_bit(ECORE_Q_TYPE_HAS_TX, &q_type);
+	rte_set_bit32(ECORE_Q_TYPE_HAS_RX, &q_type);
+	rte_set_bit32(ECORE_Q_TYPE_HAS_TX, &q_type);
 
 	ecore_init_queue_obj(sc,
 			     &sc->sp_objs[idx].q_obj,
@@ -5803,7 +5778,7 @@ static int bnx2x_func_start(struct bnx2x_softc *sc)
 	    &func_params.params.start;
 
 	/* Prepare parameters for function state transitions */
-	bnx2x_set_bit(RAMROD_COMP_WAIT, &func_params.ramrod_flags);
+	rte_set_bit32(RAMROD_COMP_WAIT, &func_params.ramrod_flags);
 
 	func_params.f_obj = &sc->func_obj;
 	func_params.cmd = ECORE_F_CMD_START;
@@ -6379,11 +6354,11 @@ bnx2x_pf_q_prep_init(struct bnx2x_softc *sc, struct bnx2x_fastpath *fp,
 	uint8_t cos;
 	int cxt_index, cxt_offset;
 
-	bnx2x_set_bit(ECORE_Q_FLG_HC, &init_params->rx.flags);
-	bnx2x_set_bit(ECORE_Q_FLG_HC, &init_params->tx.flags);
+	rte_set_bit32(ECORE_Q_FLG_HC, &init_params->rx.flags);
+	rte_set_bit32(ECORE_Q_FLG_HC, &init_params->tx.flags);
 
-	bnx2x_set_bit(ECORE_Q_FLG_HC_EN, &init_params->rx.flags);
-	bnx2x_set_bit(ECORE_Q_FLG_HC_EN, &init_params->tx.flags);
+	rte_set_bit32(ECORE_Q_FLG_HC_EN, &init_params->rx.flags);
+	rte_set_bit32(ECORE_Q_FLG_HC_EN, &init_params->tx.flags);
 
 	/* HC rate */
 	init_params->rx.hc_rate =
@@ -6417,7 +6392,7 @@ bnx2x_get_common_flags(struct bnx2x_softc *sc, uint8_t zero_stats)
 	unsigned long flags = 0;
 
 	/* PF driver will always initialize the Queue to an ACTIVE state */
-	bnx2x_set_bit(ECORE_Q_FLG_ACTIVE, &flags);
+	rte_set_bit32(ECORE_Q_FLG_ACTIVE, &flags);
 
 	/*
 	 * tx only connections collect statistics (on the same index as the
@@ -6425,9 +6400,9 @@ bnx2x_get_common_flags(struct bnx2x_softc *sc, uint8_t zero_stats)
 	 * connection is initialized.
 	 */
 
-	bnx2x_set_bit(ECORE_Q_FLG_STATS, &flags);
+	rte_set_bit32(ECORE_Q_FLG_STATS, &flags);
 	if (zero_stats) {
-		bnx2x_set_bit(ECORE_Q_FLG_ZERO_STATS, &flags);
+		rte_set_bit32(ECORE_Q_FLG_ZERO_STATS, &flags);
 	}
 
 	/*
@@ -6435,10 +6410,10 @@ bnx2x_get_common_flags(struct bnx2x_softc *sc, uint8_t zero_stats)
 	 * CoS-ness doesn't survive the loopback
 	 */
 	if (sc->flags & BNX2X_TX_SWITCHING) {
-		bnx2x_set_bit(ECORE_Q_FLG_TX_SWITCH, &flags);
+		rte_set_bit32(ECORE_Q_FLG_TX_SWITCH, &flags);
 	}
 
-	bnx2x_set_bit(ECORE_Q_FLG_PCSUM_ON_PKT, &flags);
+	rte_set_bit32(ECORE_Q_FLG_PCSUM_ON_PKT, &flags);
 
 	return flags;
 }
@@ -6448,15 +6423,15 @@ static unsigned long bnx2x_get_q_flags(struct bnx2x_softc *sc, uint8_t leading)
 	unsigned long flags = 0;
 
 	if (IS_MF_SD(sc)) {
-		bnx2x_set_bit(ECORE_Q_FLG_OV, &flags);
+		rte_set_bit32(ECORE_Q_FLG_OV, &flags);
 	}
 
 	if (leading) {
-		bnx2x_set_bit(ECORE_Q_FLG_LEADING_RSS, &flags);
-		bnx2x_set_bit(ECORE_Q_FLG_MCAST, &flags);
+		rte_set_bit32(ECORE_Q_FLG_LEADING_RSS, &flags);
+		rte_set_bit32(ECORE_Q_FLG_MCAST, &flags);
 	}
 
-	bnx2x_set_bit(ECORE_Q_FLG_VLAN, &flags);
+	rte_set_bit32(ECORE_Q_FLG_VLAN, &flags);
 
 	/* merge with common flags */
 	return flags | bnx2x_get_common_flags(sc, TRUE);
@@ -6577,7 +6552,7 @@ bnx2x_setup_queue(struct bnx2x_softc *sc, struct bnx2x_fastpath *fp, uint8_t lea
 	q_params.q_obj = &BNX2X_SP_OBJ(sc, fp).q_obj;
 
 	/* we want to wait for completion in this context */
-	bnx2x_set_bit(RAMROD_COMP_WAIT, &q_params.ramrod_flags);
+	rte_set_bit32(RAMROD_COMP_WAIT, &q_params.ramrod_flags);
 
 	/* prepare the INIT parameters */
 	bnx2x_pf_q_prep_init(sc, fp, &q_params.params.init);
@@ -6645,20 +6620,20 @@ bnx2x_config_rss_pf(struct bnx2x_softc *sc, struct ecore_rss_config_obj *rss_obj
 
 	params.rss_obj = rss_obj;
 
-	bnx2x_set_bit(RAMROD_COMP_WAIT, &params.ramrod_flags);
+	rte_set_bit32(RAMROD_COMP_WAIT, &params.ramrod_flags);
 
-	bnx2x_set_bit(ECORE_RSS_MODE_REGULAR, &params.rss_flags);
+	rte_set_bit32(ECORE_RSS_MODE_REGULAR, &params.rss_flags);
 
 	/* RSS configuration */
-	bnx2x_set_bit(ECORE_RSS_IPV4, &params.rss_flags);
-	bnx2x_set_bit(ECORE_RSS_IPV4_TCP, &params.rss_flags);
-	bnx2x_set_bit(ECORE_RSS_IPV6, &params.rss_flags);
-	bnx2x_set_bit(ECORE_RSS_IPV6_TCP, &params.rss_flags);
+	rte_set_bit32(ECORE_RSS_IPV4, &params.rss_flags);
+	rte_set_bit32(ECORE_RSS_IPV4_TCP, &params.rss_flags);
+	rte_set_bit32(ECORE_RSS_IPV6, &params.rss_flags);
+	rte_set_bit32(ECORE_RSS_IPV6_TCP, &params.rss_flags);
 	if (rss_obj->udp_rss_v4) {
-		bnx2x_set_bit(ECORE_RSS_IPV4_UDP, &params.rss_flags);
+		rte_set_bit32(ECORE_RSS_IPV4_UDP, &params.rss_flags);
 	}
 	if (rss_obj->udp_rss_v6) {
-		bnx2x_set_bit(ECORE_RSS_IPV6_UDP, &params.rss_flags);
+		rte_set_bit32(ECORE_RSS_IPV6_UDP, &params.rss_flags);
 	}
 
 	/* Hash bits */
@@ -6673,7 +6648,7 @@ bnx2x_config_rss_pf(struct bnx2x_softc *sc, struct ecore_rss_config_obj *rss_obj
 			params.rss_key[i] = (uint32_t) rte_rand();
 		}
 
-		bnx2x_set_bit(ECORE_RSS_SET_SRCH, &params.rss_flags);
+		rte_set_bit32(ECORE_RSS_SET_SRCH, &params.rss_flags);
 	}
 
 	if (IS_PF(sc))
@@ -6730,11 +6705,11 @@ bnx2x_set_mac_one(struct bnx2x_softc *sc, uint8_t * mac,
 	ramrod_param.ramrod_flags = *ramrod_flags;
 
 	/* fill a user request section if needed */
-	if (!bnx2x_test_bit(RAMROD_CONT, ramrod_flags)) {
+	if (!rte_get_bit32(RAMROD_CONT, ramrod_flags)) {
 		rte_memcpy(ramrod_param.user_req.u.mac.mac, mac,
 				 ETH_ALEN);
 
-		bnx2x_set_bit(mac_type, &ramrod_param.user_req.vlan_mac_flags);
+		rte_set_bit32(mac_type, &ramrod_param.user_req.vlan_mac_flags);
 
 /* Set the command: ADD or DEL */
 		ramrod_param.user_req.cmd = (set) ? ECORE_VLAN_MAC_ADD :
@@ -6761,7 +6736,7 @@ static int bnx2x_set_eth_mac(struct bnx2x_softc *sc, uint8_t set)
 
 	PMD_DRV_LOG(DEBUG, sc, "Adding Ethernet MAC");
 
-	bnx2x_set_bit(RAMROD_COMP_WAIT, &ramrod_flags);
+	rte_set_bit32(RAMROD_COMP_WAIT, &ramrod_flags);
 
 	/* Eth MAC is set on RSS leading client (fp[0]) */
 	return bnx2x_set_mac_one(sc, sc->link_params.mac_addr,
@@ -6893,24 +6868,26 @@ bnx2x_fill_report_data(struct bnx2x_softc *sc, struct bnx2x_link_report_data *da
 
 	/* Link is down */
 	if (!sc->link_vars.link_up || (sc->flags & BNX2X_MF_FUNC_DIS)) {
-		bnx2x_set_bit(BNX2X_LINK_REPORT_LINK_DOWN,
+		rte_set_bit32(BNX2X_LINK_REPORT_LINK_DOWN,
 			    &data->link_report_flags);
 	}
 
 	/* Full DUPLEX */
 	if (sc->link_vars.duplex == DUPLEX_FULL) {
-		bnx2x_set_bit(BNX2X_LINK_REPORT_FULL_DUPLEX,
+		rte_set_bit32(BNX2X_LINK_REPORT_FULL_DUPLEX,
 			    &data->link_report_flags);
 	}
 
 	/* Rx Flow Control is ON */
 	if (sc->link_vars.flow_ctrl & ELINK_FLOW_CTRL_RX) {
-		bnx2x_set_bit(BNX2X_LINK_REPORT_RX_FC_ON, &data->link_report_flags);
+		rte_set_bit32(BNX2X_LINK_REPORT_RX_FC_ON,
+				&data->link_report_flags);
 	}
 
 	/* Tx Flow Control is ON */
 	if (sc->link_vars.flow_ctrl & ELINK_FLOW_CTRL_TX) {
-		bnx2x_set_bit(BNX2X_LINK_REPORT_TX_FC_ON, &data->link_report_flags);
+		rte_set_bit32(BNX2X_LINK_REPORT_TX_FC_ON,
+				&data->link_report_flags);
 	}
 }
 
@@ -6929,9 +6906,9 @@ static void bnx2x_link_report_locked(struct bnx2x_softc *sc)
 
 	/* Don't report link down or exactly the same link status twice */
 	if (!memcmp(&cur_data, &sc->last_reported_link, sizeof(cur_data)) ||
-	    (bnx2x_test_bit(BNX2X_LINK_REPORT_LINK_DOWN,
+	    (rte_get_bit32(BNX2X_LINK_REPORT_LINK_DOWN,
 			  &sc->last_reported_link.link_report_flags) &&
-	     bnx2x_test_bit(BNX2X_LINK_REPORT_LINK_DOWN,
+	     rte_get_bit32(BNX2X_LINK_REPORT_LINK_DOWN,
 			  &cur_data.link_report_flags))) {
 		return;
 	}
@@ -6946,14 +6923,14 @@ static void bnx2x_link_report_locked(struct bnx2x_softc *sc)
 	/* report new link params and remember the state for the next time */
 	rte_memcpy(&sc->last_reported_link, &cur_data, sizeof(cur_data));
 
-	if (bnx2x_test_bit(BNX2X_LINK_REPORT_LINK_DOWN,
+	if (rte_get_bit32(BNX2X_LINK_REPORT_LINK_DOWN,
 			 &cur_data.link_report_flags)) {
 		ELINK_DEBUG_P0(sc, "NIC Link is Down");
 	} else {
 		__rte_unused const char *duplex;
 		__rte_unused const char *flow;
 
-		if (bnx2x_test_and_clear_bit(BNX2X_LINK_REPORT_FULL_DUPLEX,
+		if (rte_test_and_clear_bit32(BNX2X_LINK_REPORT_FULL_DUPLEX,
 					   &cur_data.link_report_flags)) {
 			duplex = "full";
 				ELINK_DEBUG_P0(sc, "link set to full duplex");
@@ -6968,19 +6945,19 @@ static void bnx2x_link_report_locked(struct bnx2x_softc *sc)
  * enabled.
  */
 		if (cur_data.link_report_flags) {
-			if (bnx2x_test_bit(BNX2X_LINK_REPORT_RX_FC_ON,
+			if (rte_get_bit32(BNX2X_LINK_REPORT_RX_FC_ON,
 					 &cur_data.link_report_flags) &&
-			    bnx2x_test_bit(BNX2X_LINK_REPORT_TX_FC_ON,
+			    rte_get_bit32(BNX2X_LINK_REPORT_TX_FC_ON,
 					 &cur_data.link_report_flags)) {
 				flow = "ON - receive & transmit";
-			} else if (bnx2x_test_bit(BNX2X_LINK_REPORT_RX_FC_ON,
+			} else if (rte_get_bit32(BNX2X_LINK_REPORT_RX_FC_ON,
 						&cur_data.link_report_flags) &&
-				   !bnx2x_test_bit(BNX2X_LINK_REPORT_TX_FC_ON,
+				   !rte_get_bit32(BNX2X_LINK_REPORT_TX_FC_ON,
 						 &cur_data.link_report_flags)) {
 				flow = "ON - receive";
-			} else if (!bnx2x_test_bit(BNX2X_LINK_REPORT_RX_FC_ON,
+			} else if (!rte_get_bit32(BNX2X_LINK_REPORT_RX_FC_ON,
 						 &cur_data.link_report_flags) &&
-				   bnx2x_test_bit(BNX2X_LINK_REPORT_TX_FC_ON,
+				   rte_get_bit32(BNX2X_LINK_REPORT_TX_FC_ON,
 						&cur_data.link_report_flags)) {
 				flow = "ON - transmit";
 			} else {

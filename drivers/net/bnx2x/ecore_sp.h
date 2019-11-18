@@ -15,6 +15,7 @@
 #define ECORE_SP_H
 
 #include <rte_byteorder.h>
+#include <rte_bitops.h>
 
 #if RTE_BYTE_ORDER == RTE_LITTLE_ENDIAN
 #ifndef __LITTLE_ENDIAN
@@ -73,10 +74,10 @@ typedef rte_spinlock_t ECORE_MUTEX_SPIN;
 #define ECORE_SET_BIT_NA(bit, var)         (*var |= (1 << bit))
 #define ECORE_CLEAR_BIT_NA(bit, var)       (*var &= ~(1 << bit))
 
-#define ECORE_TEST_BIT(bit, var)           bnx2x_test_bit(bit, var)
-#define ECORE_SET_BIT(bit, var)            bnx2x_set_bit(bit, var)
-#define ECORE_CLEAR_BIT(bit, var)          bnx2x_clear_bit(bit, var)
-#define ECORE_TEST_AND_CLEAR_BIT(bit, var) bnx2x_test_and_clear_bit(bit, var)
+#define ECORE_TEST_BIT(bit, var)           rte_get_bit32(bit, var)
+#define ECORE_SET_BIT(bit, var)            rte_set_bit32(bit, var)
+#define ECORE_CLEAR_BIT(bit, var)          rte_clear_bit32(bit, var)
+#define ECORE_TEST_AND_CLEAR_BIT(bit, var) rte_test_and_clear_bit32(bit, var)
 
 #define atomic_load_acq_int                (int)*
 #define atomic_store_rel_int(a, v)         (*a = v)
