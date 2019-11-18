@@ -1487,3 +1487,8 @@ rte_intr_cap_multiple(struct rte_intr_handle *intr_handle)
 
 	return 0;
 }
+
+int rte_thread_is_intr(void)
+{
+	return pthread_equal(intr_thread, pthread_self());
+}
