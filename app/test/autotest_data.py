@@ -405,6 +405,12 @@ parallel_test_list = [
         "Report":  None,
     },
     {
+        "Name":    "Bitops autotest",
+        "Command": "bitops_autotest",
+        "Func":    default_autotest,
+        "Report":  None,
+    },
+    {
         "Name":    "Hash multiwriter autotest",
         "Command": "hash_multiwriter_autotest",
         "Func":    default_autotest,
