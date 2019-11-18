@@ -1109,6 +1109,9 @@ main(int argc, char **argv)
 				port_conf.rx_adv_conf.rss_conf.rss_hf,
 				local_port_conf.rx_adv_conf.rss_conf.rss_hf);
 		}
+		/* Mellanox PMDs needs scatter mode to be explicitly enabled */
+		if (!strcmp(dev_info.driver_name, "net_mlx5")) 
+			local_port_conf.rxmode.offloads |= DEV_RX_OFFLOAD_SCATTER;
 
 		ret = rte_eth_dev_configure(portid, 1, (uint16_t)n_tx_queue,
 					    &local_port_conf);
