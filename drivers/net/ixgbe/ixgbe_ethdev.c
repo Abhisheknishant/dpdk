@@ -1188,6 +1188,7 @@ eth_ixgbe_dev_init(struct rte_eth_dev *eth_dev, void *init_params __rte_unused)
 	diag = ixgbe_bypass_init_hw(hw);
 #else
 	diag = ixgbe_init_hw(hw);
+	hw->mac.autotry_restart = false;
 #endif /* RTE_LIBRTE_IXGBE_BYPASS */
 
 	/*
@@ -1297,6 +1298,8 @@ eth_ixgbe_dev_init(struct rte_eth_dev *eth_dev, void *init_params __rte_unused)
 
 	/* enable support intr */
 	ixgbe_enable_intr(eth_dev);
+
+	ixgbe_dev_set_link_down(eth_dev);
 
 	/* initialize filter info */
 	memset(filter_info, 0,
