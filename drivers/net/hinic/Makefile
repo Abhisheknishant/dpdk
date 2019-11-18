@@ -9,6 +9,7 @@ include $(RTE_SDK)/mk/rte.vars.mk
 LIB = librte_pmd_hinic.a
 
 CFLAGS += -O3
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 CFLAGS += $(WERROR_FLAGS)
 
 ifeq ($(CONFIG_RTE_ARCH_ARM64),y)
