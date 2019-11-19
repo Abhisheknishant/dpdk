@@ -1679,6 +1679,7 @@ int
 slave_configure(struct rte_eth_dev *bonded_eth_dev,
 		struct rte_eth_dev *slave_eth_dev)
 {
+	struct rte_eth_conf dev_conf;
 	struct bond_rx_queue *bd_rx_q;
 	struct bond_tx_queue *bd_tx_q;
 	uint16_t nb_rx_queues;
@@ -1693,34 +1694,34 @@ slave_configure(struct rte_eth_dev *bonded_eth_dev,
 	/* Stop slave */
 	rte_eth_dev_stop(slave_eth_dev->data->port_id);
 
+	memset(&dev_conf, 0, sizeof(dev_conf));
+
 	/* Enable interrupts on slave device if supported */
 	if (slave_eth_dev->data->dev_flags & RTE_ETH_DEV_INTR_LSC)
-		slave_eth_dev->data->dev_conf.intr_conf.lsc = 1;
+		dev_conf.intr_conf.lsc = 1;
 
 	/* If RSS is enabled for bonding, try to enable it for slaves  */
 	if (bonded_eth_dev->data->dev_conf.rxmode.mq_mode & ETH_MQ_RX_RSS_FLAG) {
 		if (internals->rss_key_len != 0) {
-			slave_eth_dev->data->dev_conf.rx_adv_conf.rss_conf.rss_key_len =
+			dev_conf.rx_adv_conf.rss_conf.rss_key_len =
 					internals->rss_key_len;
-			slave_eth_dev->data->dev_conf.rx_adv_conf.rss_conf.rss_key =
+			dev_conf.rx_adv_conf.rss_conf.rss_key =
 					internals->rss_key;
 		} else {
-			slave_eth_dev->data->dev_conf.rx_adv_conf.rss_conf.rss_key = NULL;
+			dev_conf.rx_adv_conf.rss_conf.rss_key = NULL;
 		}
 
-		slave_eth_dev->data->dev_conf.rx_adv_conf.rss_conf.rss_hf =
+		dev_conf.rx_adv_conf.rss_conf.rss_hf =
 				bonded_eth_dev->data->dev_conf.rx_adv_conf.rss_conf.rss_hf;
-		slave_eth_dev->data->dev_conf.rxmode.mq_mode =
+		dev_conf.rxmode.mq_mode =
 				bonded_eth_dev->data->dev_conf.rxmode.mq_mode;
 	}
 
 	if (bonded_eth_dev->data->dev_conf.rxmode.offloads &
 			DEV_RX_OFFLOAD_VLAN_FILTER)
-		slave_eth_dev->data->dev_conf.rxmode.offloads |=
-				DEV_RX_OFFLOAD_VLAN_FILTER;
+		dev_conf.rxmode.offloads |= DEV_RX_OFFLOAD_VLAN_FILTER;
 	else
-		slave_eth_dev->data->dev_conf.rxmode.offloads &=
-				~DEV_RX_OFFLOAD_VLAN_FILTER;
+		dev_conf.rxmode.offloads &= ~DEV_RX_OFFLOAD_VLAN_FILTER;
 
 	nb_rx_queues = bonded_eth_dev->data->nb_rx_queues;
 	nb_tx_queues = bonded_eth_dev->data->nb_tx_queues;
@@ -1742,8 +1743,7 @@ slave_configure(struct rte_eth_dev *bonded_eth_dev,
 
 	/* Configure device */
 	errval = rte_eth_dev_configure(slave_eth_dev->data->port_id,
-			nb_rx_queues, nb_tx_queues,
-			&(slave_eth_dev->data->dev_conf));
+			nb_rx_queues, nb_tx_queues, &dev_conf);
 	if (errval != 0) {
 		RTE_BOND_LOG(ERR, "Cannot configure slave device: port %u, err (%d)",
 				slave_eth_dev->data->port_id, errval);
