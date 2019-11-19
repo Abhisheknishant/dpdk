@@ -37,3 +37,6 @@
 
 int vhost_kernel_open_tap(char **p_ifname, int hdr_size, int req_mq,
 			 const char *mac, uint64_t features);
+int vhost_kernel_tap_attach_queue(int fd);
+int vhost_kernel_tap_detach_queue(int fd);
+int vhost_kernel_tap_set_offload(int fd, uint64_t features);

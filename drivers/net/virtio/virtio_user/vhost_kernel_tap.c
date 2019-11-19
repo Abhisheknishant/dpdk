@@ -18,7 +18,27 @@
 #include "../virtio_logs.h"
 #include "../virtio_pci.h"
 
-static int
+int
+vhost_kernel_tap_attach_queue(int fd)
+{
+	struct ifreq ifr;
+
+	memset(&ifr, 0, sizeof(ifr));
+	ifr.ifr_flags = IFF_ATTACH_QUEUE;
+	return ioctl(fd, TUNSETQUEUE, (void *)&ifr);
+}
+
+int
+vhost_kernel_tap_detach_queue(int fd)
+{
+	struct ifreq ifr;
+
+	memset(&ifr, 0, sizeof(ifr));
+	ifr.ifr_flags = IFF_DETACH_QUEUE;
+	return ioctl(fd, TUNSETQUEUE, (void *)&ifr);
+}
+
+int
 vhost_kernel_tap_set_offload(int fd, uint64_t features)
 {
 	unsigned int offload = 0;
@@ -37,20 +57,18 @@ vhost_kernel_tap_set_offload(int fd, uint64_t features)
 			offload |= TUN_F_UFO;
 	}
 
-	if (offload != 0) {
-		/* Check if our kernel supports TUNSETOFFLOAD */
-		if (ioctl(fd, TUNSETOFFLOAD, 0) != 0 && errno == EINVAL) {
-			PMD_DRV_LOG(ERR, "Kernel does't support TUNSETOFFLOAD\n");
-			return -ENOTSUP;
-		}
+	/* Check if our kernel supports TUNSETOFFLOAD */
+	if (ioctl(fd, TUNSETOFFLOAD, 0) != 0 && errno == EINVAL) {
+		PMD_DRV_LOG(ERR, "Kernel does't support TUNSETOFFLOAD\n");
+		return -ENOTSUP;
+	}
 
+	if (ioctl(fd, TUNSETOFFLOAD, offload) != 0) {
+		offload &= ~TUN_F_UFO;
 		if (ioctl(fd, TUNSETOFFLOAD, offload) != 0) {
-			offload &= ~TUN_F_UFO;
-			if (ioctl(fd, TUNSETOFFLOAD, offload) != 0) {
-				PMD_DRV_LOG(ERR, "TUNSETOFFLOAD ioctl() failed: %s\n",
-					strerror(errno));
-				return -1;
-			}
+			PMD_DRV_LOG(ERR, "TUNSETOFFLOAD ioctl() failed: %s\n",
+				strerror(errno));
+			return -1;
 		}
 	}
 
