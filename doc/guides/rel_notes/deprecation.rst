@@ -59,13 +59,13 @@ Deprecation Notices
   - ``rte_eth_dev_stop``
   - ``rte_eth_dev_close``
 
-* ethdev: New offload flags ``DEV_RX_OFFLOAD_FLOW_MARK`` will be added in 19.11.
-  This will allow application to enable or disable PMDs from updating
-  ``rte_mbuf::hash::fdir``.
-  This scheme will allow PMDs to avoid writes to ``rte_mbuf`` fields on Rx and
-  thereby improve Rx performance if application wishes do so.
-  In 19.11 PMDs will still update the field even when the offload is not
-  enabled.
+* ethdev: New offload flag ``DEV_RX_OFFLOAD_FLOW_MARK`` will be added in 20.02.
+  This will provide application an information if ``RTE_FLOW_ACTION_TYPE_MARK``
+  or ``RTE_FLOW_ACTION_TYPE_FLAG`` is supported and, what is more important,
+  allow an application to let PMD know that it would like to use these
+  features.
+  PMD may use the information to choose optimal datapath implementation and
+  configure HW appropriately to optimize performance and/or resources usage.
 
 * cryptodev: support for using IV with all sizes is added, J0 still can
   be used but only when IV length in following structs ``rte_crypto_auth_xform``,
