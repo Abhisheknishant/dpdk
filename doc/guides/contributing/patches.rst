@@ -255,7 +255,7 @@ Here are some guidelines for the body of a commit message:
   You can generate the required lines using the following git alias, which prints
   the commit SHA and the author of the original code::
 
-     git config alias.fixline "log -1 --abbrev=12 --format='Fixes: %h (\"%s\")%nCc: %ae'"
+     git config alias.fixline "log -1 --abbrev=12 --format='Fixes: %h (\"%s\")%nCc: %ae%nCc: stable@dpdk.org'"
 
   The output of ``git fixline <SHA>`` must then be added to the commit message::
 
