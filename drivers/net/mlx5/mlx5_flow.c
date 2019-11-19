@@ -1518,6 +1518,7 @@ mlx5_flow_validate_item_ipv4(const struct rte_flow_item *item,
 			.src_addr = RTE_BE32(0xffffffff),
 			.dst_addr = RTE_BE32(0xffffffff),
 			.type_of_service = 0xff,
+			.time_to_live = 0xff,
 			.next_proto_id = 0xff,
 		},
 	};
