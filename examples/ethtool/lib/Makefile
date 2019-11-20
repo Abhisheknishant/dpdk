@@ -18,8 +18,6 @@ endif
 # library name
 LIB = librte_ethtool.a
 
-LIBABIVER := 1
-
 # all source are stored in SRC-Y
 SRCS-y := rte_ethtool.c
 
