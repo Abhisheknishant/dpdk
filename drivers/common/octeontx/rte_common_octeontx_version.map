@@ -5,3 +5,9 @@ DPDK_18.05 {
 	octeontx_mbox_set_reg;
 	octeontx_mbox_send;
 };
+
+DPDK_19.08 {
+	global:
+
+	octeontx_mbox_init;
+};
