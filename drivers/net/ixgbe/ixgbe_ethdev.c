@@ -379,6 +379,8 @@ static int ixgbe_dev_udp_tunnel_port_del(struct rte_eth_dev *dev,
 static int ixgbe_filter_restore(struct rte_eth_dev *dev);
 static void ixgbe_l2_tunnel_conf(struct rte_eth_dev *dev);
 
+static void ixgbe_dev_macsec_init(struct rte_eth_dev *dev);
+
 /*
  * Define VF Stats MACRO for Non "cleared on read" register
  */
@@ -1094,6 +1096,8 @@ eth_ixgbe_dev_init(struct rte_eth_dev *eth_dev, void *init_params __rte_unused)
 	int diag, i;
 
 	PMD_INIT_FUNC_TRACE();
+
+	ixgbe_dev_macsec_init(eth_dev);
 
 	eth_dev->dev_ops = &ixgbe_eth_dev_ops;
 	eth_dev->rx_pkt_burst = &ixgbe_recv_pkts;
@@ -2545,7 +2549,7 @@ ixgbe_dev_start(struct rte_eth_dev *dev)
 	uint32_t *link_speeds;
 	struct ixgbe_tm_conf *tm_conf =
 		IXGBE_DEV_PRIVATE_TO_TM_CONF(dev->data->dev_private);
-	struct ixgbe_macsec_setting *macsec_ctrl =
+	struct ixgbe_macsec_setting *macsec_setting =
 		IXGBE_DEV_PRIVATE_TO_MACSEC_SETTING(dev->data->dev_private);
 
 	PMD_INIT_FUNC_TRACE();
@@ -2799,9 +2803,11 @@ skip_link_setup:
 	 */
 	ixgbe_dev_link_update(dev, 0);
 
-	/* setup the macsec ctrl register */
-	ixgbe_dev_macsec_register_enable(dev, macsec_ctrl);
-
+	/* setup the macsec setting register */
+	if (macsec_setting->encrypt_en != 0 ||
+	    macsec_setting->replayprotect_en != 0) {
+		ixgbe_dev_macsec_register_enable(dev, macsec_setting);
+	}
 	return 0;
 
 error:
@@ -2827,6 +2833,8 @@ ixgbe_dev_stop(struct rte_eth_dev *dev)
 	int vf;
 	struct ixgbe_tm_conf *tm_conf =
 		IXGBE_DEV_PRIVATE_TO_TM_CONF(dev->data->dev_private);
+	struct ixgbe_macsec_setting *macsec_setting =
+		IXGBE_DEV_PRIVATE_TO_MACSEC_SETTING(dev->data->dev_private);
 
 	if (hw->adapter_stopped)
 		return;
@@ -2834,7 +2842,10 @@ ixgbe_dev_stop(struct rte_eth_dev *dev)
 	PMD_INIT_FUNC_TRACE();
 
 	/* disable mecsec register */
-	ixgbe_dev_macsec_register_disable(dev);
+	if (macsec_setting->encrypt_en != 0 ||
+	    macsec_setting->replayprotect_en != 0) {
+		ixgbe_dev_macsec_register_disable(dev);
+	}
 
 	rte_eal_alarm_cancel(ixgbe_dev_setup_link_alarm_handler, dev);
 
@@ -8975,6 +8986,16 @@ ixgbe_dev_macsec_register_disable(struct rte_eth_dev *dev)
 	 * just call the hand-written one directly for now.
 	 */
 	ixgbe_enable_sec_tx_path_generic(hw);
+}
+
+static void
+ixgbe_dev_macsec_init(struct rte_eth_dev *dev)
+{
+	struct ixgbe_macsec_setting *macsec =
+		IXGBE_DEV_PRIVATE_TO_MACSEC_SETTING(dev->data->dev_private);
+
+	macsec->encrypt_en = 0;
+	macsec->replayprotect_en = 0;
 }
 
 RTE_PMD_REGISTER_PCI(net_ixgbe, rte_ixgbe_pmd);
