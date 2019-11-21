@@ -201,6 +201,16 @@ New Features
   * Enabled zero copy between application mempools and UMEM by enabling the
     XDP_UMEM_UNALIGNED_CHUNKS UMEM flag.
 
+* **Updated Broadcom bnxt driver.**
+
+  Updated Broadcom bnxt driver with new features and improvements, including:
+
+  * Added support for hot firmware upgrade.
+  * Added support for error recovery.
+  * Added support for querying and using COS classification in hardware.
+  * Added LRO support Thor devices.
+  * Update HWRM API to version 1.10.1.6
+
 * **Added Marvell NITROX symmetric crypto PMD.**
 
   Added a symmetric crypto PMD for Marvell NITROX V security processor.
