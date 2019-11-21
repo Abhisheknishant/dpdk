@@ -70,12 +70,12 @@
                                                     x x
                                                       2
    ========================================== = = = = = = =
-   Eth Rx/Tx adapter on internal port
-   Multiple event queues per ethdev
+   Eth Rx/Tx adapter on internal port                 Y
+   Multiple event queues per ethdev                   Y
    Override flow ID
    Crypto adapter new event enqueue
    Crypto adapter forwarded event enqueue
    Crypto queue pair mapping to event queue
    Crypto adapter session data store/retrieve
-   Timer adapter support in H/W
+   Timer adapter support in H/W                       Y
    ========================================== = = = = = = =
