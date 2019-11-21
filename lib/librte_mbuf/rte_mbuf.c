@@ -50,6 +50,7 @@ rte_pktmbuf_pool_init(struct rte_mempool *mp, void *opaque_arg)
 	user_mbp_priv = opaque_arg;
 	if (user_mbp_priv == NULL) {
 		default_mbp_priv.mbuf_priv_size = 0;
+		default_mbp_priv.flags = 0;
 		if (mp->elt_size > sizeof(struct rte_mbuf))
 			roomsz = mp->elt_size - sizeof(struct rte_mbuf);
 		else
@@ -61,6 +62,7 @@ rte_pktmbuf_pool_init(struct rte_mempool *mp, void *opaque_arg)
 	RTE_ASSERT(mp->elt_size >= sizeof(struct rte_mbuf) +
 		user_mbp_priv->mbuf_data_room_size +
 		user_mbp_priv->mbuf_priv_size);
+	RTE_ASSERT(user_mbp_priv->flags == 0);
 
 	mbp_priv = rte_mempool_get_priv(mp);
 	memcpy(mbp_priv, user_mbp_priv, sizeof(*mbp_priv));
@@ -113,7 +115,11 @@ rte_pktmbuf_pool_create_by_ops(const char *name, unsigned int n,
 	int socket_id, const char *ops_name)
 {
 	struct rte_mempool *mp;
-	struct rte_pktmbuf_pool_private mbp_priv;
+	struct rte_pktmbuf_pool_private mbp_priv = {
+		.mbuf_data_room_size = data_room_size,
+		.mbuf_priv_size = priv_size,
+		.flags = 0,
+	};
 	const char *mp_ops_name = ops_name;
 	unsigned elt_size;
 	int ret;
@@ -126,8 +132,6 @@ rte_pktmbuf_pool_create_by_ops(const char *name, unsigned int n,
 	}
 	elt_size = sizeof(struct rte_mbuf) + (unsigned)priv_size +
 		(unsigned)data_room_size;
-	mbp_priv.mbuf_data_room_size = data_room_size;
-	mbp_priv.mbuf_priv_size = priv_size;
 
 	mp = rte_mempool_create_empty(name, n, elt_size, cache_size,
 		 sizeof(struct rte_pktmbuf_pool_private), socket_id, 0);
