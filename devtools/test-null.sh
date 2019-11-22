@@ -25,6 +25,6 @@ else
 fi
 
 (sleep 1 && echo stop) |
-$testpmd -c $coremask --no-huge -m 150 \
+$testpmd -c $coremask --no-huge -m 20 \
 	$libs --vdev net_null1 --vdev net_null2 $eal_options -- \
 	--no-mlockall --total-num-mbufs=2048 $testpmd_options -ia
