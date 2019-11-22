@@ -1,7 +1,5 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2017 Wind River Systems Inc. All rights reserved.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2017 Wind River Systems Inc. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions

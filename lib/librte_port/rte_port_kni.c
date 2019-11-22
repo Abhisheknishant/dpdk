@@ -1,9 +1,7 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2016 Ethan Zhuang <zhuangwj@gmail.com>.
- *   Copyright(c) 2016 Intel Corporation.
- *   All rights reserved.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2016 Ethan Zhuang <zhuangwj@gmail.com>.
+ * Copyright(c) 2016 Intel Corporation.
+ * All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions

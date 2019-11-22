@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: BSD-3-Clause
+ */
 #ifndef TEST_COMPRESSDEV_TEST_BUFFERS_H_
 #define TEST_COMPRESSDEV_TEST_BUFFERS_H_
 
