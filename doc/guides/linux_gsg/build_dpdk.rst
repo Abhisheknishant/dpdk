@@ -11,8 +11,8 @@ Compiling the DPDK Target from Source
     Parts of this process can also be done using the setup script described in
     the :ref:`linux_setup_script` section of this document.
 
-Install the DPDK and Browse Sources
------------------------------------
+Uncompress DPDK and Browse Sources
+----------------------------------
 
 First, uncompress the archive and move to the uncompressed DPDK source directory:
 
@@ -33,8 +33,94 @@ The DPDK is composed of several directories:
 
 *   config, buildtools, mk: Framework-related makefiles, scripts and configuration
 
-Installation of DPDK Target Environments
-----------------------------------------
+Compiling and Installing DPDK System-wide
+-----------------------------------------
+
+DPDK can be configured, built and installed on your system using the tools
+``meson`` and ``ninja``.
+
+.. note::
+
+  The older makefile-based build system used in older DPDK releases is
+  still present and it's use is described in section
+  `Installation of DPDK Target Environment using Make`_.
+
+DPDK Configuration
+~~~~~~~~~~~~~~~~~~
+
+To configure a DPDK build use:
+
+.. code-block:: console
+
+     meson <options> build
+
+where "build" is the desired output build directory, and "<options>" can be
+empty or one of a number of meson or DPDK-specific build options, described
+later in this section. The configuration process will finish with a summary
+of what DPDK libraries and drivers are to be built and installed, and for
+each item disabled, a reason why that is the case. This information can be
+used, for example, to identify any missing required packages for a driver.
+
+Once configured, to build and then install DPDK system-wide use:
+
+.. code-block:: console
+
+        cd build
+        ninja
+        ninja install
+
+Adjusting Build Options
+~~~~~~~~~~~~~~~~~~~~~~~
+
+DPDK has a number of options that can be adjusted as part of the build configuration process.
+These options can be listed by running ``meson configure`` inside a configured build folder.
+Many of these options come from the "meson" tool itself and can be seen documented on the
+`Meson Website <https://mesonbuild.com/Builtin-options.html>`_.
+
+For example, to change the build-type from the default, "debugoptimized",
+to a regular "debug" build, you can either:
+
+* pass ``-Dbuildtype=debug`` or ``--buildtype=debug`` to meson when configuring the build folder initially
+
+* run ``meson configure -Dbuildtype=debug`` inside the build folder after the initial meson run.
+
+Other options are specific to the DPDK project but can be adjusted similarly.
+To set the "max_lcores" value to 256, for example, you can either:
+
+* pass ``-Dmax_lcores=256`` to meson when configuring the build folder initially
+
+* run ``meson configure -Dmax_lcores=256`` inside the build folder after the initial meson run.
+
+Building Applications Using Installed DPDK
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When installed system-wide, DPDK provides a pkg-config file ``libdpdk.pc`` for applications to query as part of their build.
+It's recommended that the pkg-config file be used, rather than hard-coding the parameters (cflags/ldflags)
+for DPDK into the application build process.
+
+An example of how to query and use the pkg-config file can be found in the ``Makefile`` of each of the example applications included with DPDK.
+A simplified example snippet is shown below, where the target binary name has been stored in the variable ``$(APP)``
+and the sources for that build are stored in ``$(SRCS-y)``.
+
+.. code-block:: makefile
+
+        PKGCONF = pkg-config
+
+        CFLAGS += -O3 $(shell $(PKGCONF) --cflags libdpdk)
+        LDFLAGS += $(shell $(PKGCONF) --libs libdpdk)
+
+        $(APP): $(SRCS-y) Makefile
+                $(CC) $(CFLAGS) $(SRCS-y) -o $@ $(LDFLAGS)
+
+
+Installation of DPDK Target Environment using Make
+--------------------------------------------------
+
+.. note::
+
+   The building of DPDK using make will be deprecated in a future release. It
+   is therefore recommended that DPDK installation is done using meson and
+   ninja as described above.
 
 The format of a DPDK target is::
 
