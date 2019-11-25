@@ -9,6 +9,7 @@
 #include <stdbool.h>
 
 #include <rte_ether.h>
+#include <rte_interrupts.h>
 #include <rte_spinlock.h>
 
 #include <otx2_common.h>
@@ -1627,28 +1628,40 @@ static inline int
 otx2_mbox_process(struct otx2_mbox *mbox)
 {
 	otx2_mbox_msg_send(mbox, 0);
-	return otx2_mbox_get_rsp(mbox, 0, NULL);
+	if (rte_thread_is_intr())
+		return otx2_mbox_get_rsp_poll(mbox, 0, NULL);
+	else
+		return otx2_mbox_get_rsp(mbox, 0, NULL);
 }
 
 static inline int
 otx2_mbox_process_msg(struct otx2_mbox *mbox, void **msg)
 {
 	otx2_mbox_msg_send(mbox, 0);
-	return otx2_mbox_get_rsp(mbox, 0, msg);
+	if (rte_thread_is_intr())
+		return otx2_mbox_get_rsp_poll(mbox, 0, msg);
+	else
+		return otx2_mbox_get_rsp(mbox, 0, msg);
 }
 
 static inline int
 otx2_mbox_process_tmo(struct otx2_mbox *mbox, uint32_t tmo)
 {
 	otx2_mbox_msg_send(mbox, 0);
-	return otx2_mbox_get_rsp_tmo(mbox, 0, NULL, tmo);
+	if (rte_thread_is_intr())
+		return otx2_mbox_get_rsp_poll_tmo(mbox, 0, NULL, tmo);
+	else
+		return otx2_mbox_get_rsp_tmo(mbox, 0, NULL, tmo);
 }
 
 static inline int
 otx2_mbox_process_msg_tmo(struct otx2_mbox *mbox, void **msg, uint32_t tmo)
 {
 	otx2_mbox_msg_send(mbox, 0);
-	return otx2_mbox_get_rsp_tmo(mbox, 0, msg, tmo);
+	if (rte_thread_is_intr())
+		return otx2_mbox_get_rsp_poll_tmo(mbox, 0, msg, tmo);
+	else
+		return otx2_mbox_get_rsp_tmo(mbox, 0, msg, tmo);
 }
 
 int otx2_send_ready_msg(struct otx2_mbox *mbox, uint16_t *pf_func /* out */);
