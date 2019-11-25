@@ -22,6 +22,8 @@ CFLAGS += -diag-disable 2259
 endif
 endif
 
+CFLAGS += -DALLOW_EXPERIMENTAL_API
+
 EXPORT_MAP := rte_rawdev_octeontx2_dma_version.map
 
 #
