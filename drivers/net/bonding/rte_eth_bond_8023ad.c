@@ -792,18 +792,38 @@ rx_machine_update(struct bond_dev_private *internals, uint16_t slave_id,
 		struct rte_mbuf *lacp_pkt) {
 	struct lacpdu_header *lacp;
 	struct lacpdu_actor_partner_params *partner;
+	struct port *port, *agg;
 
 	if (lacp_pkt != NULL) {
 		lacp = rte_pktmbuf_mtod(lacp_pkt, struct lacpdu_header *);
 		RTE_ASSERT(lacp->lacpdu.subtype == SLOW_SUBTYPE_LACP);
 
 		partner = &lacp->lacpdu.partner;
+		port = &bond_mode_8023ad_ports[slave_id];
+		agg = &bond_mode_8023ad_ports[port->aggregator_port_id];
+
 		if (rte_is_same_ether_addr(&partner->port_params.system,
-			&internals->mode4.mac_addr)) {
+									&agg->actor.system)) {
 			/* This LACP frame is sending to the bonding port
 			 * so pass it to rx_machine.
 			 */
 			rx_machine(internals, slave_id, &lacp->lacpdu);
+		} else {
+			MODE4_DEBUG("prefered partner system %02x:%02x:%02x:%02x:%02x:%02x "
+				"not equal self system: %02x:%02x:%02x:%02x:%02x:%02x\n",
+			partner->port_params.system.addr_bytes[0],
+			partner->port_params.system.addr_bytes[1],
+			partner->port_params.system.addr_bytes[2],
+			partner->port_params.system.addr_bytes[3],
+			partner->port_params.system.addr_bytes[4],
+			partner->port_params.system.addr_bytes[5],
+
+			agg->actor.system.addr_bytes[0],
+			agg->actor.system.addr_bytes[1],
+			agg->actor.system.addr_bytes[2],
+			agg->actor.system.addr_bytes[3],
+			agg->actor.system.addr_bytes[4],
+			agg->actor.system.addr_bytes[5]);
 		}
 		rte_pktmbuf_free(lacp_pkt);
 	} else
