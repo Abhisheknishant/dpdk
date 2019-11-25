@@ -900,6 +900,7 @@ otx2_dev_priv_init(struct rte_pci_device *pci_dev, void *otx2_dev)
 {
 	int up_direction = MBOX_DIR_PFAF_UP;
 	int rc, direction = MBOX_DIR_PFAF;
+	uint64_t intr_offset = RVU_PF_INT;
 	struct otx2_dev *dev = otx2_dev;
 	uintptr_t bar2, bar4;
 	uint64_t bar4_addr;
@@ -924,15 +925,18 @@ otx2_dev_priv_init(struct rte_pci_device *pci_dev, void *otx2_dev)
 	if (otx2_dev_is_vf(dev)) {
 		direction = MBOX_DIR_VFPF;
 		up_direction = MBOX_DIR_VFPF_UP;
+		intr_offset = RVU_VF_INT;
 	}
 
 	/* Initialize the local mbox */
-	rc = otx2_mbox_init(&dev->mbox_local, bar4, bar2, direction, 1);
+	rc = otx2_mbox_init(&dev->mbox_local, bar4, bar2, direction, 1,
+			    intr_offset);
 	if (rc)
 		goto error;
 	dev->mbox = &dev->mbox_local;
 
-	rc = otx2_mbox_init(&dev->mbox_up, bar4, bar2, up_direction, 1);
+	rc = otx2_mbox_init(&dev->mbox_up, bar4, bar2, up_direction, 1,
+			    intr_offset);
 	if (rc)
 		goto error;
 
@@ -967,13 +971,15 @@ otx2_dev_priv_init(struct rte_pci_device *pci_dev, void *otx2_dev)
 		}
 		/* Init mbox object */
 		rc = otx2_mbox_init(&dev->mbox_vfpf, (uintptr_t)hwbase,
-				    bar2, MBOX_DIR_PFVF, pci_dev->max_vfs);
+				    bar2, MBOX_DIR_PFVF, pci_dev->max_vfs,
+				    intr_offset);
 		if (rc)
 			goto iounmap;
 
 		/* PF -> VF UP messages */
 		rc = otx2_mbox_init(&dev->mbox_vfpf_up, (uintptr_t)hwbase,
-				    bar2, MBOX_DIR_PFVF_UP, pci_dev->max_vfs);
+				    bar2, MBOX_DIR_PFVF_UP, pci_dev->max_vfs,
+				    intr_offset);
 		if (rc)
 			goto mbox_fini;
 	}

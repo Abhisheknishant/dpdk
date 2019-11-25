@@ -59,12 +59,13 @@ otx2_mbox_reset(struct otx2_mbox *mbox, int devid)
 }
 
 int
-otx2_mbox_init(struct otx2_mbox *mbox, uintptr_t hwbase,
-	       uintptr_t reg_base, int direction, int ndevs)
+otx2_mbox_init(struct otx2_mbox *mbox, uintptr_t hwbase, uintptr_t reg_base,
+	       int direction, int ndevs, uint64_t intr_offset)
 {
 	struct otx2_mbox_dev *mdev;
 	int devid;
 
+	mbox->intr_offset = intr_offset;
 	mbox->reg_base = reg_base;
 	mbox->hwbase = hwbase;
 
