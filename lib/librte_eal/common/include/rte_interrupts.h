@@ -138,6 +138,21 @@ int rte_intr_disable(const struct rte_intr_handle *intr_handle);
 __rte_experimental
 int rte_intr_ack(const struct rte_intr_handle *intr_handle);
 
+/**
+ * @warning
+ * @b EXPERIMENTAL: this API may change without prior notice
+ *
+ * Check if currently executing in interrupt context
+ *
+ * @return
+ *  - positive in case of interrupt context
+ *  - zero in case of process context
+ *  - negative if unsuccessful
+ */
+__rte_experimental
+int
+rte_thread_is_intr(void);
+
 #ifdef __cplusplus
 }
 #endif
