@@ -16,6 +16,7 @@ HowTo Guides
     vfd
     virtio_user_for_container_networking
     virtio_user_as_exceptional_path
+    virtio_paths_selection_and_usage
     packet_capture_framework
     telemetry
     debug_troubleshoot
