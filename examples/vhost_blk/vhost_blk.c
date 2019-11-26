@@ -852,7 +852,7 @@ new_device(int vid)
 
 		if (ctrlr->packed_ring) {
 			/* for the reconnection */
-			ret = rte_vhost_get_vring_base_from_inflight(
+			rte_vhost_get_vring_base_from_inflight(
 				ctrlr->bdev->vid, i,
 				&blk_vq->last_avail_idx,
 				&blk_vq->last_used_idx);
