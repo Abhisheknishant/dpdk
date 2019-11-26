@@ -1342,6 +1342,7 @@ inflight_mem_alloc(const char *name, size_t size, int *fd)
 	RTE_SET_USED(name);
 #endif
 	if (mfd == -1) {
+		mode_t mask = umask(0600);
 		mfd = mkstemp(fname);
 		if (mfd == -1) {
 			RTE_LOG(ERR, VHOST_CONFIG,
@@ -1349,6 +1350,7 @@ inflight_mem_alloc(const char *name, size_t size, int *fd)
 			return NULL;
 		}
 
+		umask(mask);
 		unlink(fname);
 	}
 
