@@ -387,7 +387,7 @@ vhost_crypto_worker(void *arg)
 				continue;
 
 			for (j = 0; j < NB_VIRTIO_QUEUES; j++) {
-				to_fetch = RTE_MIN(burst_size,
+				to_fetch = RTE_MAX(burst_size,
 						(NB_CRYPTO_DESCRIPTORS -
 						info->nb_inflight_ops));
 				fetched = rte_vhost_crypto_fetch_requests(
