@@ -327,8 +327,10 @@ eth_stats_get(struct rte_eth_dev *dev, struct rte_eth_stats *igb_stats)
 {
 	unsigned i, imax;
 	unsigned long rx_total = 0, tx_total = 0, tx_err_total = 0;
-	unsigned long rx_bytes_total = 0, tx_bytes_total = 0;
+	unsigned long rx_bytes_total = 0, tx_bytes_total = 0, rx_drop = 0;
 	const struct pmd_internals *internal = dev->data->dev_private;
+	socklen_t sock_len = sizeof(struct tpacket_stats);
+	struct tpacket_stats st;
 
 	imax = (internal->nb_queues < RTE_ETHDEV_QUEUE_STAT_CNTRS ?
 	        internal->nb_queues : RTE_ETHDEV_QUEUE_STAT_CNTRS);
@@ -337,6 +339,12 @@ eth_stats_get(struct rte_eth_dev *dev, struct rte_eth_stats *igb_stats)
 		igb_stats->q_ibytes[i] = internal->rx_queue[i].rx_bytes;
 		rx_total += igb_stats->q_ipackets[i];
 		rx_bytes_total += igb_stats->q_ibytes[i];
+
+		memset(&st, 0, sock_len);
+		int rc = getsockopt(internal->rx_queue[i].sockfd, SOL_PACKET,
+					PACKET_STATISTICS, &st, &sock_len);
+		if (rc == 0)
+			rx_drop += st.tp_drops;
 	}
 
 	imax = (internal->nb_queues < RTE_ETHDEV_QUEUE_STAT_CNTRS ?
@@ -349,6 +357,7 @@ eth_stats_get(struct rte_eth_dev *dev, struct rte_eth_stats *igb_stats)
 		tx_bytes_total += igb_stats->q_obytes[i];
 	}
 
+	igb_stats->imissed = rx_drop;
 	igb_stats->ipackets = rx_total;
 	igb_stats->ibytes = rx_bytes_total;
 	igb_stats->opackets = tx_total;
