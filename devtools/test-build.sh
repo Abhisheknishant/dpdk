@@ -7,6 +7,7 @@ default_path=$PATH
 # Load config options:
 # - ARMV8_CRYPTO_LIB_PATH
 # - DPDK_BUILD_TEST_CONFIGS (defconfig1+option1+option2 defconfig2)
+# - DPDK_BUILD_TEST_DIR
 # - DPDK_DEP_ARCHIVE
 # - DPDK_DEP_BPF (y/[n])
 # - DPDK_DEP_CFLAGS
@@ -63,6 +64,7 @@ print_help () {
 [ -z $MAKE ] && echo "Cannot find make or gmake" && exit 1
 
 J=$DPDK_MAKE_JOBS
+builds_dir=${DPDK_BUILD_TEST_DIR:-.}
 short=false
 unset verbose
 maxerr=-Wfatal-errors
@@ -234,7 +236,7 @@ for conf in $configs ; do
 	. $(dirname $(readlink -f $0))/load-devel-config
 
 	options=$(echo $conf | sed 's,[^~+]*,,')
-	dir=$conf
+	dir=$builds_dir/$conf
 	config $dir $target $options
 
 	echo "================== Build $dir"
