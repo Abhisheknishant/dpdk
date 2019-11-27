@@ -39,7 +39,12 @@ extern "C" {
 #include <rte_compat.h>
 #include <rte_rwlock.h>
 
-#define RTE_FBARRAY_NAME_LEN 64
+/* Filename of fbarray is defined as a combination of several params
+ * such as "fbarray_memseg-1048576k-0-0_PID_HOSTNAME".
+ * The length of string before PID can be 32bytes, and the length of
+ * PID can be 7bytes maximamly. Final 1 byte is for null terminator.
+ */
+#define RTE_FBARRAY_NAME_LEN (32 + 7 + 1 + HOST_NAME_MAX + 1)
 
 struct rte_fbarray {
 	char name[RTE_FBARRAY_NAME_LEN]; /**< name associated with an array */
