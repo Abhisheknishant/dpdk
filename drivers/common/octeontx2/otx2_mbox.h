@@ -1570,6 +1570,13 @@ void otx2_mbox_msg_send(struct otx2_mbox *mbox, int devid);
 int otx2_mbox_wait_for_rsp(struct otx2_mbox *mbox, int devid);
 int otx2_mbox_wait_for_rsp_tmo(struct otx2_mbox *mbox, int devid, uint32_t tmo);
 int otx2_mbox_get_rsp(struct otx2_mbox *mbox, int devid, void **msg);
+
+__rte_experimental
+int otx2_mbox_get_rsp_poll(struct otx2_mbox *mbox, int devid, void **msg);
+__rte_experimental
+int otx2_mbox_get_rsp_poll_tmo(struct otx2_mbox *mbox, int devid, void **msg,
+			       uint32_t tmo);
+
 int otx2_mbox_get_rsp_tmo(struct otx2_mbox *mbox, int devid, void **msg,
 			  uint32_t tmo);
 int otx2_mbox_get_availmem(struct otx2_mbox *mbox, int devid);

@@ -11,6 +11,7 @@
 #include <rte_cycles.h>
 
 #include "otx2_mbox.h"
+#include "otx2_dev.h"
 
 #define RVU_AF_AFPF_MBOX0	(0x02000)
 #define RVU_AF_AFPF_MBOX1	(0x02008)
@@ -243,6 +244,63 @@ otx2_mbox_get_rsp(struct otx2_mbox *mbox, int devid, void **msg)
 		*msg = msghdr;
 
 	return msghdr->rc;
+}
+
+/**
+ * @internal
+ * Polling for given wait time to get mailbox response
+ */
+int
+otx2_mbox_get_rsp_poll_tmo(struct otx2_mbox *mbox, int devid, void **msg,
+			   uint32_t wait)
+{
+	struct otx2_mbox_dev *mdev = &mbox->dev[devid];
+	uint32_t timeout = 0, sleep = 1;
+	struct mbox_msghdr *msghdr;
+	uint64_t rsp_reg = 0;
+	uintptr_t reg_addr;
+	uint64_t offset;
+
+	rte_rmb();
+
+	offset = mbox->rx_start +
+		RTE_ALIGN(sizeof(struct mbox_hdr), MBOX_MSG_ALIGN);
+	msghdr = (struct mbox_msghdr *)((uintptr_t)mdev->mbase + offset);
+
+	reg_addr = mbox->reg_base + mbox->intr_offset;
+	while (!rsp_reg) {
+		rte_rmb();
+		rsp_reg = otx2_read64(reg_addr);
+
+		if (timeout >= wait)
+			return -ETIMEDOUT;
+
+		rte_delay_ms(sleep);
+		timeout += sleep;
+	}
+
+	if (msg != NULL)
+		*msg = msghdr;
+
+	/* Clear interrupt */
+	otx2_write64(rsp_reg, reg_addr);
+
+	/* Reset mbox */
+	otx2_mbox_reset(mbox, 0);
+
+	return msghdr->rc;
+}
+
+/**
+ * @internal
+ * Polling for 5 seconds to get mailbox response
+ */
+int
+otx2_mbox_get_rsp_poll(struct otx2_mbox *mbox, int devid, void **msg)
+{
+	uint32_t wait = 5 * MS_PER_S; /* 5 Seconds */
+
+	return otx2_mbox_get_rsp_poll_tmo(mbox, devid, msg, wait);
 }
 
 /**

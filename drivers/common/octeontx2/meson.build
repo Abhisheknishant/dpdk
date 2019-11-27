@@ -8,6 +8,8 @@ sources= files('otx2_dev.c',
 		'otx2_common.c',
 	       )
 
+allow_experimental_apis = true
+
 extra_flags = []
 # This integrated controller runs only on a arm64 machine, remove 32bit warnings
 if not dpdk_conf.get('RTE_ARCH_64')

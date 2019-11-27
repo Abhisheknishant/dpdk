@@ -33,3 +33,10 @@ DPDK_20.0 {
 
 	local: *;
 };
+
+EXPERIMENTAL {
+	global:
+
+	otx2_mbox_get_rsp_poll;
+	otx2_mbox_get_rsp_poll_tmo;
+};
