@@ -577,17 +577,16 @@ otx2_pf_vf_mbox_irq(void *param)
 
 	intr = otx2_read64(dev->bar2 + RVU_VF_INT);
 	if (intr == 0)
-		return;
+		otx2_base_dbg("Proceeding to check mbox UP messages if any");
 
 	otx2_write64(intr, dev->bar2 + RVU_VF_INT);
 	otx2_base_dbg("Irq 0x%" PRIx64 "(pf:%d,vf:%d)", intr, dev->pf, dev->vf);
-	if (intr) {
-		/* First process all configuration messages */
-		otx2_process_msgs(dev, dev->mbox);
 
-		/* Process Uplink messages */
-		otx2_process_msgs_up(dev, &dev->mbox_up);
-	}
+	/* First process all configuration messages */
+	otx2_process_msgs(dev, dev->mbox);
+
+	/* Process Uplink messages */
+	otx2_process_msgs_up(dev, &dev->mbox_up);
 }
 
 static void
@@ -598,18 +597,16 @@ otx2_af_pf_mbox_irq(void *param)
 
 	intr = otx2_read64(dev->bar2 + RVU_PF_INT);
 	if (intr == 0)
-		return;
+		otx2_base_dbg("Proceeding to check mbox UP messages if any");
 
 	otx2_write64(intr, dev->bar2 + RVU_PF_INT);
-
 	otx2_base_dbg("Irq 0x%" PRIx64 "(pf:%d,vf:%d)", intr, dev->pf, dev->vf);
-	if (intr) {
-		/* First process all configuration messages */
-		otx2_process_msgs(dev, dev->mbox);
 
-		/* Process Uplink messages */
-		otx2_process_msgs_up(dev, &dev->mbox_up);
-	}
+	/* First process all configuration messages */
+	otx2_process_msgs(dev, dev->mbox);
+
+	/* Process Uplink messages */
+	otx2_process_msgs_up(dev, &dev->mbox_up);
 }
 
 static int

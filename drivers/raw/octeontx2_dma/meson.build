@@ -5,6 +5,8 @@
 deps += ['bus_pci', 'common_octeontx2', 'rawdev']
 sources = files('otx2_dpi_rawdev.c', 'otx2_dpi_msg.c', 'otx2_dpi_test.c')
 
+allow_experimental_apis = true
+
 extra_flags = []
 # This integrated controller runs only on a arm64 machine, remove 32bit warnings
 if not dpdk_conf.get('RTE_ARCH_64')

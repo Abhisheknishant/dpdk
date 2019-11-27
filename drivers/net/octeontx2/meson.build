@@ -24,6 +24,8 @@ sources = files('otx2_rx.c',
 		'otx2_ethdev_devargs.c'
 		)
 
+allow_experimental_apis = true
+
 deps += ['bus_pci', 'common_octeontx2', 'mempool_octeontx2']
 
 cflags += ['-flax-vector-conversions']
