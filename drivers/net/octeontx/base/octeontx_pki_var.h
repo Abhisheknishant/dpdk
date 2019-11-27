@@ -139,7 +139,7 @@ typedef union octtx_wqe_s {
 			uint64_t	l2b	: 1;
 			uint64_t	l2m	: 1;
 			uint64_t	raw	: 1;
-	uint64_t	err_lev : 3;
+			uint64_t	err_lev : 3;
 			uint64_t	op_code : 8;
 		} w2;
 
