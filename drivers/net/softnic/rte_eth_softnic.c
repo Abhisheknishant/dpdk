@@ -91,8 +91,8 @@ pmd_dev_infos_get(struct rte_eth_dev *dev __rte_unused,
 	struct rte_eth_dev_info *dev_info)
 {
 	dev_info->max_rx_pktlen = UINT32_MAX;
-	dev_info->max_rx_queues = UINT16_MAX;
-	dev_info->max_tx_queues = UINT16_MAX;
+	dev_info->max_rx_queues = RTE_MAX_QUEUES_PER_PORT;
+	dev_info->max_tx_queues = RTE_MAX_QUEUES_PER_PORT;
 
 	return 0;
 }

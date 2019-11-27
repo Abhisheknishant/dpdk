@@ -617,9 +617,7 @@ mlx5_dev_infos_get(struct rte_eth_dev *dev, struct rte_eth_dev_info *info)
 	 */
 	max = RTE_MIN(priv->sh->device_attr.orig_attr.max_cq,
 		      priv->sh->device_attr.orig_attr.max_qp);
-	/* If max >= 65535 then max = 0, max_rx_queues is uint16_t. */
-	if (max >= 65535)
-		max = 65535;
+	max = RTE_MIN(max, (unsigned int)RTE_MAX_QUEUES_PER_PORT);
 	info->max_rx_queues = max;
 	info->max_tx_queues = max;
 	info->max_mac_addrs = MLX5_MAX_UC_MAC_ADDRESSES;
