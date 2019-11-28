@@ -1,7 +1,6 @@
 #! /bin/sh
 
-# BSD LICENSE
-#
+# SPDX-License-Identifier: BSD-3-Clause
 # Copyright 2015 EZchip Semiconductor Ltd.
 #
 # Redistribution and use in source and binary forms, with or without
