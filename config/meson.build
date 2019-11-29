@@ -158,31 +158,33 @@ endif
 # add -include rte_config to cflags
 add_project_arguments('-include', 'rte_config.h', language: 'c')
 
-# enable extra warnings and disable any unwanted warnings
+# enable extra warnings and disable any unwanted warnings. "-Wall" is added
+# by meson at warning level 1, and "-Wextra" at level 2, so we can omit
+# those. Add extra warnings at level 2 or above. (2 is default level).
 warning_flags = [
-	# -Wall is added by meson by default, so add -Wextra only
-	'-Wextra',
-
-	# additional warnings in alphabetical order
-	'-Wcast-qual',
-	'-Wdeprecated',
-	'-Wformat-nonliteral',
-	'-Wformat-security',
-	'-Wmissing-declarations',
-	'-Wmissing-prototypes',
-	'-Wnested-externs',
-	'-Wold-style-definition',
-	'-Wpointer-arith',
-	'-Wsign-compare',
-	'-Wstrict-prototypes',
-	'-Wundef',
-	'-Wwrite-strings',
-
 	# globally disabled warnings
 	'-Wno-address-of-packed-member',
 	'-Wno-packed-not-aligned',
 	'-Wno-missing-field-initializers'
 ]
+if get_option('warning_level').to_int() >= 2
+	warning_flags += [
+		# additional warnings in alphabetical order
+		'-Wcast-qual',
+		'-Wdeprecated',
+		'-Wformat-nonliteral',
+		'-Wformat-security',
+		'-Wmissing-declarations',
+		'-Wmissing-prototypes',
+		'-Wnested-externs',
+		'-Wold-style-definition',
+		'-Wpointer-arith',
+		'-Wsign-compare',
+		'-Wstrict-prototypes',
+		'-Wundef',
+		'-Wwrite-strings',
+	]
+endif
 if not dpdk_conf.get('RTE_ARCH_64')
 # for 32-bit, don't warn about casting a 32-bit pointer to 64-bit int - it's fine!!
 	warning_flags += '-Wno-pointer-to-int-cast'
