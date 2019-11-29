@@ -8,7 +8,8 @@ project('DPDK', 'C',
 		files('VERSION')).stdout().strip(),
 	license: 'BSD',
 	default_options: ['buildtype=debugoptimized',
-			'default_library=static'],
+			'default_library=static',
+			'warning_level=2'],
 	meson_version: '>= 0.47.1'
 )
 
