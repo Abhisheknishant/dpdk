@@ -196,6 +196,19 @@ foreach class:dpdk_driver_classes
 					include_directories: includes,
 					dependencies: static_deps)
 
+			if not is_windows and get_option('compat_checks')
+				custom_target('lib' + lib_name + '.abi_chk',
+					command: [abidiff,
+						meson.source_root() + '/drivers/abi/lib'
+						+ lib_name + '.dump',
+						'@INPUT@'],
+					input: shared_lib,
+					output: 'lib' + lib_name + '.abi_chk',
+					capture: true,
+					install: false,
+					build_by_default: is_experimental == 0)
+			endif
+
 			dpdk_drivers += static_lib
 
 			set_variable('shared_@0@'.format(lib_name), shared_dep)
