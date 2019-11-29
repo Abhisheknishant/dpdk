@@ -342,6 +342,10 @@ New Features
     ``--iova-mode=pa`` option can be used, IOVA_DC bus iommu scheme can also
     result in IOVA as PA.
 
+* **Added Chacha20-Poly1305 algorithm to Cryptodev API.**
+
+  Chacha20-Poly1305 AEAD algorithm can now be supported in Cryptodev.
+
 
 Removed Items
 -------------
