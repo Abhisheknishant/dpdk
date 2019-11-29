@@ -180,6 +180,19 @@ foreach l:libraries
 					include_directories: includes,
 					dependencies: shared_deps)
 
+			if not is_windows and get_option('compat_checks')
+				custom_target(dir_name + '.abi_chk',
+					command: [abidiff,
+						meson.source_root() + '/lib/abi/'
+						+ dir_name + '.dump',
+						'@INPUT@'],
+					input: shared_lib,
+					output: dir_name + '.abi_chk',
+					capture: true,
+					install: false,
+					build_by_default: is_experimental == 0)
+			endif
+
 			dpdk_libraries = [shared_lib] + dpdk_libraries
 			dpdk_static_libraries = [static_lib] + dpdk_static_libraries
 		endif # sources.length() > 0
