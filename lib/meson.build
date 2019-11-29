@@ -154,15 +154,6 @@ foreach l:libraries
 					'-Wl,/implib:lib\\' + implib]
 			else
 				lk_args = ['-Wl,--version-script=' + version_map]
-				# on unix systems check the output of the
-				# experimental syms script, using it as a
-				# dependency of the .so build
-				lk_deps += custom_target(name + '.exp_chk',
-					command: [check_experimental_syms,
-						version_map, '@INPUT@'],
-					capture: true,
-					input: static_lib,
-					output: name + '.exp_chk')
 			endif
 
 			shared_lib = shared_library(libname,
@@ -172,7 +163,6 @@ foreach l:libraries
 					dependencies: shared_deps,
 					include_directories: includes,
 					link_args: lk_args,
-					link_depends: lk_deps,
 					version: lib_version,
 					soversion: so_version,
 					install: true)
@@ -181,6 +171,17 @@ foreach l:libraries
 					dependencies: shared_deps)
 
 			if not is_windows and get_option('compat_checks')
+				# on unix systems check the output of the
+				# experimental syms script
+				custom_target(name + '.exp_chk',
+					command: [check_experimental_syms,
+						version_map, '@INPUT@'],
+					capture: true,
+					input: static_lib,
+					output: name + '.exp_chk',
+					install: false,
+					build_by_default: true)
+
 				custom_target(dir_name + '.abi_chk',
 					command: [abidiff,
 						meson.source_root() + '/lib/abi/'

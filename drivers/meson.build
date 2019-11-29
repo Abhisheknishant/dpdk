@@ -163,15 +163,6 @@ foreach class:dpdk_driver_classes
 					'-Wl,/implib:lib\\' + implib]
 			else
 				lk_args = ['-Wl,--version-script=' + version_map]
-				# on unix systems check the output of the
-				# experimental syms script, using it as a
-				# dependency of the .so build
-				lk_deps += custom_target(lib_name + '.exp_chk',
-					command: [check_experimental_syms,
-						version_map, '@INPUT@'],
-					capture: true,
-					input: static_lib,
-					output: lib_name + '.exp_chk')
 			endif
 
 			shared_lib = shared_library(lib_name,
@@ -181,7 +172,6 @@ foreach class:dpdk_driver_classes
 				dependencies: shared_deps,
 				c_args: cflags,
 				link_args: lk_args,
-				link_depends: lk_deps,
 				version: lib_version,
 				soversion: so_version,
 				install: true,
@@ -197,6 +187,17 @@ foreach class:dpdk_driver_classes
 					dependencies: static_deps)
 
 			if not is_windows and get_option('compat_checks')
+				# on unix systems check the output of the
+				# experimental syms script
+				custom_target(lib_name + '.exp_chk',
+					command: [check_experimental_syms,
+						version_map, '@INPUT@'],
+					capture: true,
+					input: static_lib,
+					output: lib_name + '.exp_chk',
+					install: false,
+					build_by_default: true)
+
 				custom_target('lib' + lib_name + '.abi_chk',
 					command: [abidiff,
 						meson.source_root() + '/drivers/abi/lib'
