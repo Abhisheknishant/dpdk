@@ -182,6 +182,10 @@ mlx5_hairpin_bind(struct rte_eth_dev *dev)
 	struct mlx5_rxq_ctrl *rxq_ctrl;
 	struct mlx5_devx_obj *sq;
 	struct mlx5_devx_obj *rq;
+	struct rte_eth_dev *rxq_dev;
+	struct mlx5_priv *rxq_priv;
+	uint16_t peer_queue_id;
+	uint16_t peer_port_id;
 	unsigned int i;
 	int ret = 0;
 
@@ -200,37 +204,50 @@ mlx5_hairpin_bind(struct rte_eth_dev *dev)
 			mlx5_txq_release(dev, i);
 			return -rte_errno;
 		}
-		sq = txq_ctrl->obj->sq;
-		rxq_ctrl = mlx5_rxq_get(dev,
-					txq_ctrl->hairpin_conf.peers[0].queue);
+		peer_port_id = txq_ctrl->hairpin_conf.peers[0].port;
+		peer_queue_id = txq_ctrl->hairpin_conf.peers[0].queue;
+		rxq_dev = &rte_eth_devices[peer_port_id];
+		rxq_priv = rxq_dev->data->dev_private;
+
+		rxq_ctrl = mlx5_rxq_get(rxq_dev, peer_queue_id);
 		if (!rxq_ctrl) {
 			mlx5_txq_release(dev, i);
 			rte_errno = EINVAL;
 			DRV_LOG(ERR, "port %u no rxq object found: %d",
-				dev->data->port_id,
-				txq_ctrl->hairpin_conf.peers[0].queue);
+				peer_port_id, peer_queue_id);
 			return -rte_errno;
 		}
 		if (rxq_ctrl->type != MLX5_RXQ_TYPE_HAIRPIN ||
 		    rxq_ctrl->hairpin_conf.peers[0].queue != i) {
 			rte_errno = ENOMEM;
 			DRV_LOG(ERR, "port %u Tx queue %d can't be binded to "
-				"Rx queue %d", dev->data->port_id,
-				i, txq_ctrl->hairpin_conf.peers[0].queue);
+				"port %u Rx queue %d",
+				dev->data->port_id, i,
+				peer_port_id, peer_queue_id);
 			goto error;
 		}
+		if (!rxq_ctrl->obj) {
+			DRV_LOG(ERR, "port %u rxq obj not created, "
+				"you may start it firstly.",
+				peer_port_id);
+			goto error;
+		}
+
+		sq = txq_ctrl->obj->sq;
 		rq = rxq_ctrl->obj->rq;
 		if (!rq) {
 			rte_errno = ENOMEM;
-			DRV_LOG(ERR, "port %u hairpin no matching rxq: %d",
+			DRV_LOG(ERR, "port %u hairpin no matching port"
+				" %u rxq %d",
 				dev->data->port_id,
-				txq_ctrl->hairpin_conf.peers[0].queue);
+				peer_port_id,
+				peer_queue_id);
 			goto error;
 		}
 		sq_attr.state = MLX5_SQC_STATE_RDY;
 		sq_attr.sq_state = MLX5_SQC_STATE_RST;
 		sq_attr.hairpin_peer_rq = rq->id;
-		sq_attr.hairpin_peer_vhca = priv->config.hca_attr.vhca_id;
+		sq_attr.hairpin_peer_vhca = rxq_priv->config.hca_attr.vhca_id;
 		ret = mlx5_devx_cmd_modify_sq(sq, &sq_attr);
 		if (ret)
 			goto error;
@@ -242,12 +259,12 @@ mlx5_hairpin_bind(struct rte_eth_dev *dev)
 		if (ret)
 			goto error;
 		mlx5_txq_release(dev, i);
-		mlx5_rxq_release(dev, txq_ctrl->hairpin_conf.peers[0].queue);
+		mlx5_rxq_release(rxq_dev, peer_queue_id);
 	}
 	return 0;
 error:
 	mlx5_txq_release(dev, i);
-	mlx5_rxq_release(dev, txq_ctrl->hairpin_conf.peers[0].queue);
+	mlx5_rxq_release(dev, peer_queue_id);
 	return -rte_errno;
 }
 

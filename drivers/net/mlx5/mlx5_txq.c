@@ -254,9 +254,7 @@ mlx5_tx_hairpin_queue_setup(struct rte_eth_dev *dev, uint16_t idx,
 	res = mlx5_tx_queue_pre_setup(dev, idx, desc);
 	if (res)
 		return res;
-	if (hairpin_conf->peer_count != 1 ||
-	    hairpin_conf->peers[0].port != dev->data->port_id ||
-	    hairpin_conf->peers[0].queue >= priv->rxqs_n) {
+	if (hairpin_conf->peer_count != 1) {
 		DRV_LOG(ERR, "port %u unable to setup hairpin queue index %u "
 			" invalid hairpind configuration", dev->data->port_id,
 			idx);
