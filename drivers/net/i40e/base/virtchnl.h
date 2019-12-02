@@ -1583,7 +1583,7 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 				break;
 			}
 
-			valid_len += vrl->lut_entries - 1;
+			valid_len += (vrl->lut_entries - 1) * sizeof(u16);
 		}
 		break;
 	case VIRTCHNL_OP_GET_RSS_HASH:
