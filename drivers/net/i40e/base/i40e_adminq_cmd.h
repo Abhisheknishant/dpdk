@@ -2027,12 +2027,19 @@ struct i40e_aq_get_phy_abilities_resp {
 #define I40E_AQ_PHY_FEC_ABILITY_KR	0x40
 #define I40E_AQ_PHY_FEC_ABILITY_RS	0x80
 	__le16	eee_capability;
+#ifdef CARLSVILLE_HW
+#define I40E_AQ_EEE_AUTO		0x0001
+#endif
 #define I40E_AQ_EEE_100BASE_TX		0x0002
 #define I40E_AQ_EEE_1000BASE_T		0x0004
 #define I40E_AQ_EEE_10GBASE_T		0x0008
 #define I40E_AQ_EEE_1000BASE_KX		0x0010
 #define I40E_AQ_EEE_10GBASE_KX4		0x0020
 #define I40E_AQ_EEE_10GBASE_KR		0x0040
+#ifdef CARLSVILLE_HW
+#define I40E_AQ_EEE_2_5GBASE_T		0x0100
+#define I40E_AQ_EEE_5GBASE_T		0x0200
+#endif
 	__le32	eeer_val;
 	u8	d3_lpan;
 #define I40E_AQ_SET_PHY_D3_LPAN_ENA	0x01
