@@ -7248,7 +7248,8 @@ enum i40e_status_code i40e_get_lpi_duration(struct i40e_hw *hw,
 
 	if (retval)
 		return retval;
-	if (cmd_status != I40E_AQ_RUN_PHY_ACT_CMD_STAT_SUCC)
+	if ((cmd_status & I40E_AQ_RUN_PHY_ACT_CMD_STAT_MASK) !=
+	    I40E_AQ_RUN_PHY_ACT_CMD_STAT_SUCC)
 		return I40E_ERR_ADMIN_QUEUE_ERROR;
 
 	if (hw->phy.link_info.link_speed == I40E_LINK_SPEED_1GB &&
@@ -7262,7 +7263,8 @@ enum i40e_status_code i40e_get_lpi_duration(struct i40e_hw *hw,
 
 		if (retval)
 			return retval;
-		if (cmd_status != I40E_AQ_RUN_PHY_ACT_CMD_STAT_SUCC)
+		if ((cmd_status & I40E_AQ_RUN_PHY_ACT_CMD_STAT_MASK) !=
+		    I40E_AQ_RUN_PHY_ACT_CMD_STAT_SUCC)
 			return I40E_ERR_ADMIN_QUEUE_ERROR;
 		tx_time_dur = 0;
 		rx_time_dur = 0;

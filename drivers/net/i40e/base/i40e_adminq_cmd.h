@@ -2301,6 +2301,7 @@ struct i40e_aqc_run_phy_activity {
 		struct {
 			__le32	cmd_status;
 #define I40E_AQ_RUN_PHY_ACT_CMD_STAT_SUCC		0x4
+#define I40E_AQ_RUN_PHY_ACT_CMD_STAT_MASK		0xFFFF
 			__le32	data0;
 			__le32	data1;
 		} resp;
