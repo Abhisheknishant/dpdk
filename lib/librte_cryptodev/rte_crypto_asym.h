@@ -24,6 +24,7 @@ extern "C" {
 #include <rte_memory.h>
 #include <rte_mempool.h>
 #include <rte_common.h>
+#include <rte_compat.h>
 
 #include "rte_crypto_sym.h"
 
@@ -37,10 +38,12 @@ typedef struct rte_crypto_param_t {
 } rte_crypto_param;
 
 /** asym xform type name strings */
+__rte_experimental_var
 extern const char *
 rte_crypto_asym_xform_strings[];
 
 /** asym operations type name strings */
+__rte_experimental_var
 extern const char *
 rte_crypto_asym_op_strings[];
 

@@ -35,6 +35,7 @@ extern "C" {
 #include <rte_debug.h>
 #include <rte_atomic.h>
 
+__rte_experimental_var
 extern int rte_rcu_log_type;
 
 #if RTE_LOG_DP_LEVEL >= RTE_LOG_DEBUG

@@ -34,13 +34,26 @@ do
 		Please add __rte_experimental to the definition of $SYM
 		END_OF_MESSAGE
 		ret=1
+	elif grep -qe "\(\.data\|\*COM\*\).*[[:space:]]$SYM$" $DUMPFILE &&
+		! grep -q "\.data\.experimental.*[[:space:]]$SYM$" $DUMPFILE
+	then
+		cat >&2 <<- END_OF_MESSAGE
+		$SYM is not flagged as experimental
+		but is listed in version map
+		Please add __rte_experimental_var to the definition of $SYM
+		END_OF_MESSAGE
+		ret=1
 	fi
 done
 
 # Filter out symbols suffixed with a . for icc
 for SYM in `awk '{
-	if ($2 != "l" && $4 == ".text.experimental" && !($NF ~ /\.$/)) {
-		print $NF
+	if ($2 == "l" || $NF ~ /\.$/) {
+		next;
+	}
+	if ($4 == ".text.experimental" ||
+	    $4 == ".data.experimental") {
+		print $NF;
 	}
 }' $DUMPFILE`
 do

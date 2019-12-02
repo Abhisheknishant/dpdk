@@ -466,6 +466,7 @@ struct __rte_cache_aligned rte_bbdev {
 };
 
 /** @internal array of all devices */
+__rte_experimental_var
 extern struct rte_bbdev rte_bbdev_devices[];
 
 /**

@@ -25,6 +25,8 @@ extern "C" {
 **/
 
 #include <stdint.h>
+
+#include <rte_compat.h>
 #include <rte_eventdev.h>
 
 #include "rte_port.h"
@@ -39,6 +41,7 @@ struct rte_port_eventdev_reader_params {
 };
 
 /** Eventdev_reader port operations. */
+__rte_experimental_var
 extern struct rte_port_in_ops rte_port_eventdev_reader_ops;
 
 /** Eventdev_writer port parameters. */
@@ -63,6 +66,7 @@ struct rte_port_eventdev_writer_params {
 };
 
 /** Eventdev_writer port operations. */
+__rte_experimental_var
 extern struct rte_port_out_ops rte_port_eventdev_writer_ops;
 
 /** Event_writer_nodrop port parameters. */
@@ -90,6 +94,7 @@ struct rte_port_eventdev_writer_nodrop_params {
 };
 
 /** Eventdev_writer_nodrop port operations. */
+__rte_experimental_var
 extern struct rte_port_out_ops rte_port_eventdev_writer_nodrop_ops;
 
 #ifdef __cplusplus

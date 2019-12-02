@@ -11,11 +11,16 @@
 #define __rte_experimental \
 __attribute__((deprecated("Symbol is not yet part of stable ABI"), \
 section(".text.experimental")))
+#define __rte_experimental_var \
+__attribute__((deprecated("Symbol is not yet part of stable ABI"), \
+section(".data.experimental")))
 
 #else
 
 #define __rte_experimental \
 __attribute__((section(".text.experimental")))
+#define __rte_experimental_var \
+__attribute__((section(".data.experimental")))
 
 #endif
 

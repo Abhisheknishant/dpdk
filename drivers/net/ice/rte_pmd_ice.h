@@ -15,6 +15,8 @@
  */
 
 #include <stdio.h>
+
+#include <rte_compat.h>
 #include <rte_mbuf.h>
 #include <rte_mbuf_dyn.h>
 
@@ -81,13 +83,19 @@ union rte_net_ice_proto_xtr_metadata {
 };
 
 /* Offset of mbuf dynamic field for protocol extraction data */
+__rte_experimental_var
 extern int rte_net_ice_dynfield_proto_xtr_metadata_offs;
 
 /* Mask of mbuf dynamic flags for protocol extraction type */
+__rte_experimental_var
 extern uint64_t rte_net_ice_dynflag_proto_xtr_vlan_mask;
+__rte_experimental_var
 extern uint64_t rte_net_ice_dynflag_proto_xtr_ipv4_mask;
+__rte_experimental_var
 extern uint64_t rte_net_ice_dynflag_proto_xtr_ipv6_mask;
+__rte_experimental_var
 extern uint64_t rte_net_ice_dynflag_proto_xtr_ipv6_flow_mask;
+__rte_experimental_var
 extern uint64_t rte_net_ice_dynflag_proto_xtr_tcp_mask;
 
 /**

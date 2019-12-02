@@ -90,11 +90,19 @@ check_experimental_tags() { # <patch>
 				"headers ("current_file")";
 			ret = 1;
 		}
-		if ($1 != "+__rte_experimental" || $2 != "") {
-			print "__rte_experimental must appear alone on the line" \
-				" immediately preceding the return type of a function."
-			ret = 1;
+
+		if (NF == 1 && ($1 == "+__rte_experimental" ||
+				$1 == "+__rte_experimental_var")) {
+			next;
 		}
+		if ($0 ~ "__rte_experimental_var") {
+			print "__rte_experimental_var must appear alone on the line" \
+				" immediately preceding the type of a variable.";
+		} else {
+			print "__rte_experimental must appear alone on the line" \
+				" immediately preceding the return type of a function.";
+		}
+		ret = 1;
 	}
 	END {
 		exit ret;
@@ -178,7 +186,7 @@ check () { # <patch> <commit> <title>
 		ret=1
 	fi
 
-	! $verbose || printf '\nChecking __rte_experimental tags:\n'
+	! $verbose || printf '\nChecking __rte_experimental* tags:\n'
 	report=$(check_experimental_tags "$tmpinput")
 	if [ $? -ne 0 ] ; then
 		$headline_printed || print_headline "$3"

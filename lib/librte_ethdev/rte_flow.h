@@ -19,6 +19,7 @@
 
 #include <rte_arp.h>
 #include <rte_common.h>
+#include <rte_compat.h>
 #include <rte_ether.h>
 #include <rte_icmp.h>
 #include <rte_ip.h>
@@ -2531,9 +2532,11 @@ struct rte_flow_action_set_meta {
 };
 
 /* Mbuf dynamic field offset for metadata. */
+__rte_experimental_var
 extern int rte_flow_dynf_metadata_offs;
 
 /* Mbuf dynamic field flag mask for metadata. */
+__rte_experimental_var
 extern uint64_t rte_flow_dynf_metadata_mask;
 
 /* Mbuf dynamic field pointer for metadata. */
@@ -2548,14 +2551,24 @@ __rte_experimental
 static inline uint32_t
 rte_flow_dynf_metadata_get(struct rte_mbuf *m)
 {
+#ifdef ALLOW_EXPERIMENTAL_API
 	return *RTE_FLOW_DYNF_METADATA(m);
+#else
+	RTE_SET_USED(m);
+	return 0;
+#endif
 }
 
 __rte_experimental
 static inline void
 rte_flow_dynf_metadata_set(struct rte_mbuf *m, uint32_t v)
 {
+#ifdef ALLOW_EXPERIMENTAL_API
 	*RTE_FLOW_DYNF_METADATA(m) = v;
+#else
+	RTE_SET_USED(m);
+	RTE_SET_USED(v);
+#endif
 }
 
 /*
@@ -2800,7 +2813,11 @@ __rte_experimental
 static inline int
 rte_flow_dynf_metadata_avail(void)
 {
+#ifdef ALLOW_EXPERIMENTAL_API
 	return !!rte_flow_dynf_metadata_mask;
+#else
+	return 0;
+#endif
 }
 
 /**
