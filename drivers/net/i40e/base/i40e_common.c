@@ -1017,10 +1017,10 @@ enum i40e_status_code i40e_init_shared_code(struct i40e_hw *hw)
 
 #ifdef I40E_NVMUPD_SUPPORT
 #ifndef EXTERNAL_RELEASE
-	/* At the moment there are only two OSes where this feature
-	 * is required - FreeBSD and Linux. FreeBSD driver does
+	/* At the moment there are only three OSes where this feature
+	 * is required - ESX, FreeBSD and Linux. FreeBSD driver does
 	 * not support transition to Flat NVM. Use preprocessor
-	 * tag to ensure that this is exposed only for Linux.
+	 * tag to ensure that this is exposed only for Linux and esx.
 	 */
 #endif
 	/* NVMUpdate features structure initialization */
@@ -1032,7 +1032,7 @@ enum i40e_status_code i40e_init_shared_code(struct i40e_hw *hw)
 		    sizeof(*hw->nvmupd_features.features),
 		    I40E_NONDMA_MEM);
 
-#ifdef LINUX_SUPPORT
+#if defined(LINUX_SUPPORT) || defined(ESX_SUPPORT)
 	hw->nvmupd_features.features[0] = I40E_NVMUPD_FEATURE_FLAT_NVM_SUPPORT;
 #else
 	/* No features supported at the moment */
