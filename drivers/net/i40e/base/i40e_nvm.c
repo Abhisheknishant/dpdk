@@ -676,16 +676,38 @@ i40e_calc_nvm_checksum_exit:
 enum i40e_status_code i40e_update_nvm_checksum(struct i40e_hw *hw)
 {
 	enum i40e_status_code ret_code = I40E_SUCCESS;
-	u16 checksum;
+	u16 checksum, checksum_sr;
 	__le16 le_sum;
 
 	DEBUGFUNC("i40e_update_nvm_checksum");
 
 	ret_code = i40e_calc_nvm_checksum(hw, &checksum);
+	if (ret_code)
+		return ret_code;
+
 	le_sum = CPU_TO_LE16(checksum);
-	if (ret_code == I40E_SUCCESS)
-		ret_code = i40e_write_nvm_aq(hw, 0x00, I40E_SR_SW_CHECKSUM_WORD,
+	ret_code = i40e_write_nvm_aq(hw, 0x00, I40E_SR_SW_CHECKSUM_WORD,
+				     1, &le_sum, true);
+	if (ret_code)
+		return ret_code;
+
+	/* Due to changes in FW the SW is required to perform double SR-dump
+	 * in some cases. SR-dump is the process when internal shadow RAM is
+	 * dumped into flash bank. It is triggered by setting "last_command"
+	 * argument in i40e_write_nvm_aq function call.
+	 * Since FW 1.8 we need to calculate SR checksum again and update it
+	 * in flash if it is not equal to previously computed checksum.
+	 * This situation would occur only in FW >= 1.8
+	 */
+	ret_code = i40e_calc_nvm_checksum(hw, &checksum_sr);
+	if (ret_code)
+		return ret_code;
+	if (checksum_sr != checksum) {
+		le_sum = CPU_TO_LE16(checksum_sr);
+		ret_code = i40e_write_nvm_aq(hw, 0x00,
+					     I40E_SR_SW_CHECKSUM_WORD,
 					     1, &le_sum, true);
+	}
 
 	return ret_code;
 }
