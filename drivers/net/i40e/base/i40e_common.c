@@ -7173,21 +7173,25 @@ enum i40e_status_code i40e_get_phy_lpi_status(struct i40e_hw *hw,
  * @hw: pointer to the hw struct
  * @tx_counter: pointer to memory for TX LPI counter
  * @rx_counter: pointer to memory for RX LPI counter
+ * @is_clear:   returns true if counters are clear after read
  *
  * Read Low Power Idle (LPI) mode counters from Energy Efficient
  * Ethernet (EEE) statistics.
  **/
 enum i40e_status_code i40e_get_lpi_counters(struct i40e_hw *hw,
-					    u32 *tx_counter, u32 *rx_counter)
+					    u32 *tx_counter, u32 *rx_counter,
+					    bool *is_clear)
 {
 #ifdef CARLSVILLE_HW
 	/* only X710-T*L requires special handling of counters
 	 * for other devices we just read the MAC registers
 	 */
-	if (hw->device_id == I40E_DEV_ID_10G_BASE_T_BC) {
+	if (hw->device_id == I40E_DEV_ID_10G_BASE_T_BC &&
+	    hw->phy.link_info.link_speed != I40E_LINK_SPEED_1GB) {
 		enum i40e_status_code retval;
 		u32 cmd_status;
 
+		*is_clear = false;
 		retval = i40e_aq_run_phy_activity(hw,
 				I40E_AQ_RUN_PHY_ACT_ID_USR_DFND,
 				I40E_AQ_RUN_PHY_ACT_DNL_OPCODE_GET_EEE_STAT,
@@ -7200,6 +7204,7 @@ enum i40e_status_code i40e_get_lpi_counters(struct i40e_hw *hw,
 	}
 
 #endif /* CARLSVILLE_HW */
+	*is_clear = true;
 	*tx_counter = rd32(hw, I40E_PRTPM_TLPIC);
 	*rx_counter = rd32(hw, I40E_PRTPM_RLPIC);
 
@@ -7225,25 +7230,28 @@ enum i40e_status_code i40e_lpi_stat_update(struct i40e_hw *hw,
 {
 	enum i40e_status_code retval;
 	u32 tx_counter, rx_counter;
+	bool is_clear;
 
-	retval = i40e_get_lpi_counters(hw, &tx_counter, &rx_counter);
+	retval = i40e_get_lpi_counters(hw, &tx_counter, &rx_counter, &is_clear);
 	if (retval)
 		goto err;
 
-	if (!offset_loaded) {
-		*tx_offset = tx_counter;
-		*rx_offset = rx_counter;
+	if (is_clear) {
+		*tx_stat += tx_counter;
+		*rx_stat += rx_counter;
+	} else {
+		if (!offset_loaded) {
+			*tx_offset = tx_counter;
+			*rx_offset = rx_counter;
+		}
+
+		*tx_stat = (tx_counter >= *tx_offset) ?
+			(u32)(tx_counter - *tx_offset) :
+			(u32)((tx_counter + BIT_ULL(32)) - *tx_offset);
+		*rx_stat = (rx_counter >= *rx_offset) ?
+			(u32)(rx_counter - *rx_offset) :
+			(u32)((rx_counter + BIT_ULL(32)) - *rx_offset);
 	}
-
-	if (tx_counter >= *tx_offset)
-		*tx_stat = (u32)(tx_counter - *tx_offset);
-	else
-		*tx_stat = (u32)((tx_counter + BIT_ULL(32)) - *tx_offset);
-
-	if (rx_counter >= *rx_offset)
-		*rx_stat = (u32)(rx_counter - *rx_offset);
-	else
-		*rx_stat = (u32)((rx_counter + BIT_ULL(32)) - *rx_offset);
 err:
 	return retval;
 }

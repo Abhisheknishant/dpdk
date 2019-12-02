@@ -77,7 +77,7 @@ enum i40e_status_code i40e_blink_phy_link_led(struct i40e_hw *hw,
 enum i40e_status_code i40e_get_phy_lpi_status(struct i40e_hw *hw,
 					      struct i40e_hw_port_stats *stats);
 enum i40e_status_code i40e_get_lpi_counters(struct i40e_hw *hw, u32 *tx_counter,
-					    u32 *rx_counter);
+					    u32 *rx_counter, bool *is_clear);
 enum i40e_status_code i40e_lpi_stat_update(struct i40e_hw *hw,
 					   bool offset_loaded, u64 *tx_offset,
 					   u64 *tx_stat, u64 *rx_offset,
