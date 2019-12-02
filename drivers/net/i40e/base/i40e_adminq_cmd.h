@@ -2292,7 +2292,9 @@ struct i40e_aqc_run_phy_activity {
 	union {
 		struct {
 			__le32  dnl_opcode;
+#define I40E_AQ_RUN_PHY_ACT_DNL_OPCODE_GET_EEE_STAT_DUR	0x801a
 #define I40E_AQ_RUN_PHY_ACT_DNL_OPCODE_GET_EEE_STAT	0x801b
+#define I40E_AQ_RUN_PHY_ACT_DNL_OPCODE_GET_EEE_DUR	0x1801b
 			__le32  data;
 			u8	reserved2[4];
 		} cmd;
