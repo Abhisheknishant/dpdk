@@ -7182,11 +7182,11 @@ enum i40e_status_code i40e_get_lpi_counters(struct i40e_hw *hw,
 		u32 cmd_status;
 
 		retval = i40e_aq_run_phy_activity(hw,
-			I40E_AQ_RUN_PHY_ACTIVITY_ACTIVITY_ID_USER_DEFINED,
-			I40E_AQ_RUN_PHY_ACTIVITY_DNL_OPCODE_GET_EEE_STATISTICS,
-			&cmd_status, tx_counter, rx_counter, NULL);
+				I40E_AQ_RUN_PHY_ACT_ID_USR_DFND,
+				I40E_AQ_RUN_PHY_ACT_DNL_OPCODE_GET_EEE_STAT,
+				&cmd_status, tx_counter, rx_counter, NULL);
 
-		if (cmd_status != I40E_AQ_RUN_PHY_ACTIVITY_CMD_STATUS_SUCCESS)
+		if (cmd_status != I40E_AQ_RUN_PHY_ACT_CMD_STAT_SUCC)
 			retval = I40E_ERR_ADMIN_QUEUE_ERROR;
 
 		return retval;
