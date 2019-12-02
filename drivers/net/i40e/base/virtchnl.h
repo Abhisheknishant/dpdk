@@ -347,11 +347,14 @@ struct virtchnl_rxq_info {
 VIRTCHNL_CHECK_STRUCT_LEN(40, virtchnl_rxq_info);
 
 /* VIRTCHNL_OP_CONFIG_VSI_QUEUES
- * VF sends this message to set parameters for all active TX and RX queues
+ * VF sends this message to set parameters for active TX and RX queues
  * associated with the specified VSI.
  * PF configures queues and returns status.
  * If the number of queues specified is greater than the number of queues
  * associated with the VSI, an error is returned and no queues are configured.
+ * NOTE: The VF is not required to configure all queues in a single request.
+ * It may send multiple messages. PF drivers must correctly handle all VF
+ * requests.
  */
 struct virtchnl_queue_pair_info {
 	/* NOTE: vsi_id and queue_id should be identical for both queues. */
@@ -389,9 +392,19 @@ struct virtchnl_vf_res_request {
  * VF uses this message to map vectors to queues.
  * The rxq_map and txq_map fields are bitmaps used to indicate which queues
  * are to be associated with the specified vector.
- * The "other" causes are always mapped to vector 0.
+ * The "other" causes are always mapped to vector 0. The VF may not request
+ * that vector 0 be used for traffic.
  * PF configures interrupt mapping and returns status.
+ * NOTE: due to hardware requirements, all active queues (both TX and RX)
+ * should be mapped to interrupts, even if the driver intends to operate
+ * only in polling mode. In this case the interrupt may be disabled, but
+ * the ITR timer will still run to trigger writebacks.
  */
+#ifndef EXTERNAL_RELEASE
+ /* See section 9.1.3.1.1 and table 9-4 in the CPK HAS for information
+  * on TX queue to vector mapping.
+  */
+#endif
 struct virtchnl_vector_map {
 	u16 vsi_id;
 	u16 vector_id;
@@ -417,6 +430,9 @@ VIRTCHNL_CHECK_STRUCT_LEN(14, virtchnl_irq_map_info);
  * (Currently, we only support 16 queues per VF, but we make the field
  * u32 to allow for expansion.)
  * PF performs requested action and returns status.
+ * NOTE: The VF is not required to enable/disable all queues in a single
+ * request. It may send multiple messages.
+ * PF drivers must correctly handle all VF requests.
  */
 struct virtchnl_queue_select {
 	u16 vsi_id;
