@@ -218,6 +218,8 @@ hns3_interrupt_handler(void *param)
 		hns3_schedule_reset(hns);
 	} else if (event_cause == HNS3_VECTOR0_EVENT_RST)
 		hns3_schedule_reset(hns);
+	else if (event_cause == HNS3_VECTOR0_EVENT_MBX)
+		hns3_dev_handle_mbx_msg(hw);
 	else
 		hns3_err(hw, "Received unknown event");
 
@@ -3806,14 +3808,16 @@ hns3_get_mac_link_status(struct hns3_hw *hw)
 	return !!link_status;
 }
 
-static void
+void
 hns3_update_link_status(struct hns3_hw *hw)
 {
 	int state;
 
 	state = hns3_get_mac_link_status(hw);
-	if (state != hw->mac.link_status)
+	if (state != hw->mac.link_status) {
 		hw->mac.link_status = state;
+		hns3_warn(hw, "Link status change to %s!", state ? "up" : "down");
+	}
 }
 
 static void
