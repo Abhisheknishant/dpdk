@@ -1163,7 +1163,7 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 			struct virtchnl_vsi_queue_config_info *vqc =
 			    (struct virtchnl_vsi_queue_config_info *)msg;
 
-			if (vqc->num_queue_pairs >
+			if (vqc->num_queue_pairs == 0 || vqc->num_queue_pairs >
 			    VIRTCHNL_OP_CONFIG_VSI_QUEUES_MAX) {
 				err_msg_format = true;
 				break;
@@ -1172,8 +1172,6 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 			valid_len += (vqc->num_queue_pairs *
 				      sizeof(struct
 					     virtchnl_queue_pair_info));
-			if (vqc->num_queue_pairs == 0)
-				err_msg_format = true;
 		}
 		break;
 	case VIRTCHNL_OP_CONFIG_IRQ_MAP:
@@ -1182,7 +1180,7 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 			struct virtchnl_irq_map_info *vimi =
 			    (struct virtchnl_irq_map_info *)msg;
 
-			if (vimi->num_vectors >
+			if (vimi->num_vectors == 0 || vimi->num_vectors >
 			    VIRTCHNL_OP_CONFIG_IRQ_MAP_MAX) {
 				err_msg_format = true;
 				break;
@@ -1190,9 +1188,6 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 
 			valid_len += (vimi->num_vectors *
 				      sizeof(struct virtchnl_vector_map));
-
-			if (vimi->num_vectors == 0)
-				err_msg_format = true;
 		}
 		break;
 	case VIRTCHNL_OP_ENABLE_QUEUES:
@@ -1206,7 +1201,7 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 			struct virtchnl_ether_addr_list *veal =
 			    (struct virtchnl_ether_addr_list *)msg;
 
-			if (veal->num_elements >
+			if (veal->num_elements == 0 || veal->num_elements >
 			    VIRTCHNL_OP_ADD_DEL_ETH_ADDR_MAX) {
 				err_msg_format = true;
 				break;
@@ -1214,8 +1209,6 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 
 			valid_len += veal->num_elements *
 			    sizeof(struct virtchnl_ether_addr);
-			if (veal->num_elements == 0)
-				err_msg_format = true;
 		}
 		break;
 	case VIRTCHNL_OP_ADD_VLAN:
@@ -1225,16 +1218,13 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 			struct virtchnl_vlan_filter_list *vfl =
 			    (struct virtchnl_vlan_filter_list *)msg;
 
-			if (vfl->num_elements >
+			if (vfl->num_elements == 0 || vfl->num_elements >
 			    VIRTCHNL_OP_ADD_DEL_VLAN_MAX) {
 				err_msg_format = true;
 				break;
 			}
 
 			valid_len += vfl->num_elements * sizeof(u16);
-
-			if (vfl->num_elements == 0)
-				err_msg_format = true;
 		}
 		break;
 	case VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE:
@@ -1262,16 +1252,12 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 			struct virtchnl_iwarp_qvlist_info *qv =
 				(struct virtchnl_iwarp_qvlist_info *)msg;
 
-			if (qv->num_vectors >
+			if (qv->num_vectors == 0 || qv->num_vectors >
 			    VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP_MAX) {
 				err_msg_format = true;
 				break;
 			}
 
-			if (qv->num_vectors == 0) {
-				err_msg_format = true;
-				break;
-			}
 			valid_len += ((qv->num_vectors - 1) *
 				sizeof(struct virtchnl_iwarp_qv_info));
 		}
@@ -1310,7 +1296,7 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 			struct virtchnl_tc_info *vti =
 				(struct virtchnl_tc_info *)msg;
 
-			if (vti->num_tc >
+			if (vti->num_tc == 0 || vti->num_tc >
 			    VIRTCHNL_OP_ENABLE_CHANNELS_MAX) {
 				err_msg_format = true;
 				break;
@@ -1318,8 +1304,6 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 
 			valid_len += (vti->num_tc - 1) *
 				     sizeof(struct virtchnl_channel_info);
-			if (vti->num_tc == 0)
-				err_msg_format = true;
 		}
 		break;
 	case VIRTCHNL_OP_DISABLE_CHANNELS:
