@@ -120,16 +120,22 @@ enum virtchnl_ops {
 	VIRTCHNL_OP_ENABLE_VLAN_STRIPPING = 27,
 	VIRTCHNL_OP_DISABLE_VLAN_STRIPPING = 28,
 	VIRTCHNL_OP_REQUEST_QUEUES = 29,
+	VIRTCHNL_OP_ENABLE_CHANNELS = 30,
+	VIRTCHNL_OP_DISABLE_CHANNELS = 31,
+	VIRTCHNL_OP_ADD_CLOUD_FILTER = 32,
+	VIRTCHNL_OP_DEL_CLOUD_FILTER = 33,
 
 };
 
-/* This macro is used to generate a compilation error if a structure
+/* This macro is used to generate a compilation error if a structure/union
  * is not exactly the correct length. It gives a divide by zero error if the
- * structure is not of the correct size, otherwise it creates an enum that is
- * never used.
+ * structure/union is not of the correct size, otherwise it creates an enum
+ * that is never used.
  */
 #define VIRTCHNL_CHECK_STRUCT_LEN(n, X) enum virtchnl_static_assert_enum_##X \
 	{virtchnl_static_assert_##X = (n) / ((sizeof(struct X) == (n)) ? 1 : 0)}
+#define VIRTCHNL_CHECK_UNION_LEN(n, X) enum virtchnl_static_asset_enum_##X \
+	{ virtchnl_static_assert_##X = (n)/((sizeof(union X) == (n)) ? 1 : 0) }
 
 /* Virtual channel message descriptor. This overlays the admin queue
  * descriptor. All other data is passed in external buffers.
@@ -144,7 +150,7 @@ struct virtchnl_msg {
 
 VIRTCHNL_CHECK_STRUCT_LEN(20, virtchnl_msg);
 
-/* Message descriptions and data structures.*/
+/* Message descriptions and data structures. */
 
 /* VIRTCHNL_OP_VERSION
  * VF posts its version number to the PF. PF responds with its version number
@@ -229,6 +235,9 @@ VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_vsi_resource);
 #define VIRTCHNL_VF_OFFLOAD_ENCAP		0X00100000
 #define VIRTCHNL_VF_OFFLOAD_ENCAP_CSUM		0X00200000
 #define VIRTCHNL_VF_OFFLOAD_RX_ENCAP_CSUM	0X00400000
+#define VIRTCHNL_VF_OFFLOAD_ADQ			0X00800000
+/* Define below the capability flags that are not offloads */
+#define VIRTCHNL_VF_CAP_ADV_LINK_SPEED		0x00000080
 
 #define VF_BASE_MODE_OFFLOADS (VIRTCHNL_VF_OFFLOAD_L2 | \
 			       VIRTCHNL_VF_OFFLOAD_VLAN | \
@@ -457,8 +466,23 @@ VIRTCHNL_CHECK_STRUCT_LEN(4, virtchnl_promisc_info);
  * the virtchnl_queue_select struct to specify the VSI. The queue_id
  * field is ignored by the PF.
  *
- * PF replies with struct eth_stats in an external buffer.
+ * PF replies with struct virtchnl_eth_stats in an external buffer.
  */
+
+struct virtchnl_eth_stats {
+	u64 rx_bytes;			/* received bytes */
+	u64 rx_unicast;			/* received unicast pkts */
+	u64 rx_multicast;		/* received multicast pkts */
+	u64 rx_broadcast;		/* received broadcast pkts */
+	u64 rx_discards;
+	u64 rx_unknown_protocol;
+	u64 tx_bytes;			/* transmitted bytes */
+	u64 tx_unicast;			/* transmitted unicast pkts */
+	u64 tx_multicast;		/* transmitted multicast pkts */
+	u64 tx_broadcast;		/* transmitted broadcast pkts */
+	u64 tx_discards;
+	u64 tx_errors;
+};
 
 /* VIRTCHNL_OP_CONFIG_RSS_KEY
  * VIRTCHNL_OP_CONFIG_RSS_LUT
@@ -498,6 +522,81 @@ struct virtchnl_rss_hena {
 
 VIRTCHNL_CHECK_STRUCT_LEN(8, virtchnl_rss_hena);
 
+/* VIRTCHNL_OP_ENABLE_CHANNELS
+ * VIRTCHNL_OP_DISABLE_CHANNELS
+ * VF sends these messages to enable or disable channels based on
+ * the user specified queue count and queue offset for each traffic class.
+ * This struct encompasses all the information that the PF needs from
+ * VF to create a channel.
+ */
+struct virtchnl_channel_info {
+	u16 count; /* number of queues in a channel */
+	u16 offset; /* queues in a channel start from 'offset' */
+	u32 pad;
+	u64 max_tx_rate;
+};
+
+VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_channel_info);
+
+struct virtchnl_tc_info {
+	u32	num_tc;
+	u32	pad;
+	struct	virtchnl_channel_info list[1];
+};
+
+VIRTCHNL_CHECK_STRUCT_LEN(24, virtchnl_tc_info);
+
+/* VIRTCHNL_ADD_CLOUD_FILTER
+ * VIRTCHNL_DEL_CLOUD_FILTER
+ * VF sends these messages to add or delete a cloud filter based on the
+ * user specified match and action filters. These structures encompass
+ * all the information that the PF needs from the VF to add/delete a
+ * cloud filter.
+ */
+
+struct virtchnl_l4_spec {
+	u8	src_mac[ETH_ALEN];
+	u8	dst_mac[ETH_ALEN];
+	__be16	vlan_id;
+	__be16	pad; /* reserved for future use */
+	__be32	src_ip[4];
+	__be32	dst_ip[4];
+	__be16	src_port;
+	__be16	dst_port;
+};
+
+VIRTCHNL_CHECK_STRUCT_LEN(52, virtchnl_l4_spec);
+
+union virtchnl_flow_spec {
+	struct	virtchnl_l4_spec tcp_spec;
+	u8	buffer[128]; /* reserved for future use */
+};
+
+VIRTCHNL_CHECK_UNION_LEN(128, virtchnl_flow_spec);
+
+enum virtchnl_action {
+	/* action types */
+	VIRTCHNL_ACTION_DROP = 0,
+	VIRTCHNL_ACTION_TC_REDIRECT,
+};
+
+enum virtchnl_flow_type {
+	/* flow types */
+	VIRTCHNL_TCP_V4_FLOW = 0,
+	VIRTCHNL_TCP_V6_FLOW,
+};
+
+struct virtchnl_filter {
+	union	virtchnl_flow_spec data;
+	union	virtchnl_flow_spec mask;
+	enum	virtchnl_flow_type flow_type;
+	enum	virtchnl_action action;
+	u32	action_meta;
+	u8	field_flags;
+};
+
+VIRTCHNL_CHECK_STRUCT_LEN(272, virtchnl_filter);
+
 /* VIRTCHNL_OP_EVENT
  * PF sends this message to inform the VF driver of events that may affect it.
  * No direct response is expected from the VF, though it may generate other
@@ -518,10 +617,23 @@ enum virtchnl_event_codes {
 struct virtchnl_pf_event {
 	enum virtchnl_event_codes event;
 	union {
+		/* If the PF driver does not support the new speed reporting
+		 * capabilities then use link_event else use link_event_adv to
+		 * get the speed and link information. The ability to understand
+		 * new speeds is indicated by setting the capability flag
+		 * VIRTCHNL_VF_CAP_ADV_LINK_SPEED in vf_cap_flags parameter
+		 * in virtchnl_vf_resource struct and can be used to determine
+		 * which link event struct to use below.
+		 */
 		struct {
 			enum virtchnl_link_speed link_speed;
-			bool link_status;
+			u8 link_status;
 		} link_event;
+		struct {
+			/* link_speed provided in Mbps */
+			u32 link_speed;
+			u8 link_status;
+		} link_event_adv;
 	} event_data;
 
 	int severity;
@@ -542,14 +654,6 @@ VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_pf_event);
  * to a single vector.
  * PF configures interrupt mapping and returns status.
  */
-
-/* HW does not define a type value for AEQ; only for RX/TX and CEQ.
- * In order for us to keep the interface simple, SW will define a
- * unique type value for AEQ.
- */
-#define QUEUE_TYPE_PE_AEQ  0x80
-#define QUEUE_INVALID_IDX  0xFFFF
-
 struct virtchnl_iwarp_qv_info {
 	u32 v_idx; /* msix_vector */
 	u16 ceq_idx;
@@ -642,10 +746,12 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		}
 		break;
 	case VIRTCHNL_OP_ENABLE_QUEUES:
+		/* fall through */
 	case VIRTCHNL_OP_DISABLE_QUEUES:
 		valid_len = sizeof(struct virtchnl_queue_select);
 		break;
 	case VIRTCHNL_OP_ADD_ETH_ADDR:
+		/* fall through */
 	case VIRTCHNL_OP_DEL_ETH_ADDR:
 		valid_len = sizeof(struct virtchnl_ether_addr_list);
 		if (msglen >= valid_len) {
@@ -658,6 +764,7 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		}
 		break;
 	case VIRTCHNL_OP_ADD_VLAN:
+		/* fall through */
 	case VIRTCHNL_OP_DEL_VLAN:
 		valid_len = sizeof(struct virtchnl_vlan_filter_list);
 		if (msglen >= valid_len) {
@@ -723,14 +830,39 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		valid_len = sizeof(struct virtchnl_rss_hena);
 		break;
 	case VIRTCHNL_OP_ENABLE_VLAN_STRIPPING:
+		/* fall through */
 	case VIRTCHNL_OP_DISABLE_VLAN_STRIPPING:
 		break;
 	case VIRTCHNL_OP_REQUEST_QUEUES:
 		valid_len = sizeof(struct virtchnl_vf_res_request);
 		break;
+	case VIRTCHNL_OP_ENABLE_CHANNELS:
+		valid_len = sizeof(struct virtchnl_tc_info);
+		if (msglen >= valid_len) {
+			struct virtchnl_tc_info *vti =
+				(struct virtchnl_tc_info *)msg;
+			valid_len += (vti->num_tc - 1) *
+				     sizeof(struct virtchnl_channel_info);
+			if (vti->num_tc == 0)
+				err_msg_format = true;
+		}
+		break;
+	case VIRTCHNL_OP_DISABLE_CHANNELS:
+		break;
+	case VIRTCHNL_OP_ADD_CLOUD_FILTER:
+		/* fall through */
+	case VIRTCHNL_OP_DEL_CLOUD_FILTER:
+		valid_len = sizeof(struct virtchnl_filter);
+		break;
+#ifdef VIRTCHNL_SOL_VF_SUPPORT
+	case VIRTCHNL_OP_GET_ADDNL_SOL_CONFIG:
+		break;
+#endif
 	/* These are always errors coming from the VF. */
 	case VIRTCHNL_OP_EVENT:
+		/* fall through */
 	case VIRTCHNL_OP_UNKNOWN:
+		/* fall through */
 	default:
 		return VIRTCHNL_ERR_PARAM;
 	}
