@@ -6950,8 +6950,13 @@ phy_blinking_end:
  * @led_addr: LED register address
  * @reg_val: read register value
  **/
+#ifndef LINUX_SUPPORT
+enum i40e_status_code i40e_led_get_reg(struct i40e_hw *hw, u16 led_addr,
+				       u32 *reg_val)
+#else
 static enum i40e_status_code i40e_led_get_reg(struct i40e_hw *hw, u16 led_addr,
 					      u32 *reg_val)
+#endif
 {
 	enum i40e_status_code status;
 	u8 phy_addr = 0;
@@ -6979,8 +6984,13 @@ static enum i40e_status_code i40e_led_get_reg(struct i40e_hw *hw, u16 led_addr,
  * @led_addr: LED register address
  * @reg_val: register value to write
  **/
+#ifndef LINUX_SUPPORT
+enum i40e_status_code i40e_led_set_reg(struct i40e_hw *hw, u16 led_addr,
+				       u32 reg_val)
+#else
 static enum i40e_status_code i40e_led_set_reg(struct i40e_hw *hw, u16 led_addr,
 					      u32 reg_val)
+#endif
 {
 	enum i40e_status_code status;
 	u8 phy_addr = 0;
