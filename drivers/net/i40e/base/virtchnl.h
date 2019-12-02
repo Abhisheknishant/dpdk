@@ -156,15 +156,17 @@ enum virtchnl_ops {
        VIRTCHNL_OP_DISABLE_QUEUES_V2 = 108,
        VIRTCHNL_OP_ADD_QUEUES = 109,
        VIRTCHNL_OP_DEL_QUEUES = 110,
-       VIRTCHNL_OP_MAP_VECTOR_QUEUE = 111,
-       VIRTCHNL_OP_UNMAP_VECTOR_QUEUE = 112,
-       VIRTCHNL_OP_MAP_VECTOR_ITR = 113,
-       VIRTCHNL_OP_GET_RSS_KEY = 114,
-       VIRTCHNL_OP_GET_RSS_LUT = 115,
+       VIRTCHNL_OP_MAP_QUEUE_VECTOR = 111,
+       VIRTCHNL_OP_UNMAP_QUEUE_VECTOR = 112,
+       VIRTCHNL_OP_GET_RSS_KEY = 113,
+       VIRTCHNL_OP_GET_RSS_LUT = 114,
+       VIRTCHNL_OP_SET_RSS_LUT = 115,
        VIRTCHNL_OP_GET_RSS_HASH = 116,
        VIRTCHNL_OP_SET_RSS_HASH = 117,
        VIRTCHNL_OP_CREATE_VFS = 118,
        VIRTCHNL_OP_DESTROY_VFS = 119,
+       VIRTCHNL_OP_ALLOC_VECTORS = 120,
+       VIRTCHNL_OP_DEALLOC_VECTORS = 121,
 #endif /* VIRTCHNL_EXT_FEATURES */
 };
 
@@ -866,13 +868,23 @@ enum virtchnl_rss_algorithm {
 
 /* VIRTCHNL_OP_GET_CAPS
  * PF sends this message to CP to negotiate capabilities by filling
- * in the u64 bitmap of its desired capabilities.
+ * in the u64 bitmap of its desired capabilities, max_num_vfs and
+ * num_allocated_vectors.
  * CP responds with an updated virtchnl_get_capabilities structure
- * with allowed capabilities and possible max number of vfs it can create.
+ * with allowed capabilities and the other fields as below.
+ * If PF sets max_num_vfs as 0, CP will respond with max number of VFs
+ * that can be created by this PF. For any other value 'n', CP responds
+ * with max_num_vfs set to max(n, x) where x is the max number of VFs
+ * allowed by CP's policy.
+ * If PF sets num_allocated_vectors as 0, CP will respond with 1 which
+ * is default vector associated with the default mailbox. For any other
+ * value 'n', CP responds with a value <= n based on the CP's policy of
+ * max number of vectors for a PF.
  */
 struct virtchnl_get_capabilities {
 	u64 cap_flags;
 	u16 max_num_vfs;
+	u16 num_allocated_vectors;
 };
 
 VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_get_capabilities);
@@ -914,7 +926,6 @@ struct virtchnl_create_vport {
 	u16 num_rx_q;
 	/* valid only if rxq_model is split Q */
 	u16 num_rx_bufq;
-	u16 num_vectors;
 	u16 vport_id;
 	u16 max_mtu;
 	u8 default_mac_addr[ETH_ALEN];
@@ -1052,61 +1063,82 @@ struct virtchnl_del_ena_dis_queues {
 
 VIRTCHNL_CHECK_STRUCT_LEN(8, virtchnl_del_ena_dis_queues);
 
-/* Vector to Queue mapping */
-struct virtchnl_vector_queue {
-	u16 vector_id;
+/* Virtchannel interrupt throttling rate index */
+enum virtchnl_itr_idx {
+	VIRTCHNL_ITR_IDX_0	= 0,
+	VIRTCHNL_ITR_IDX_1	= 1,
+	VIRTCHNL_ITR_IDX_NO_ITR	= 3,
+};
+
+/* Queue to vector mapping */
+struct virtchnl_queue_vector {
 	u16 queue_id;
+	u16 vector_id;
+	enum virtchnl_itr_idx itr_idx;
 	enum virtchnl_queue_type queue_type;
 };
 
-VIRTCHNL_CHECK_STRUCT_LEN(8, virtchnl_vector_queue);
+VIRTCHNL_CHECK_STRUCT_LEN(12, virtchnl_queue_vector);
 
-/* VIRTCHNL_OP_MAP_VECTOR_QUEUE
- * VIRTCHNL_OP_UNMAP_VECTOR_QUEUE
- * PF sends this message to map or unmap vectors to queues.
- * This message contains an array of num_vector_queue_pairs instances of
- * virtchnl_vector_queue structures. CP configures interrupt mapping and returns
- * a status code. If the number of vectors specified is greater than the number
- * of vectors associated with the vport, an error is returned and no vectors are
- * mapped.
+/* VIRTCHNL_OP_MAP_QUEUE_VECTOR
+ * VIRTCHNL_OP_UNMAP_QUEUE_VECTOR
+ * PF sends this message to map or unmap queues to vectors and ITR index
+ * registers. External data buffer contains virtchnl_queue_vector_maps structure
+ * that contains num_queue_vector_maps of virtchnl_queue_vector structures.
+ * CP maps the requested queue vector maps after validating the queue and vector
+ * ids and returns a status code.
  */
-struct virtchnl_vector_queue_pairs {
+struct virtchnl_queue_vector_maps {
 	u16 vport_id;
-	u16 num_vector_queue_pairs;
-	struct virtchnl_vector_queue vq[];
+	u16 num_queue_vector_maps;
+	struct virtchnl_queue_vector qv_maps[];
 };
 
-VIRTCHNL_CHECK_STRUCT_LEN(4, virtchnl_vector_queue_pairs);
+VIRTCHNL_CHECK_STRUCT_LEN(4, virtchnl_queue_vector_maps);
 
-/* Vector to ITR index registers mapping */
-struct virtchnl_vector_itr {
-	u16 vector_id;
-	u16 rxitr_idx;
-	u16 txitr_idx;
+/* Structure to specify a chunk of contiguous interrupt vectors */
+struct virtchnl_vector_chunk {
+	u16 start_vector_id;
+	u16 num_vectors;
 };
 
-VIRTCHNL_CHECK_STRUCT_LEN(6, virtchnl_vector_itr);
+/* Structure to specify several chunks of contiguous interrupt vectors */
+struct virtchnl_vector_chunks {
+	u16 num_vector_chunks;
+	struct virtchnl_vector_chunk vchunk[];
+};
 
-/* VIRTCHNL_OP_MAP_VECTOR_ITR
- * PF sends this message to map vectors to RX and TX ITR index registers.
- * This message contains an array of num_vector_itr_pairs instances of
- * virtchnl_vector_itr structures. CP configures requested queues and returns a
- * status code. If the number of vectors specified is greater than the number of
- * vectors associated with the VSI, an error is returned and no vectors are
- * mapped.
+/* VIRTCHNL_OP_ALLOC_VECTORS
+ * PF sends this message to request additional interrupt vectors beyond the
+ * ones that were assigned via GET_CAPS request. virtchnl_alloc_vectors
+ * structure is used to specify the number of vectors requested. CP responds
+ * with the same structure with the actual number of vectors assigned followed
+ * by virtchnl_vector_chunks structure identifying the vector ids.
  */
-struct virtchnl_vector_itr_pairs {
-	u16 vport_id;
-	u16 num_vector_itr_pairs;
-	struct virtchnl_vector_itr vitr[];
+struct virtchnl_alloc_vectors {
+	u16 num_vectors;
+	struct virtchnl_vector_chunks vchunks;
 };
 
-VIRTCHNL_CHECK_STRUCT_LEN(4, virtchnl_vector_itr_pairs);
+/* VIRTCHNL_OP_DEALLOC_VECTORS
+ * PF sends this message to release the vectors.
+ * PF sends virtchnl_vector_chunks struct to specify the vectors it is giving
+ * away. CP performs requested action and returns status.
+ */
+
+struct virtchnl_rss_lut_v2 {
+	u16 vport_id;
+	u16 lut_entries;
+	u16 lut[1]; /* RSS lookup table */
+};
+
+VIRTCHNL_CHECK_STRUCT_LEN(6, virtchnl_rss_lut_v2);
 
 /* VIRTCHNL_OP_GET_RSS_LUT
- * PF sends this message to get RSS lookup table. Only supported if
+ * VIRTCHNL_OP_SET_RSS_LUT
+ * PF sends this message to get or set RSS lookup table. Only supported if
  * both PF and CP drivers set the VIRTCHNL_CAP_RSS bit during configuration
- * negotiation. Uses the virtchnl_rss_lut structure
+ * negotiation. Uses the virtchnl_rss_lut_v2 structure
  */
 
 /* VIRTCHNL_OP_GET_RSS_KEY
@@ -1407,31 +1439,40 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 				      sizeof(struct virtchnl_queue_chunk);
 		}
 		break;
-	case VIRTCHNL_OP_MAP_VECTOR_QUEUE:
-	case VIRTCHNL_OP_UNMAP_VECTOR_QUEUE:
-		valid_len = sizeof(struct virtchnl_vector_queue_pairs);
+	case VIRTCHNL_OP_MAP_QUEUE_VECTOR:
+	case VIRTCHNL_OP_UNMAP_QUEUE_VECTOR:
+		valid_len = sizeof(struct virtchnl_queue_vector_maps);
 		if (msglen >= valid_len) {
-			struct virtchnl_vector_queue_pairs *v_qp =
-				(struct virtchnl_vector_queue_pairs *)msg;
-			if (v_qp->num_vector_queue_pairs == 0) {
+			struct virtchnl_queue_vector_maps *v_qp =
+				(struct virtchnl_queue_vector_maps *)msg;
+			if (v_qp->num_queue_vector_maps == 0) {
 				err_msg_format = true;
 				break;
 			}
-			valid_len += v_qp->num_vector_queue_pairs *
-				      sizeof(struct virtchnl_vector_queue);
+			valid_len += v_qp->num_queue_vector_maps *
+				      sizeof(struct virtchnl_queue_vector);
 		}
 		break;
-	case VIRTCHNL_OP_MAP_VECTOR_ITR:
-		valid_len = sizeof(struct virtchnl_vector_itr_pairs);
+	case VIRTCHNL_OP_ALLOC_VECTORS:
+		valid_len = sizeof(struct virtchnl_alloc_vectors);
 		if (msglen >= valid_len) {
-			struct virtchnl_vector_itr_pairs *v_itrp =
-				(struct virtchnl_vector_itr_pairs *)msg;
-			if (v_itrp->num_vector_itr_pairs == 0) {
+			struct virtchnl_alloc_vectors *v_av =
+				(struct virtchnl_alloc_vectors *)msg;
+			valid_len += v_av->vchunks.num_vector_chunks *
+				      sizeof(struct virtchnl_vector_chunk);
+		}
+		break;
+	case VIRTCHNL_OP_DEALLOC_VECTORS:
+		valid_len = sizeof(struct virtchnl_vector_chunks);
+		if (msglen >= valid_len) {
+			struct virtchnl_vector_chunks *v_chunks =
+				(struct virtchnl_vector_chunks *)msg;
+			if (v_chunks->num_vector_chunks == 0) {
 				err_msg_format = true;
 				break;
 			}
-			valid_len += v_itrp->num_vector_itr_pairs *
-				      sizeof(struct virtchnl_vector_itr);
+			valid_len += v_chunks->num_vector_chunks *
+				      sizeof(struct virtchnl_vector_chunk);
 		}
 		break;
 	case VIRTCHNL_OP_GET_RSS_KEY:
@@ -1443,10 +1484,11 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		}
 		break;
 	case VIRTCHNL_OP_GET_RSS_LUT:
-		valid_len = sizeof(struct virtchnl_rss_lut);
+	case VIRTCHNL_OP_SET_RSS_LUT:
+		valid_len = sizeof(struct virtchnl_rss_lut_v2);
 		if (msglen >= valid_len) {
-			struct virtchnl_rss_lut *vrl =
-				(struct virtchnl_rss_lut *)msg;
+			struct virtchnl_rss_lut_v2 *vrl =
+				(struct virtchnl_rss_lut_v2 *)msg;
 			valid_len += vrl->lut_entries - 1;
 		}
 		break;
