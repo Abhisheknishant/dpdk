@@ -7329,7 +7329,13 @@ enum i40e_status_code i40e_enable_eee(struct i40e_hw *hw, bool enable)
 			    I40E_AQ_PHY_FEC_CONFIG_MASK;
 
 	/* Set desired EEE state */
-	config.eee_capability = enable ? eee_capability : 0;
+	if (enable) {
+		config.eee_capability = eee_capability;
+		config.eeer |= I40E_PRTPM_EEER_TX_LPI_EN_MASK;
+	} else {
+		config.eee_capability = 0;
+		config.eeer &= ~I40E_PRTPM_EEER_TX_LPI_EN_MASK;
+	}
 
 	/* Save modified config */
 	status = i40e_aq_set_phy_config(hw, &config, NULL);
