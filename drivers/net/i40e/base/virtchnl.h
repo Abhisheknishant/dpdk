@@ -107,11 +107,15 @@ enum virtchnl_ops {
 	VIRTCHNL_OP_EVENT = 17, /* must ALWAYS be 17 */
 #ifdef VIRTCHNL_SOL_VF_SUPPORT
 	VIRTCHNL_OP_GET_ADDNL_SOL_CONFIG = 19,
+#else
+	/* opcode 19 is reserved */
 #endif
 #ifdef VIRTCHNL_IWARP
 	VIRTCHNL_OP_IWARP = 20, /* advanced opcode */
 	VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP = 21, /* advanced opcode */
 	VIRTCHNL_OP_RELEASE_IWARP_IRQ_MAP = 22, /* advanced opcode */
+#else
+	/* opcodes 20, 21, and 22 are reserved */
 #endif
 	VIRTCHNL_OP_CONFIG_RSS_KEY = 23,
 	VIRTCHNL_OP_CONFIG_RSS_LUT = 24,
