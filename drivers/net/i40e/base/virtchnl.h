@@ -131,13 +131,13 @@ enum virtchnl_ops {
 
 };
 
-/* This macro is used to generate a compilation error if a structure/union
+/* These macros are used to generate compilation errors if a structure/union
  * is not exactly the correct length. It gives a divide by zero error if the
  * structure/union is not of the correct size, otherwise it creates an enum
  * that is never used.
  */
 #define VIRTCHNL_CHECK_STRUCT_LEN(n, X) enum virtchnl_static_assert_enum_##X \
-	{virtchnl_static_assert_##X = (n) / ((sizeof(struct X) == (n)) ? 1 : 0)}
+	{ virtchnl_static_assert_##X = (n)/((sizeof(struct X) == (n)) ? 1 : 0) }
 #define VIRTCHNL_CHECK_UNION_LEN(n, X) enum virtchnl_static_asset_enum_##X \
 	{ virtchnl_static_assert_##X = (n)/((sizeof(union X) == (n)) ? 1 : 0) }
 
