@@ -750,12 +750,10 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		}
 		break;
 	case VIRTCHNL_OP_ENABLE_QUEUES:
-		/* fall through */
 	case VIRTCHNL_OP_DISABLE_QUEUES:
 		valid_len = sizeof(struct virtchnl_queue_select);
 		break;
 	case VIRTCHNL_OP_ADD_ETH_ADDR:
-		/* fall through */
 	case VIRTCHNL_OP_DEL_ETH_ADDR:
 		valid_len = sizeof(struct virtchnl_ether_addr_list);
 		if (msglen >= valid_len) {
@@ -768,7 +766,6 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		}
 		break;
 	case VIRTCHNL_OP_ADD_VLAN:
-		/* fall through */
 	case VIRTCHNL_OP_DEL_VLAN:
 		valid_len = sizeof(struct virtchnl_vlan_filter_list);
 		if (msglen >= valid_len) {
@@ -834,7 +831,6 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		valid_len = sizeof(struct virtchnl_rss_hena);
 		break;
 	case VIRTCHNL_OP_ENABLE_VLAN_STRIPPING:
-		/* fall through */
 	case VIRTCHNL_OP_DISABLE_VLAN_STRIPPING:
 		break;
 	case VIRTCHNL_OP_REQUEST_QUEUES:
@@ -854,7 +850,6 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 	case VIRTCHNL_OP_DISABLE_CHANNELS:
 		break;
 	case VIRTCHNL_OP_ADD_CLOUD_FILTER:
-		/* fall through */
 	case VIRTCHNL_OP_DEL_CLOUD_FILTER:
 		valid_len = sizeof(struct virtchnl_filter);
 		break;
@@ -864,9 +859,7 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 #endif
 	/* These are always errors coming from the VF. */
 	case VIRTCHNL_OP_EVENT:
-		/* fall through */
 	case VIRTCHNL_OP_UNKNOWN:
-		/* fall through */
 	default:
 		return VIRTCHNL_ERR_PARAM;
 	}
