@@ -312,7 +312,7 @@ void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 	u16 len;
 	u16 i = 0;
 
-	if (!effective_mask || desc)
+	if (!effective_mask || !desc)
 		return;
 
 	len = LE16_TO_CPU(aq_desc->datalen);
@@ -336,7 +336,7 @@ void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 		   LE32_TO_CPU(aq_desc->params.external.addr_high),
 		   LE32_TO_CPU(aq_desc->params.external.addr_low));
 
-	if (!buffer && (buf_len != 0) && (len != 0) &&
+	if (buffer && (buf_len != 0) && (len != 0) &&
 	    (effective_mask & I40E_DEBUG_AQ_DESC_BUFFER)) {
 		i40e_debug(hw, mask, "AQ CMD Buffer:\n");
 		if (buf_len < len)
