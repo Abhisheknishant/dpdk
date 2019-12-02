@@ -7173,27 +7173,30 @@ enum i40e_status_code i40e_get_phy_lpi_status(struct i40e_hw *hw,
 enum i40e_status_code i40e_get_lpi_counters(struct i40e_hw *hw,
 					    u32 *tx_counter, u32 *rx_counter)
 {
-	enum i40e_status_code retval;
-	u32 cmd_status;
-
+#ifdef CARLSVILLE_HW
 	/* only X710-T*L requires special handling of counters
 	 * for other devices we just read the MAC registers
 	 */
-	if (hw->device_id != I40E_DEV_ID_10G_BASE_T_BC) {
-		*tx_counter = rd32(hw, I40E_PRTPM_TLPIC);
-		*rx_counter = rd32(hw, I40E_PRTPM_RLPIC);
-		return I40E_SUCCESS;
-	}
+	if (hw->device_id == I40E_DEV_ID_10G_BASE_T_BC) {
+		enum i40e_status_code retval;
+		u32 cmd_status;
 
-	retval = i40e_aq_run_phy_activity(hw,
+		retval = i40e_aq_run_phy_activity(hw,
 			I40E_AQ_RUN_PHY_ACTIVITY_ACTIVITY_ID_USER_DEFINED,
 			I40E_AQ_RUN_PHY_ACTIVITY_DNL_OPCODE_GET_EEE_STATISTICS,
 			&cmd_status, tx_counter, rx_counter, NULL);
 
-	if (cmd_status != I40E_AQ_RUN_PHY_ACTIVITY_CMD_STATUS_SUCCESS)
-		retval = I40E_ERR_ADMIN_QUEUE_ERROR;
+		if (cmd_status != I40E_AQ_RUN_PHY_ACTIVITY_CMD_STATUS_SUCCESS)
+			retval = I40E_ERR_ADMIN_QUEUE_ERROR;
 
-	return retval;
+		return retval;
+	}
+
+#endif /* CARLSVILLE_HW */
+	*tx_counter = rd32(hw, I40E_PRTPM_TLPIC);
+	*rx_counter = rd32(hw, I40E_PRTPM_RLPIC);
+
+	return I40E_SUCCESS;
 }
 
 /**
