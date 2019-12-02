@@ -719,6 +719,38 @@ VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_iwarp_qvlist_info);
 
 #endif
 
+/* Since VF messages are limited by u16 size, precalculate the maximum possible
+ * values of nested elements in virtchnl structures that virtual channel can
+ * possibly handle in a single message.
+ */
+enum virtchnl_vector_limits {
+	VIRTCHNL_OP_CONFIG_VSI_QUEUES_MAX	=
+		((u16)(~0) - sizeof(struct virtchnl_vsi_queue_config_info)) /
+		sizeof(struct virtchnl_queue_pair_info),
+
+	VIRTCHNL_OP_CONFIG_IRQ_MAP_MAX		=
+		((u16)(~0) - sizeof(struct virtchnl_irq_map_info)) /
+		sizeof(struct virtchnl_vector_map),
+
+	VIRTCHNL_OP_ADD_DEL_ETH_ADDR_MAX	=
+		((u16)(~0) - sizeof(struct virtchnl_ether_addr_list)) /
+		sizeof(struct virtchnl_ether_addr),
+
+	VIRTCHNL_OP_ADD_DEL_VLAN_MAX		=
+		((u16)(~0) - sizeof(struct virtchnl_vlan_filter_list)) /
+		sizeof(u16),
+
+#ifdef VIRTCHNL_IWARP
+	VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP_MAX	=
+		((u16)(~0) - sizeof(struct virtchnl_iwarp_qvlist_info)) /
+		sizeof(struct virtchnl_iwarp_qv_info),
+#endif
+
+	VIRTCHNL_OP_ENABLE_CHANNELS_MAX		=
+		((u16)(~0) - sizeof(struct virtchnl_tc_info)) /
+		sizeof(struct virtchnl_channel_info),
+};
+
 /* VF reset states - these are written into the RSTAT register:
  * VFGEN_RSTAT on the VF
  * When the PF initiates a reset, it writes 0
@@ -1130,6 +1162,13 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		if (msglen >= valid_len) {
 			struct virtchnl_vsi_queue_config_info *vqc =
 			    (struct virtchnl_vsi_queue_config_info *)msg;
+
+			if (vqc->num_queue_pairs >
+			    VIRTCHNL_OP_CONFIG_VSI_QUEUES_MAX) {
+				err_msg_format = true;
+				break;
+			}
+
 			valid_len += (vqc->num_queue_pairs *
 				      sizeof(struct
 					     virtchnl_queue_pair_info));
@@ -1142,8 +1181,16 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		if (msglen >= valid_len) {
 			struct virtchnl_irq_map_info *vimi =
 			    (struct virtchnl_irq_map_info *)msg;
+
+			if (vimi->num_vectors >
+			    VIRTCHNL_OP_CONFIG_IRQ_MAP_MAX) {
+				err_msg_format = true;
+				break;
+			}
+
 			valid_len += (vimi->num_vectors *
 				      sizeof(struct virtchnl_vector_map));
+
 			if (vimi->num_vectors == 0)
 				err_msg_format = true;
 		}
@@ -1158,6 +1205,13 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		if (msglen >= valid_len) {
 			struct virtchnl_ether_addr_list *veal =
 			    (struct virtchnl_ether_addr_list *)msg;
+
+			if (veal->num_elements >
+			    VIRTCHNL_OP_ADD_DEL_ETH_ADDR_MAX) {
+				err_msg_format = true;
+				break;
+			}
+
 			valid_len += veal->num_elements *
 			    sizeof(struct virtchnl_ether_addr);
 			if (veal->num_elements == 0)
@@ -1170,7 +1224,15 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		if (msglen >= valid_len) {
 			struct virtchnl_vlan_filter_list *vfl =
 			    (struct virtchnl_vlan_filter_list *)msg;
+
+			if (vfl->num_elements >
+			    VIRTCHNL_OP_ADD_DEL_VLAN_MAX) {
+				err_msg_format = true;
+				break;
+			}
+
 			valid_len += vfl->num_elements * sizeof(u16);
+
 			if (vfl->num_elements == 0)
 				err_msg_format = true;
 		}
@@ -1199,6 +1261,13 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		if (msglen >= valid_len) {
 			struct virtchnl_iwarp_qvlist_info *qv =
 				(struct virtchnl_iwarp_qvlist_info *)msg;
+
+			if (qv->num_vectors >
+			    VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP_MAX) {
+				err_msg_format = true;
+				break;
+			}
+
 			if (qv->num_vectors == 0) {
 				err_msg_format = true;
 				break;
@@ -1240,6 +1309,13 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		if (msglen >= valid_len) {
 			struct virtchnl_tc_info *vti =
 				(struct virtchnl_tc_info *)msg;
+
+			if (vti->num_tc >
+			    VIRTCHNL_OP_ENABLE_CHANNELS_MAX) {
+				err_msg_format = true;
+				break;
+			}
+
 			valid_len += (vti->num_tc - 1) *
 				     sizeof(struct virtchnl_channel_info);
 			if (vti->num_tc == 0)
