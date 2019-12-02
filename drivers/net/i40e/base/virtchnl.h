@@ -920,10 +920,11 @@ VIRTCHNL_CHECK_STRUCT_LEN(8, virtchnl_queue_chunk);
 /* structure to specify several chunks of contiguous queues */
 struct virtchnl_queue_chunks {
 	u16 num_chunks;
-	struct virtchnl_queue_chunk chunks[];
+	u16 rsvd;
+	struct virtchnl_queue_chunk chunks[1];
 };
 
-VIRTCHNL_CHECK_STRUCT_LEN(4, virtchnl_queue_chunks);
+VIRTCHNL_CHECK_STRUCT_LEN(12, virtchnl_queue_chunks);
 
 /* VIRTCHNL_OP_CREATE_VPORT
  * PF sends this message to CP to create a vport by filling in the first 8
@@ -955,7 +956,7 @@ struct virtchnl_create_vport {
 	struct virtchnl_queue_chunks chunks;
 };
 
-VIRTCHNL_CHECK_STRUCT_LEN(48, virtchnl_create_vport);
+VIRTCHNL_CHECK_STRUCT_LEN(56, virtchnl_create_vport);
 
 /* VIRTCHNL_OP_DESTROY_VPORT
  * VIRTCHNL_OP_ENABLE_VPORT
@@ -999,10 +1000,11 @@ VIRTCHNL_CHECK_STRUCT_LEN(40, virtchnl_txq_info_v2);
 struct virtchnl_config_tx_queues {
 	u16 vport_id;
 	u16 num_qinfo;
-	struct virtchnl_txq_info_v2 txq_info[];
+	u32 rsvd;
+	struct virtchnl_txq_info_v2 txq_info[1];
 };
 
-VIRTCHNL_CHECK_STRUCT_LEN(8, virtchnl_config_tx_queues);
+VIRTCHNL_CHECK_STRUCT_LEN(48, virtchnl_config_tx_queues);
 
 /* Rx queue config info */
 struct virtchnl_rxq_info_v2 {
@@ -1044,10 +1046,10 @@ VIRTCHNL_CHECK_STRUCT_LEN(72, virtchnl_rxq_info_v2);
 struct virtchnl_config_rx_queues {
 	u16 vport_id;
 	u16 num_qinfo;
-	struct virtchnl_rxq_info_v2 rxq_info[];
+	struct virtchnl_rxq_info_v2 rxq_info[1];
 };
 
-VIRTCHNL_CHECK_STRUCT_LEN(8, virtchnl_config_rx_queues);
+VIRTCHNL_CHECK_STRUCT_LEN(80, virtchnl_config_rx_queues);
 
 /* VIRTCHNL_OP_ADD_QUEUES
  * PF sends this message to request additional TX/RX queues beyond the ones
@@ -1065,7 +1067,7 @@ struct virtchnl_add_queues {
 	struct virtchnl_queue_chunks chunks;
 };
 
-VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_add_queues);
+VIRTCHNL_CHECK_STRUCT_LEN(24, virtchnl_add_queues);
 
 /* VIRTCHNL_OP_ENABLE_QUEUES
  * VIRTCHNL_OP_DISABLE_QUEUES
@@ -1080,7 +1082,7 @@ struct virtchnl_del_ena_dis_queues {
 	struct virtchnl_queue_chunks chunks;
 };
 
-VIRTCHNL_CHECK_STRUCT_LEN(8, virtchnl_del_ena_dis_queues);
+VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_del_ena_dis_queues);
 
 /* Virtchannel interrupt throttling rate index */
 enum virtchnl_itr_idx {
@@ -1110,10 +1112,10 @@ VIRTCHNL_CHECK_STRUCT_LEN(12, virtchnl_queue_vector);
 struct virtchnl_queue_vector_maps {
 	u16 vport_id;
 	u16 num_queue_vector_maps;
-	struct virtchnl_queue_vector qv_maps[];
+	struct virtchnl_queue_vector qv_maps[1];
 };
 
-VIRTCHNL_CHECK_STRUCT_LEN(4, virtchnl_queue_vector_maps);
+VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_queue_vector_maps);
 
 /* Structure to specify a chunk of contiguous interrupt vectors */
 struct virtchnl_vector_chunk {
@@ -1121,11 +1123,15 @@ struct virtchnl_vector_chunk {
 	u16 num_vectors;
 };
 
+VIRTCHNL_CHECK_STRUCT_LEN(4, virtchnl_vector_chunk);
+
 /* Structure to specify several chunks of contiguous interrupt vectors */
 struct virtchnl_vector_chunks {
 	u16 num_vector_chunks;
-	struct virtchnl_vector_chunk vchunk[];
+	struct virtchnl_vector_chunk vchunk[1];
 };
+
+VIRTCHNL_CHECK_STRUCT_LEN(6, virtchnl_vector_chunks);
 
 /* VIRTCHNL_OP_ALLOC_VECTORS
  * PF sends this message to request additional interrupt vectors beyond the
@@ -1139,12 +1145,13 @@ struct virtchnl_alloc_vectors {
 	struct virtchnl_vector_chunks vchunks;
 };
 
+VIRTCHNL_CHECK_STRUCT_LEN(8, virtchnl_alloc_vectors);
+
 /* VIRTCHNL_OP_DEALLOC_VECTORS
  * PF sends this message to release the vectors.
  * PF sends virtchnl_vector_chunks struct to specify the vectors it is giving
  * away. CP performs requested action and returns status.
  */
-
 struct virtchnl_rss_lut_v2 {
 	u16 vport_id;
 	u16 lut_entries;
@@ -1414,7 +1421,12 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 			struct virtchnl_create_vport *cvport =
 				(struct virtchnl_create_vport *)msg;
 
-			valid_len += cvport->chunks.num_chunks *
+			if (cvport->chunks.num_chunks == 0) {
+				/* zero chunks is allowed as input */
+				break;
+			}
+
+			valid_len += (cvport->chunks.num_chunks - 1) *
 				      sizeof(struct virtchnl_queue_chunk);
 		}
 		break;
@@ -1432,7 +1444,7 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 				err_msg_format = true;
 				break;
 			}
-			valid_len += ctq->num_qinfo *
+			valid_len += (ctq->num_qinfo - 1) *
 				     sizeof(struct virtchnl_txq_info_v2);
 		}
 		break;
@@ -1445,7 +1457,7 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 				err_msg_format = true;
 				break;
 			}
-			valid_len += crq->num_qinfo *
+			valid_len += (crq->num_qinfo - 1) *
 				     sizeof(struct virtchnl_rxq_info_v2);
 		}
 		break;
@@ -1455,7 +1467,12 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 			struct virtchnl_add_queues *add_q =
 				(struct virtchnl_add_queues *)msg;
 
-			valid_len += add_q->chunks.num_chunks *
+			if (add_q->chunks.num_chunks == 0) {
+				/* zero chunks is allowed as input */
+				break;
+			}
+
+			valid_len += (add_q->chunks.num_chunks - 1) *
 				      sizeof(struct virtchnl_queue_chunk);
 		}
 		break;
@@ -1470,7 +1487,7 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 				err_msg_format = true;
 				break;
 			}
-			valid_len += qs->chunks.num_chunks *
+			valid_len += (qs->chunks.num_chunks - 1) *
 				      sizeof(struct virtchnl_queue_chunk);
 		}
 		break;
@@ -1484,7 +1501,7 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 				err_msg_format = true;
 				break;
 			}
-			valid_len += v_qp->num_queue_vector_maps *
+			valid_len += (v_qp->num_queue_vector_maps - 1) *
 				      sizeof(struct virtchnl_queue_vector);
 		}
 		break;
@@ -1493,7 +1510,13 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		if (msglen >= valid_len) {
 			struct virtchnl_alloc_vectors *v_av =
 				(struct virtchnl_alloc_vectors *)msg;
-			valid_len += v_av->vchunks.num_vector_chunks *
+
+			if (v_av->vchunks.num_vector_chunks == 0) {
+				/* zero chunks is allowed as input */
+				break;
+			}
+
+			valid_len += (v_av->vchunks.num_vector_chunks - 1) *
 				      sizeof(struct virtchnl_vector_chunk);
 		}
 		break;
@@ -1506,7 +1529,7 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 				err_msg_format = true;
 				break;
 			}
-			valid_len += v_chunks->num_vector_chunks *
+			valid_len += (v_chunks->num_vector_chunks - 1) *
 				      sizeof(struct virtchnl_vector_chunk);
 		}
 		break;
@@ -1515,6 +1538,12 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		if (msglen >= valid_len) {
 			struct virtchnl_rss_key *vrk =
 				(struct virtchnl_rss_key *)msg;
+
+			if (vrk->key_len == 0) {
+				/* zero length is allowed as input */
+				break;
+			}
+
 			valid_len += vrk->key_len - 1;
 		}
 		break;
@@ -1524,6 +1553,12 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		if (msglen >= valid_len) {
 			struct virtchnl_rss_lut_v2 *vrl =
 				(struct virtchnl_rss_lut_v2 *)msg;
+
+			if (vrl->lut_entries == 0) {
+				/* zero entries is allowed as input */
+				break;
+			}
+
 			valid_len += vrl->lut_entries - 1;
 		}
 		break;
