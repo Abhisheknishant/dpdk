@@ -7049,24 +7049,26 @@ restore_config:
 
 #ifdef CARLSVILLE_HW
 /**
- * i40e_get_phy_lpi_status - read LPI status from external PHY or MAC
+ * i40e_get_phy_lpi_status - read LPI status from PHY or MAC register
  * @hw: pointer to the hw struct
  * @stat: pointer to structure with status of rx and tx lpi
  *
- * Read LPI state directly from external PHY or MAC, depending on device ID.
+ * Read LPI state directly from external PHY register or from MAC
+ * register, depending on device ID and current link speed.
  */
 #else
 /**
- * i40e_get_phy_lpi_status - read LPI status from MAC
+ * i40e_get_phy_lpi_status - read LPI status using MAC register
  * @hw: pointer to the hw struct
  * @stat: pointer to structure with status of rx and tx lpi
  *
- * Read LPI state directly from MAC.
+ * Read LPI state from MAC register.
  */
 #endif
 #ifndef EXTERNAL_RELEASE
 /*
  * Implemented for Broadcom Orca PHY used in Carlsville.
+ * It requires special handling when 2.5 or 5G speed is used.
  * Refer to FVL DCR335 for details.
  */
 #endif
@@ -7080,7 +7082,9 @@ enum i40e_status_code i40e_get_phy_lpi_status(struct i40e_hw *hw,
 	stat->tx_lpi_status = 0;
 
 #ifdef CARLSVILLE_HW
-	if (hw->device_id == I40E_DEV_ID_10G_BASE_T_BC) {
+	if (hw->device_id == I40E_DEV_ID_10G_BASE_T_BC &&
+	    (hw->phy.link_info.link_speed == I40E_LINK_SPEED_2_5GB ||
+	     hw->phy.link_info.link_speed == I40E_LINK_SPEED_5GB)) {
 #ifndef EXTERNAL_RELEASE
 	/* For accessing LPI status in Broadcom PHY we're using AQ command only.
 	 * Broadcom PHY supports API >= 1.7, so there is no need for supporting
