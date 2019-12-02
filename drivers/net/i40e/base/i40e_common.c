@@ -7046,6 +7046,72 @@ restore_config:
 	status = i40e_led_set_reg(hw, led_addr, led_ctl);
 	return status;
 }
+
+#ifdef CARLSVILLE_HW
+/**
+ * i40e_get_phy_lpi_status - read LPI status from external PHY or MAC
+ * @hw: pointer to the hw struct
+ * @stat: pointer to structure with status of rx and tx lpi
+ *
+ * Read LPI state directly from external PHY or MAC, depending on device ID.
+ */
+#else
+/**
+ * i40e_get_phy_lpi_status - read LPI status from MAC
+ * @hw: pointer to the hw struct
+ * @stat: pointer to structure with status of rx and tx lpi
+ *
+ * Read LPI state directly from MAC.
+ */
+#endif
+#ifndef EXTERNAL_RELEASE
+/*
+ * Implemented for Broadcom Orca PHY used in Carlsville.
+ * Refer to FVL DCR335 for details.
+ */
+#endif
+enum i40e_status_code i40e_get_phy_lpi_status(struct i40e_hw *hw,
+					      struct i40e_hw_port_stats *stat)
+{
+	enum i40e_status_code ret = I40E_SUCCESS;
+	u32 val;
+
+	stat->rx_lpi_status = 0;
+	stat->tx_lpi_status = 0;
+
+#ifdef CARLSVILLE_HW
+	if (hw->device_id == I40E_DEV_ID_10G_BASE_T_BC) {
+#ifndef EXTERNAL_RELEASE
+	/* For accessing LPI status in Broadcom PHY we're using AQ command only.
+	 * Broadcom PHY supports API >= 1.7, so there is no need for supporting
+	 * direct register access.
+	 */
+#endif
+		ret = i40e_aq_get_phy_register(hw,
+					       I40E_AQ_PHY_REG_ACCESS_EXTERNAL,
+					       I40E_BCM_PHY_PCS_STATUS1_PAGE,
+					       true,
+					       I40E_BCM_PHY_PCS_STATUS1_REG,
+					       &val, NULL);
+
+		if (ret != I40E_SUCCESS)
+			return ret;
+
+		stat->rx_lpi_status = !!(val & I40E_BCM_PHY_PCS_STATUS1_RX_LPI);
+		stat->tx_lpi_status = !!(val & I40E_BCM_PHY_PCS_STATUS1_TX_LPI);
+
+		return ret;
+	}
+
+#endif /* CARLSVILLE_HW */
+	val = rd32(hw, I40E_PRTPM_EEE_STAT);
+	stat->rx_lpi_status = (val & I40E_PRTPM_EEE_STAT_RX_LPI_STATUS_MASK) >>
+			       I40E_PRTPM_EEE_STAT_RX_LPI_STATUS_SHIFT;
+	stat->tx_lpi_status = (val & I40E_PRTPM_EEE_STAT_TX_LPI_STATUS_MASK) >>
+			       I40E_PRTPM_EEE_STAT_TX_LPI_STATUS_SHIFT;
+
+	return ret;
+}
 #endif /* PF_DRIVER */
 
 /**
