@@ -37,6 +37,10 @@
  * value in current and future projects
  */
 
+#ifdef VIRTCHNL_IPSEC
+#include "virtchnl_inline_ipsec.h"
+#endif
+
 /* Error Codes */
 enum virtchnl_status_code {
 	VIRTCHNL_STATUS_SUCCESS				= 0,
@@ -138,6 +142,15 @@ enum virtchnl_ops {
 	VIRTCHNL_OP_DISABLE_CHANNELS = 31,
 	VIRTCHNL_OP_ADD_CLOUD_FILTER = 32,
 	VIRTCHNL_OP_DEL_CLOUD_FILTER = 33,
+#ifdef VIRTCHNL_IPSEC
+	VIRTCHNL_OP_GET_IPSEC_CAP = 34,
+	VIRTCHNL_OP_IPSEC_SA_CREATE = 35,
+	VIRTCHNL_OP_IPSEC_SA_UPDATE = 36,
+	VIRTCHNL_OP_IPSEC_SA_DESTROY = 37,
+	VIRTCHNL_OP_IPSEC_SA_READ = 38,
+#else
+	/* opcodes 34, 35, 36, 37 and 38 are reserved */
+#endif /* VIRTCHNL_IPSEC */
 #ifdef VIRTCHNL_EXT_FEATURES
 	/* New major set of opcodes introduced and so leaving room for
 	* old misc opcodes to be added in future. Also these opcodes may only
@@ -281,6 +294,12 @@ VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_vsi_resource);
 #define VIRTCHNL_VF_OFFLOAD_RX_ENCAP_CSUM	0X00400000
 #define VIRTCHNL_VF_OFFLOAD_ADQ			0X00800000
 #define VIRTCHNL_VF_OFFLOAD_USO			0X02000000
+#ifdef VIRTCHNL_IPSEC
+#define VIRTCHNL_VF_OFFLOAD_INLINE_IPSEC	0X80000000
+#else
+	/* 0X80000000 is reserved */
+#endif
+
 /* Define below the capability flags that are not offloads */
 #ifdef VIRTCHNL_EXT_FEATURES
 #define VIRTCHNL_VF_CAP_EXT_FEATURES		0x01000000
@@ -1369,6 +1388,22 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 	case VIRTCHNL_OP_GET_ADDNL_SOL_CONFIG:
 		break;
 #endif
+#ifdef VIRTCHNL_IPSEC
+	case VIRTCHNL_OP_GET_IPSEC_CAP:
+		break;
+	case VIRTCHNL_OP_IPSEC_SA_CREATE:
+		valid_len = sizeof(struct virtchnl_ipsec_sa_cfg);
+		break;
+	case VIRTCHNL_OP_IPSEC_SA_UPDATE:
+		valid_len = sizeof(struct virtchnl_ipsec_sa_update);
+		break;
+	case VIRTCHNL_OP_IPSEC_SA_DESTROY:
+		valid_len = sizeof(struct virtchnl_ipsec_sa_destroy);
+		break;
+	case VIRTCHNL_OP_IPSEC_SA_READ:
+		valid_len = sizeof(u32);
+		break;
+#endif /* VIRTCHNL_IPSEC */
 #ifdef VIRTCHNL_EXT_FEATURES
 	case VIRTCHNL_OP_GET_CAPS:
 		valid_len = sizeof(struct virtchnl_get_capabilities);
