@@ -7144,6 +7144,63 @@ enum i40e_status_code i40e_aq_rx_ctl_write_register(struct i40e_hw *hw,
 }
 
 /**
+ * i40e_enable_eee
+ * @hw: pointer to the hardware structure
+ * @enable: state of Energy Efficient Ethernet mode to be set
+ *
+ * Enables or disables Energy Efficient Ethernet (EEE) mode
+ * accordingly to @enable parameter.
+ **/
+enum i40e_status_code i40e_enable_eee(struct i40e_hw *hw, bool enable)
+{
+	struct i40e_aq_get_phy_abilities_resp abilities;
+	struct i40e_aq_set_phy_config config;
+	enum i40e_status_code status;
+	__le16 eee_capability;
+
+	/* Get initial PHY capabilities */
+	status = i40e_aq_get_phy_capabilities(hw, false, true, &abilities,
+					      NULL);
+	if (status)
+		goto err;
+
+	/* Check whether NIC configuration is compatible with Energy Efficient
+	 * Ethernet (EEE) mode.
+	 */
+	if (abilities.eee_capability == 0) {
+		status = I40E_ERR_CONFIG;
+		goto err;
+	}
+
+	/* Cache initial EEE capability */
+	eee_capability = abilities.eee_capability;
+
+	/* Get current configuration */
+	status = i40e_aq_get_phy_capabilities(hw, false, false, &abilities,
+					      NULL);
+	if (status)
+		goto err;
+
+	/* Cache current configuration */
+	config.phy_type = abilities.phy_type;
+	config.link_speed = abilities.link_speed;
+	config.abilities = abilities.abilities |
+			   I40E_AQ_PHY_ENABLE_ATOMIC_LINK;
+	config.eeer = abilities.eeer_val;
+	config.low_power_ctrl = abilities.d3_lpan;
+	config.fec_config = abilities.fec_cfg_curr_mod_ext_info &
+			    I40E_AQ_PHY_FEC_CONFIG_MASK;
+
+	/* Set desired EEE state */
+	config.eee_capability = enable ? eee_capability : 0;
+
+	/* Save modified config */
+	status = i40e_aq_set_phy_config(hw, &config, NULL);
+err:
+	return status;
+}
+
+/**
  * i40e_write_rx_ctl - write to an Rx control register
  * @hw: pointer to the hw struct
  * @reg_addr: register address
