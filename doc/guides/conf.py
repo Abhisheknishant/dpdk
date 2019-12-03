@@ -47,7 +47,7 @@ release = version
 master_doc = 'index'
 
 # Maximum feature description string length
-feature_str_len = 25
+feature_str_len = 45
 
 # Figures, tables and code-blocks automatically numbered if they have caption
 numfig = True
@@ -400,6 +400,16 @@ def setup(app):
     generate_overview_table(table_file, 1,
                             'Features',
                             'Features availability in compression drivers',
+                            'Feature')
+    table_file = dirname(__file__) + '/eventdevs/overview_feature_table.txt'
+    generate_overview_table(table_file, 1,
+                            'Features',
+                            'Features availability in eventdev drivers',
+                            'Feature')
+    table_file = dirname(__file__) + '/eventdevs/overview_adptr_feature_table.txt'
+    generate_overview_table(table_file, 2,
+                            'Adapter Features',
+                            'Features availability for adapters',
                             'Feature')
 
     if LooseVersion(sphinx_version) < LooseVersion('1.3.1'):
