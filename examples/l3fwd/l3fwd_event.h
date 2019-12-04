@@ -104,6 +104,7 @@ l3fwd_get_eventdev_rsrc(void)
 }
 
 void l3fwd_event_resource_setup(struct rte_eth_conf *port_conf);
+int l3fwd_get_free_event_port(struct l3fwd_event_resources *eventdev_rsrc);
 void l3fwd_event_set_generic_ops(struct l3fwd_event_setup_ops *ops);
 void l3fwd_event_set_internal_port_ops(struct l3fwd_event_setup_ops *ops);
 
