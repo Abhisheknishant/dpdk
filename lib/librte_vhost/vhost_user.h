@@ -62,6 +62,7 @@ typedef enum VhostUserRequest {
 typedef enum VhostUserSlaveRequest {
 	VHOST_USER_SLAVE_NONE = 0,
 	VHOST_USER_SLAVE_IOTLB_MSG = 1,
+	VHOST_USER_SLAVE_CONFIG_CHANGE_MSG = 2,
 	VHOST_USER_SLAVE_VRING_HOST_NOTIFIER_MSG = 3,
 	VHOST_USER_SLAVE_MAX
 } VhostUserSlaveRequest;
@@ -158,6 +159,7 @@ typedef struct VhostUserMsg {
 /* vhost_user.c */
 int vhost_user_msg_handler(int vid, int fd);
 int vhost_user_iotlb_miss(struct virtio_net *dev, uint64_t iova, uint8_t perm);
+int rte_vhost_user_slave_config_change(int vid);
 
 /* socket.c */
 int read_fd_message(int sockfd, char *buf, int buflen, int *fds, int max_fds,
