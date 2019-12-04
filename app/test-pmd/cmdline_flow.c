@@ -213,6 +213,8 @@ enum index {
 	ITEM_TAG,
 	ITEM_TAG_DATA,
 	ITEM_TAG_INDEX,
+	ITEM_L2TPV3,
+	ITEM_L2TPV3_SESSION_ID,
 
 	/* Validate/create actions. */
 	ACTIONS,
@@ -746,6 +748,7 @@ static const enum index next_item[] = {
 	ITEM_PPPOE_PROTO_ID,
 	ITEM_HIGIG2,
 	ITEM_TAG,
+	ITEM_L2TPV3,
 	END_SET,
 	ZERO,
 };
@@ -1026,6 +1029,12 @@ static const enum index next_set_raw[] = {
 static const enum index item_tag[] = {
 	ITEM_TAG_DATA,
 	ITEM_TAG_INDEX,
+	ITEM_NEXT,
+	ZERO,
+};
+
+static const enum index item_l2tpv3[] = {
+	ITEM_L2TPV3_SESSION_ID,
 	ITEM_NEXT,
 	ZERO,
 };
@@ -2593,6 +2602,21 @@ static const struct token token_list[] = {
 			     NEXT_ENTRY(ITEM_PARAM_IS)),
 		.args = ARGS(ARGS_ENTRY(struct rte_flow_item_tag, index)),
 	},
+	[ITEM_L2TPV3] = {
+		.name = "l2tpv3",
+		.help = "match L2TPv3 header",
+		.priv = PRIV_ITEM(L2TPV3, sizeof(struct rte_flow_item_l2tpv3)),
+		.next = NEXT(item_l2tpv3),
+		.call = parse_vc,
+	},
+	[ITEM_L2TPV3_SESSION_ID] = {
+		.name = "session_id",
+		.help = "session identifier",
+		.next = NEXT(item_l2tpv3, NEXT_ENTRY(UNSIGNED), item_param),
+		.args = ARGS(ARGS_ENTRY_HTON(struct rte_flow_item_l2tpv3,
+					     session_id)),
+	},
+
 	/* Validate/create actions. */
 	[ACTIONS] = {
 		.name = "actions",
@@ -6238,6 +6262,10 @@ flow_item_default_mask(const struct rte_flow_item *item)
 		break;
 	case RTE_FLOW_ITEM_TYPE_PPPOE_PROTO_ID:
 		mask = &rte_flow_item_pppoe_proto_id_mask;
+		break;
+	case RTE_FLOW_ITEM_TYPE_L2TPV3:
+		mask = &rte_flow_item_l2tpv3_mask;
+		break;
 	default:
 		break;
 	}

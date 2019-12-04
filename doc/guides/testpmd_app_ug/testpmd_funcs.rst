@@ -3954,6 +3954,10 @@ This section lists supported pattern items and their attributes, if any.
 
   - ``proto_id {unsigned}``: PPP protocol identifier.
 
+- ``l2tpv3``: match L2TPv3 header.
+
+  - ``session_id {unsigned}``: L2TPv3 session identifier.
+
 Actions list
 ^^^^^^^^^^^^
 
