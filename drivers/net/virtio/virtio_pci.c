@@ -418,7 +418,20 @@ modern_del_queue(struct virtio_hw *hw, struct virtqueue *vq)
 static void
 modern_notify_queue(struct virtio_hw *hw __rte_unused, struct virtqueue *vq)
 {
-	rte_write16(vq->vq_queue_index, vq->notify_addr);
+	uint32_t notify_data;
+
+	if (!vtpci_with_feature(hw, VIRTIO_F_NOTIFICATION_DATA)) {
+		rte_write16(vq->vq_queue_index, vq->notify_addr);
+		return;
+	}
+
+	if (vtpci_with_feature(hw, VIRTIO_F_RING_PACKED))
+		notify_data = ((((uint32_t)vq->vq_packed.used_wrap_counter << 15) |
+				vq->vq_avail_idx) << 16) | vq->vq_queue_index;
+	else
+		notify_data = ((uint32_t)vq->vq_avail_idx << 16) |
+				vq->vq_queue_index;
+	rte_write32(notify_data, vq->notify_addr);
 }
 
 const struct virtio_pci_ops modern_ops = {
