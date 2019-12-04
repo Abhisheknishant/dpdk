@@ -5,6 +5,9 @@
 #ifndef __L3_FWD_H__
 #define __L3_FWD_H__
 
+#include <stdbool.h>
+
+#include <rte_ethdev.h>
 #include <rte_vect.h>
 
 #define DO_RFC_1812_CHECKS
@@ -168,6 +171,9 @@ is_valid_ipv4_pkt(struct rte_ipv4_hdr *pkt, uint32_t link_len)
 	return 0;
 }
 #endif /* DO_RFC_1812_CHECKS */
+
+void
+print_usage(const char *prgname);
 
 /* Function pointers for LPM or EM functionality. */
 void

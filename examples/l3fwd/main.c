@@ -13,12 +13,12 @@
 #include <errno.h>
 #include <getopt.h>
 #include <signal.h>
-#include <stdbool.h>
 
 #include <rte_common.h>
 #include <rte_vect.h>
 #include <rte_byteorder.h>
 #include <rte_log.h>
+#include <rte_malloc.h>
 #include <rte_memory.h>
 #include <rte_memcpy.h>
 #include <rte_eal.h>
@@ -33,7 +33,6 @@
 #include <rte_random.h>
 #include <rte_debug.h>
 #include <rte_ether.h>
-#include <rte_ethdev.h>
 #include <rte_mempool.h>
 #include <rte_mbuf.h>
 #include <rte_ip.h>
@@ -46,6 +45,7 @@
 #include <cmdline_parse_etheraddr.h>
 
 #include "l3fwd.h"
+#include "l3fwd_event.h"
 
 /*
  * Configurable number of RX/TX ring descriptors
@@ -274,7 +274,7 @@ init_lcore_rx_queues(void)
 }
 
 /* display usage */
-static void
+void
 print_usage(const char *prgname)
 {
 	fprintf(stderr, "%s [EAL options] --"
@@ -289,7 +289,9 @@ print_usage(const char *prgname)
 		" [--hash-entry-num]"
 		" [--ipv6]"
 		" [--parse-ptype]"
-		" [--per-port-pool]\n\n"
+		" [--per-port-pool]"
+		" [--mode]"
+		" [--eventq-sched]\n\n"
 
 		"  -p PORTMASK: Hexadecimal bitmask of ports to configure\n"
 		"  -P : Enable promiscuous mode\n"
@@ -304,7 +306,13 @@ print_usage(const char *prgname)
 		"  --hash-entry-num: Specify the hash entry number in hexadecimal to be setup\n"
 		"  --ipv6: Set if running ipv6 packets\n"
 		"  --parse-ptype: Set to use software to analyze packet type\n"
-		"  --per-port-pool: Use separate buffer pool per port\n\n",
+		"  --per-port-pool: Use separate buffer pool per port\n"
+		"  --mode: Packet transfer mode for I/O, poll or eventdev\n"
+		"          Default mode = poll\n"
+		"  --eventq-sched: Event queue synchronization method "
+		"                  ordered, atomic or parallel.\n\t\t"
+		"		   Default: atomic\n\t\t"
+		"                  Valid only if --mode=eventdev\n\n",
 		prgname);
 }
 
@@ -504,11 +512,19 @@ static const struct option lgopts[] = {
 static int
 parse_args(int argc, char **argv)
 {
+	struct l3fwd_event_resources *evt_rsrc;
 	int opt, ret;
 	char **argvopt;
 	int option_index;
 	char *prgname = argv[0];
 
+	evt_rsrc = l3fwd_get_eventdev_rsrc();
+	evt_rsrc->args = rte_zmalloc("l3fwd_event_args", sizeof(char *), 0);
+	if (evt_rsrc->args == NULL)
+		rte_exit(EXIT_FAILURE,
+				"Unable to allocate memory for eventdev arg");
+	evt_rsrc->args[0] = argv[0];
+	evt_rsrc->nb_args++;
 	argvopt = argv;
 
 	/* Error or normal output strings. */
@@ -536,6 +552,15 @@ parse_args(int argc, char **argv)
 
 		case 'L':
 			l3fwd_lpm_on = 1;
+			break;
+
+		case '?':
+			/* Eventdev options are encountered skip for
+			 * now and processed later.
+			 */
+			evt_rsrc->args[evt_rsrc->nb_args] =
+				argv[optind - 1];
+			evt_rsrc->nb_args++;
 			break;
 
 		/* long options */
@@ -811,6 +836,7 @@ prepare_ptype_parser(uint16_t portid, uint16_t queueid)
 int
 main(int argc, char **argv)
 {
+	struct l3fwd_event_resources *evt_rsrc;
 	struct lcore_conf *qconf;
 	struct rte_eth_dev_info dev_info;
 	struct rte_eth_txconf *txconf;
@@ -839,10 +865,15 @@ main(int argc, char **argv)
 		*(uint64_t *)(val_eth + portid) = dest_eth_addr[portid];
 	}
 
+	evt_rsrc = l3fwd_get_eventdev_rsrc();
+	RTE_SET_USED(evt_rsrc);
 	/* parse application arguments (after the EAL ones) */
 	ret = parse_args(argc, argv);
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "Invalid L3FWD parameters\n");
+
+	/* Configure eventdev parameters if user has requested */
+	l3fwd_event_resource_setup();
 
 	if (check_lcore_params() < 0)
 		rte_exit(EXIT_FAILURE, "check_lcore_params failed\n");
