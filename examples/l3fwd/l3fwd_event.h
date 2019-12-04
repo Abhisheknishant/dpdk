@@ -14,6 +14,11 @@
 
 #include "l3fwd.h"
 
+#define L3FWD_EVENT_SINGLE     0x1
+#define L3FWD_EVENT_BURST      0x2
+#define L3FWD_EVENT_TX_DIRECT  0x4
+#define L3FWD_EVENT_TX_ENQ     0x8
+
 #define CMD_LINE_OPT_MODE "mode"
 #define CMD_LINE_OPT_EVENTQ_SYNC "eventq-sched"
 
