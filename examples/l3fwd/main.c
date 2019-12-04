@@ -920,7 +920,7 @@ main(int argc, char **argv)
 	struct lcore_conf *qconf;
 	struct rte_eth_dev_info dev_info;
 	struct rte_eth_txconf *txconf;
-	int ret;
+	int i, ret;
 	unsigned nb_ports;
 	uint16_t queueid, portid;
 	unsigned lcore_id;
@@ -1195,27 +1195,46 @@ skip_port_config:
 		}
 	}
 
-
 	check_all_ports_link_status(enabled_port_mask);
 
 	ret = 0;
 	/* launch per-lcore init on every lcore */
 	rte_eal_mp_remote_launch(l3fwd_lkp.main_loop, NULL, CALL_MASTER);
-	RTE_LCORE_FOREACH_SLAVE(lcore_id) {
-		if (rte_eal_wait_lcore(lcore_id) < 0) {
-			ret = -1;
-			break;
-		}
-	}
+	if (evt_rsrc->enabled) {
+		for (i = 0; i < evt_rsrc->rx_adptr.nb_rx_adptr; i++)
+			rte_event_eth_rx_adapter_stop(
+					evt_rsrc->rx_adptr.rx_adptr[i]);
+		for (i = 0; i < evt_rsrc->tx_adptr.nb_tx_adptr; i++)
+			rte_event_eth_tx_adapter_stop(
+					evt_rsrc->tx_adptr.tx_adptr[i]);
 
-	/* stop ports */
-	RTE_ETH_FOREACH_DEV(portid) {
-		if ((enabled_port_mask & (1 << portid)) == 0)
-			continue;
-		printf("Closing port %d...", portid);
-		rte_eth_dev_stop(portid);
-		rte_eth_dev_close(portid);
-		printf(" Done\n");
+		RTE_ETH_FOREACH_DEV(portid) {
+			if ((enabled_port_mask & (1 << portid)) == 0)
+				continue;
+			rte_eth_dev_stop(portid);
+		}
+
+		rte_eal_mp_wait_lcore();
+		RTE_ETH_FOREACH_DEV(portid) {
+			if ((enabled_port_mask & (1 << portid)) == 0)
+				continue;
+			rte_eth_dev_close(portid);
+		}
+
+		rte_event_dev_stop(evt_rsrc->event_d_id);
+		rte_event_dev_close(evt_rsrc->event_d_id);
+
+	} else {
+		rte_eal_mp_wait_lcore();
+
+		RTE_ETH_FOREACH_DEV(portid) {
+			if ((enabled_port_mask & (1 << portid)) == 0)
+				continue;
+			printf("Closing port %d...", portid);
+			rte_eth_dev_stop(portid);
+			rte_eth_dev_close(portid);
+			printf(" Done\n");
+		}
 	}
 	printf("Bye...\n");
 
