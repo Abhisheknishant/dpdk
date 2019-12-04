@@ -8,7 +8,7 @@ include $(RTE_SDK)/mk/rte.vars.mk
 LIB = librte_pmd_mlx4.a
 LIB_GLUE = $(LIB_GLUE_BASE).$(LIB_GLUE_VERSION)
 LIB_GLUE_BASE = librte_pmd_mlx4_glue.so
-LIB_GLUE_VERSION = 18.02.0
+LIB_GLUE_VERSION = $(shell cat $(RTE_SRCDIR)/ABI_VERSION)
 
 # Sources.
 SRCS-$(CONFIG_RTE_LIBRTE_MLX4_PMD) += mlx4.c
