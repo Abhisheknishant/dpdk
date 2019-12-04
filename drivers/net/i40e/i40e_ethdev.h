@@ -508,6 +508,11 @@ struct i40e_raw_flow {
 	uint32_t length;
 };
 
+/* A structure used to define the input for L2TPv3 flow */
+struct i40e_l2tpv3_flow {
+	uint32_t session_id; /* Session ID in big endian. */
+};
+
 /*
  * A union contains the inputs for all types of flow
  * items in flows need to be in big endian
@@ -526,6 +531,7 @@ union i40e_fdir_flow {
 	struct i40e_gtp_ipv4_flow  gtp_ipv4_flow;
 	struct i40e_gtp_ipv6_flow  gtp_ipv6_flow;
 	struct i40e_raw_flow       raw_flow;
+	struct i40e_l2tpv3_flow    l2tpv3_flow;
 };
 
 enum i40e_fdir_ip_type {
@@ -542,6 +548,7 @@ struct i40e_fdir_flow_ext {
 	uint16_t dst_id; /* VF ID, available when is_vf is 1*/
 	bool inner_ip;   /* If there is inner ip */
 	enum i40e_fdir_ip_type iip_type; /* ip type for inner ip */
+	enum i40e_fdir_ip_type oip_type; /* ip type for outer ip */
 	bool customized_pctype; /* If customized pctype is used */
 	bool pkt_template; /* If raw packet template is used */
 };
@@ -897,6 +904,8 @@ enum i40e_new_pctype {
 	I40E_CUSTOMIZED_GTPU_IPV4,
 	I40E_CUSTOMIZED_GTPU_IPV6,
 	I40E_CUSTOMIZED_GTPU,
+	I40E_CUSTOMIZED_IPV4_L2TPV3,
+	I40E_CUSTOMIZED_IPV6_L2TPV3,
 	I40E_CUSTOMIZED_MAX,
 };
 
