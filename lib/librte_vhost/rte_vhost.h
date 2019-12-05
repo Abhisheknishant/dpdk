@@ -977,6 +977,18 @@ __rte_experimental
 int
 rte_vhost_get_vdpa_device_id(int vid);
 
+/**
+ * Notify the guest that should get config from backend.
+ *
+ * @param vid
+ *  vhost device ID
+ * @return
+ *  0 on success, < 0 on failure
+ */
+__rte_experimental
+int
+rte_vhost_user_slave_config_change(int vid);
+
 #ifdef __cplusplus
 }
 #endif
