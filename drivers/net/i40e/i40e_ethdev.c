@@ -53,7 +53,7 @@
 
 /* Wait count and interval */
 #define I40E_CHK_Q_ENA_COUNT       1000
-#define I40E_CHK_Q_ENA_INTERVAL_US 1000
+#define I40E_CHK_Q_ENA_INTERVAL_US 50000
 
 /* Maximun number of VSI */
 #define I40E_MAX_NUM_VSIS          (384UL)
