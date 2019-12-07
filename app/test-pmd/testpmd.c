@@ -320,6 +320,11 @@ uint64_t noisy_lkup_num_reads_writes;
 uint64_t rss_hf = ETH_RSS_IP; /* RSS IP by default. */
 
 /*
+ * Receive Side Scaling (RSS) configuration.
+ */
+uint32_t rss_level = ETH_RSS_LEVEL_DEFAULT;/* Use default hardware RSS level. */
+
+/*
  * Port topology configuration
  */
 uint16_t port_topology = PORT_TOPOLOGY_PAIRED; /* Ports are paired by default */
@@ -3068,9 +3073,12 @@ init_port_config(void)
 			port->dev_conf.rx_adv_conf.rss_conf.rss_key = NULL;
 			port->dev_conf.rx_adv_conf.rss_conf.rss_hf =
 				rss_hf & port->dev_info.flow_type_rss_offloads;
+			port->dev_conf.rx_adv_conf.rss_conf.rss_level =
+				rss_level;
 		} else {
 			port->dev_conf.rx_adv_conf.rss_conf.rss_key = NULL;
 			port->dev_conf.rx_adv_conf.rss_conf.rss_hf = 0;
+			port->dev_conf.rx_adv_conf.rss_conf.rss_level = 0;
 		}
 
 		if (port->dcb_flag == 0) {

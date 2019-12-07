@@ -383,6 +383,7 @@ extern struct rte_eth_rxmode rx_mode;
 extern struct rte_eth_txmode tx_mode;
 
 extern uint64_t rss_hf;
+extern uint32_t rss_level;
 
 extern queueid_t nb_hairpinq;
 extern queueid_t nb_rxq;

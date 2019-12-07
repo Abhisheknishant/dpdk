@@ -1965,6 +1965,13 @@ port_rss_hash_conf_show(portid_t port_id, int show_rss_key)
 			printf("%s ", rss_type_table[i].str);
 	}
 	printf("\n");
+	if (dev_info.rx_offload_capa & DEV_RX_OFFLOAD_RSS_LEVEL) {
+		printf("RSS hash level:\n ");
+		if (rss_conf.rss_level == ETH_RSS_LEVEL_DEFAULT)
+			printf("%s ", "Default");
+		printf("%d", rss_conf.rss_level);
+		printf("\n");
+	}
 	if (!show_rss_key)
 		return;
 	printf("RSS key:\n");

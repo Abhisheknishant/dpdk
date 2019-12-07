@@ -792,6 +792,9 @@ static void cmd_help_long_parsed(void *parsed_result,
 			"port config port-id rss reta (hash,queue)[,(hash,queue)]\n"
 			"    Set the RSS redirection table.\n\n"
 
+			"port config (port_id|all) rss_level (value)\n"
+			"    Set the RSS hash level for the port.\n\n"
+
 			"port config (port_id) dcb vt (on|off) (traffic_class)"
 			" pfc (on|off)\n"
 			"    Set the DCB mode.\n\n"
@@ -2300,6 +2303,7 @@ cmd_config_rss_parsed(void *parsed_result,
 		return;
 	}
 	rss_conf.rss_key = NULL;
+	rss_conf.rss_level = rss_level;
 	/* Update global configuration for RSS types. */
 	RTE_ETH_FOREACH_DEV(i) {
 		struct rte_eth_rss_conf local_rss_conf;
@@ -2353,6 +2357,187 @@ cmdline_parse_inst_t cmd_config_rss = {
 		(void *)&cmd_config_rss_all,
 		(void *)&cmd_config_rss_name,
 		(void *)&cmd_config_rss_value,
+		NULL,
+	},
+};
+
+/* *** configure rss level all ports *** */
+struct cmd_config_rss_level {
+	cmdline_fixed_string_t port;
+	cmdline_fixed_string_t keyword;
+	cmdline_fixed_string_t all;
+	cmdline_fixed_string_t name;
+	uint32_t value;
+};
+
+static void
+cmd_config_rss_level_parsed(void *parsed_result,
+			__attribute__((unused)) struct cmdline *cl,
+			__attribute__((unused)) void *data)
+{
+	struct cmd_config_rss_level *res = parsed_result;
+	int all_updated = 1;
+	int diag;
+	uint16_t i;
+
+	/* Update global configuration for RSS hash level. */
+	RTE_ETH_FOREACH_DEV(i) {
+		struct rte_eth_rss_conf rss_conf;
+		struct rte_eth_dev_info dev_info;
+
+		diag = eth_dev_info_get_print_err(i, &dev_info);
+		if (diag != 0)
+			return;
+
+		if (!(dev_info.rx_offload_capa & DEV_RX_OFFLOAD_RSS_LEVEL)) {
+			printf("Port %d does not support RSS hash level "
+			       "selection\n", i);
+			return;
+		}
+
+		rss_conf.rss_key = NULL;
+		diag = rte_eth_dev_rss_hash_conf_get(i, &rss_conf);
+		if (diag) {
+			printf("Port %d failed to get RSS hash config with "
+			       "error (%d): %s.\n",
+			       i, -diag, strerror(-diag));
+			return;
+		}
+
+		if (rss_conf.rss_level == res->value)
+			return;
+
+		printf("Port %d modifying RSS hash level based on "
+		       "hardware support. Requested:%d Current:%d\n",
+			i, res->value, rss_conf.rss_level);
+
+		rss_conf.rss_level = res->value;
+		diag = rte_eth_dev_rss_hash_update(i, &rss_conf);
+		if (diag < 0) {
+			all_updated = 0;
+			printf("Configuration of RSS hash at ethernet port %d "
+				"failed with error (%d): %s.\n",
+				i, -diag, strerror(-diag));
+		}
+	}
+	if (all_updated)
+		rss_level = res->value;
+}
+
+cmdline_parse_token_string_t cmd_config_rss_level_port =
+	TOKEN_STRING_INITIALIZER(struct cmd_config_rss_level, port, "port");
+cmdline_parse_token_string_t cmd_config_rss_level_keyword =
+	TOKEN_STRING_INITIALIZER(struct cmd_config_rss_level, keyword,
+				 "config");
+cmdline_parse_token_string_t cmd_config_rss_level_all =
+	TOKEN_STRING_INITIALIZER(struct cmd_config_rss_level, all, "all");
+cmdline_parse_token_string_t cmd_config_rss_level_item =
+	TOKEN_STRING_INITIALIZER(struct cmd_config_rss_level, name,
+				 "rss_level");
+cmdline_parse_token_num_t cmd_config_rss_level_value =
+	TOKEN_NUM_INITIALIZER(struct cmd_config_rss_level, value, UINT16);
+
+cmdline_parse_inst_t cmd_config_rss_level = {
+	.f = cmd_config_rss_level_parsed,
+	.data = NULL,
+	.help_str = "port config all rss_level "
+		"<level>",
+	.tokens = {
+		(void *)&cmd_config_rss_level_port,
+		(void *)&cmd_config_rss_level_keyword,
+		(void *)&cmd_config_rss_level_all,
+		(void *)&cmd_config_rss_level_item,
+		(void *)&cmd_config_rss_level_value,
+		NULL,
+	},
+};
+
+/* *** configure rss_level for specific port *** */
+struct cmd_config_rss_level_specific_port {
+	cmdline_fixed_string_t port;
+	cmdline_fixed_string_t keyword;
+	portid_t id;
+	cmdline_fixed_string_t item;
+	uint32_t value;
+};
+
+static void
+cmd_config_rss_level_specific_port_parsed(void *parsed_result,
+				__attribute__((unused)) struct cmdline *cl,
+				__attribute__((unused)) void *data)
+{
+	struct cmd_config_rss_level_specific_port *res = parsed_result;
+	struct rte_eth_dev_info dev_info;
+	struct rte_eth_rss_conf rss_conf;
+	int diag;
+
+	if (port_id_is_invalid(res->id, ENABLED_WARN))
+		return;
+
+	diag = eth_dev_info_get_print_err(res->id, &dev_info);
+	if (diag != 0)
+		return;
+
+	if (!(dev_info.rx_offload_capa & DEV_RX_OFFLOAD_RSS_LEVEL)) {
+		printf("Port %d does not support RSS hash level "
+		       "selection\n", res->id);
+		return;
+	}
+
+	rss_conf.rss_key = NULL;
+	diag = rte_eth_dev_rss_hash_conf_get(res->id, &rss_conf);
+
+	if (rss_conf.rss_level == res->value)
+		return;
+
+	if (diag == 0) {
+		printf("Current RSS hash level %d is being updated to %d\n",
+		       rss_conf.rss_level, res->value);
+		rss_conf.rss_level = res->value;
+		diag = rte_eth_dev_rss_hash_update(res->id, &rss_conf);
+	}
+	if (diag == 0) {
+		rss_level = res->value;
+		return;
+	}
+
+	switch (diag) {
+	case -ENOTSUP:
+		printf("operation not supported by device\n");
+		break;
+	default:
+		printf("operation failed - diag=%d\n", diag);
+		break;
+	}
+}
+
+cmdline_parse_token_string_t cmd_config_rss_level_specific_port_port =
+	TOKEN_STRING_INITIALIZER(struct cmd_config_rss_level_specific_port,
+				 port, "port");
+cmdline_parse_token_string_t cmd_config_rss_level_specific_port_keyword =
+	TOKEN_STRING_INITIALIZER(struct cmd_config_rss_level_specific_port,
+				 keyword, "config");
+cmdline_parse_token_num_t cmd_config_rss_level_specific_port_id =
+	TOKEN_NUM_INITIALIZER(struct cmd_config_rss_level_specific_port, id,
+			      UINT16);
+cmdline_parse_token_string_t cmd_config_rss_level_specific_port_item =
+	TOKEN_STRING_INITIALIZER(struct cmd_config_rss_level_specific_port,
+				 item, "rss_level");
+cmdline_parse_token_num_t cmd_config_rss_level_specific_port_value =
+	TOKEN_NUM_INITIALIZER(struct cmd_config_rss_level_specific_port, value,
+			      UINT16);
+
+cmdline_parse_inst_t cmd_config_rss_level_specific_port = {
+	.f = cmd_config_rss_level_specific_port_parsed,
+	.data = NULL,
+	.help_str = "port config port_id rss_level "
+		"<level>",
+	.tokens = {
+		(void *)&cmd_config_rss_level_specific_port_port,
+		(void *)&cmd_config_rss_level_specific_port_keyword,
+		(void *)&cmd_config_rss_level_specific_port_id,
+		(void *)&cmd_config_rss_level_specific_port_item,
+		(void *)&cmd_config_rss_level_specific_port_value,
 		NULL,
 	},
 };
@@ -19283,6 +19468,8 @@ cmdline_parse_ctx_t main_ctx[] = {
 	(cmdline_parse_inst_t *)&cmd_config_max_lro_pkt_size,
 	(cmdline_parse_inst_t *)&cmd_config_rx_mode_flag,
 	(cmdline_parse_inst_t *)&cmd_config_rss,
+	(cmdline_parse_inst_t *)&cmd_config_rss_level,
+	(cmdline_parse_inst_t *)&cmd_config_rss_level_specific_port,
 	(cmdline_parse_inst_t *)&cmd_config_rxtx_ring_size,
 	(cmdline_parse_inst_t *)&cmd_config_rxtx_queue,
 	(cmdline_parse_inst_t *)&cmd_config_deferred_start_rxtx_queue,
