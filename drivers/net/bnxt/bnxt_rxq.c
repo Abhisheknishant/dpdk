@@ -177,6 +177,9 @@ out:
 			vnic = &bp->vnic_info[i];
 			vnic->hash_type =
 				bnxt_rte_to_hwrm_hash_types(rss->rss_hf);
+			vnic->hash_mode =
+				bnxt_rte_to_hwrm_hash_level(bp, rss->rss_level,
+							    rss->rss_hf);
 
 			/*
 			 * Use the supplied key if the key length is

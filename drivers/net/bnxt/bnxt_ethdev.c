@@ -524,6 +524,8 @@ static int bnxt_dev_info_get_op(struct rte_eth_dev *eth_dev,
 	dev_info->rx_offload_capa = BNXT_DEV_RX_OFFLOAD_SUPPORT;
 	if (bp->flags & BNXT_FLAG_PTP_SUPPORTED)
 		dev_info->rx_offload_capa |= DEV_RX_OFFLOAD_TIMESTAMP;
+	if (bp->vnic_cap_flags & BNXT_VNIC_CAP_OUTER_RSS)
+		dev_info->rx_offload_capa |= DEV_RX_OFFLOAD_RSS_LEVEL;
 	dev_info->tx_offload_capa = BNXT_DEV_TX_OFFLOAD_SUPPORT;
 	dev_info->flow_type_rss_offloads = BNXT_ETH_RSS_SUPPORT;
 
@@ -1404,6 +1406,8 @@ static int bnxt_rss_hash_update_op(struct rte_eth_dev *eth_dev,
 	/* Update the default RSS VNIC(s) */
 	vnic = &bp->vnic_info[0];
 	vnic->hash_type = bnxt_rte_to_hwrm_hash_types(rss_conf->rss_hf);
+	vnic->hash_mode = bnxt_rte_to_hwrm_hash_level(bp, rss_conf->rss_level,
+						      rss_conf->rss_hf);
 
 	/*
 	 * If hashkey is not specified, use the previously configured
@@ -1438,6 +1442,9 @@ static int bnxt_rss_hash_conf_get_op(struct rte_eth_dev *eth_dev,
 
 	/* RSS configuration is the same for all VNICs */
 	if (vnic && vnic->rss_hash_key) {
+		rss_conf->rss_level =
+			bnxt_hwrm_to_rte_rss_level(bp, vnic->hash_mode);
+
 		if (rss_conf->rss_key) {
 			len = rss_conf->rss_key_len <= HW_HASH_KEY_SIZE ?
 			      rss_conf->rss_key_len : HW_HASH_KEY_SIZE;

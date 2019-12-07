@@ -261,3 +261,78 @@ uint16_t bnxt_rte_to_hwrm_hash_types(uint64_t rte_type)
 
 	return hwrm_type;
 }
+
+int bnxt_rte_to_hwrm_hash_level(struct bnxt *bp,
+				uint32_t rss_level,
+				uint64_t hash_f)
+{
+	int mode = HWRM_VNIC_RSS_CFG_INPUT_HASH_MODE_FLAGS_DEFAULT;
+	bool l3 = !!(hash_f & (ETH_RSS_IPV4 | ETH_RSS_IPV6));
+	bool l4 = !!(hash_f & (ETH_RSS_NONFRAG_IPV4_UDP |
+			       ETH_RSS_NONFRAG_IPV6_UDP |
+			       ETH_RSS_NONFRAG_IPV4_TCP |
+			       ETH_RSS_NONFRAG_IPV6_TCP));
+	bool l3_only = l3 && !l4;
+	bool l3_and_l4 = l3 && l4;
+
+	/* If FW has not advertised capability to configure outer/inner
+	 * RSS hashing , just log a message. HW will work in default RSS mode.
+	 */
+	if (!(bp->vnic_cap_flags & BNXT_VNIC_CAP_OUTER_RSS)) {
+		PMD_DRV_LOG(ERR, "RSS hash level cannot be configured\n");
+		return mode;
+	}
+
+	switch (rss_level) {
+	case 0:
+		mode = HWRM_VNIC_RSS_CFG_INPUT_HASH_MODE_FLAGS_DEFAULT;
+		break;
+	case 1:
+		if (l3_only)
+			mode =
+			HWRM_VNIC_RSS_CFG_INPUT_HASH_MODE_FLAGS_OUTERMOST_2;
+		else if (l3_and_l4)
+			mode =
+			HWRM_VNIC_RSS_CFG_INPUT_HASH_MODE_FLAGS_OUTERMOST_4;
+		break;
+	case 2:
+		if (l3_only)
+			mode =
+			HWRM_VNIC_RSS_CFG_INPUT_HASH_MODE_FLAGS_INNERMOST_2;
+		else if (l3_and_l4)
+			mode =
+			HWRM_VNIC_RSS_CFG_INPUT_HASH_MODE_FLAGS_INNERMOST_4;
+		break;
+	default:
+		PMD_DRV_LOG(ERR,
+			    "No support for RSS hash level %d. Using default\n",
+			    rss_level);
+		break;
+	}
+
+	return mode;
+}
+
+int bnxt_hwrm_to_rte_rss_level(struct bnxt *bp, uint32_t hash_mode)
+{
+	int rss_level;
+
+	if (hash_mode == HWRM_VNIC_RSS_CFG_INPUT_HASH_MODE_FLAGS_OUTERMOST_2 ||
+	    hash_mode == HWRM_VNIC_RSS_CFG_INPUT_HASH_MODE_FLAGS_OUTERMOST_4)
+		rss_level = 1;
+	else if (hash_mode ==
+		 HWRM_VNIC_RSS_CFG_INPUT_HASH_MODE_FLAGS_INNERMOST_2 ||
+		 hash_mode ==
+		 HWRM_VNIC_RSS_CFG_INPUT_HASH_MODE_FLAGS_INNERMOST_4)
+		rss_level = 2;
+	else
+		rss_level = 0;
+
+	/* If FW has not advertised capability to configure inner/outer RSS
+	 * return default hash mode.
+	 */
+	if (!(bp->vnic_cap_flags & BNXT_VNIC_CAP_OUTER_RSS))
+		rss_level = 0;
+
+	return rss_level;
+}
