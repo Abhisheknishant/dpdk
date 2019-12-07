@@ -444,11 +444,35 @@ struct rte_vlan_filter_conf {
  * The *rss_hf* field of the *rss_conf* structure indicates the different
  * types of IPv4/IPv6 packets to which the RSS hashing must be applied.
  * Supplying an *rss_hf* equal to zero disables the RSS feature.
+ *
+ * The *rss_level* field of the *rss_conf* structure indicates the
+ * Packet encapsulation level RSS hash @p types apply to.
+ *
+ * - @p 0 requests the default behavior. Depending on the packet
+ *   type, it can mean outermost, innermost, anything in between or
+ *   even no RSS.
+ *
+ *   It basically stands for the innermost encapsulation level RSS
+ *   can be performed on according to PMD and device capabilities.
+ *
+ * - @p 1 requests RSS to be performed on the outermost packet
+ *   encapsulation level.
+ *
+ * - @p 2 and subsequent values request RSS to be performed on the
+ *   specified inner packet encapsulation level, from outermost to
+ *   innermost (lower to higher values).
+ *
+ * Support for values other than @p 0 is dependent on the underlying
+ * hardware in use.
+ *
+ * Requesting a specific RSS level on unrecognized traffic results
+ * in undefined behavior.
  */
 struct rte_eth_rss_conf {
 	uint8_t *rss_key;    /**< If not NULL, 40-byte hash key. */
 	uint8_t rss_key_len; /**< hash key length in bytes. */
 	uint64_t rss_hf;     /**< Hash functions to apply - see below. */
+	uint32_t rss_level;  /**< RSS hash level */
 };
 
 /*
@@ -598,6 +622,8 @@ rte_eth_rss_hf_refine(uint64_t rss_hf)
 	ETH_RSS_VXLAN | \
 	ETH_RSS_GENEVE | \
 	ETH_RSS_NVGRE)
+
+#define ETH_RSS_LEVEL_DEFAULT	0
 
 /*
  * Definitions used for redirection table entry size.
@@ -1103,6 +1129,7 @@ struct rte_eth_conf {
 #define DEV_RX_OFFLOAD_SCTP_CKSUM	0x00020000
 #define DEV_RX_OFFLOAD_OUTER_UDP_CKSUM  0x00040000
 #define DEV_RX_OFFLOAD_RSS_HASH		0x00080000
+#define DEV_RX_OFFLOAD_RSS_LEVEL	0x00100000
 
 #define DEV_RX_OFFLOAD_CHECKSUM (DEV_RX_OFFLOAD_IPV4_CKSUM | \
 				 DEV_RX_OFFLOAD_UDP_CKSUM | \
