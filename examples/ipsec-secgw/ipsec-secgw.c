@@ -2011,6 +2011,18 @@ cryptodevs_init(void)
 			i++;
 		}
 
+		/*
+		 * Set the queue pair to at least the number of ethernet
+		 * devices for inline outbound.
+		 */
+		qp = RTE_MAX(rte_eth_dev_count_avail(), qp);
+
+		/*
+		 * The requested number of queues should never exceed
+		 * the max available
+		 */
+		qp = RTE_MIN(qp, max_nb_qps);
+
 		if (qp == 0)
 			continue;
 

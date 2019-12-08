@@ -141,6 +141,10 @@ create_lookaside_session(struct ipsec_ctx *ipsec_ctx, struct ipsec_sa *sa,
 	return 0;
 }
 
+uint16_t sa_no;
+#define MAX_FIXED_SESSIONS	10
+struct rte_security_session *sec_session_fixed[MAX_FIXED_SESSIONS];
+
 int
 create_inline_session(struct socket_ctx *skt_ctx, struct ipsec_sa *sa,
 		struct rte_ipsec_session *ips)
@@ -401,6 +405,11 @@ flow_create_failure:
 
 		ips->security.ol_flags = sec_cap->ol_flags;
 		ips->security.ctx = sec_ctx;
+		if (sa_no < MAX_FIXED_SESSIONS) {
+			sec_session_fixed[sa_no] =
+				ipsec_get_primary_session(sa)->security.ses;
+			sa_no++;
+		}
 	}
 
 set_cdev_id:
