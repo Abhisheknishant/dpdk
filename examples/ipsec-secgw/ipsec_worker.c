@@ -52,7 +52,7 @@ ipsec_event_pre_forward(struct rte_mbuf *m, unsigned int port_id)
  */
 
 /* Workers registered */
-#define IPSEC_EVENTMODE_WORKERS		1
+#define IPSEC_EVENTMODE_WORKERS		2
 
 /*
  * Event mode worker
@@ -126,6 +126,79 @@ exit:
 	return;
 }
 
+/*
+ * Event mode worker
+ * Operating parameters : non-burst - Tx internal port - app mode - inbound
+ */
+static void
+ipsec_wrkr_non_burst_int_port_app_mode_inb(struct eh_event_link_info *links,
+		uint8_t nb_links)
+{
+	unsigned int nb_rx = 0;
+	unsigned int port_id;
+	struct rte_mbuf *pkt;
+	struct rte_event ev;
+	uint32_t lcore_id;
+
+	/* Check if we have links registered for this lcore */
+	if (nb_links == 0) {
+		/* No links registered - exit */
+		goto exit;
+	}
+
+	/* We have valid links */
+
+	/* Get core ID */
+	lcore_id = rte_lcore_id();
+
+	RTE_LOG(INFO, IPSEC,
+		"Launching event mode worker (non-burst - Tx internal port - "
+		"app mode - inbound) on lcore %d\n", lcore_id);
+
+	/* Check if it's single link */
+	if (nb_links != 1) {
+		RTE_LOG(INFO, IPSEC,
+			"Multiple links not supported. Using first link\n");
+	}
+
+	RTE_LOG(INFO, IPSEC, " -- lcoreid=%u event_port_id=%u\n", lcore_id,
+		links[0].event_port_id);
+
+	while (!force_quit) {
+		/* Read packet from event queues */
+		nb_rx = rte_event_dequeue_burst(links[0].eventdev_id,
+				links[0].event_port_id,
+				&ev,     /* events */
+				1,       /* nb_events */
+				0        /* timeout_ticks */);
+
+		if (nb_rx == 0)
+			continue;
+
+		port_id = ev.queue_id;
+		pkt = ev.mbuf;
+
+		rte_prefetch0(rte_pktmbuf_mtod(pkt, void *));
+
+		/* Process packet */
+		ipsec_event_pre_forward(pkt, port_id);
+
+		/*
+		 * Since tx internal port is available, events can be
+		 * directly enqueued to the adapter and it would be
+		 * internally submitted to the eth device.
+		 */
+		rte_event_eth_tx_adapter_enqueue(links[0].eventdev_id,
+				links[0].event_port_id,
+				&ev,	/* events */
+				1,	/* nb_events */
+				0	/* flags */);
+	}
+
+exit:
+	return;
+}
+
 static uint8_t
 ipsec_eventmode_populate_wrkr_params(struct eh_app_worker_params *wrkrs)
 {
@@ -141,6 +214,16 @@ ipsec_eventmode_populate_wrkr_params(struct eh_app_worker_params *wrkrs)
 	wrkr->cap.ipsec_mode = EH_IPSEC_MODE_TYPE_DRIVER;
 	wrkr->cap.ipsec_dir = EH_IPSEC_DIR_TYPE_INBOUND;
 	wrkr->worker_thread = ipsec_wrkr_non_burst_int_port_drvr_mode_inb;
+
+	wrkr++;
+	nb_wrkr_param++;
+
+	/* Non-burst - Tx internal port - app mode - inbound */
+	wrkr->cap.burst = EH_RX_TYPE_NON_BURST;
+	wrkr->cap.tx_internal_port = EH_TX_TYPE_INTERNAL_PORT;
+	wrkr->cap.ipsec_mode = EH_IPSEC_MODE_TYPE_APP;
+	wrkr->cap.ipsec_dir = EH_IPSEC_DIR_TYPE_INBOUND;
+	wrkr->worker_thread = ipsec_wrkr_non_burst_int_port_app_mode_inb;
 
 	nb_wrkr_param++;
 	return nb_wrkr_param;
