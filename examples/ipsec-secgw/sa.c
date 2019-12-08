@@ -772,17 +772,6 @@ print_one_sa_rule(const struct ipsec_sa *sa, int inbound)
 	printf("\n");
 }
 
-struct sa_ctx {
-	void *satbl; /* pointer to array of rte_ipsec_sa objects*/
-	struct ipsec_sa sa[IPSEC_SA_MAX_ENTRIES];
-	union {
-		struct {
-			struct rte_crypto_sym_xform a;
-			struct rte_crypto_sym_xform b;
-		};
-	} xf[IPSEC_SA_MAX_ENTRIES];
-};
-
 static struct sa_ctx *
 sa_create(const char *name, int32_t socket_id)
 {

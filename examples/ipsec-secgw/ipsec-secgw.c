@@ -50,11 +50,10 @@
 
 #include "event_helper.h"
 #include "ipsec.h"
+#include "ipsec_worker.h"
 #include "parser.h"
 
 volatile bool force_quit;
-
-#define RTE_LOGTYPE_IPSEC RTE_LOGTYPE_USER1
 
 #define MAX_JUMBO_PKT_LEN  9600
 
@@ -70,16 +69,12 @@ volatile bool force_quit;
 
 #define BURST_TX_DRAIN_US 100 /* TX drain every ~100us */
 
-#define NB_SOCKETS 4
-
 /* Configure how many packets ahead to prefetch, when reading packets */
 #define PREFETCH_OFFSET	3
 
 #define MAX_RX_QUEUE_PER_LCORE 16
 
 #define MAX_LCORE_PARAMS 1024
-
-#define UNPROTECTED_PORT(port) (unprotected_port_mask & (1 << portid))
 
 /*
  * Configurable number of RX/TX ring descriptors
@@ -88,29 +83,6 @@ volatile bool force_quit;
 #define IPSEC_SECGW_TX_DESC_DEFAULT 1024
 static uint16_t nb_rxd = IPSEC_SECGW_RX_DESC_DEFAULT;
 static uint16_t nb_txd = IPSEC_SECGW_TX_DESC_DEFAULT;
-
-#if RTE_BYTE_ORDER != RTE_LITTLE_ENDIAN
-#define __BYTES_TO_UINT64(a, b, c, d, e, f, g, h) \
-	(((uint64_t)((a) & 0xff) << 56) | \
-	((uint64_t)((b) & 0xff) << 48) | \
-	((uint64_t)((c) & 0xff) << 40) | \
-	((uint64_t)((d) & 0xff) << 32) | \
-	((uint64_t)((e) & 0xff) << 24) | \
-	((uint64_t)((f) & 0xff) << 16) | \
-	((uint64_t)((g) & 0xff) << 8)  | \
-	((uint64_t)(h) & 0xff))
-#else
-#define __BYTES_TO_UINT64(a, b, c, d, e, f, g, h) \
-	(((uint64_t)((h) & 0xff) << 56) | \
-	((uint64_t)((g) & 0xff) << 48) | \
-	((uint64_t)((f) & 0xff) << 40) | \
-	((uint64_t)((e) & 0xff) << 32) | \
-	((uint64_t)((d) & 0xff) << 24) | \
-	((uint64_t)((c) & 0xff) << 16) | \
-	((uint64_t)((b) & 0xff) << 8) | \
-	((uint64_t)(a) & 0xff))
-#endif
-#define ETHADDR(a, b, c, d, e, f) (__BYTES_TO_UINT64(a, b, c, d, e, f, 0, 0))
 
 #define ETHADDR_TO_UINT64(addr) __BYTES_TO_UINT64( \
 		(addr)->addr_bytes[0], (addr)->addr_bytes[1], \
@@ -122,18 +94,6 @@ static uint16_t nb_txd = IPSEC_SECGW_TX_DESC_DEFAULT;
 #define	MAX_FRAG_TTL_NS		(10LL * NS_PER_S)
 
 #define MTU_TO_FRAMELEN(x)	((x) + RTE_ETHER_HDR_LEN + RTE_ETHER_CRC_LEN)
-
-/* port/source ethernet addr and destination ethernet addr */
-struct ethaddr_info {
-	uint64_t src, dst;
-};
-
-struct ethaddr_info ethaddr_tbl[RTE_MAX_ETHPORTS] = {
-	{ 0, ETHADDR(0x00, 0x16, 0x3e, 0x7e, 0x94, 0x9a) },
-	{ 0, ETHADDR(0x00, 0x16, 0x3e, 0x22, 0xa1, 0xd9) },
-	{ 0, ETHADDR(0x00, 0x16, 0x3e, 0x08, 0x69, 0x26) },
-	{ 0, ETHADDR(0x00, 0x16, 0x3e, 0x49, 0x9e, 0xdd) }
-};
 
 struct flow_info flow_info_tbl[RTE_MAX_ETHPORTS];
 
@@ -192,10 +152,16 @@ static const struct option lgopts[] = {
 	{NULL, 0, 0, 0}
 };
 
+struct ethaddr_info ethaddr_tbl[RTE_MAX_ETHPORTS] = {
+	{ 0, ETHADDR(0x00, 0x16, 0x3e, 0x7e, 0x94, 0x9a) },
+	{ 0, ETHADDR(0x00, 0x16, 0x3e, 0x22, 0xa1, 0xd9) },
+	{ 0, ETHADDR(0x00, 0x16, 0x3e, 0x08, 0x69, 0x26) },
+	{ 0, ETHADDR(0x00, 0x16, 0x3e, 0x49, 0x9e, 0xdd) }
+};
+
 /* mask of enabled ports */
 static uint32_t enabled_port_mask;
 static uint64_t enabled_cryptodev_mask = UINT64_MAX;
-static uint32_t unprotected_port_mask;
 static int32_t promiscuous_on = 1;
 static int32_t numa_on = 1; /**< NUMA is enabled by default. */
 static uint32_t nb_lcores;
@@ -282,8 +248,6 @@ static struct rte_eth_conf port_conf = {
 		.mq_mode = ETH_MQ_TX_NONE,
 	},
 };
-
-static struct socket_ctx socket_ctx[NB_SOCKETS];
 
 /*
  * Determine is multi-segment support required:
@@ -2828,46 +2792,9 @@ main(int32_t argc, char **argv)
 
 		sa_check_offloads(portid, &req_rx_offloads, &req_tx_offloads);
 		port_init(portid, req_rx_offloads, req_tx_offloads);
-		/* Create default ipsec flow for the ethernet device */
-		ret = create_default_ipsec_flow(portid, req_rx_offloads);
-		if (ret)
-			printf("Cannot create default flow, err=%d, port=%d\n",
-					ret, portid);
 	}
 
 	cryptodevs_init();
-
-	/* start ports */
-	RTE_ETH_FOREACH_DEV(portid) {
-		if ((enabled_port_mask & (1 << portid)) == 0)
-			continue;
-
-		/*
-		 * Start device
-		 * note: device must be started before a flow rule
-		 * can be installed.
-		 */
-		ret = rte_eth_dev_start(portid);
-		if (ret < 0)
-			rte_exit(EXIT_FAILURE, "rte_eth_dev_start: "
-					"err=%d, port=%d\n", ret, portid);
-		/*
-		 * If enabled, put device in promiscuous mode.
-		 * This allows IO forwarding mode to forward packets
-		 * to itself through 2 cross-connected  ports of the
-		 * target machine.
-		 */
-		if (promiscuous_on) {
-			ret = rte_eth_promiscuous_enable(portid);
-			if (ret != 0)
-				rte_exit(EXIT_FAILURE,
-					"rte_eth_promiscuous_enable: err=%s, port=%d\n",
-					rte_strerror(-ret), portid);
-		}
-
-		rte_eth_dev_callback_register(portid,
-			RTE_ETH_EVENT_IPSEC, inline_ipsec_event_callback, NULL);
-	}
 
 	/* fragment reassemble is enabled */
 	if (frag_tbl_sz != 0) {
@@ -2889,8 +2816,6 @@ main(int32_t argc, char **argv)
 		}
 	}
 
-	check_all_ports_link_status(enabled_port_mask);
-
 	/*
 	 * Set the enabled port mask in helper config for use by helper
 	 * sub-system. This will be used while intializing devices using
@@ -2902,6 +2827,39 @@ main(int32_t argc, char **argv)
 	ret = eh_devs_init(eh_conf);
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "eh_devs_init failed, err=%d\n", ret);
+
+	/* Create default ipsec flow for each port and start each port */
+	RTE_ETH_FOREACH_DEV(portid) {
+		if ((enabled_port_mask & (1 << portid)) == 0)
+			continue;
+
+		ret = create_default_ipsec_flow(portid, req_rx_offloads);
+		if (ret)
+			printf("create_default_ipsec_flow failed, err=%d, "
+			       "port=%d\n", ret, portid);
+		/*
+		 * Start device
+		 * note: device must be started before a flow rule
+		 * can be installed.
+		 */
+		ret = rte_eth_dev_start(portid);
+		if (ret < 0)
+			rte_exit(EXIT_FAILURE, "rte_eth_dev_start: "
+					"err=%d, port=%d\n", ret, portid);
+		/*
+		 * If enabled, put device in promiscuous mode.
+		 * This allows IO forwarding mode to forward packets
+		 * to itself through 2 cross-connected  ports of the
+		 * target machine.
+		 */
+		if (promiscuous_on)
+			rte_eth_promiscuous_enable(portid);
+
+		rte_eth_dev_callback_register(portid,
+			RTE_ETH_EVENT_IPSEC, inline_ipsec_event_callback, NULL);
+	}
+
+	check_all_ports_link_status(enabled_port_mask);
 
 	/* launch per-lcore init on every lcore */
 	rte_eal_mp_remote_launch(ipsec_launch_one_lcore, eh_conf, CALL_MASTER);
