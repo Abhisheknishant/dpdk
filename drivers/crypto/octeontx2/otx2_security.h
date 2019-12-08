@@ -26,6 +26,25 @@ struct otx2_sec_eth_cfg {
 	rte_spinlock_t tx_cpt_lock;
 };
 
+#define OTX2_SEC_CPT_COMP_GOOD	0x1
+#define OTX2_SEC_UC_COMP_GOOD	0x0
+#define OTX2_SEC_COMP_GOOD	(OTX2_SEC_UC_COMP_GOOD << 8 | \
+				 OTX2_SEC_CPT_COMP_GOOD)
+
+/* CPT Result */
+struct otx2_cpt_res {
+	union {
+		struct {
+			uint64_t compcode:8;
+			uint64_t uc_compcode:8;
+			uint64_t doneint:1;
+			uint64_t reserved_17_63:47;
+			uint64_t reserved_64_127;
+		};
+		uint16_t u16[8];
+	};
+};
+
 /*
  * Security session for inline IPsec protocol offload. This is private data of
  * inline capable PMD.

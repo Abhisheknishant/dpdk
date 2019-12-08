@@ -11,6 +11,7 @@ LIB = librte_pmd_octeontx2.a
 
 CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -I$(RTE_SDK)/drivers/common/octeontx2
+CFLAGS += -I$(RTE_SDK)/drivers/crypto/octeontx2
 CFLAGS += -I$(RTE_SDK)/drivers/mempool/octeontx2
 CFLAGS += -I$(RTE_SDK)/drivers/net/octeontx2
 CFLAGS += -O3
