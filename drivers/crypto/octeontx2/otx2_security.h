@@ -31,7 +31,26 @@ struct otx2_sec_eth_cfg {
  * inline capable PMD.
  */
 struct otx2_sec_session_ipsec_ip {
-	int dummy;
+	RTE_STD_C11
+	union {
+		/*
+		 * Inbound SA would accessed by crypto block. And so the memory
+		 * is allocated differently and shared with the h/w. Only
+		 * holding a pointer to this memory in the session private
+		 * space.
+		 */
+		void *in_sa;
+		/* Outbound SA */
+		struct otx2_ipsec_fp_out_sa out_sa;
+	};
+
+	/* Address of CPT LMTLINE */
+	void *cpt_lmtline;
+	/* CPT LF enqueue register address */
+	rte_iova_t cpt_nq_reg;
+
+	/* CPT QP used by SA */
+	struct otx2_cpt_qp *qp;
 };
 
 struct otx2_sec_session_ipsec {
@@ -40,6 +59,8 @@ struct otx2_sec_session_ipsec {
 
 struct otx2_sec_session {
 	struct otx2_sec_session_ipsec ipsec;
+	void *userdata;
+	/**< Userdata registered by the application */
 } __rte_cache_aligned;
 
 int otx2_sec_eth_ctx_create(struct rte_eth_dev *eth_dev);

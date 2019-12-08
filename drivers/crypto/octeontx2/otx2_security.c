@@ -136,10 +136,348 @@ static const struct rte_security_capability otx2_sec_eth_capabilities[] = {
 	}
 };
 
+static int
+otx2_sec_eth_tx_cpt_qp_get(uint16_t port_id, struct otx2_cpt_qp **qp)
+{
+	struct otx2_sec_eth_cfg *cfg;
+	uint16_t index;
+	int i, ret;
+
+	if (port_id > OTX2_MAX_INLINE_PORTS || qp == NULL)
+		return -EINVAL;
+
+	cfg = &sec_cfg[port_id];
+
+	rte_spinlock_lock(&cfg->tx_cpt_lock);
+
+	index = cfg->tx_cpt_idx;
+
+	/* Get the next index with valid data */
+	for (i = 0; i < OTX2_MAX_CPT_QP_PER_PORT; i++) {
+		if (cfg->tx_cpt[index].qp != NULL)
+			break;
+		index = (index + 1) % OTX2_MAX_CPT_QP_PER_PORT;
+	}
+
+	if (i >= OTX2_MAX_CPT_QP_PER_PORT) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	*qp = cfg->tx_cpt[index].qp;
+	rte_atomic16_inc(&cfg->tx_cpt[index].ref_cnt);
+
+	cfg->tx_cpt_idx = (index + 1) % OTX2_MAX_CPT_QP_PER_PORT;
+
+	ret = 0;
+
+unlock:
+	rte_spinlock_unlock(&cfg->tx_cpt_lock);
+	return ret;
+}
+
+static int
+otx2_sec_eth_tx_cpt_put(struct otx2_cpt_qp *qp)
+{
+	struct otx2_sec_eth_cfg *cfg;
+	uint16_t port_id;
+	int i;
+
+	if (qp == NULL)
+		return -EINVAL;
+
+	for (port_id = 0; port_id < OTX2_MAX_INLINE_PORTS; port_id++) {
+		cfg = &sec_cfg[port_id];
+		for (i = 0; i < OTX2_MAX_CPT_QP_PER_PORT; i++) {
+			if (cfg->tx_cpt[i].qp == qp) {
+				rte_atomic16_dec(&cfg->tx_cpt[i].ref_cnt);
+				return 0;
+			}
+		}
+	}
+
+	return -EINVAL;
+}
+
 static inline void
 in_sa_mz_name_get(char *name, int size, uint16_t port)
 {
 	snprintf(name, size, "otx2_ipsec_in_sadb_%u", port);
+}
+
+static struct otx2_ipsec_fp_in_sa *
+in_sa_get(uint16_t port, int sa_index)
+{
+	char name[RTE_MEMZONE_NAMESIZE];
+	struct otx2_ipsec_fp_in_sa *sa;
+	const struct rte_memzone *mz;
+
+	in_sa_mz_name_get(name, RTE_MEMZONE_NAMESIZE, port);
+	mz = rte_memzone_lookup(name);
+	if (mz == NULL) {
+		otx2_err("Could not get the memzone reserved for IN SA DB");
+		return NULL;
+	}
+
+	sa = mz->addr;
+
+	return sa + sa_index;
+}
+
+static int
+sec_eth_ipsec_out_sess_create(struct rte_eth_dev *eth_dev,
+			      struct rte_security_ipsec_xform *ipsec,
+			      struct rte_crypto_sym_xform *crypto_xform,
+			      struct rte_security_session *sec_sess)
+{
+	struct rte_crypto_sym_xform *auth_xform, *cipher_xform;
+	struct otx2_sec_session_ipsec_ip *sess;
+	uint16_t port = eth_dev->data->port_id;
+	int cipher_key_len, auth_key_len, ret;
+	const uint8_t *cipher_key, *auth_key;
+	struct otx2_ipsec_fp_sa_ctl *ctl;
+	struct otx2_ipsec_fp_out_sa *sa;
+	struct otx2_sec_session *priv;
+	struct otx2_cpt_qp *qp;
+
+	priv = get_sec_session_private_data(sec_sess);
+	sess = &priv->ipsec.ip;
+
+	sa = &sess->out_sa;
+	ctl = &sa->ctl;
+	if (ctl->valid) {
+		otx2_err("SA already registered");
+		return -EINVAL;
+	}
+
+	memset(sess, 0, sizeof(struct otx2_sec_session_ipsec_ip));
+
+	memcpy(sa->nonce, &ipsec->salt, 4);
+
+	if (ipsec->options.udp_encap == 1) {
+		sa->udp_src = 4500;
+		sa->udp_dst = 4500;
+	}
+
+	if (ipsec->mode == RTE_SECURITY_IPSEC_SA_MODE_TUNNEL) {
+		if (ipsec->tunnel.type == RTE_SECURITY_IPSEC_TUNNEL_IPV4) {
+			memcpy(&sa->ip_src, &ipsec->tunnel.ipv4.src_ip,
+			       sizeof(struct in_addr));
+			memcpy(&sa->ip_dst, &ipsec->tunnel.ipv4.dst_ip,
+			       sizeof(struct in_addr));
+		} else {
+			return -EINVAL;
+		}
+	} else {
+		return -EINVAL;
+	}
+
+	cipher_xform = crypto_xform;
+	auth_xform = crypto_xform->next;
+
+	cipher_key_len = 0;
+	auth_key_len = 0;
+
+	if (crypto_xform->type == RTE_CRYPTO_SYM_XFORM_AEAD) {
+		cipher_key = crypto_xform->aead.key.data;
+		cipher_key_len = crypto_xform->aead.key.length;
+	} else {
+		cipher_key = cipher_xform->cipher.key.data;
+		cipher_key_len = cipher_xform->cipher.key.length;
+		auth_key = auth_xform->auth.key.data;
+		auth_key_len = auth_xform->auth.key.length;
+	}
+
+	if (cipher_key_len != 0)
+		memcpy(sa->cipher_key, cipher_key, cipher_key_len);
+	else
+		return -EINVAL;
+
+	/* Use OPAD & IPAD */
+	RTE_SET_USED(auth_key);
+	RTE_SET_USED(auth_key_len);
+
+	/* Get CPT QP to be used for this SA */
+	ret = otx2_sec_eth_tx_cpt_qp_get(port, &qp);
+	if (ret)
+		return ret;
+
+	sess->qp = qp;
+
+	sess->cpt_lmtline = qp->lmtline;
+	sess->cpt_nq_reg = qp->lf_nq_reg;
+
+	/* Populate control word */
+	ret = ipsec_fp_sa_ctl_set(ipsec, crypto_xform, ctl);
+	if (ret)
+		goto cpt_put;
+
+	return 0;
+cpt_put:
+	otx2_sec_eth_tx_cpt_put(sess->qp);
+	return ret;
+}
+
+static int
+sec_eth_ipsec_in_sess_create(struct rte_eth_dev *eth_dev,
+			     struct rte_security_ipsec_xform *ipsec,
+			     struct rte_crypto_sym_xform *crypto_xform,
+			     struct rte_security_session *sec_sess)
+{
+	struct rte_crypto_sym_xform *auth_xform, *cipher_xform;
+	struct otx2_eth_dev *dev = otx2_eth_pmd_priv(eth_dev);
+	struct otx2_sec_session_ipsec_ip *sess;
+	uint16_t port = eth_dev->data->port_id;
+	const uint8_t *cipher_key, *auth_key;
+	int cipher_key_len, auth_key_len;
+	struct otx2_ipsec_fp_sa_ctl *ctl;
+	struct otx2_ipsec_fp_in_sa *sa;
+	struct otx2_sec_session *priv;
+
+	if (ipsec->spi >= dev->ipsec_in_max_spi) {
+		otx2_err("SPI exceeds max supported");
+		return -EINVAL;
+	}
+
+	sa = in_sa_get(port, ipsec->spi);
+	ctl = &sa->ctl;
+
+	priv = get_sec_session_private_data(sec_sess);
+	sess = &priv->ipsec.ip;
+
+	if (ctl->valid) {
+		otx2_err("SA already registered");
+		return -EINVAL;
+	}
+
+	memset(sa, 0, sizeof(struct otx2_ipsec_fp_in_sa));
+
+	auth_xform = crypto_xform;
+	cipher_xform = crypto_xform->next;
+
+	cipher_key_len = 0;
+	auth_key_len = 0;
+
+	if (crypto_xform->type == RTE_CRYPTO_SYM_XFORM_AEAD) {
+		if (crypto_xform->aead.algo == RTE_CRYPTO_AEAD_AES_GCM)
+			memcpy(sa->nonce, &ipsec->salt, 4);
+		cipher_key = crypto_xform->aead.key.data;
+		cipher_key_len = crypto_xform->aead.key.length;
+	} else {
+		cipher_key = cipher_xform->cipher.key.data;
+		cipher_key_len = cipher_xform->cipher.key.length;
+		auth_key = auth_xform->auth.key.data;
+		auth_key_len = auth_xform->auth.key.length;
+	}
+
+	if (cipher_key_len != 0)
+		memcpy(sa->cipher_key, cipher_key, cipher_key_len);
+	else
+		return -EINVAL;
+
+	/* Use OPAD & IPAD */
+	RTE_SET_USED(auth_key);
+	RTE_SET_USED(auth_key_len);
+
+	sess->in_sa = sa;
+
+	sa->userdata = priv->userdata;
+
+	return ipsec_fp_sa_ctl_set(ipsec, crypto_xform, ctl);
+
+}
+
+static int
+sec_eth_ipsec_sess_create(struct rte_eth_dev *eth_dev,
+			  struct rte_security_ipsec_xform *ipsec,
+			  struct rte_crypto_sym_xform *crypto_xform,
+			  struct rte_security_session *sess)
+{
+	int ret;
+
+	ret = ipsec_fp_xform_verify(ipsec, crypto_xform);
+	if (ret)
+		return ret;
+
+	if (ipsec->direction == RTE_SECURITY_IPSEC_SA_DIR_INGRESS)
+		return sec_eth_ipsec_in_sess_create(eth_dev, ipsec,
+						    crypto_xform, sess);
+	else
+		return sec_eth_ipsec_out_sess_create(eth_dev, ipsec,
+						     crypto_xform, sess);
+}
+
+static int
+otx2_sec_eth_session_create(void *device,
+			    struct rte_security_session_conf *conf,
+			    struct rte_security_session *sess,
+			    struct rte_mempool *mempool)
+{
+	struct otx2_sec_session *priv;
+	int ret;
+
+	if (conf->action_type != RTE_SECURITY_ACTION_TYPE_INLINE_PROTOCOL)
+		return -ENOTSUP;
+
+	if (rte_mempool_get(mempool, (void **)&priv)) {
+		otx2_err("Could not allocate security session private data");
+		return -ENOMEM;
+	}
+
+	set_sec_session_private_data(sess, priv);
+
+	/*
+	 * Save userdata provided by the application. For ingress packets, this
+	 * could be used to identify the SA.
+	 */
+	priv->userdata = conf->userdata;
+
+	if (conf->protocol == RTE_SECURITY_PROTOCOL_IPSEC)
+		ret = sec_eth_ipsec_sess_create(device, &conf->ipsec,
+						conf->crypto_xform,
+						sess);
+	else
+		ret = -ENOTSUP;
+
+	if (ret)
+		goto mempool_put;
+
+	return 0;
+
+mempool_put:
+	rte_mempool_put(mempool, priv);
+	set_sec_session_private_data(sess, NULL);
+	return ret;
+}
+
+static int
+otx2_sec_eth_session_destroy(void *device __rte_unused,
+			     struct rte_security_session *sess)
+{
+	struct otx2_sec_session_ipsec_ip *sess_ip;
+	struct otx2_sec_session *priv;
+	struct rte_mempool *sess_mp;
+	int ret;
+
+	priv = get_sec_session_private_data(sess);
+	if (priv == NULL)
+		return -EINVAL;
+
+	sess_ip = &priv->ipsec.ip;
+
+	/* Release CPT LF used for this session */
+	if (sess_ip->qp != NULL) {
+		ret = otx2_sec_eth_tx_cpt_put(sess_ip->qp);
+		if (ret)
+			return ret;
+	}
+
+	sess_mp = rte_mempool_from_obj(priv);
+
+	set_sec_session_private_data(sess, NULL);
+	rte_mempool_put(sess_mp, priv);
+
+	return 0;
 }
 
 static unsigned int
@@ -155,6 +493,8 @@ otx2_sec_eth_capabilities_get(void *device __rte_unused)
 }
 
 static struct rte_security_ops otx2_sec_eth_ops = {
+	.session_create		= otx2_sec_eth_session_create,
+	.session_destroy	= otx2_sec_eth_session_destroy,
 	.session_get_size	= otx2_sec_eth_session_get_size,
 	.capabilities_get	= otx2_sec_eth_capabilities_get
 };
