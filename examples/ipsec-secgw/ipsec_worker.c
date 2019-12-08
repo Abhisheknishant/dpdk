@@ -256,6 +256,101 @@ drop_pkt_and_exit:
 	return 0;
 }
 
+static inline int
+process_ipsec_ev_outbound(struct ipsec_ctx *ctx, struct route_table *rt,
+		struct rte_event *ev)
+{
+	struct rte_ipsec_session *sess;
+	struct sa_ctx *sa_ctx;
+	struct rte_mbuf *pkt;
+	uint16_t port_id = 0;
+	struct ipsec_sa *sa;
+	enum pkt_type type;
+	uint32_t sa_idx;
+	uint8_t *nlp;
+
+	/* Get pkt from event */
+	pkt = ev->mbuf;
+
+	/* Check the packet type */
+	type = process_ipsec_get_pkt_type(pkt, &nlp);
+
+	switch (type) {
+	case PKT_TYPE_PLAIN_IPV4:
+		/* Check if we have a match */
+		if (check_sp(ctx->sp4_ctx, nlp, &sa_idx) == 0) {
+			/* No valid match */
+			goto drop_pkt_and_exit;
+		}
+		break;
+	case PKT_TYPE_PLAIN_IPV6:
+		/* Check if we have a match */
+		if (check_sp(ctx->sp6_ctx, nlp, &sa_idx) == 0) {
+			/* No valid match */
+			goto drop_pkt_and_exit;
+		}
+		break;
+	default:
+		/*
+		 * Only plain IPv4 & IPv6 packets are allowed
+		 * on protected port. Drop the rest.
+		 */
+		RTE_LOG(ERR, IPSEC, "Unsupported packet type = %d\n", type);
+		goto drop_pkt_and_exit;
+	}
+
+	/* Check if the packet has to be bypassed */
+	if (sa_idx == 0) {
+		port_id = get_route(pkt, rt, type);
+		if (unlikely(port_id == RTE_MAX_ETHPORTS)) {
+			/* no match */
+			goto drop_pkt_and_exit;
+		}
+		/* else, we have a matching route */
+		goto send_pkt;
+	}
+
+	/* Else the packet has to be protected */
+
+	/* Get SA ctx*/
+	sa_ctx = ctx->sa_ctx;
+
+	/* Get SA */
+	sa = &(sa_ctx->sa[sa_idx]);
+
+	/* Get IPsec session */
+	sess = ipsec_get_primary_session(sa);
+
+	/* Allow only inline protocol for now */
+	if (sess->type != RTE_SECURITY_ACTION_TYPE_INLINE_PROTOCOL) {
+		RTE_LOG(ERR, IPSEC, "SA type not supported\n");
+		goto drop_pkt_and_exit;
+	}
+
+	if (sess->security.ol_flags & RTE_SECURITY_TX_OLOAD_NEED_MDATA)
+		pkt->udata64 = (uint64_t) sess->security.ses;
+
+	/* Mark the packet for Tx security offload */
+	pkt->ol_flags |= PKT_TX_SEC_OFFLOAD;
+
+	/* Get the port to which this pkt need to be submitted */
+	port_id = sa->portid;
+
+send_pkt:
+	/* Update mac addresses */
+	update_mac_addrs(pkt, port_id);
+
+	/* Update the event with the dest port */
+	ipsec_event_pre_forward(pkt, port_id);
+	return 1;
+
+drop_pkt_and_exit:
+	RTE_LOG(ERR, IPSEC, "Outbound packet dropped\n");
+	rte_pktmbuf_free(pkt);
+	ev->mbuf = NULL;
+	return 0;
+}
+
 /*
  * Event mode exposes various operating modes depending on the
  * capabilities of the event device and the operating mode
@@ -263,7 +358,7 @@ drop_pkt_and_exit:
  */
 
 /* Workers registered */
-#define IPSEC_EVENTMODE_WORKERS		3
+#define IPSEC_EVENTMODE_WORKERS		4
 
 /*
  * Event mode worker
@@ -501,6 +596,92 @@ exit:
 	return;
 }
 
+/*
+ * Event mode worker
+ * Operating parameters : non-burst - Tx internal port - app mode - outbound
+ */
+static void
+ipsec_wrkr_non_burst_int_port_app_mode_outb(struct eh_event_link_info *links,
+		uint8_t nb_links)
+{
+	struct lcore_conf_ev_tx_int_port_wrkr lconf;
+	unsigned int nb_rx = 0;
+	struct rte_event ev;
+	uint32_t lcore_id;
+	int32_t socket_id;
+
+	/* Check if we have links registered for this lcore */
+	if (nb_links == 0) {
+		/* No links registered - exit */
+		goto exit;
+	}
+
+	/* We have valid links */
+
+	/* Get core ID */
+	lcore_id = rte_lcore_id();
+
+	/* Get socket ID */
+	socket_id = rte_lcore_to_socket_id(lcore_id);
+
+	/* Save routing table */
+	lconf.rt.rt4_ctx = socket_ctx[socket_id].rt_ip4;
+	lconf.rt.rt6_ctx = socket_ctx[socket_id].rt_ip6;
+	lconf.inbound.sp4_ctx = socket_ctx[socket_id].sp_ip4_in;
+	lconf.inbound.sp6_ctx = socket_ctx[socket_id].sp_ip6_in;
+	lconf.inbound.sa_ctx = socket_ctx[socket_id].sa_in;
+	lconf.inbound.session_pool = socket_ctx[socket_id].session_pool;
+	lconf.outbound.sp4_ctx = socket_ctx[socket_id].sp_ip4_out;
+	lconf.outbound.sp6_ctx = socket_ctx[socket_id].sp_ip6_out;
+	lconf.outbound.sa_ctx = socket_ctx[socket_id].sa_out;
+	lconf.outbound.session_pool = socket_ctx[socket_id].session_pool;
+
+	RTE_LOG(INFO, IPSEC,
+		"Launching event mode worker (non-burst - Tx internal port - "
+		"app mode - outbound) on lcore %d\n", lcore_id);
+
+	/* Check if it's single link */
+	if (nb_links != 1) {
+		RTE_LOG(INFO, IPSEC,
+			"Multiple links not supported. Using first link\n");
+	}
+
+	RTE_LOG(INFO, IPSEC, " -- lcoreid=%u event_port_id=%u\n", lcore_id,
+		links[0].event_port_id);
+
+	while (!force_quit) {
+		/* Read packet from event queues */
+		nb_rx = rte_event_dequeue_burst(links[0].eventdev_id,
+				links[0].event_port_id,
+				&ev,     /* events */
+				1,       /* nb_events */
+				0        /* timeout_ticks */);
+
+		if (nb_rx == 0)
+			continue;
+
+		if (process_ipsec_ev_outbound(&lconf.outbound,
+				&lconf.rt, &ev) != 1) {
+			/* The pkt has been dropped */
+			continue;
+		}
+
+		/*
+		 * Since tx internal port is available, events can be
+		 * directly enqueued to the adapter and it would be
+		 * internally submitted to the eth device.
+		 */
+		rte_event_eth_tx_adapter_enqueue(links[0].eventdev_id,
+				links[0].event_port_id,
+				&ev,	/* events */
+				1,	/* nb_events */
+				0	/* flags */);
+	}
+
+exit:
+	return;
+}
+
 static uint8_t
 ipsec_eventmode_populate_wrkr_params(struct eh_app_worker_params *wrkrs)
 {
@@ -536,6 +717,16 @@ ipsec_eventmode_populate_wrkr_params(struct eh_app_worker_params *wrkrs)
 	wrkr->cap.ipsec_mode = EH_IPSEC_MODE_TYPE_DRIVER;
 	wrkr->cap.ipsec_dir = EH_IPSEC_DIR_TYPE_OUTBOUND;
 	wrkr->worker_thread = ipsec_wrkr_non_burst_int_port_drvr_mode_outb;
+
+	wrkr++;
+	nb_wrkr_param++;
+
+	/* Non-burst - Tx internal port - app mode - outbound */
+	wrkr->cap.burst = EH_RX_TYPE_NON_BURST;
+	wrkr->cap.tx_internal_port = EH_TX_TYPE_INTERNAL_PORT;
+	wrkr->cap.ipsec_mode = EH_IPSEC_MODE_TYPE_APP;
+	wrkr->cap.ipsec_dir = EH_IPSEC_DIR_TYPE_OUTBOUND;
+	wrkr->worker_thread = ipsec_wrkr_non_burst_int_port_app_mode_outb;
 
 	nb_wrkr_param++;
 	return nb_wrkr_param;
