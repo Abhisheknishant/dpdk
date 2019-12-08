@@ -59,8 +59,6 @@ volatile bool force_quit;
 
 #define MEMPOOL_CACHE_SIZE 256
 
-#define NB_MBUF	(32000)
-
 #define CDEV_QUEUE_DESC 2048
 #define CDEV_MAP_ENTRIES 16384
 #define CDEV_MP_NB_OBJS 1024
@@ -167,6 +165,7 @@ static int32_t numa_on = 1; /**< NUMA is enabled by default. */
 static uint32_t nb_lcores;
 static uint32_t single_sa;
 static uint32_t single_sa_idx;
+static uint32_t nb_bufs_in_pool = 8192;
 
 /*
  * RX/TX HW offload capabilities to enable/use on ethernet ports.
@@ -1261,6 +1260,7 @@ print_usage(const char *prgname)
 		" [-w REPLAY_WINDOW_SIZE]"
 		" [-e]"
 		" [-a]"
+		" [-s NUMBER_OF_MBUFS_IN_PKT_POOL]"
 		" -f CONFIG_FILE"
 		" --config (port,queue,lcore)[,(port,queue,lcore)]"
 		" [--single-sa SAIDX]"
@@ -1284,6 +1284,7 @@ print_usage(const char *prgname)
 		"     size for each SA\n"
 		"  -e enables ESN\n"
 		"  -a enables SA SQN atomic behaviour\n"
+		"  -s number of mbufs in packet pool (default 8192)\n"
 		"  -f CONFIG_FILE: Configuration file\n"
 		"  --config (port,queue,lcore): Rx queue configuration\n"
 		"  --single-sa SAIDX: Use single SA index for outbound traffic,\n"
@@ -1534,7 +1535,7 @@ parse_args(int32_t argc, char **argv, struct eh_conf *eh_conf)
 
 	argvopt = argv;
 
-	while ((opt = getopt_long(argc, argvopt, "aelp:Pu:f:j:w:",
+	while ((opt = getopt_long(argc, argvopt, "aelp:Pu:f:j:w:s:",
 				lgopts, &option_index)) != EOF) {
 
 		switch (opt) {
@@ -1568,6 +1569,19 @@ parse_args(int32_t argc, char **argv, struct eh_conf *eh_conf)
 			cfgfile = optarg;
 			f_present = 1;
 			break;
+
+		case 's':
+			ret = parse_decimal(optarg);
+			if (ret < 0) {
+				printf("Invalid number of buffers in a pool: "
+					"%s\n", optarg);
+				print_usage(prgname);
+				return -1;
+			}
+
+			nb_bufs_in_pool = ret;
+			break;
+
 		case 'j':
 			ret = parse_decimal(optarg);
 			if (ret < RTE_MBUF_DEFAULT_BUF_SIZE ||
@@ -2792,11 +2806,12 @@ main(int32_t argc, char **argv)
 		if (socket_ctx[socket_id].mbuf_pool)
 			continue;
 
-		pool_init(&socket_ctx[socket_id], socket_id, NB_MBUF);
+		pool_init(&socket_ctx[socket_id], socket_id, nb_bufs_in_pool);
 		session_pool_init(&socket_ctx[socket_id], socket_id, sess_sz);
 		session_priv_pool_init(&socket_ctx[socket_id], socket_id,
 			sess_sz);
 	}
+	printf("Number of mbufs in packet pool %d\n", nb_bufs_in_pool);
 
 	RTE_ETH_FOREACH_DEV(portid) {
 		if ((enabled_port_mask & (1 << portid)) == 0)
