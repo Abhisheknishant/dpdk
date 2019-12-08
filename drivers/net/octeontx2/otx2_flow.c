@@ -299,6 +299,22 @@ flow_free_rss_action(struct rte_eth_dev *eth_dev,
 	return 0;
 }
 
+static int
+flow_update_sec_tt(struct rte_eth_dev *eth_dev,
+		   const struct rte_flow_action actions[])
+{
+	int rc = 0;
+
+	for (; actions->type != RTE_FLOW_ACTION_TYPE_END; actions++) {
+		if (actions->type == RTE_FLOW_ACTION_TYPE_SECURITY) {
+			if (otx2_sec_idev_ops.update_tag_type != NULL)
+				rc = otx2_sec_idev_ops.update_tag_type(eth_dev);
+			break;
+		}
+	}
+
+	return rc;
+}
 
 static int
 flow_parse_meta_items(__rte_unused struct otx2_parse_state *pst)
@@ -491,6 +507,16 @@ otx2_flow_create(struct rte_eth_dev *dev,
 		goto err_exit;
 	}
 
+	if (hw->rx_offloads & DEV_RX_OFFLOAD_SECURITY) {
+		rc = flow_update_sec_tt(dev, actions);
+		if (rc != 0) {
+			rte_flow_error_set(error, EIO,
+					   RTE_FLOW_ERROR_TYPE_UNSPECIFIED,
+					   NULL,
+					   "Failed to update tt with sec act");
+			goto err_exit;
+		}
+	}
 
 	list = &hw->npc_flow.flow_list[flow->priority];
 	/* List in ascending order of mcam entries */
