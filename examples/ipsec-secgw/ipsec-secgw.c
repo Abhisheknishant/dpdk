@@ -2,6 +2,7 @@
  * Copyright(c) 2016 Intel Corporation
  */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -14,6 +15,7 @@
 #include <sys/queue.h>
 #include <stdarg.h>
 #include <errno.h>
+#include <signal.h>
 #include <getopt.h>
 
 #include <rte_common.h>
@@ -41,11 +43,16 @@
 #include <rte_jhash.h>
 #include <rte_cryptodev.h>
 #include <rte_security.h>
+#include <rte_bitmap.h>
+#include <rte_eventdev.h>
 #include <rte_ip.h>
 #include <rte_ip_frag.h>
 
+#include "event_helper.h"
 #include "ipsec.h"
 #include "parser.h"
+
+volatile bool force_quit;
 
 #define RTE_LOGTYPE_IPSEC RTE_LOGTYPE_USER1
 
@@ -133,11 +140,20 @@ struct flow_info flow_info_tbl[RTE_MAX_ETHPORTS];
 #define CMD_LINE_OPT_CONFIG		"config"
 #define CMD_LINE_OPT_SINGLE_SA		"single-sa"
 #define CMD_LINE_OPT_CRYPTODEV_MASK	"cryptodev_mask"
+#define CMD_LINE_OPT_TRANSFER_MODE	"transfer-mode"
+#define CMD_LINE_OPT_SCHEDULE_TYPE	"schedule-type"
+#define CMD_LINE_OPT_IPSEC_MODE		"process-mode"
+#define CMD_LINE_OPT_IPSEC_DIR		"process-dir"
 #define CMD_LINE_OPT_RX_OFFLOAD		"rxoffload"
 #define CMD_LINE_OPT_TX_OFFLOAD		"txoffload"
 #define CMD_LINE_OPT_REASSEMBLE		"reassemble"
 #define CMD_LINE_OPT_MTU		"mtu"
 #define CMD_LINE_OPT_FRAG_TTL		"frag-ttl"
+
+#define CMD_LINE_ARG_APP "app"
+#define CMD_LINE_ARG_DRV "drv"
+#define CMD_LINE_ARG_INB "in"
+#define CMD_LINE_ARG_OUT "out"
 
 enum {
 	/* long options mapped to a short option */
@@ -149,7 +165,11 @@ enum {
 	CMD_LINE_OPT_CONFIG_NUM,
 	CMD_LINE_OPT_SINGLE_SA_NUM,
 	CMD_LINE_OPT_CRYPTODEV_MASK_NUM,
+	CMD_LINE_OPT_TRANSFER_MODE_NUM,
+	CMD_LINE_OPT_SCHEDULE_TYPE_NUM,
 	CMD_LINE_OPT_RX_OFFLOAD_NUM,
+	CMD_LINE_OPT_IPSEC_MODE_NUM,
+	CMD_LINE_OPT_IPSEC_DIR_NUM,
 	CMD_LINE_OPT_TX_OFFLOAD_NUM,
 	CMD_LINE_OPT_REASSEMBLE_NUM,
 	CMD_LINE_OPT_MTU_NUM,
@@ -160,6 +180,10 @@ static const struct option lgopts[] = {
 	{CMD_LINE_OPT_CONFIG, 1, 0, CMD_LINE_OPT_CONFIG_NUM},
 	{CMD_LINE_OPT_SINGLE_SA, 1, 0, CMD_LINE_OPT_SINGLE_SA_NUM},
 	{CMD_LINE_OPT_CRYPTODEV_MASK, 1, 0, CMD_LINE_OPT_CRYPTODEV_MASK_NUM},
+	{CMD_LINE_OPT_TRANSFER_MODE, 1, 0, CMD_LINE_OPT_TRANSFER_MODE_NUM},
+	{CMD_LINE_OPT_SCHEDULE_TYPE, 1, 0, CMD_LINE_OPT_SCHEDULE_TYPE_NUM},
+	{CMD_LINE_OPT_IPSEC_MODE, 1, 0, CMD_LINE_OPT_IPSEC_MODE_NUM},
+	{CMD_LINE_OPT_IPSEC_DIR, 1, 0, CMD_LINE_OPT_IPSEC_DIR_NUM},
 	{CMD_LINE_OPT_RX_OFFLOAD, 1, 0, CMD_LINE_OPT_RX_OFFLOAD_NUM},
 	{CMD_LINE_OPT_TX_OFFLOAD, 1, 0, CMD_LINE_OPT_TX_OFFLOAD_NUM},
 	{CMD_LINE_OPT_REASSEMBLE, 1, 0, CMD_LINE_OPT_REASSEMBLE_NUM},
@@ -1094,8 +1118,8 @@ drain_outbound_crypto_queues(const struct lcore_conf *qconf,
 }
 
 /* main processing loop */
-static int32_t
-main_loop(__attribute__((unused)) void *dummy)
+void
+ipsec_poll_mode_worker(void)
 {
 	struct rte_mbuf *pkts[MAX_PKT_BURST];
 	uint32_t lcore_id;
@@ -1137,7 +1161,7 @@ main_loop(__attribute__((unused)) void *dummy)
 	if (qconf->nb_rx_queue == 0) {
 		RTE_LOG(DEBUG, IPSEC, "lcore %u has nothing to do\n",
 			lcore_id);
-		return 0;
+		return;
 	}
 
 	RTE_LOG(INFO, IPSEC, "entering main loop on lcore %u\n", lcore_id);
@@ -1150,7 +1174,7 @@ main_loop(__attribute__((unused)) void *dummy)
 			lcore_id, portid, queueid);
 	}
 
-	while (1) {
+	while (!force_quit) {
 		cur_tsc = rte_rdtsc();
 
 		/* TX queue buffer drain */
@@ -1277,6 +1301,10 @@ print_usage(const char *prgname)
 		" --config (port,queue,lcore)[,(port,queue,lcore)]"
 		" [--single-sa SAIDX]"
 		" [--cryptodev_mask MASK]"
+		" [--transfer-mode MODE]"
+		" [--schedule-type TYPE]"
+		" [--process-mode MODE]"
+		" [--process-dir DIR]"
 		" [--" CMD_LINE_OPT_RX_OFFLOAD " RX_OFFLOAD_MASK]"
 		" [--" CMD_LINE_OPT_TX_OFFLOAD " TX_OFFLOAD_MASK]"
 		" [--" CMD_LINE_OPT_REASSEMBLE " REASSEMBLE_TABLE_SIZE]"
@@ -1298,6 +1326,22 @@ print_usage(const char *prgname)
 		"                     bypassing the SP\n"
 		"  --cryptodev_mask MASK: Hexadecimal bitmask of the crypto\n"
 		"                         devices to configure\n"
+		"  --transfer-mode MODE\n"
+		"               0: Packet transfer via polling (default)\n"
+		"               1: Packet transfer via eventdev\n"
+		"  --schedule-type TYPE queue schedule type, used only when\n"
+		"                       transfer mode is set to eventdev\n"
+		"               0: Ordered (default)\n"
+		"               1: Atomic\n"
+		"               2: Parallel\n"
+		"  --process-mode MODE processing mode, used only when\n"
+		"                      transfer mode is set to eventdev\n"
+		"               \"app\" : application mode (default)\n"
+		"               \"drv\" : driver mode\n"
+		"  --process-dir DIR processing direction, used only when\n"
+		"                    transfer mode is set to eventdev\n"
+		"               \"out\" : outbound (default)\n"
+		"               \"in\"  : inbound\n"
 		"  --" CMD_LINE_OPT_RX_OFFLOAD
 		": bitmask of the RX HW offload capabilities to enable/use\n"
 		"                         (DEV_RX_OFFLOAD_*)\n"
@@ -1433,7 +1477,89 @@ print_app_sa_prm(const struct app_sa_prm *prm)
 }
 
 static int32_t
-parse_args(int32_t argc, char **argv)
+eh_parse_decimal(const char *str)
+{
+	unsigned long num;
+	char *end = NULL;
+
+	num = strtoul(str, &end, 10);
+	if ((str[0] == '\0') || (end == NULL) || (*end != '\0'))
+		return -EINVAL;
+
+	return num;
+}
+
+static int
+parse_transfer_mode(struct eh_conf *conf, const char *optarg)
+{
+	int32_t parsed_dec;
+
+	parsed_dec = eh_parse_decimal(optarg);
+	if (parsed_dec != EH_PKT_TRANSFER_MODE_POLL &&
+	    parsed_dec != EH_PKT_TRANSFER_MODE_EVENT) {
+		printf("Unsupported packet transfer mode");
+		return -EINVAL;
+	}
+	conf->mode = parsed_dec;
+	return 0;
+}
+
+static int
+parse_schedule_type(struct eh_conf *conf, const char *optarg)
+{
+	struct eventmode_conf *em_conf = NULL;
+	int32_t parsed_dec;
+
+	parsed_dec = eh_parse_decimal(optarg);
+	if (parsed_dec != RTE_SCHED_TYPE_ORDERED &&
+	    parsed_dec != RTE_SCHED_TYPE_ATOMIC &&
+	    parsed_dec != RTE_SCHED_TYPE_PARALLEL)
+		return -EINVAL;
+
+	/* Get eventmode conf */
+	em_conf = (struct eventmode_conf *)(conf->mode_params);
+
+	em_conf->ext_params.sched_type = parsed_dec;
+
+	return 0;
+}
+
+static int
+parse_ipsec_mode(struct eh_conf *conf, const char *optarg)
+{
+	if (!strncmp(CMD_LINE_ARG_APP, optarg, strlen(CMD_LINE_ARG_APP)) &&
+	    strlen(optarg) == strlen(CMD_LINE_ARG_APP))
+		conf->ipsec_mode = EH_IPSEC_MODE_TYPE_APP;
+	else if (!strncmp(CMD_LINE_ARG_DRV, optarg, strlen(CMD_LINE_ARG_DRV)) &&
+		 strlen(optarg) == strlen(CMD_LINE_ARG_DRV))
+		conf->ipsec_mode = EH_IPSEC_MODE_TYPE_DRIVER;
+	else {
+		printf("Unsupported ipsec mode\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int
+parse_ipsec_dir(struct eh_conf *conf, const char *optarg)
+{
+	if (!strncmp(CMD_LINE_ARG_INB, optarg, strlen(CMD_LINE_ARG_INB)) &&
+	    strlen(optarg) == strlen(CMD_LINE_ARG_INB))
+		conf->ipsec_dir = EH_IPSEC_DIR_TYPE_INBOUND;
+	else if (!strncmp(CMD_LINE_ARG_OUT, optarg, strlen(CMD_LINE_ARG_OUT)) &&
+		 strlen(optarg) == strlen(CMD_LINE_ARG_OUT))
+		conf->ipsec_dir = EH_IPSEC_DIR_TYPE_OUTBOUND;
+	else {
+		printf("Unsupported ipsec direction\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int32_t
+parse_args(int32_t argc, char **argv, struct eh_conf *eh_conf)
 {
 	int opt;
 	int64_t ret;
@@ -1536,6 +1662,43 @@ parse_args(int32_t argc, char **argv)
 			/* else */
 			enabled_cryptodev_mask = ret;
 			break;
+
+		case CMD_LINE_OPT_TRANSFER_MODE_NUM:
+			ret = parse_transfer_mode(eh_conf, optarg);
+			if (ret < 0) {
+				printf("Invalid packet transfer mode\n");
+				print_usage(prgname);
+				return -1;
+			}
+			break;
+
+		case CMD_LINE_OPT_SCHEDULE_TYPE_NUM:
+			ret = parse_schedule_type(eh_conf, optarg);
+			if (ret < 0) {
+				printf("Invalid queue schedule type\n");
+				print_usage(prgname);
+				return -1;
+			}
+			break;
+
+		case CMD_LINE_OPT_IPSEC_MODE_NUM:
+			ret = parse_ipsec_mode(eh_conf, optarg);
+			if (ret < 0) {
+				printf("Invalid ipsec mode\n");
+				print_usage(prgname);
+				return -1;
+			}
+			break;
+
+		case CMD_LINE_OPT_IPSEC_DIR_NUM:
+			ret = parse_ipsec_dir(eh_conf, optarg);
+			if (ret < 0) {
+				printf("Invalid ipsec direction\n");
+				print_usage(prgname);
+				return -1;
+			}
+			break;
+
 		case CMD_LINE_OPT_RX_OFFLOAD_NUM:
 			ret = parse_mask(optarg, &dev_rx_offload);
 			if (ret != 0) {
@@ -2457,6 +2620,132 @@ exit:
 	return ret;
 }
 
+static struct eh_conf *
+eh_conf_init(void)
+{
+	struct eventmode_conf *em_conf = NULL;
+	struct eh_conf *conf = NULL;
+	unsigned int eth_core_id;
+	uint32_t nb_bytes;
+	void *mem = NULL;
+
+	/* Allocate memory for config */
+	conf = calloc(1, sizeof(struct eh_conf));
+	if (conf == NULL) {
+		printf("Failed to allocate memory for eventmode helper conf");
+		goto err;
+	}
+
+	/* Set default conf */
+
+	/* Packet transfer mode: poll */
+	conf->mode = EH_PKT_TRANSFER_MODE_POLL;
+	conf->ipsec_mode = EH_IPSEC_MODE_TYPE_APP;
+	conf->ipsec_dir = EH_IPSEC_DIR_TYPE_OUTBOUND;
+
+	/* Keep all ethernet ports enabled by default */
+	conf->eth_portmask = -1;
+
+	/* Allocate memory for event mode params */
+	conf->mode_params =
+		calloc(1, sizeof(struct eventmode_conf));
+	if (conf->mode_params == NULL) {
+		printf("Failed to allocate memory for event mode params");
+		goto err;
+	}
+
+	/* Get eventmode conf */
+	em_conf = (struct eventmode_conf *)(conf->mode_params);
+
+	/* Allocate and initialize bitmap for eth cores */
+	nb_bytes = rte_bitmap_get_memory_footprint(RTE_MAX_LCORE);
+	if (!nb_bytes) {
+		printf("Failed to get bitmap footprint");
+		goto err;
+	}
+
+	mem = rte_zmalloc("event-helper-ethcore-bitmap", nb_bytes,
+			  RTE_CACHE_LINE_SIZE);
+	if (!mem) {
+		printf("Failed to allocate memory for eth cores bitmap\n");
+		goto err;
+	}
+
+	em_conf->eth_core_mask = rte_bitmap_init(RTE_MAX_LCORE, mem, nb_bytes);
+	if (!em_conf->eth_core_mask) {
+		printf("Failed to initialize bitmap");
+		goto err;
+	}
+
+	/* Schedule type: ordered */
+	em_conf->ext_params.sched_type = RTE_SCHED_TYPE_ORDERED;
+
+	/* Set two cores as eth cores for Rx & Tx */
+
+	/* Use first core other than master core as Rx core */
+	eth_core_id = rte_get_next_lcore(0,	/* curr core */
+					 1,	/* skip master core */
+					 0	/* wrap */);
+
+	rte_bitmap_set(em_conf->eth_core_mask, eth_core_id);
+
+	/* Use next core as Tx core */
+	eth_core_id = rte_get_next_lcore(eth_core_id,	/* curr core */
+					 1,		/* skip master core */
+					 0		/* wrap */);
+
+	rte_bitmap_set(em_conf->eth_core_mask, eth_core_id);
+
+	return conf;
+err:
+	rte_free(mem);
+	free(em_conf);
+	free(conf);
+	return NULL;
+}
+
+static void
+eh_conf_uninit(struct eh_conf *conf)
+{
+	struct eventmode_conf *em_conf = NULL;
+
+	/* Get eventmode conf */
+	em_conf = (struct eventmode_conf *)(conf->mode_params);
+
+	/* Free evenmode configuration memory */
+	rte_free(em_conf->eth_core_mask);
+	free(em_conf);
+	free(conf);
+}
+
+static void
+signal_handler(int signum)
+{
+	if (signum == SIGINT || signum == SIGTERM) {
+		uint16_t port_id;
+		printf("\n\nSignal %d received, preparing to exit...\n",
+				signum);
+		force_quit = true;
+
+		/* Destroy the default ipsec flow */
+		RTE_ETH_FOREACH_DEV(port_id) {
+			if ((enabled_port_mask & (1 << port_id)) == 0)
+				continue;
+			if (flow_info_tbl[port_id].rx_def_flow) {
+				struct rte_flow_error err;
+				int ret;
+				ret = rte_flow_destroy(port_id,
+					flow_info_tbl[port_id].rx_def_flow,
+					&err);
+				if (ret)
+					RTE_LOG(ERR, IPSEC,
+					"Failed to destroy flow for port %u, "
+					"err msg: %s\n", port_id, err.message);
+			}
+		}
+	}
+}
+
 int32_t
 main(int32_t argc, char **argv)
 {
@@ -2466,6 +2755,7 @@ main(int32_t argc, char **argv)
 	uint8_t socket_id;
 	uint16_t portid;
 	uint64_t req_rx_offloads, req_tx_offloads;
+	struct eh_conf *eh_conf = NULL;
 	size_t sess_sz;
 
 	/* init EAL */
@@ -2475,8 +2765,17 @@ main(int32_t argc, char **argv)
 	argc -= ret;
 	argv += ret;
 
+	force_quit = false;
+	signal(SIGINT, signal_handler);
+	signal(SIGTERM, signal_handler);
+
+	/* initialize event helper configuration */
+	eh_conf = eh_conf_init();
+	if (eh_conf == NULL)
+		rte_exit(EXIT_FAILURE, "Failed to init event helper config");
+
 	/* parse application arguments (after the EAL ones) */
-	ret = parse_args(argc, argv);
+	ret = parse_args(argc, argv, eh_conf);
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "Invalid parameters\n");
 
@@ -2592,12 +2891,43 @@ main(int32_t argc, char **argv)
 
 	check_all_ports_link_status(enabled_port_mask);
 
+	/*
+	 * Set the enabled port mask in helper config for use by helper
+	 * sub-system. This will be used while intializing devices using
+	 * helper sub-system.
+	 */
+	eh_conf->eth_portmask = enabled_port_mask;
+
+	/* Initialize eventmode components */
+	ret = eh_devs_init(eh_conf);
+	if (ret < 0)
+		rte_exit(EXIT_FAILURE, "eh_devs_init failed, err=%d\n", ret);
+
 	/* launch per-lcore init on every lcore */
-	rte_eal_mp_remote_launch(main_loop, NULL, CALL_MASTER);
+	rte_eal_mp_remote_launch(ipsec_launch_one_lcore, eh_conf, CALL_MASTER);
+
 	RTE_LCORE_FOREACH_SLAVE(lcore_id) {
 		if (rte_eal_wait_lcore(lcore_id) < 0)
 			return -1;
 	}
+
+	/* Uninitialize eventmode components */
+	ret = eh_devs_uninit(eh_conf);
+	if (ret < 0)
+		rte_exit(EXIT_FAILURE, "eh_devs_uninit failed, err=%d\n", ret);
+
+	/* Free eventmode configuration memory */
+	eh_conf_uninit(eh_conf);
+
+	RTE_ETH_FOREACH_DEV(portid) {
+		if ((enabled_port_mask & (1 << portid)) == 0)
+			continue;
+		printf("Closing port %d...", portid);
+		rte_eth_dev_stop(portid);
+		rte_eth_dev_close(portid);
+		printf(" Done\n");
+	}
+	printf("Bye...\n");
 
 	return 0;
 }
