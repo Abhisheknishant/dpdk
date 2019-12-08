@@ -77,6 +77,16 @@ void otx2_npa_set_defaults(struct otx2_idev_cfg *idev);
 int otx2_npa_lf_active(void *dev);
 int otx2_npa_lf_obj_ref(void);
 
+typedef int (*otx2_sec_eth_ctx_create_t)(struct rte_eth_dev *eth_dev);
+typedef void (*otx2_sec_eth_ctx_destroy_t)(struct rte_eth_dev *eth_dev);
+
+struct otx2_sec_eth_crypto_idev_ops {
+	otx2_sec_eth_ctx_create_t ctx_create;
+	otx2_sec_eth_ctx_destroy_t ctx_destroy;
+};
+
+extern struct otx2_sec_eth_crypto_idev_ops otx2_sec_idev_ops;
+
 /* Log */
 extern int otx2_logtype_base;
 extern int otx2_logtype_mbox;

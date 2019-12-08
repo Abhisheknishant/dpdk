@@ -17,6 +17,7 @@
 #include "otx2_cryptodev_mbox.h"
 #include "otx2_cryptodev_ops.h"
 #include "otx2_dev.h"
+#include "otx2_security.h"
 
 /* CPT common headers */
 #include "cpt_common.h"
@@ -154,4 +155,7 @@ RTE_INIT(otx2_cpt_init_log)
 	otx2_cpt_logtype = rte_log_register("pmd.crypto.octeontx2");
 	if (otx2_cpt_logtype >= 0)
 		rte_log_set_level(otx2_cpt_logtype, RTE_LOG_NOTICE);
+
+	otx2_sec_idev_ops.ctx_create = otx2_sec_eth_ctx_create;
+	otx2_sec_idev_ops.ctx_destroy = otx2_sec_eth_ctx_destroy;
 }

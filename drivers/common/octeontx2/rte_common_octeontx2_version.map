@@ -32,5 +32,7 @@ DPDK_20.0 {
 	otx2_sso_pf_func_set;
 	otx2_unregister_irq;
 
+	otx2_sec_idev_ops;
+
 	local: *;
 };
