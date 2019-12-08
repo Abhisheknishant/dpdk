@@ -170,4 +170,24 @@ extern int otx2_logtype_dpi;
 #include "otx2_io_generic.h"
 #endif
 
+/* Fastpath lookup */
+#define OTX2_NIX_FASTPATH_LOOKUP_MEM "otx2_nix_fastpath_lookup_mem"
+#define PTYPE_NON_TUNNEL_WIDTH		16
+#define PTYPE_TUNNEL_WIDTH		12
+#define PTYPE_NON_TUNNEL_ARRAY_SZ	BIT(PTYPE_NON_TUNNEL_WIDTH)
+#define PTYPE_TUNNEL_ARRAY_SZ		BIT(PTYPE_TUNNEL_WIDTH)
+#define PTYPE_ARRAY_SZ			((PTYPE_NON_TUNNEL_ARRAY_SZ +\
+					 PTYPE_TUNNEL_ARRAY_SZ) *\
+					 sizeof(uint16_t))
+
+/* NIX_RX_PARSE_S's ERRCODE + ERRLEV (12 bits) */
+#define ERRCODE_ERRLEN_WIDTH		12
+#define ERR_ARRAY_SZ			((BIT(ERRCODE_ERRLEN_WIDTH)) *\
+					sizeof(uint32_t))
+
+#define PORT_ARRAY_SZ			(RTE_MAX_ETHPORTS * sizeof(uint64_t))
+
+#define LOOKUP_ARRAY_SZ			(PTYPE_ARRAY_SZ + ERR_ARRAY_SZ +\
+					PORT_ARRAY_SZ)
+
 #endif /* _OTX2_COMMON_H_ */

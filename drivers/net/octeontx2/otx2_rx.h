@@ -5,16 +5,10 @@
 #ifndef __OTX2_RX_H__
 #define __OTX2_RX_H__
 
+#include "otx2_common.h"
+
 /* Default mark value used when none is provided. */
 #define OTX2_FLOW_ACTION_FLAG_DEFAULT	0xffff
-
-#define PTYPE_NON_TUNNEL_WIDTH		16
-#define PTYPE_TUNNEL_WIDTH		12
-#define PTYPE_NON_TUNNEL_ARRAY_SZ	BIT(PTYPE_NON_TUNNEL_WIDTH)
-#define PTYPE_TUNNEL_ARRAY_SZ		BIT(PTYPE_TUNNEL_WIDTH)
-#define PTYPE_ARRAY_SZ			((PTYPE_NON_TUNNEL_ARRAY_SZ +\
-					 PTYPE_TUNNEL_ARRAY_SZ) *\
-					 sizeof(uint16_t))
 
 #define NIX_RX_OFFLOAD_NONE            (0)
 #define NIX_RX_OFFLOAD_RSS_F           BIT(0)
