@@ -38,6 +38,7 @@ Features of the OCTEON TX2 Ethdev PMD are:
 - IEEE1588 timestamping
 - HW offloaded `ethdev Rx queue` to `eventdev event queue` packet injection
 - Support Rx interrupt
+- Inline IPsec processing support
 
 Prerequisites
 -------------
@@ -178,6 +179,17 @@ Runtime Config Options
    traffic on this port should be higig2 traffic only. Supported switch header
    types are "higig2" and "dsa".
 
+- ``Max SPI for inbound inline IPsec`` (default ``1``)
+
+   Max SPI supported for inbound inline IPsec processing can be specified by
+   ``ipsec_in_max_spi`` ``devargs`` parameter.
+
+   For example::
+      -w 0002:02:00.0,ipsec_in_max_spi=128
+
+   With the above configuration, application can enable inline IPsec processing
+   on 128 SAs (SPI 0-127).
+
 .. note::
 
    Above devarg parameters are configurable per device, user needs to pass the
@@ -210,6 +222,14 @@ function devices.
 SDP interface support
 ~~~~~~~~~~~~~~~~~~~~~
 OCTEON TX2 SDP interface support is limited to PF device, No VF support.
+
+Inline Protocol Processing
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+``net_octeontx2`` pmd doesn't support the following features for packets to be
+inline protocol processed.
+- TSO offload
+- VLAN/QinQ offload
+- Fragmentation
 
 Debugging Options
 -----------------

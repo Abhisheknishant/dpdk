@@ -337,6 +337,10 @@ nix_cq_rq_init(struct rte_eth_dev *eth_dev, struct otx2_eth_dev *dev,
 	aq->op = NIX_AQ_INSTOP_INIT;
 
 	aq->rq.sso_ena = 0;
+
+	if (rxq->offloads & DEV_RX_OFFLOAD_SECURITY)
+		aq->rq.ipsech_ena = 1;
+
 	aq->rq.cq = qid; /* RQ to CQ 1:1 mapped */
 	aq->rq.spb_ena = 0;
 	aq->rq.lpb_aura = npa_lf_aura_handle_to_aura(mp->pool_id);
@@ -1610,6 +1614,8 @@ otx2_nix_configure(struct rte_eth_dev *eth_dev)
 
 	/* Free the resources allocated from the previous configure */
 	if (dev->configured == 1) {
+		if (otx2_sec_idev_ops.fini != NULL)
+			otx2_sec_idev_ops.fini(eth_dev);
 		otx2_nix_rxchan_bpid_cfg(eth_dev, false);
 		otx2_nix_vlan_fini(eth_dev);
 		otx2_nix_mc_addr_list_uninstall(eth_dev);
@@ -1714,10 +1720,17 @@ otx2_nix_configure(struct rte_eth_dev *eth_dev)
 		goto cq_fini;
 	}
 
+	/* Enable security */
+	if (otx2_sec_idev_ops.init != NULL) {
+		rc = otx2_sec_idev_ops.init(eth_dev);
+		if (rc)
+			goto cq_fini;
+	}
+
 	rc = otx2_nix_mc_addr_list_install(eth_dev);
 	if (rc < 0) {
 		otx2_err("Failed to install mc address list rc=%d", rc);
-		goto cq_fini;
+		goto sec_fini;
 	}
 
 	/*
@@ -1753,6 +1766,9 @@ otx2_nix_configure(struct rte_eth_dev *eth_dev)
 
 uninstall_mc_list:
 	otx2_nix_mc_addr_list_uninstall(eth_dev);
+sec_fini:
+	if (otx2_sec_idev_ops.fini != NULL)
+		otx2_sec_idev_ops.fini(eth_dev);
 cq_fini:
 	oxt2_nix_unregister_cq_irqs(eth_dev);
 q_irq_fini:
@@ -2344,6 +2360,10 @@ otx2_eth_dev_uninit(struct rte_eth_dev *eth_dev, bool mbox_close)
 	rc = otx2_npa_lf_fini();
 	if (rc)
 		otx2_err("Failed to cleanup npa lf, rc=%d", rc);
+
+	/* Disable security */
+	if (otx2_sec_idev_ops.fini != NULL)
+		otx2_sec_idev_ops.fini(eth_dev);
 
 	/* Destroy security ctx */
 	if (otx2_sec_idev_ops.ctx_destroy != NULL)
