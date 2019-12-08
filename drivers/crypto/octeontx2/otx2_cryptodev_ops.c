@@ -6,6 +6,7 @@
 
 #include <rte_cryptodev_pmd.h>
 #include <rte_errno.h>
+#include <rte_ethdev.h>
 
 #include "otx2_cryptodev.h"
 #include "otx2_cryptodev_capabilities.h"
@@ -125,6 +126,29 @@ otx2_cpt_metabuf_mempool_destroy(struct otx2_cpt_qp *qp)
 	meta_info->sg_mlen = 0;
 }
 
+static int
+otx2_cpt_qp_inline_cfg(const struct rte_cryptodev *dev, struct otx2_cpt_qp *qp)
+{
+	static rte_atomic16_t port_offset = RTE_ATOMIC16_INIT(-1);
+	uint16_t port_id, nb_ethport = rte_eth_dev_count_avail();
+	int i, ret;
+
+	for (i = 0; i < nb_ethport; i++) {
+		port_id = rte_atomic16_add_return(&port_offset, 1) % nb_ethport;
+		if (otx2_is_ethdev(&rte_eth_devices[port_id]))
+			break;
+	}
+
+	if (i >= nb_ethport)
+		return 0;
+
+	ret = otx2_cpt_qp_ethdev_bind(dev, qp, port_id);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static struct otx2_cpt_qp *
 otx2_cpt_qp_create(const struct rte_cryptodev *dev, uint16_t qp_id,
 		   uint8_t group)
@@ -217,6 +241,12 @@ otx2_cpt_qp_create(const struct rte_cryptodev *dev, uint16_t qp_id,
 	qp->lf_nq_reg = qp->base + OTX2_CPT_LF_NQ(0);
 
 	otx2_cpt_iq_disable(qp);
+
+	ret = otx2_cpt_qp_inline_cfg(dev, qp);
+	if (ret) {
+		CPT_LOG_ERR("Could not configure queue for inline IPsec");
+		goto mempool_destroy;
+	}
 
 	ret = otx2_cpt_iq_enable(dev, qp, group, OTX2_CPT_QUEUE_HI_PRIO,
 				 size_div40);
@@ -857,12 +887,20 @@ otx2_cpt_dev_config(struct rte_cryptodev *dev,
 		goto queues_detach;
 	}
 
+	ret = otx2_cpt_inline_init(dev);
+	if (ret) {
+		CPT_LOG_ERR("Could not enable inline IPsec");
+		goto intr_unregister;
+	}
+
 	dev->enqueue_burst = otx2_cpt_enqueue_burst;
 	dev->dequeue_burst = otx2_cpt_dequeue_burst;
 
 	rte_mb();
 	return 0;
 
+intr_unregister:
+	otx2_cpt_err_intr_unregister(dev);
 queues_detach:
 	otx2_cpt_queues_detach(dev);
 	return ret;
