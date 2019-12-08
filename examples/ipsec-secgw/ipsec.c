@@ -261,6 +261,12 @@ create_inline_session(struct socket_ctx *skt_ctx, struct ipsec_sa *sa,
 			unsigned int i;
 			unsigned int j;
 
+			/*
+			 * Don't create flow if default flow is already created
+			 */
+			if (flow_info_tbl[sa->portid].rx_def_flow)
+				goto set_cdev_id;
+
 			ret = rte_eth_dev_info_get(sa->portid, &dev_info);
 			if (ret != 0) {
 				RTE_LOG(ERR, IPSEC,
@@ -396,6 +402,8 @@ flow_create_failure:
 		ips->security.ol_flags = sec_cap->ol_flags;
 		ips->security.ctx = sec_ctx;
 	}
+
+set_cdev_id:
 	sa->cdev_id_qp = 0;
 
 	return 0;

@@ -128,6 +128,8 @@ struct ethaddr_info ethaddr_tbl[RTE_MAX_ETHPORTS] = {
 	{ 0, ETHADDR(0x00, 0x16, 0x3e, 0x49, 0x9e, 0xdd) }
 };
 
+struct flow_info flow_info_tbl[RTE_MAX_ETHPORTS];
+
 #define CMD_LINE_OPT_CONFIG		"config"
 #define CMD_LINE_OPT_SINGLE_SA		"single-sa"
 #define CMD_LINE_OPT_CRYPTODEV_MASK	"cryptodev_mask"
@@ -2406,6 +2408,55 @@ reassemble_init(void)
 	return rc;
 }
 
+static int
+create_default_ipsec_flow(uint16_t port_id, uint64_t rx_offloads)
+{
+	int ret = 0;
+
+	/* Add the default ipsec flow to detect all ESP packets for rx */
+	if (rx_offloads & DEV_RX_OFFLOAD_SECURITY) {
+		struct rte_flow_action action[2];
+		struct rte_flow_item pattern[2];
+		struct rte_flow_attr attr = {0};
+		struct rte_flow_error err;
+		struct rte_flow *flow;
+
+		pattern[0].type = RTE_FLOW_ITEM_TYPE_ESP;
+		pattern[0].spec = NULL;
+		pattern[0].mask = NULL;
+		pattern[0].last = NULL;
+		pattern[1].type = RTE_FLOW_ITEM_TYPE_END;
+
+		action[0].type = RTE_FLOW_ACTION_TYPE_SECURITY;
+		action[0].conf = NULL;
+		action[1].type = RTE_FLOW_ACTION_TYPE_END;
+		action[1].conf = NULL;
+
+		attr.egress = 0;
+		attr.ingress = 1;
+
+		ret = rte_flow_validate(port_id, &attr, pattern, action, &err);
+		if (ret) {
+			RTE_LOG(ERR, IPSEC,
+				"Failed to validate ipsec flow %s\n",
+				err.message);
+			goto exit;
+		}
+
+		flow = rte_flow_create(port_id, &attr, pattern, action, &err);
+		if (flow == NULL) {
+			RTE_LOG(ERR, IPSEC,
+				"Failed to create ipsec flow %s\n",
+				err.message);
+			ret = -rte_errno;
+			goto exit;
+		}
+		flow_info_tbl[port_id].rx_def_flow = flow;
+	}
+exit:
+	return ret;
+}
+
 int32_t
 main(int32_t argc, char **argv)
 {
@@ -2478,6 +2529,11 @@ main(int32_t argc, char **argv)
 
 		sa_check_offloads(portid, &req_rx_offloads, &req_tx_offloads);
 		port_init(portid, req_rx_offloads, req_tx_offloads);
+		/* Create default ipsec flow for the ethernet device */
+		ret = create_default_ipsec_flow(portid, req_rx_offloads);
+		if (ret)
+			printf("Cannot create default flow, err=%d, port=%d\n",
+					ret, portid);
 	}
 
 	cryptodevs_init();
