@@ -10,6 +10,7 @@
 #include <rte_security.h>
 #include <rte_security_driver.h>
 
+#include "otx2_cryptodev_qp.h"
 #include "otx2_ethdev.h"
 #include "otx2_ipsec_fp.h"
 #include "otx2_security.h"
@@ -28,6 +29,8 @@ struct sec_eth_tag_const {
 		uint32_t u32;
 	};
 };
+
+static struct otx2_sec_eth_cfg sec_cfg[OTX2_MAX_INLINE_PORTS];
 
 static struct rte_cryptodev_capabilities otx2_sec_eth_crypto_caps[] = {
 	{	/* AES GCM */
@@ -156,15 +159,40 @@ static struct rte_security_ops otx2_sec_eth_ops = {
 	.capabilities_get	= otx2_sec_eth_capabilities_get
 };
 
+static int
+otx2_sec_eth_cfg_init(int port_id)
+{
+	struct otx2_sec_eth_cfg *cfg;
+	int i;
+
+	cfg = &sec_cfg[port_id];
+	cfg->tx_cpt_idx = 0;
+	rte_spinlock_init(&cfg->tx_cpt_lock);
+
+	for (i = 0; i < OTX2_MAX_CPT_QP_PER_PORT; i++) {
+		cfg->tx_cpt[i].qp = NULL;
+		rte_atomic16_set(&cfg->tx_cpt[i].ref_cnt, 0);
+	}
+
+	return 0;
+}
+
 int
 otx2_sec_eth_ctx_create(struct rte_eth_dev *eth_dev)
 {
 	struct rte_security_ctx *ctx;
+	int ret;
 
 	ctx = rte_malloc("otx2_sec_eth_ctx",
 			 sizeof(struct rte_security_ctx), 0);
 	if (ctx == NULL)
 		return -ENOMEM;
+
+	ret = otx2_sec_eth_cfg_init(eth_dev->data->port_id);
+	if (ret) {
+		rte_free(ctx);
+		return ret;
+	}
 
 	/* Populate ctx */
 
@@ -278,4 +306,74 @@ otx2_sec_eth_fini(struct rte_eth_dev *eth_dev)
 
 	in_sa_mz_name_get(name, RTE_MEMZONE_NAMESIZE, port);
 	rte_memzone_free(rte_memzone_lookup(name));
+}
+
+int
+otx2_sec_tx_cpt_qp_add(uint16_t port_id, struct otx2_cpt_qp *qp)
+{
+	struct otx2_sec_eth_cfg *cfg;
+	int i, ret;
+
+	if (qp == NULL || port_id > OTX2_MAX_INLINE_PORTS)
+		return -EINVAL;
+
+	cfg = &sec_cfg[port_id];
+
+	/* Find a free slot to save CPT LF */
+
+	rte_spinlock_lock(&cfg->tx_cpt_lock);
+
+	for (i = 0; i < OTX2_MAX_CPT_QP_PER_PORT; i++) {
+		if (cfg->tx_cpt[i].qp == NULL) {
+			cfg->tx_cpt[i].qp = qp;
+			ret = 0;
+			goto unlock;
+		}
+	}
+
+	ret = -EINVAL;
+
+unlock:
+	rte_spinlock_unlock(&cfg->tx_cpt_lock);
+	return ret;
+}
+
+int
+otx2_sec_tx_cpt_qp_remove(struct otx2_cpt_qp *qp)
+{
+	struct otx2_sec_eth_cfg *cfg;
+	uint16_t port_id;
+	int i, ret;
+
+	if (qp == NULL)
+		return -EINVAL;
+
+	for (port_id = 0; port_id < OTX2_MAX_INLINE_PORTS; port_id++) {
+		cfg = &sec_cfg[port_id];
+
+		rte_spinlock_lock(&cfg->tx_cpt_lock);
+
+		for (i = 0; i < OTX2_MAX_CPT_QP_PER_PORT; i++) {
+			if (cfg->tx_cpt[i].qp != qp)
+				continue;
+
+			/* Don't free if the QP is in use by any sec session */
+			if (rte_atomic16_read(&cfg->tx_cpt[i].ref_cnt)) {
+				ret = -EBUSY;
+			} else {
+				cfg->tx_cpt[i].qp = NULL;
+				ret = 0;
+			}
+
+			goto unlock;
+		}
+
+		rte_spinlock_unlock(&cfg->tx_cpt_lock);
+	}
+
+	return -ENOENT;
+
+unlock:
+	rte_spinlock_unlock(&cfg->tx_cpt_lock);
+	return ret;
 }
