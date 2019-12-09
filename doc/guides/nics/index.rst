@@ -33,6 +33,7 @@ Network Interface Controller Drivers
     ice
     ifc
     igb
+    ionic
     ipn3ke
     ixgbe
     intel_vf
