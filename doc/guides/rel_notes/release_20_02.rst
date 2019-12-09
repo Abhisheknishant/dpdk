@@ -56,6 +56,10 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Updated the Intel i40e driver.**
+
+  Added PF support Malicious Device Drive event catch and notify.
+
 
 Removed Items
 -------------
