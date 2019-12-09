@@ -33,6 +33,6 @@ endif
 #
 # all source are stored in SRCS-y
 #
-SRCS-$(CONFIG_RTE_LIBRTE_IONIC_PMD) +=
+SRCS-$(CONFIG_RTE_LIBRTE_IONIC_PMD) += ionic_ethdev.c
 
 include $(RTE_SDK)/mk/rte.lib.mk
