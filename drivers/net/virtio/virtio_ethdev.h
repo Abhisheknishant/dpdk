@@ -49,6 +49,9 @@
 
 extern const struct eth_dev_ops virtio_user_secondary_eth_dev_ops;
 
+int virtio_user_reset_device(struct rte_eth_dev *eth_dev,
+		struct virtio_hw *hw);
+
 /*
  * CQ function prototype
  */

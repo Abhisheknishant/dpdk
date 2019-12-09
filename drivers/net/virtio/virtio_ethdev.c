@@ -434,6 +434,94 @@ virtio_init_vring(struct virtqueue *vq)
 }
 
 static int
+virtio_user_reset_rx_queues(struct rte_eth_dev *dev, uint16_t queue_idx)
+{
+	uint16_t vtpci_queue_idx = 2 * queue_idx + VTNET_SQ_RQ_QUEUE_IDX;
+	struct virtio_hw *hw = dev->data->dev_private;
+	struct virtqueue *vq = hw->vqs[vtpci_queue_idx];
+	struct virtnet_rx *rxvq;
+	struct vq_desc_extra *dxp;
+	unsigned int vq_size;
+	uint16_t desc_idx, i;
+
+	vq_size = VTPCI_OPS(hw)->get_queue_num(hw, vtpci_queue_idx);
+
+	vq->vq_packed.used_wrap_counter = 1;
+	vq->vq_packed.cached_flags = VRING_PACKED_DESC_F_AVAIL;
+	vq->vq_packed.event_flags_shadow = 0;
+	vq->vq_packed.cached_flags |= VRING_DESC_F_WRITE;
+
+	rxvq = &vq->rxq;
+	memset(rxvq->mz->addr, 0, rxvq->mz->len);
+
+	for (desc_idx = 0; desc_idx < vq_size; desc_idx++) {
+		dxp = &vq->vq_descx[desc_idx];
+		if (dxp->cookie != NULL) {
+			rte_pktmbuf_free(dxp->cookie);
+			dxp->cookie = NULL;
+		}
+	}
+
+	virtio_init_vring(vq);
+
+	for (i = 0; i < hw->max_queue_pairs; i++)
+		if (rxvq->mpool != NULL)
+			virtio_dev_rx_queue_setup_finish(dev, i);
+
+	return 0;
+}
+
+static int
+virtio_user_reset_tx_queues(struct rte_eth_dev *dev, uint16_t queue_idx)
+{
+	uint8_t vtpci_queue_idx = 2 * queue_idx + VTNET_SQ_TQ_QUEUE_IDX;
+	struct virtio_hw *hw = dev->data->dev_private;
+	struct virtqueue *vq = hw->vqs[vtpci_queue_idx];
+	struct virtnet_tx *txvq;
+	struct vq_desc_extra *dxp;
+	unsigned int vq_size;
+	uint16_t desc_idx;
+
+	vq_size = VTPCI_OPS(hw)->get_queue_num(hw, vtpci_queue_idx);
+
+	vq->vq_packed.used_wrap_counter = 1;
+	vq->vq_packed.cached_flags = VRING_PACKED_DESC_F_AVAIL;
+	vq->vq_packed.event_flags_shadow = 0;
+
+	txvq = &vq->txq;
+	memset(txvq->mz->addr, 0, txvq->mz->len);
+	memset(txvq->virtio_net_hdr_mz->addr, 0,
+		txvq->virtio_net_hdr_mz->len);
+
+	for (desc_idx = 0; desc_idx < vq_size; desc_idx++) {
+		dxp = &vq->vq_descx[desc_idx];
+		if (dxp->cookie != NULL) {
+			rte_pktmbuf_free(dxp->cookie);
+			dxp->cookie = NULL;
+		}
+	}
+
+	virtio_init_vring(vq);
+
+	return 0;
+}
+
+static int
+virtio_user_reset_queues(struct rte_eth_dev *eth_dev)
+{
+	uint16_t i;
+
+	/* Vring reset for each Tx queue and Rx queue. */
+	for (i = 0; i < eth_dev->data->nb_rx_queues; i++)
+		virtio_user_reset_rx_queues(eth_dev, i);
+
+	for (i = 0; i < eth_dev->data->nb_rx_queues; i++)
+		virtio_user_reset_tx_queues(eth_dev, i);
+
+	return 0;
+}
+
+static int
 virtio_init_queue(struct rte_eth_dev *dev, uint16_t vtpci_queue_idx)
 {
 	char vq_name[VIRTQUEUE_MAX_NAME_SZ];
@@ -1913,6 +2001,8 @@ eth_virtio_dev_init(struct rte_eth_dev *eth_dev)
 			goto err_vtpci_init;
 	}
 
+	rte_spinlock_init(&hw->state_lock);
+
 	/* reset device and negotiate default features */
 	ret = virtio_init_device(eth_dev, VIRTIO_PMD_DEFAULT_GUEST_FEATURES);
 	if (ret < 0)
@@ -2154,8 +2244,6 @@ virtio_dev_configure(struct rte_eth_dev *dev)
 			PMD_DRV_LOG(ERR, "failed to set config vector");
 			return -EBUSY;
 		}
-
-	rte_spinlock_init(&hw->state_lock);
 
 	hw->use_simple_rx = 1;
 
@@ -2417,6 +2505,26 @@ virtio_dev_vlan_offload_set(struct rte_eth_dev *dev, int mask)
 
 	if (mask & ETH_VLAN_STRIP_MASK)
 		hw->vlan_strip = !!(offloads & DEV_RX_OFFLOAD_VLAN_STRIP);
+
+	return 0;
+}
+
+int
+virtio_user_reset_device(struct rte_eth_dev *eth_dev, struct virtio_hw *hw)
+{
+	/* Add lock to avoid queue contention. */
+	rte_spinlock_lock(&hw->state_lock);
+	hw->started = 0;
+	/*
+	 * Waitting for datapath to complete before resetting queues.
+	 * 1 ms should be enough for the ongoing Tx/Rx function to finish.
+	 */
+	rte_delay_ms(1);
+
+	virtio_user_reset_queues(eth_dev);
+
+	hw->started = 1;
+	rte_spinlock_unlock(&hw->state_lock);
 
 	return 0;
 }

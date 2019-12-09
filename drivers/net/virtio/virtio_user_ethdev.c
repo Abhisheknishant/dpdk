@@ -31,6 +31,7 @@ virtio_user_server_reconnect(struct virtio_user_dev *dev)
 	int ret;
 	int connectfd;
 	struct rte_eth_dev *eth_dev = &rte_eth_devices[dev->port_id];
+	struct virtio_hw *hw = eth_dev->data->dev_private;
 
 	connectfd = accept(dev->listenfd, NULL, NULL);
 	if (connectfd < 0)
@@ -50,6 +51,13 @@ virtio_user_server_reconnect(struct virtio_user_dev *dev)
 	dev->device_features &= ~(dev->unsupported_features);
 
 	dev->features &= dev->device_features;
+
+	/*
+	 * * For packed ring, resetting queues
+	 * is required in reconnection.
+	 */
+	if (vtpci_packed_queue(hw))
+		virtio_user_reset_device(eth_dev, hw);
 
 	ret = virtio_user_start_device(dev);
 	if (ret < 0)
