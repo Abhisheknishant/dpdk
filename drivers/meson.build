@@ -132,10 +132,8 @@ foreach class:dpdk_driver_classes
 
 			if is_experimental != 0
 				lib_version = experimental_abi_version
-				so_version = experimental_abi_version
 			else
 				lib_version = abi_version
-				so_version = abi_version
 			endif
 
 			# now build the static driver
@@ -183,7 +181,6 @@ foreach class:dpdk_driver_classes
 				link_args: lk_args,
 				link_depends: lk_deps,
 				version: lib_version,
-				soversion: so_version,
 				install: true,
 				install_dir: driver_install_path)
 

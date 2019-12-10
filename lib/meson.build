@@ -113,10 +113,8 @@ foreach l:libraries
 
 			if is_experimental != 0
 				lib_version = experimental_abi_version
-				so_version = experimental_abi_version
 			else
 				lib_version = abi_version
-				so_version = abi_version
 			endif
 
 			# first build static lib
@@ -174,7 +172,6 @@ foreach l:libraries
 					link_args: lk_args,
 					link_depends: lk_deps,
 					version: lib_version,
-					soversion: so_version,
 					install: true)
 			shared_dep = declare_dependency(link_with: shared_lib,
 					include_directories: includes,
