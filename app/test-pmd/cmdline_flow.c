@@ -213,6 +213,8 @@ enum index {
 	ITEM_TAG,
 	ITEM_TAG_DATA,
 	ITEM_TAG_INDEX,
+	ITEM_ESP,
+	ITEM_ESP_SPI,
 
 	/* Validate/create actions. */
 	ACTIONS,
@@ -746,6 +748,7 @@ static const enum index next_item[] = {
 	ITEM_PPPOE_PROTO_ID,
 	ITEM_HIGIG2,
 	ITEM_TAG,
+	ITEM_ESP,
 	END_SET,
 	ZERO,
 };
@@ -1013,6 +1016,12 @@ static const enum index item_pppoe_proto_id[] = {
 static const enum index item_higig2[] = {
 	ITEM_HIGIG2_CLASSIFICATION,
 	ITEM_HIGIG2_VID,
+	ITEM_NEXT,
+	ZERO,
+};
+
+static const enum index item_esp[] = {
+	ITEM_ESP_SPI,
 	ITEM_NEXT,
 	ZERO,
 };
@@ -2592,6 +2601,20 @@ static const struct token token_list[] = {
 		.next = NEXT(item_tag, NEXT_ENTRY(UNSIGNED),
 			     NEXT_ENTRY(ITEM_PARAM_IS)),
 		.args = ARGS(ARGS_ENTRY(struct rte_flow_item_tag, index)),
+	},
+	[ITEM_ESP] = {
+		.name = "esp",
+		.help = "match ESP header",
+		.priv = PRIV_ITEM(ESP, sizeof(struct rte_flow_item_esp)),
+		.next = NEXT(item_esp),
+		.call = parse_vc,
+	},
+	[ITEM_ESP_SPI] = {
+		.name = "spi",
+		.help = "security policy index",
+		.next = NEXT(item_esp, NEXT_ENTRY(UNSIGNED), item_param),
+		.args = ARGS(ARGS_ENTRY_HTON(struct rte_flow_item_esp,
+				hdr.spi)),
 	},
 	/* Validate/create actions. */
 	[ACTIONS] = {
@@ -6052,6 +6075,9 @@ cmd_flow_tok(cmdline_parse_token_hdr_t **hdr,
 static void
 cmd_flow_parsed(const struct buffer *in)
 {
+	printf("Flow command line parsed successfully for command=%d.\n",
+			in->command);
+
 	switch (in->command) {
 	case VALIDATE:
 		port_flow_validate(in->port, &in->args.vc.attr,
@@ -6230,14 +6256,15 @@ flow_item_default_mask(const struct rte_flow_item *item)
 	case RTE_FLOW_ITEM_TYPE_GTP:
 		mask = &rte_flow_item_gtp_mask;
 		break;
-	case RTE_FLOW_ITEM_TYPE_ESP:
-		mask = &rte_flow_item_esp_mask;
-		break;
 	case RTE_FLOW_ITEM_TYPE_GTP_PSC:
 		mask = &rte_flow_item_gtp_psc_mask;
 		break;
 	case RTE_FLOW_ITEM_TYPE_PPPOE_PROTO_ID:
 		mask = &rte_flow_item_pppoe_proto_id_mask;
+		break;
+	case RTE_FLOW_ITEM_TYPE_ESP:
+		mask = &rte_flow_item_esp_mask;
+		break;
 	default:
 		break;
 	}
@@ -6326,6 +6353,10 @@ cmd_set_raw_parsed(const struct buffer *in)
 			break;
 		case RTE_FLOW_ITEM_TYPE_GENEVE:
 			size = sizeof(struct rte_flow_item_geneve);
+			break;
+		case RTE_FLOW_ITEM_TYPE_ESP:
+			size = sizeof(struct rte_flow_item_esp);
+			proto = 0x32;
 			break;
 		default:
 			printf("Error - Not supported item\n");
