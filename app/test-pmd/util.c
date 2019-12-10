@@ -158,6 +158,7 @@ dump_pkt_burst(uint16_t port_id, uint16_t queue, struct rte_mbuf *pkts[],
 		printf("  ol_flags: %s\n", buf);
 		if (rte_mbuf_check(mb, 1, &reason) < 0)
 			printf("INVALID mbuf: %s\n", reason);
+		rte_pktmbuf_dump(stdout, pkts[i], pkts[i]->data_len);
 	}
 }
 
