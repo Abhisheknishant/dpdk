@@ -21,6 +21,7 @@
 #include <rte_tcp.h>
 #include <rte_sctp.h>
 #include <rte_hash_crc.h>
+#include <rte_hexdump.h>
 
 #include "i40e_logs.h"
 #include "base/i40e_type.h"
@@ -803,6 +804,7 @@ i40e_fdir_fill_eth_ip_head(const struct rte_eth_fdir_input *fdir_input,
 			    fdir_input->flow_type);
 		return -1;
 	}
+	rte_hexdump(stdout, NULL, raw_pkt, len);
 	return len;
 }
 
@@ -952,7 +954,7 @@ i40e_fdir_construct_pkt(struct i40e_pf *pf,
 				 &fdir_input->flow_ext.flexbytes[dst],
 				 size * sizeof(uint16_t));
 	}
-
+	rte_hexdump(stdout, NULL, raw_pkt, len);
 	return 0;
 }
 
