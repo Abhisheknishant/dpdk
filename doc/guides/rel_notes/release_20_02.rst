@@ -56,6 +56,15 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Updated i40e driver to support ESP.**
+
+  Updated the i40e PMD to support ESP-AH supporting profiles which can be
+  programmed by the dynamic device personalization (DDP) process.
+
+* **Updated testpmd to support ESP flows.**
+
+  Added support for ESP rte_flow patterns to the testpmd application.
+
 
 Removed Items
 -------------
