@@ -484,7 +484,13 @@ struct rte_eth_rss_conf {
 #define RTE_ETH_FLOW_NVGRE              21 /**< NVGRE protocol based flow */
 #define RTE_ETH_FLOW_VXLAN_GPE          22 /**< VXLAN-GPE protocol based flow */
 #define RTE_ETH_FLOW_GTPU               23 /**< GTPU protocol based flow */
-#define RTE_ETH_FLOW_MAX                24
+#define RTE_ETH_FLOW_IPV4_AH            24 /**< IPv4 AH protocol based flow */
+#define RTE_ETH_FLOW_IPV4_ESP           25 /**< IPv4 ESP protocol based flow */
+#define RTE_ETH_FLOW_IPV4_UDP_ESP       26 /**< IPv4 UDP ESP proto based flow */
+#define RTE_ETH_FLOW_IPV6_AH            27 /**< IPv6 AH protocol based flow */
+#define RTE_ETH_FLOW_IPV6_ESP           28 /**< IPv6 ESP protocol based flow */
+#define RTE_ETH_FLOW_IPV6_UDP_ESP       29 /**< IPv6 UDP ESP proto based flow */
+#define RTE_ETH_FLOW_MAX                30
 
 /*
  * Below macros are defined for RSS offload types, they can be used to
@@ -511,6 +517,13 @@ struct rte_eth_rss_conf {
 #define ETH_RSS_GENEVE             (1ULL << 20)
 #define ETH_RSS_NVGRE              (1ULL << 21)
 #define ETH_RSS_GTPU               (1ULL << 23)
+#define ETH_RSS_IPV4_AH            (1ULL << 24)
+#define ETH_RSS_IPV4_ESP           (1ULL << 25)
+#define ETH_RSS_IPV4_UDP_ESP       (1ULL << 26)
+#define ETH_RSS_IPV6_AH            (1ULL << 27)
+#define ETH_RSS_IPV6_ESP           (1ULL << 28)
+#define ETH_RSS_IPV6_UDP_ESP       (1ULL << 29)
+
 
 /*
  * We use the following macros to combine with above ETH_RSS_* for
@@ -570,6 +583,20 @@ rte_eth_rss_hf_refine(uint64_t rss_hf)
 #define ETH_RSS_SCTP ( \
 	ETH_RSS_NONFRAG_IPV4_SCTP | \
 	ETH_RSS_NONFRAG_IPV6_SCTP)
+
+#define ETH_RSS_AH ( \
+	ETH_RSS_IPV4_AH | \
+	ETH_RSS_IPV6_AH)
+
+#define ETH_RSS_ESP ( \
+	ETH_RSS_IPV4_ESP | \
+	ETH_RSS_IPV6_ESP | \
+	ETH_RSS_IPV4_UDP_ESP | \
+	ETH_RSS_IPV6_UDP_ESP)
+
+#define ETH_RSS_IPSEC ( \
+	ETH_RSS_AH | \
+	ETH_RSS_ESP)
 
 #define ETH_RSS_TUNNEL ( \
 	ETH_RSS_VXLAN  | \
