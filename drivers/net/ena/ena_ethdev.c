@@ -1692,6 +1692,7 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
 	adapter->rte_dev = eth_dev;
 
 	pci_dev = RTE_ETH_DEV_TO_PCI(eth_dev);
+	rte_eth_copy_pci_info(eth_dev, pci_dev);
 	adapter->pdev = pci_dev;
 
 	PMD_INIT_LOG(INFO, "Initializing %x:%x:%x.%d",
