@@ -11,6 +11,9 @@ LIB = librte_pmd_fm10k.a
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -DALLOW_EXPERIMENTAL_API
+ifeq ($(CONFIG_RTE_FM10K_MANAGEMENT),y)
+CFLAGS += -DENABLE_FM10K_MANAGEMENT
+endif
 
 EXPORT_MAP := rte_pmd_fm10k_version.map
 
@@ -60,6 +63,10 @@ $(foreach obj, $(BASE_DRIVER_OBJS), $(eval CFLAGS_$(obj)+=$(CFLAGS_BASE_DRIVER))
 
 VPATH += $(SRCDIR)/base
 
+ifeq ($(CONFIG_RTE_FM10K_MANAGEMENT),y)
+VPATH += $(SRCDIR)/switch
+endif
+
 #
 # all source are stored in SRCS-y
 # base driver is based on the package of cid-fm10k.2017.01.24.tar.gz
@@ -73,6 +80,12 @@ SRCS-$(CONFIG_RTE_LIBRTE_FM10K_PMD) += fm10k_common.c
 SRCS-$(CONFIG_RTE_LIBRTE_FM10K_PMD) += fm10k_mbx.c
 SRCS-$(CONFIG_RTE_LIBRTE_FM10K_PMD) += fm10k_vf.c
 SRCS-$(CONFIG_RTE_LIBRTE_FM10K_PMD) += fm10k_api.c
+
+ifeq ($(CONFIG_RTE_FM10K_MANAGEMENT),y)
+SRCS-$(CONFIG_RTE_LIBRTE_FM10K_PMD) += fm10k_i2c.c
+SRCS-$(CONFIG_RTE_LIBRTE_FM10K_PMD) += fm10k_sbus.c
+endif
+
 SRCS-$(CONFIG_RTE_LIBRTE_FM10K_INC_VECTOR) += fm10k_rxtx_vec.c
 
 include $(RTE_SDK)/mk/rte.lib.mk
