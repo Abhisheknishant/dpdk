@@ -132,11 +132,11 @@ foreach class:dpdk_driver_classes
 
 			if is_experimental != 0
 				lib_version = experimental_abi_version
-				so_version = experimental_abi_version
 			else
 				lib_version = abi_version
-				so_version = abi_version
 			endif
+			so_version = lib_version.split('.')
+			so_version = so_version[0] + '.' + so_version[1]
 
 			# now build the static driver
 			static_lib = static_library(lib_name,
