@@ -53,6 +53,17 @@ struct ipsec_xform;
 struct rte_mbuf;
 
 struct ipsec_sa;
+/*
+ * Keeps number of configured SA's of each type:
+ * transport
+ * v4 tunnel
+ * v6 tunnel
+ */
+struct ipsec_sa_cnt {
+	uint32_t	nb_trn;
+	uint32_t	nb_v4_tun;
+	uint32_t	nb_v6_tun;
+};
 
 typedef int32_t (*ipsec_xform_fn)(struct rte_mbuf *m, struct ipsec_sa *sa,
 		struct rte_crypto_op *cop);
