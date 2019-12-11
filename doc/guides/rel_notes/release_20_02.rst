@@ -56,6 +56,13 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Updated the ZUC PMD.**
+
+  * Transistioned underlying library from libSSO ZUC to intel-ipsec-mb
+    library (minimum version required 0.53).
+  * Removed dynamic library limitation, so PMD can be built as a shared
+    object now.
+
 
 Removed Items
 -------------
