@@ -20,6 +20,7 @@
 #include <rte_random.h>
 #include <rte_ethdev.h>
 #include <rte_malloc.h>
+#include <sys/queue.h>
 
 #include "ipsec.h"
 #include "esp.h"
@@ -133,11 +134,17 @@ const struct supported_aead_algo aead_algos[] = {
 	}
 };
 
-static struct ipsec_sa sa_out[IPSEC_SA_MAX_ENTRIES];
+struct ipsec_sa_mgmt {
+	STAILQ_ENTRY(ipsec_sa_mgmt) next;
+	struct ipsec_sa         sa;
+};
+STAILQ_HEAD(sa_head, ipsec_sa_mgmt);
+
+static struct sa_head sa_out_head = STAILQ_HEAD_INITIALIZER(sa_out_head);
 static uint32_t nb_sa_out;
 static struct ipsec_sa_cnt sa_out_cnt;
 
-static struct ipsec_sa sa_in[IPSEC_SA_MAX_ENTRIES];
+static struct sa_head sa_in_head = STAILQ_HEAD_INITIALIZER(sa_in_head);
 static uint32_t nb_sa_in;
 static struct ipsec_sa_cnt sa_in_cnt;
 
@@ -228,6 +235,8 @@ void
 parse_sa_tokens(char **tokens, uint32_t n_tokens,
 	struct parse_status *status)
 {
+	struct ipsec_sa_mgmt *sa_mgmt;
+	struct sa_head *head;
 	struct ipsec_sa *rule = NULL;
 	struct rte_ipsec_session *ips;
 	uint32_t ti; /*token index*/
@@ -243,27 +252,21 @@ parse_sa_tokens(char **tokens, uint32_t n_tokens,
 	uint32_t portid_p = 0;
 	uint32_t fallback_p = 0;
 
+	sa_mgmt = calloc(1, sizeof(struct ipsec_sa_mgmt));
+	if (sa_mgmt == NULL)
+		return;
+
+	rule = &sa_mgmt->sa;
+
 	if (strcmp(tokens[0], "in") == 0) {
 		ri = &nb_sa_in;
 		sa_cnt = &sa_in_cnt;
-
-		APP_CHECK(*ri <= IPSEC_SA_MAX_ENTRIES - 1, status,
-			"too many sa rules, abort insertion\n");
-		if (status->status < 0)
-			return;
-
-		rule = &sa_in[*ri];
+		head = &sa_in_head;
 		rule->direction = RTE_SECURITY_IPSEC_SA_DIR_INGRESS;
 	} else {
 		ri = &nb_sa_out;
 		sa_cnt = &sa_out_cnt;
-
-		APP_CHECK(*ri <= IPSEC_SA_MAX_ENTRIES - 1, status,
-			"too many sa rules, abort insertion\n");
-		if (status->status < 0)
-			return;
-
-		rule = &sa_out[*ri];
+		head = &sa_out_head;
 		rule->direction = RTE_SECURITY_IPSEC_SA_DIR_EGRESS;
 	}
 
@@ -687,6 +690,7 @@ parse_sa_tokens(char **tokens, uint32_t n_tokens,
 		rule->portid = -1;
 	}
 
+	STAILQ_INSERT_TAIL(head, sa_mgmt, next);
 	*ri = *ri + 1;
 }
 
@@ -956,12 +960,13 @@ sa_add_address_inline_crypto(struct ipsec_sa *sa)
 }
 
 static int
-sa_add_rules(struct sa_ctx *sa_ctx, const struct ipsec_sa entries[],
+sa_add_rules(struct sa_ctx *sa_ctx, struct sa_head *entries,
 		uint32_t nb_entries, uint32_t inbound,
 		struct socket_ctx *skt_ctx)
 {
+	struct ipsec_sa_mgmt *sa_mgmt;
 	struct ipsec_sa *sa;
-	uint32_t i, idx;
+	uint32_t idx;
 	uint16_t iv_length, aad_length;
 	int inline_status;
 	int32_t rc;
@@ -970,15 +975,18 @@ sa_add_rules(struct sa_ctx *sa_ctx, const struct ipsec_sa entries[],
 	/* for ESN upper 32 bits of SQN also need to be part of AAD */
 	aad_length = (app_sa_prm.enable_esn != 0) ? sizeof(uint32_t) : 0;
 
-	for (i = 0; i < nb_entries; i++) {
-		idx = i;
+	sa_mgmt = STAILQ_FIRST(entries);
+	for (idx = 0; idx < nb_entries; idx++) {
+		if (sa_mgmt == NULL)
+			rte_exit(EXIT_FAILURE, "SA mgmt queue is broken\n");
+
 		sa = &sa_ctx->sa[idx];
 		if (sa->spi != 0) {
 			printf("Index %u already in use by SPI %u\n",
 					idx, sa->spi);
 			return -EINVAL;
 		}
-		*sa = entries[i];
+		*sa = sa_mgmt->sa;
 
 		if (inbound) {
 			rc = ipsec_sad_add(&sa_ctx->sad, sa);
@@ -1114,20 +1122,29 @@ sa_add_rules(struct sa_ctx *sa_ctx, const struct ipsec_sa entries[],
 
 			print_one_sa_rule(sa, inbound);
 		}
+		sa_mgmt = STAILQ_NEXT(sa_mgmt, next);
 	}
+
+	for (sa_mgmt = STAILQ_FIRST(entries); sa_mgmt != NULL;
+			sa_mgmt = STAILQ_FIRST(entries)) {
+		STAILQ_REMOVE_HEAD(entries, next);
+		free(sa_mgmt);
+	}
+
+	STAILQ_INIT(entries);
 
 	return 0;
 }
 
 static inline int
-sa_out_add_rules(struct sa_ctx *sa_ctx, const struct ipsec_sa entries[],
+sa_out_add_rules(struct sa_ctx *sa_ctx, struct sa_head *entries,
 		uint32_t nb_entries, struct socket_ctx *skt_ctx)
 {
 	return sa_add_rules(sa_ctx, entries, nb_entries, 0, skt_ctx);
 }
 
 static inline int
-sa_in_add_rules(struct sa_ctx *sa_ctx, const struct ipsec_sa entries[],
+sa_in_add_rules(struct sa_ctx *sa_ctx, struct sa_head *entries,
 		uint32_t nb_entries, struct socket_ctx *skt_ctx)
 {
 	return sa_add_rules(sa_ctx, entries, nb_entries, 1, skt_ctx);
@@ -1363,7 +1380,7 @@ sa_init(struct socket_ctx *ctx, int32_t socket_id)
 		if (rc != 0)
 			rte_exit(EXIT_FAILURE, "failed to init SAD\n");
 
-		sa_in_add_rules(ctx->sa_in, sa_in, nb_sa_in, ctx);
+		sa_in_add_rules(ctx->sa_in, &sa_in_head, nb_sa_in, ctx);
 
 		if (app_sa_prm.enable != 0) {
 			rc = ipsec_satbl_init(ctx->sa_in, nb_sa_in,
@@ -1383,7 +1400,7 @@ sa_init(struct socket_ctx *ctx, int32_t socket_id)
 				"context %s in socket %d\n", rte_errno,
 				name, socket_id);
 
-		sa_out_add_rules(ctx->sa_out, sa_out, nb_sa_out, ctx);
+		sa_out_add_rules(ctx->sa_out, &sa_out_head, nb_sa_out, ctx);
 
 		if (app_sa_prm.enable != 0) {
 			rc = ipsec_satbl_init(ctx->sa_out, nb_sa_out,
@@ -1451,21 +1468,22 @@ outbound_sa_lookup(struct sa_ctx *sa_ctx, uint32_t sa_idx[],
 
 /*
  * Select HW offloads to be used.
+ * Called before sa_init, so working with mgmt queue
  */
 int
 sa_check_offloads(uint16_t port_id, uint64_t *rx_offloads,
 		uint64_t *tx_offloads)
 {
+	struct ipsec_sa_mgmt *sa_mgmt;
 	struct ipsec_sa *rule;
-	uint32_t idx_sa;
 	enum rte_security_session_action_type rule_type;
 
 	*rx_offloads = 0;
 	*tx_offloads = 0;
 
 	/* Check for inbound rules that use offloads and use this port */
-	for (idx_sa = 0; idx_sa < nb_sa_in; idx_sa++) {
-		rule = &sa_in[idx_sa];
+	STAILQ_FOREACH(sa_mgmt, &sa_in_head, next) {
+		rule = &sa_mgmt->sa;
 		rule_type = ipsec_get_action_type(rule);
 		if ((rule_type == RTE_SECURITY_ACTION_TYPE_INLINE_CRYPTO ||
 				rule_type ==
@@ -1475,8 +1493,8 @@ sa_check_offloads(uint16_t port_id, uint64_t *rx_offloads,
 	}
 
 	/* Check for outbound rules that use offloads and use this port */
-	for (idx_sa = 0; idx_sa < nb_sa_out; idx_sa++) {
-		rule = &sa_out[idx_sa];
+	STAILQ_FOREACH(sa_mgmt, &sa_out_head, next) {
+		rule = &sa_mgmt->sa;
 		rule_type = ipsec_get_action_type(rule);
 		if ((rule_type == RTE_SECURITY_ACTION_TYPE_INLINE_CRYPTO ||
 				rule_type ==
