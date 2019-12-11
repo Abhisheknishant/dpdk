@@ -13,6 +13,10 @@
 
 #include "fm10k.h"
 #include "base/fm10k_api.h"
+#ifdef ENABLE_FM10K_MANAGEMENT
+#include "switch/fm10k_regs.h"
+#include "switch/fm10k_switch.h"
+#endif
 
 /* Default delay to acquire mailbox lock */
 #define FM10K_MBXLOCK_DELAY_US 20
@@ -39,6 +43,10 @@
 #define GLORT_PF_MASK    0xFFC0
 #define GLORT_FD_MASK    GLORT_PF_MASK
 #define GLORT_FD_INDEX   GLORT_FD_Q_BASE
+#ifdef ENABLE_FM10K_MANAGEMENT
+/* When the switch is ready, the status will be changed */
+static int fm10k_switch_ready;
+#endif
 
 int fm10k_logtype_init;
 int fm10k_logtype_driver;
@@ -2592,6 +2600,9 @@ fm10k_dev_interrupt_handler_pf(void *param)
 		FM10K_DEV_PRIVATE_TO_INFO(dev->data->dev_private);
 	int status_mbx;
 	s32 err;
+#ifdef ENABLE_FM10K_MANAGEMENT
+	uint32_t writeback = 0;
+#endif
 
 	if (hw->mac.type != fm10k_mac_pf)
 		return;
@@ -2605,11 +2616,20 @@ fm10k_dev_interrupt_handler_pf(void *param)
 	}
 
 	/* Handle switch up/down */
-	if (cause & FM10K_EICR_SWITCHNOTREADY)
-		PMD_INIT_LOG(ERR, "INT: Switch is not ready");
+	if (cause & FM10K_EICR_SWITCHNOTREADY) {
+		PMD_INIT_LOG(INFO, "INT: Switch is not ready");
+#ifdef ENABLE_FM10K_MANAGEMENT
+		fm10k_switch_ready = 0;
+		writeback |= FM10K_EICR_SWITCHNOTREADY;
+#endif
+	}
 
 	if (cause & FM10K_EICR_SWITCHREADY) {
 		PMD_INIT_LOG(INFO, "INT: Switch is ready");
+#ifdef ENABLE_FM10K_MANAGEMENT
+		fm10k_switch_ready = 1;
+		writeback |= FM10K_EICR_SWITCHREADY;
+#endif
 		if (dev_info->sm_down == 1) {
 			fm10k_mbx_lock(hw);
 
@@ -2660,6 +2680,7 @@ fm10k_dev_interrupt_handler_pf(void *param)
 	}
 
 	/* Handle mailbox message */
+#ifndef ENABLE_FM10K_MANAGEMENT
 	fm10k_mbx_lock(hw);
 	err = hw->mbx.ops.process(hw, &hw->mbx);
 	fm10k_mbx_unlock(hw);
@@ -2667,9 +2688,32 @@ fm10k_dev_interrupt_handler_pf(void *param)
 	if (err == FM10K_ERR_RESET_REQUESTED) {
 		PMD_INIT_LOG(INFO, "INT: Switch is down");
 		dev_info->sm_down = 1;
-		_rte_eth_dev_callback_process(dev, RTE_ETH_EVENT_INTR_LSC,
+		_rte_eth_dev_callback_process
+				(dev,
+				RTE_ETH_EVENT_INTR_LSC,
 				NULL);
 	}
+
+#else
+	if (cause & FM10K_EICR_MAILBOX)	{
+		fm10k_mbx_lock(hw);
+		err = hw->mbx.ops.process(hw, &hw->mbx);
+		fm10k_mbx_unlock(hw);
+		writeback |= FM10K_EICR_MAILBOX;
+		if (err == FM10K_ERR_RESET_REQUESTED) {
+			PMD_INIT_LOG(INFO, "INT: Switch is down");
+			dev_info->sm_down = 1;
+			_rte_eth_dev_callback_process
+					(dev,
+					RTE_ETH_EVENT_INTR_LSC,
+					NULL);
+		}
+	}
+
+	/* Handle switch interrupt */
+	if (cause & FM10K_SW_EICR_SWITCH_INT)
+		fm10k_switch_intr(hw);
+#endif
 
 	/* Handle SRAM error */
 	if (cause & FM10K_EICR_SRAMERROR) {
@@ -2682,15 +2726,27 @@ fm10k_dev_interrupt_handler_pf(void *param)
 		/* Todo: print out error message after shared code  updates */
 	}
 
+#ifndef ENABLE_FM10K_MANAGEMENT
 	/* Clear these 3 events if having any */
 	cause &= FM10K_EICR_SWITCHNOTREADY | FM10K_EICR_MAILBOX |
 		 FM10K_EICR_SWITCHREADY;
 	if (cause)
 		FM10K_WRITE_REG(hw, FM10K_EICR, cause);
+#else
+	if (writeback)
+		FM10K_WRITE_REG(hw, FM10K_EICR, writeback);
+#endif
 
 	/* Re-enable interrupt from device side */
-	FM10K_WRITE_REG(hw, FM10K_ITR(0), FM10K_ITR_AUTOMASK |
+#ifndef ENABLE_FM10K_MANAGEMENT
+	FM10K_WRITE_REG(hw, FM10K_ITR(0),
+					FM10K_ITR_AUTOMASK |
 					FM10K_ITR_MASK_CLEAR);
+#else
+	FM10K_WRITE_REG(hw, FM10K_ITR(0),
+		FM10K_SW_ITR_AUTO_MASK |
+	    FM10K_SW_MAKE_REG_FIELD(ITR_MASK, FM10K_SW_ITR_MASK_W_ENABLE));
+#endif
 	/* Re-enable interrupt from host side */
 	rte_intr_ack(dev->intr_handle);
 }
@@ -3075,13 +3131,87 @@ fm10k_params_init(struct rte_eth_dev *dev)
 	info->sm_down = false;
 }
 
+#ifdef ENABLE_FM10K_MANAGEMENT
+static int eth_fm10k_dev_init_hook(struct fm10k_hw *hw)
+{
+	int i, switch_ready;
+	struct rte_eth_dev *dev =
+		(struct rte_eth_dev *)fm10k_switch_dpdk_port_rte_dev_get(hw);
+
+	/* Make sure Switch Manager is ready before going forward. */
+	if (hw->mac.type == fm10k_mac_pf) {
+		switch_ready = 0;
+
+		for (i = 0; i < MAX_QUERY_SWITCH_STATE_TIMES; i++) {
+			fm10k_mbx_lock(hw);
+			switch_ready = fm10k_switch_ready;
+			fm10k_mbx_unlock(hw);
+			if (switch_ready)
+				break;
+			/* Delay some time to acquire async LPORT_MAP info. */
+			rte_delay_us(WAIT_SWITCH_MSG_US);
+		}
+
+		if (switch_ready == 0) {
+			PMD_INIT_LOG(ERR, "switch is not ready");
+			return -1;
+		}
+	}
+
+	/*
+	 * Below function will trigger operations on mailbox, acquire lock to
+	 * avoid race condition from interrupt handler. Operations on mailbox
+	 * FIFO will trigger interrupt to PF/SM, in which interrupt handler
+	 * will handle and generate an interrupt to our side. Then,  FIFO in
+	 * mailbox will be touched.
+	 */
+	if (hw->mac.dglort_map == FM10K_DGLORTMAP_NONE)	{
+		PMD_INIT_LOG(ERR, "dglort_map is not ready");
+		return -1;
+	}
+
+	fm10k_mbx_lock(hw);
+	/* Enable port first */
+	hw->mac.ops.update_lport_state(hw, hw->mac.dglort_map,
+					MAX_LPORT_NUM, 1);
+	/* Set unicast mode by default. App can change to other mode in other
+	 * API func.
+	 */
+	hw->mac.ops.update_xcast_mode(hw, hw->mac.dglort_map,
+					FM10K_XCAST_MODE_NONE);
+	fm10k_mbx_unlock(hw);
+
+	/* Make sure default VID is ready before going forward. */
+	if (hw->mac.type == fm10k_mac_pf) {
+		for (i = 0; i < MAX_QUERY_SWITCH_STATE_TIMES; i++) {
+			if (hw->mac.default_vid)
+				break;
+			/* Delay some time to acquire async port VLAN info. */
+			rte_delay_us(WAIT_SWITCH_MSG_US);
+		}
+
+		if (hw->mac.default_vid == 0)
+			hw->mac.default_vid = 1;
+	}
+
+	/* Add default mac address */
+	fm10k_MAC_filter_set(dev, hw->mac.addr, true,
+		MAIN_VSI_POOL_NUMBER);
+
+	return 0;
+}
+#endif
+
 static int
 eth_fm10k_dev_init(struct rte_eth_dev *dev)
 {
 	struct fm10k_hw *hw = FM10K_DEV_PRIVATE_TO_HW(dev->data->dev_private);
 	struct rte_pci_device *pdev = RTE_ETH_DEV_TO_PCI(dev);
 	struct rte_intr_handle *intr_handle = &pdev->intr_handle;
-	int diag, i;
+	int diag;
+#ifndef ENABLE_FM10K_MANAGEMENT
+	int i;
+#endif
 	struct fm10k_macvlan_filter_info *macvlan;
 
 	PMD_INIT_FUNC_TRACE();
@@ -3118,7 +3248,9 @@ eth_fm10k_dev_init(struct rte_eth_dev *dev)
 			" Try to blacklist unused devices.");
 		return -EIO;
 	}
-
+#ifdef ENABLE_FM10K_MANAGEMENT
+	hw->sw_addr = (void *)pdev->mem_resource[4].addr;
+#endif
 	/* Store fm10k_adapter pointer */
 	hw->back = dev->data->dev_private;
 
@@ -3128,6 +3260,25 @@ eth_fm10k_dev_init(struct rte_eth_dev *dev)
 		PMD_INIT_LOG(ERR, "Shared code init failed: %d", diag);
 		return -EIO;
 	}
+
+#ifdef ENABLE_FM10K_MANAGEMENT
+	if (hw->mac.type == fm10k_mac_pf) {
+		if (hw->hw_addr == NULL || hw->sw_addr == NULL) {
+			PMD_INIT_LOG(ERR, "Bad mem resource."
+					" Try to blacklist unused devices.");
+			return -EIO;
+		}
+	} else {
+		if (hw->hw_addr == NULL) {
+			PMD_INIT_LOG(ERR, "Bad mem resource."
+					" Try to blacklist unused devices.");
+			return -EIO;
+		}
+	}
+
+	/* Store fm10k_adapter pointer */
+	hw->back = dev->data->dev_private;
+#endif
 
 	/* Initialize parameters */
 	fm10k_params_init(dev);
@@ -3209,6 +3360,7 @@ eth_fm10k_dev_init(struct rte_eth_dev *dev)
 	hw->mac.ops.update_int_moderator(hw);
 
 	/* Make sure Switch Manager is ready before going forward. */
+#ifndef ENABLE_FM10K_MANAGEMENT
 	if (hw->mac.type == fm10k_mac_pf) {
 		int switch_ready = 0;
 
@@ -3268,11 +3420,25 @@ eth_fm10k_dev_init(struct rte_eth_dev *dev)
 		MAIN_VSI_POOL_NUMBER);
 
 	return 0;
+#else
+	if (hw->mac.type == fm10k_mac_pf) {
+		bool master = FM10K_READ_REG(hw,
+				FM10K_CTRL) & FM10K_CTRL_BAR4_ALLOWED;
+		return fm10k_switch_dpdk_port_start(hw,
+				dev, 1, master, eth_fm10k_dev_init_hook);
+	} else { /* It may not work for VF */
+		return fm10k_switch_dpdk_port_start(hw,
+				dev, 0, false, eth_fm10k_dev_init_hook);
+	}
+#endif
 }
 
 static int
 eth_fm10k_dev_uninit(struct rte_eth_dev *dev)
 {
+#ifdef ENABLE_FM10K_MANAGEMENT
+	struct fm10k_hw *hw = FM10K_DEV_PRIVATE_TO_HW(dev->data->dev_private);
+#endif
 	PMD_INIT_FUNC_TRACE();
 
 	/* only uninitialize in the primary process */
@@ -3281,6 +3447,10 @@ eth_fm10k_dev_uninit(struct rte_eth_dev *dev)
 
 	/* safe to close dev here */
 	fm10k_dev_close(dev);
+
+#ifdef ENABLE_FM10K_MANAGEMENT
+	fm10k_switch_dpdk_port_stop(hw);
+#endif
 
 	return 0;
 }
