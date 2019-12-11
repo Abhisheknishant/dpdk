@@ -363,7 +363,7 @@ sp6_spi_present(uint32_t spi, int inbound, struct ip_addr ip_addr[2],
  * or -ENOENT otherwise.
  */
 int
-sa_spi_present(uint32_t spi, int inbound);
+sa_spi_present(struct sa_ctx *sa_ctx, uint32_t spi, int inbound);
 
 void
 sa_init(struct socket_ctx *ctx, int32_t socket_id);
