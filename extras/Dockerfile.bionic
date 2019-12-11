@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright(c) 2019 Intel Corporation
+FROM ubuntu:bionic
+
+# install requirements for getting and building DPDK
+# including dependencies for DPDK features
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    pkg-config \
+    python3 \
+    python3-pip \
+    ninja-build \
+    libjansson-dev \
+    libbsd-dev \
+    libnuma-dev \
+    libssl-dev \
+    zlib1g-dev \
+    libpcap-dev \
+    libibverbs-dev \
+        && pip3 install meson \
+        && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+ADD . /tmp/dpdk
+
+WORKDIR /tmp/dpdk
+
+RUN meson /tmp/dpdk-build \
+    -Ddefault_library=shared \
+    -Dmachine=default \
+    -Dper_library_versions=false \
+        && ninja -C /tmp/dpdk-build install \
+        && ldconfig \
+        && cd /; rm -rf /tmp/dpdk /tmp/dpdk-build
+
+WORKDIR /
+
+# Installed DPDK Shared library location:
+# lib dir : /usr/local/lib/
+# include : /usr/local/include/
+# pkgconfig file: /usr/local/lib/x86_64-linux-gnu/pkgconfig/libdpdk.pc
