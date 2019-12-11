@@ -261,11 +261,15 @@ static int igb_filter_restore(struct rte_eth_dev *dev);
 /*
  * Define VF Stats MACRO for Non "cleared on read" register
  */
-#define UPDATE_VF_STAT(reg, last, cur)            \
-{                                                 \
-	u32 latest = E1000_READ_REG(hw, reg);     \
-	cur += (latest - last) & UINT_MAX;        \
-	last = latest;                            \
+#define UPDATE_VF_STAT(reg, last, cur)                          \
+{                                                               \
+	u32 latest = E1000_READ_REG(hw, reg);                   \
+	if (latest >= last)                                     \
+		cur += (latest - last);                         \
+	else                                                    \
+		cur += ((latest + ((uint64_t)1 << 32)) - last); \
+	cur &= UINT_MAX;                                        \
+	last = latest;                                          \
 }
 
 #define IGB_FC_PAUSE_TIME 0x0680
