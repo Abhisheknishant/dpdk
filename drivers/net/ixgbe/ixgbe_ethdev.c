@@ -2555,6 +2555,9 @@ ixgbe_dev_start(struct rte_eth_dev *dev)
 		IXGBE_DEV_PRIVATE_TO_TM_CONF(dev->data->dev_private);
 	struct ixgbe_macsec_setting *macsec_setting =
 		IXGBE_DEV_PRIVATE_TO_MACSEC_SETTING(dev->data->dev_private);
+#ifdef RTE_EXEC_ENV_FREEBSD
+	int i;
+#endif
 
 	PMD_INIT_FUNC_TRACE();
 
@@ -2800,6 +2803,27 @@ skip_link_setup:
 		PMD_DRV_LOG(WARNING,
 			    "please call hierarchy_commit() "
 			    "before starting the port");
+
+	/*
+	 * In freebsd environment, nic_uio drivers do not support interrupts,
+	 * rte_intr_callback_register() will fail to register interrupts.
+	 * We can not make link status to change
+	 * from down to up by interrupt callback.
+	 * So we need to wait for the controller
+	 * to acquire link when ports start.
+	 */
+#ifdef RTE_EXEC_ENV_FREEBSD
+	for (i = 0; i < 25; i++) {
+		/* If we have link, just jump out */
+		err = ixgbe_check_link(hw, &speed, &link_up, 0);
+		if (err)
+			goto error;
+		if (link_up)
+			break;
+		/* Wait for the link partner to also set speed */
+		msec_delay(200);
+	}
+#endif
 
 	/*
 	 * Update link status right before return, because it may
