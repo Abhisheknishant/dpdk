@@ -63,6 +63,11 @@ New Features
   * Removed dynamic library limitation, so PMD can be built as a shared
     object now.
 
+* **Updated the KASUMI PMD.**
+
+  * Transistioned underlying library from libSSO KASUMI to intel-ipsec-mb
+    library (minimum version required 0.53).
+
 
 Removed Items
 -------------
