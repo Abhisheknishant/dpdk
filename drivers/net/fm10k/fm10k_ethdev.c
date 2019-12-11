@@ -2292,6 +2292,77 @@ fm10k_rss_hash_conf_get(struct rte_eth_dev *dev,
 	return 0;
 }
 
+#ifdef ENABLE_FM10K_MANAGEMENT
+static int
+fm10k_mirror_rule_set(struct rte_eth_dev *dev,
+			struct rte_eth_mirror_conf *mirror_conf,
+			uint8_t sw_id, uint8_t on)
+{
+	struct fm10k_hw *hw = FM10K_DEV_PRIVATE_TO_HW(dev->data->dev_private);
+
+	PMD_INIT_LOG(DEBUG,
+			"Mirror set, switch %d to port %d attach vlan %d on %d",
+			sw_id, mirror_conf->dst_pool,
+			mirror_conf->vlan.vlan_id[0], on);
+
+	if (on)	{
+		if (fm10k_switch_mirror_set(hw,
+				mirror_conf->dst_pool,
+				mirror_conf->vlan.vlan_id[0]) < 0) {
+			PMD_INIT_LOG(ERR, "Input wrong port!!!");
+			return -1;
+		}
+	} else {
+		if (fm10k_switch_mirror_reset(hw) < 0) {
+			PMD_INIT_LOG(ERR, "Input wrong port!!!");
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+
+static int
+fm10k_mirror_rule_reset(struct rte_eth_dev *dev, uint8_t sw_id)
+{
+	struct fm10k_hw *hw = FM10K_DEV_PRIVATE_TO_HW(dev->data->dev_private);
+
+	PMD_INIT_LOG(DEBUG, "Mirror reset, switch %d", sw_id);
+
+	fm10k_switch_mirror_reset(hw);
+
+	return 0;
+}
+
+static int
+fm10k_dev_filter_ctrl(struct rte_eth_dev *dev,
+		     enum rte_filter_type filter_type,
+		     enum rte_filter_op filter_op,
+		     void *arg)
+{
+	int ret = 0;
+
+	if (dev == NULL)
+		return -EINVAL;
+
+	switch (filter_type) {
+	case RTE_ETH_FILTER_GENERIC:
+		if (filter_op != RTE_ETH_FILTER_GET)
+			return -EINVAL;
+		*(const void **)arg = fm10k_flow_ops_get();
+		break;
+	default:
+		PMD_DRV_LOG(WARNING, "Filter type (%d) not supported",
+							filter_type);
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+#endif
+
 static void
 fm10k_dev_enable_intr_pf(struct rte_eth_dev *dev)
 {
@@ -2953,6 +3024,11 @@ static const struct eth_dev_ops fm10k_eth_dev_ops = {
 	.reta_query		= fm10k_reta_query,
 	.rss_hash_update	= fm10k_rss_hash_update,
 	.rss_hash_conf_get	= fm10k_rss_hash_conf_get,
+#ifdef ENABLE_FM10K_MANAGEMENT
+	.mirror_rule_set	= fm10k_mirror_rule_set,
+	.mirror_rule_reset	= fm10k_mirror_rule_reset,
+	.filter_ctrl		= fm10k_dev_filter_ctrl,
+#endif
 };
 
 static int ftag_check_handler(__rte_unused const char *key,
