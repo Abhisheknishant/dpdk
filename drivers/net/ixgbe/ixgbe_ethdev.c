@@ -6209,15 +6209,16 @@ ixgbevf_remove_mac_addr(struct rte_eth_dev *dev, uint32_t index)
 	 * The IXGBE_VF_SET_MACVLAN command of the ixgbe-pf driver does
 	 * not support the deletion of a given MAC address.
 	 * Instead, it imposes to delete all MAC addresses, then to add again
-	 * all MAC addresses with the exception of the one to be deleted.
+	 * all MAC addresses with the exception of the one to be deleted
+	 * and the default mac address (index 0).
 	 */
 	(void) ixgbevf_set_uc_addr_vf(hw, 0, NULL);
 
 	/*
-	 * Add again all MAC addresses, with the exception of the deleted one
-	 * and of the permanent MAC address.
+	 * Add again all MAC addresses, with the exception of the deleted one,
+	 * the default mac (index 0) and the permanent MAC address.
 	 */
-	for (i = 0, mac_addr = dev->data->mac_addrs;
+	for (i = 1, mac_addr = &dev->data->mac_addrs[1];
 	     i < hw->mac.num_rar_entries; i++, mac_addr++) {
 		/* Skip the deleted MAC address */
 		if (i == index)
