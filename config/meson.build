@@ -202,6 +202,7 @@ dpdk_conf.set('RTE_LIBEAL_USE_HPET', get_option('use_hpet'))
 dpdk_conf.set('RTE_MAX_VFIO_GROUPS', 64)
 dpdk_conf.set('RTE_DRIVER_MEMPOOL_BUCKET_SIZE_KB', 64)
 dpdk_conf.set('RTE_LIBRTE_DPAA2_USE_PHYS_IOVA', true)
+dpdk_conf.set('RTE_LIBRTE_VIRTIO_LINK_SPEED', 10000)
 
 
 compile_time_cpuflags = []
