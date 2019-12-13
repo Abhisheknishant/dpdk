@@ -313,20 +313,14 @@ virtio_user_fill_intr_handle(struct virtio_user_dev *dev)
 	return 0;
 }
 
-static void
+void
 virtio_user_mem_event_cb(enum rte_mem_event type __rte_unused,
-			 const void *addr,
+			 const void *addr __rte_unused,
 			 size_t len __rte_unused,
 			 void *arg)
 {
 	struct virtio_user_dev *dev = arg;
-	struct rte_memseg_list *msl;
 	uint16_t i;
-
-	/* ignore externally allocated memory */
-	msl = rte_mem_virt2memseg_list(addr);
-	if (msl->external)
-		return;
 
 	pthread_mutex_lock(&dev->mutex);
 

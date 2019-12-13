@@ -385,6 +385,62 @@ const struct virtio_pci_ops virtio_user_ops = {
 	.notify_queue	= virtio_user_notify_queue,
 };
 
+static int
+virtio_user_dma_map(struct rte_vdev_device *vdev, void *addr,
+		uint64_t iova __rte_unused, size_t len)
+{
+	const char *name;
+	struct rte_eth_dev *eth_dev;
+	struct virtio_hw *hw;
+	struct virtio_user_dev *dev;
+
+	if (!vdev)
+		return -EINVAL;
+
+	name = rte_vdev_device_name(vdev);
+	eth_dev = rte_eth_dev_allocated(name);
+	if (!eth_dev)
+		return -ENODEV;
+
+	hw = eth_dev->data->dev_private;
+	dev = hw->virtio_user_dev;
+
+	virtio_user_mem_event_cb(RTE_MEM_EVENT_ALLOC,
+						 addr,
+						 len,
+						 (void *)dev);
+
+	return 0;
+}
+
+static int
+virtio_user_dma_unmap(struct rte_vdev_device *vdev, void *addr,
+		uint64_t iova __rte_unused, size_t len)
+{
+	const char *name;
+	struct rte_eth_dev *eth_dev;
+	struct virtio_hw *hw;
+	struct virtio_user_dev *dev;
+
+	if (!vdev)
+		return -EINVAL;
+
+	name = rte_vdev_device_name(vdev);
+	eth_dev = rte_eth_dev_allocated(name);
+	if (!eth_dev)
+		return -ENODEV;
+
+	hw = eth_dev->data->dev_private;
+	dev = hw->virtio_user_dev;
+
+	virtio_user_mem_event_cb(RTE_MEM_EVENT_FREE,
+						 addr,
+						 len,
+						 (void *)dev);
+
+	return 0;
+}
+
 static const char *valid_args[] = {
 #define VIRTIO_USER_ARG_QUEUES_NUM     "queues"
 	VIRTIO_USER_ARG_QUEUES_NUM,
@@ -717,6 +773,8 @@ virtio_user_pmd_remove(struct rte_vdev_device *vdev)
 }
 
 static struct rte_vdev_driver virtio_user_driver = {
+	.dma_map = virtio_user_dma_map,
+	.dma_unmap = virtio_user_dma_unmap,
 	.probe = virtio_user_pmd_probe,
 	.remove = virtio_user_pmd_remove,
 };

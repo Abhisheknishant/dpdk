@@ -67,4 +67,7 @@ void virtio_user_handle_cq(struct virtio_user_dev *dev, uint16_t queue_idx);
 void virtio_user_handle_cq_packed(struct virtio_user_dev *dev,
 				  uint16_t queue_idx);
 uint8_t virtio_user_handle_mq(struct virtio_user_dev *dev, uint16_t q_pairs);
+void
+virtio_user_mem_event_cb(enum rte_mem_event type,
+			const void *addr, size_t len , void *arg);
 #endif
