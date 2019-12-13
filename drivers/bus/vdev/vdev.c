@@ -546,6 +546,54 @@ vdev_unplug(struct rte_device *dev)
 	return rte_vdev_uninit(dev->name);
 }
 
+static int
+vdev_dma_map(struct rte_device *dev, void *addr, uint64_t iova, size_t len)
+{
+	struct rte_vdev_device *vdev = RTE_DEV_TO_VDEV(dev);
+	const struct rte_vdev_driver *vdrv;
+
+	if (!dev || !dev->driver) {
+		rte_errno = EINVAL;
+		return -1;
+	}
+
+	vdrv = RTE_DRV_TO_VDRV_CONST(dev->driver);
+	if (!vdrv) {
+		rte_errno = EINVAL;
+		return -1;
+	}
+
+	if (vdrv->dma_map)
+		return vdrv->dma_map(vdev, addr, iova, len);
+
+	rte_errno = ENOTSUP;
+	return -1;
+}
+
+static int
+vdev_dma_unmap(struct rte_device *dev, void *addr, uint64_t iova, size_t len)
+{
+	struct rte_vdev_device *vdev = RTE_DEV_TO_VDEV(dev);
+	const struct rte_vdev_driver *vdrv;
+
+	if (!dev || !dev->driver) {
+		rte_errno = EINVAL;
+		return -1;
+	}
+
+	vdrv = RTE_DRV_TO_VDRV_CONST(dev->driver);
+	if (!vdrv) {
+		rte_errno = EINVAL;
+		return -1;
+	}
+
+	if (vdrv->dma_map)
+		return vdrv->dma_unmap(vdev, addr, iova, len);
+
+	rte_errno = ENOTSUP;
+	return -1;
+}
+
 static struct rte_bus rte_vdev_bus = {
 	.scan = vdev_scan,
 	.probe = vdev_probe,
@@ -553,6 +601,8 @@ static struct rte_bus rte_vdev_bus = {
 	.plug = vdev_plug,
 	.unplug = vdev_unplug,
 	.parse = vdev_parse,
+	.dma_map = vdev_dma_map,
+	.dma_unmap = vdev_dma_unmap,
 	.dev_iterate = rte_vdev_dev_iterate,
 };
 

@@ -54,6 +54,18 @@ rte_vdev_device_args(const struct rte_vdev_device *dev)
 TAILQ_HEAD(vdev_driver_list, rte_vdev_driver);
 
 /**
+ * Virtual device DMA map function.
+ */
+typedef int (rte_vdev_dma_map_t)(struct rte_vdev_device *dev, void *addr,
+			    uint64_t iova, size_t len);
+
+/**
+ * Virtual device DMA unmap function.
+ */
+typedef int (rte_vdev_dma_unmap_t)(struct rte_vdev_device *dev, void *addr,
+			    uint64_t iova, size_t len);
+
+/**
  * Probe function called for each virtual device driver once.
  */
 typedef int (rte_vdev_probe_t)(struct rte_vdev_device *dev);
@@ -69,9 +81,21 @@ typedef int (rte_vdev_remove_t)(struct rte_vdev_device *dev);
 struct rte_vdev_driver {
 	TAILQ_ENTRY(rte_vdev_driver) next; /**< Next in list. */
 	struct rte_driver driver;      /**< Inherited general driver. */
+	rte_vdev_dma_map_t *dma_map;   /**<Virtual device DMA map function. */
+	rte_vdev_dma_unmap_t *dma_unmap;   /**<Virtual device DMA unmap function. */
 	rte_vdev_probe_t *probe;       /**< Virtual device probe function. */
 	rte_vdev_remove_t *remove;     /**< Virtual device remove function. */
 };
+
+/**
+ * @internal
+ * Helper macro for drivers that need to convert to struct rte_vdev_driver.
+ */
+#define RTE_DRV_TO_VDRV(ptr) \
+	container_of(ptr, struct rte_vdev_driver, driver)
+
+#define RTE_DRV_TO_VDRV_CONST(ptr) \
+	container_of(ptr, const struct rte_vdev_driver, driver)
 
 /**
  * Register a virtual device driver.
