@@ -451,6 +451,10 @@ rte_memseg_get_fd_offset_thread_unsafe(const struct rte_memseg *ms,
  *   is NULL.
  * @param page_sz
  *   Page size of the underlying memory
+ * @param fd
+ *   File descriptor for the external memory region registered. Must be set to
+ *   -1 if no FD, and ignored if single-segment isn't not used or if iova
+ *   aren't contiguous (iova_addrs != NULL).
  *
  * @return
  *   - 0 on success
@@ -458,6 +462,48 @@ rte_memseg_get_fd_offset_thread_unsafe(const struct rte_memseg *ms,
  *     EINVAL - one of the parameters was invalid
  *     EEXIST - memory chunk is already registered
  *     ENOSPC - no more space in internal config to store a new memory chunk
+ */
+__rte_experimental
+int
+rte_extmem_register_contig(void *va_addr, size_t len, rte_iova_t iova_addr,
+		size_t page_sz, int fd);
+
+/**
+ * @warning
+ * @b EXPERIMENTAL: this API may change without prior notice
+ *
+ * Register external contiguous memory chunk with DPDK.
+ *
+ * @note Using this API is mutually exclusive with ``rte_malloc`` family of
+ *   API's.
+ *
+ * @note This API will not perform any DMA mapping. It is expected that user
+ *   will do that themselves.
+ *
+ * @note Before accessing this memory in other processes, it needs to be
+ *   attached in each of those processes by calling ``rte_extmem_attach`` in
+ *   each other process.
+ *
+ * @param va_addr
+ *   Start of virtual area to register. Must be aligned by ``page_sz``.
+ * @param len
+ *   Length of virtual area to register. Must be aligned by ``page_sz``.
+ * @param iova_addr
+ *   IOVA address for the contiguous memory chunck. Can be 0, in which case
+ *   page IOVA addresses will be set to RTE_BAD_IOVA.
+ * @param page_sz
+ *   Page size of the underlying memory
+ * @param fd
+ *   File descriptor for the external memory region registered. Must be set to
+ *   -1 if no FD, and ignored if single-segment isn't not used.
+ *
+ * @return
+ *   - 0 on success
+ *   - -1 in case of error, with rte_errno set to one of the following:
+ *     EINVAL - one of the parameters was invalid
+ *     EEXIST - memory chunk is already registered
+ *     ENOSPC - no more space in internal config to store a new memory chunk
+ *     ENOMEM - failed to allocate pages IOVA addresses
  */
 __rte_experimental
 int

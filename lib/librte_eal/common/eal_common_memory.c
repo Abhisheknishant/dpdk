@@ -773,6 +773,79 @@ rte_memseg_get_fd_offset(const struct rte_memseg *ms, size_t *offset)
 }
 
 int
+rte_extmem_register_contig(void *va_addr, size_t len, rte_iova_t iova_addr,
+		size_t page_sz, int fd)
+{
+	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
+	rte_iova_t *iova_addrs = NULL;
+	unsigned int socket_id, n, i;
+	int ret = 0;
+
+	if (va_addr == NULL || page_sz == 0 || len == 0 ||
+			!rte_is_power_of_2(page_sz) ||
+			RTE_ALIGN(len, page_sz) != len ||
+			((len % page_sz) != 0  ||
+			!rte_is_aligned(va_addr, page_sz))) {
+		rte_errno = EINVAL;
+		return -1;
+	}
+
+	n = len / page_sz;
+	if (iova_addr != 0) {
+		iova_addrs = malloc(n * sizeof(*iova_addrs));
+		if (iova_addrs == NULL) {
+			rte_errno = -ENOMEM;
+			return -1;
+		}
+
+		for (i = 0; i < n; i++)
+			iova_addrs[i] = iova_addr + n * page_sz;
+
+	}
+
+
+	if (fd >= 0 && !internal_config.single_file_segments) {
+		RTE_LOG(INFO, EAL, "FD won't be attached to the external memory," \
+				" requires single file segments\n");
+		fd = -1;
+	}
+	rte_mcfg_mem_write_lock();
+
+	/* make sure the segment doesn't already exist */
+	if (malloc_heap_find_external_seg(va_addr, len) != NULL) {
+		rte_errno = EEXIST;
+		ret = -1;
+		goto unlock;
+	}
+
+	/* get next available socket ID */
+	socket_id = mcfg->next_socket_id;
+	if (socket_id > INT32_MAX) {
+		RTE_LOG(ERR, EAL, "Cannot assign new socket ID's\n");
+		rte_errno = ENOSPC;
+		ret = -1;
+		goto unlock;
+	}
+
+	/* we can create a new memseg */
+	if (malloc_heap_create_external_seg(va_addr, iova_addrs, n,
+			page_sz, "extmem_contig", socket_id, fd) == NULL) {
+		ret = -1;
+		goto unlock;
+	}
+
+	/* memseg list successfully created - increment next socket ID */
+	mcfg->next_socket_id++;
+unlock:
+	rte_mcfg_mem_write_unlock();
+
+	if (iova_addrs != NULL)
+		free(iova_addrs);
+
+	return ret;
+}
+
+int
 rte_extmem_register(void *va_addr, size_t len, rte_iova_t iova_addrs[],
 		unsigned int n_pages, size_t page_sz)
 {
@@ -809,7 +882,7 @@ rte_extmem_register(void *va_addr, size_t len, rte_iova_t iova_addrs[],
 	/* we can create a new memseg */
 	n = len / page_sz;
 	if (malloc_heap_create_external_seg(va_addr, iova_addrs, n,
-			page_sz, "extmem", socket_id) == NULL) {
+			page_sz, "extmem", socket_id, -1) == NULL) {
 		ret = -1;
 		goto unlock;
 	}

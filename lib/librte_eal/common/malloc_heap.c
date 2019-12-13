@@ -1096,7 +1096,7 @@ destroy_elem(struct malloc_elem *elem, size_t len)
 struct rte_memseg_list *
 malloc_heap_create_external_seg(void *va_addr, rte_iova_t iova_addrs[],
 		unsigned int n_pages, size_t page_sz, const char *seg_name,
-		unsigned int socket_id)
+		unsigned int socket_id, int fd)
 {
 	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
 	char fbarray_name[RTE_FBARRAY_NAME_LEN];
@@ -1153,6 +1153,13 @@ malloc_heap_create_external_seg(void *va_addr, rte_iova_t iova_addrs[],
 	msl->version = 0;
 	msl->external = 1;
 
+	if (fd >= 0) {
+		int list_idx = msl - mcfg->memsegs;
+
+		if (eal_memalloc_set_seg_list_fd(list_idx, fd))
+			RTE_LOG(ERR, EAL, "Failed to set segment list FD\n");
+	}
+
 	return msl;
 }
 
@@ -1202,9 +1209,17 @@ malloc_heap_find_external_seg(void *va_addr, size_t len)
 int
 malloc_heap_destroy_external_seg(struct rte_memseg_list *msl)
 {
+	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
+	int list_idx;
+
 	/* destroy the fbarray backing this memory */
 	if (rte_fbarray_destroy(&msl->memseg_arr) < 0)
 		return -1;
+
+	list_idx = msl - mcfg->memsegs;
+	if (eal_memalloc_set_seg_list_fd(list_idx, -1))
+		RTE_LOG(ERR, EAL, "Failed to reset segment list FD\n");
+
 
 	/* reset the memseg list */
 	memset(msl, 0, sizeof(*msl));

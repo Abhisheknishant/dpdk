@@ -389,7 +389,7 @@ rte_malloc_heap_memory_add(const char *heap_name, void *va_addr, size_t len,
 	n = len / page_sz;
 
 	msl = malloc_heap_create_external_seg(va_addr, iova_addrs, n, page_sz,
-			heap_name, heap->socket_id);
+			heap_name, heap->socket_id, -1);
 	if (msl == NULL) {
 		ret = -1;
 		goto unlock;
