@@ -2801,6 +2801,13 @@ skip_link_setup:
 			    "please call hierarchy_commit() "
 			    "before starting the port");
 
+#ifdef RTE_EXEC_ENV_FREEBSD
+	/* wait for the controller to acquire link */
+	err = ixgbe_wait_for_link_up(hw);
+	if (err)
+		goto error;
+#endif
+
 	/*
 	 * Update link status right before return, because it may
 	 * start link configuration process in a separate thread.
@@ -4113,6 +4120,31 @@ ixgbe_dev_setup_link_alarm_handler(void *param)
 
 	intr->flags &= ~IXGBE_FLAG_NEED_LINK_CONFIG;
 }
+
+#ifdef RTE_EXEC_ENV_FREEBSD
+/*
+ * In freebsd environment, nic_uio drivers do not support interrupts,
+ * rte_intr_callback_register() will fail to register interrupts.
+ * We can not make link status to change from down to up by interrupt
+ * callback. So we need to wait for the controller to acquire link
+ * when ports start.
+ * It returns 0 on link up.
+ */
+int32_t ixgbe_wait_for_link_up(struct ixgbe_hw *hw)
+{
+	int err, i, link_up = 0;
+	uint32_t speed = 0;
+	for (i = 0; i < 25; i++) {
+		err = ixgbe_check_link(hw, &speed, &link_up, 0);
+		if (err)
+			return err;
+		if (link_up)
+			return 0;
+		msec_delay(200);
+	}
+	return 0;
+}
+#endif
 
 /* return 0 means link status changed, -1 means not changed */
 int

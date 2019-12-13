@@ -700,6 +700,9 @@ int
 ixgbe_dev_link_update_share(struct rte_eth_dev *dev,
 			    int wait_to_complete, int vf);
 
+#ifdef RTE_EXEC_ENV_FREEBSD
+int32_t ixgbe_wait_for_link_up(struct ixgbe_hw *hw);
+#endif
 /*
  * misc function prototypes
  */
