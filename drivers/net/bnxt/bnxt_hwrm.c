@@ -473,6 +473,7 @@ int bnxt_hwrm_set_l2_filter(struct bnxt *bp,
 	HWRM_CHECK_RESULT();
 
 	filter->fw_l2_filter_id = rte_le_to_cpu_64(resp->l2_filter_id);
+	filter->flow_id = rte_le_to_cpu_32(resp->flow_id);
 	HWRM_UNLOCK();
 
 	return rc;
@@ -4284,6 +4285,7 @@ int bnxt_hwrm_set_ntuple_filter(struct bnxt *bp,
 	HWRM_CHECK_RESULT();
 
 	filter->fw_ntuple_filter_id = rte_le_to_cpu_64(resp->ntuple_filter_id);
+	filter->flow_id = rte_le_to_cpu_32(resp->flow_id);
 	HWRM_UNLOCK();
 
 	return rc;

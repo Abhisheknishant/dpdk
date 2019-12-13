@@ -1033,6 +1033,8 @@ bnxt_validate_and_parse_flow(struct rte_eth_dev *dev,
 		filter->flags = HWRM_CFA_EM_FLOW_ALLOC_INPUT_FLAGS_PATH_RX;
 
 	use_ntuple = bnxt_filter_type_check(pattern, error);
+
+start:
 	switch (act->type) {
 	case RTE_FLOW_ACTION_TYPE_QUEUE:
 		/* Allow this flow. Redirect to a VNIC. */
@@ -1410,6 +1412,12 @@ vnic_found:
 		PMD_DRV_LOG(DEBUG, "L2 filter created\n");
 		bnxt_update_filter_flags_en(filter, filter1, use_ntuple);
 		break;
+	case RTE_FLOW_ACTION_TYPE_MARK:
+		filter->valid_flags |= BNXT_FLOW_MARK_FLAG;
+		filter->mark = ((const struct rte_flow_action_mark *)
+				act->conf)->id;
+		PMD_DRV_LOG(DEBUG, "Mark the flow %d\n", filter->mark);
+		break;
 	default:
 		rte_flow_error_set(error,
 				   EINVAL,
@@ -1427,15 +1435,8 @@ vnic_found:
 
 done:
 	act = bnxt_flow_non_void_action(++act);
-	if (act->type != RTE_FLOW_ACTION_TYPE_END) {
-		rte_flow_error_set(error,
-				   EINVAL,
-				   RTE_FLOW_ERROR_TYPE_ACTION,
-				   act,
-				   "Invalid action.");
-		rc = -rte_errno;
-		goto ret;
-	}
+	while (act->type != RTE_FLOW_ACTION_TYPE_END)
+		goto start;
 
 	return rc;
 ret:
@@ -1750,6 +1751,17 @@ done:
 		STAILQ_INSERT_TAIL(&vnic->filter, filter, next);
 		PMD_DRV_LOG(DEBUG, "Successfully created flow.\n");
 		STAILQ_INSERT_TAIL(&vnic->flow_list, flow, next);
+		if (filter->valid_flags & BNXT_FLOW_MARK_FLAG) {
+			uint16_t fid = 0;
+
+			if (filter->filter_type == HWRM_CFA_NTUPLE_FILTER)
+				fid = filter->fw_ntuple_filter_id >> 48;
+			else if (filter->filter_type == HWRM_CFA_L2_FILTER)
+				fid = filter->fw_l2_filter_id >> 48;
+
+			PMD_DRV_LOG(DEBUG, "Mark action enabled for flow\n");
+			bp->mark_table[fid] = filter->mark;
+		}
 		bnxt_release_flow_lock(bp);
 		return flow;
 	}
@@ -1862,6 +1874,11 @@ bnxt_flow_destroy(struct rte_eth_dev *dev,
 	ret = bnxt_match_filter(bp, filter);
 	if (ret == 0)
 		PMD_DRV_LOG(ERR, "Could not find matching flow\n");
+
+	if (filter->valid_flags & BNXT_FLOW_MARK_FLAG) {
+		bp->mark_table[filter->flow_id] = 0;
+		filter->flow_id = 0;
+	}
 
 	if (filter->filter_type == HWRM_CFA_EM_FILTER)
 		ret = bnxt_hwrm_clear_em_filter(bp, filter);

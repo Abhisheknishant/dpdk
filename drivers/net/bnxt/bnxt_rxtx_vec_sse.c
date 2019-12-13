@@ -280,8 +280,14 @@ bnxt_recv_pkts_vec(void *rx_queue, struct rte_mbuf **rx_pkts,
 
 			rte_compiler_barrier();
 
-			if (rxcmp->flags_type & RX_PKT_CMPL_FLAGS_RSS_VALID)
+			if (rxcmp->flags_type & RX_PKT_CMPL_FLAGS_RSS_VALID) {
 				mbuf->ol_flags |= PKT_RX_RSS_HASH;
+			} else {
+				mbuf->hash.fdir.id =
+					bnxt_get_cfa_code_or_mark_id(rxq->bp,
+								     rxcmp1);
+				mbuf->ol_flags |= PKT_RX_FDIR | PKT_RX_FDIR_ID;
+			}
 
 			if (rxcmp1->flags2 &
 			    RX_PKT_CMPL_FLAGS2_META_FORMAT_VLAN) {

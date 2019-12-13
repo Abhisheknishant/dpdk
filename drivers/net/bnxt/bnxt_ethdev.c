@@ -458,6 +458,9 @@ skip_cosq_cfg:
 	}
 	bnxt_print_link_info(bp->eth_dev);
 
+	bp->mark_table = rte_zmalloc("bnxt_mark_table",
+				     sizeof(uint16_t) * 64 * 1024,
+				     0);
 	return 0;
 
 err_free:
@@ -956,6 +959,7 @@ static void bnxt_dev_stop_op(struct rte_eth_dev *eth_dev)
 	bnxt_int_handler(eth_dev);
 	bnxt_shutdown_nic(bp);
 	bnxt_hwrm_if_change(bp, 0);
+	memset(bp->mark_table, 0, sizeof(uint16_t) * 64 * 1024);
 	bp->dev_stopped = 1;
 	bp->rx_cosq_cnt = 0;
 }
@@ -974,6 +978,10 @@ static void bnxt_dev_close_op(struct rte_eth_dev *eth_dev)
 	if (bp->grp_info != NULL) {
 		rte_free(bp->grp_info);
 		bp->grp_info = NULL;
+	}
+	if (bp->mark_table != NULL) {
+		rte_free(bp->mark_table);
+		bp->mark_table = NULL;
 	}
 
 	bnxt_dev_uninit(eth_dev);
