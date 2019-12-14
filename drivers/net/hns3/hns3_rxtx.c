@@ -1612,7 +1612,6 @@ hns3_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts, uint16_t nb_pkts)
 	struct rte_mbuf *m_seg;
 	struct rte_mbuf *temp;
 	uint32_t nb_hold = 0;
-	uint16_t tx_next_clean;
 	uint16_t tx_next_use;
 	uint16_t tx_bd_ready;
 	uint16_t tx_pkt_num;
@@ -1627,11 +1626,8 @@ hns3_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts, uint16_t nb_pkts)
 	if (tx_bd_ready == 0)
 		return 0;
 
-	tx_next_clean = txq->next_to_clean;
 	tx_next_use   = txq->next_to_use;
 	tx_bd_max     = txq->nb_tx_desc;
-	tx_bak_pkt = &txq->sw_ring[tx_next_clean];
-
 	tx_pkt_num = (tx_bd_ready < nb_pkts) ? tx_bd_ready : nb_pkts;
 
 	/* send packets */
@@ -1707,7 +1703,6 @@ end_of_tx:
 
 	if (likely(nb_tx)) {
 		hns3_queue_xmit(txq, nb_hold);
-		txq->next_to_clean = tx_next_clean;
 		txq->tx_bd_ready   = tx_bd_ready - nb_hold;
 	}
 
