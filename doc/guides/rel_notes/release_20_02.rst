@@ -56,6 +56,10 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Added OpenWrt howto guide.**
+
+  Added document describes how to enable DPDK on OpenWrt in both virtual and
+  physical machine.
 
 Removed Items
 -------------
