@@ -434,6 +434,28 @@ virtio_init_vring(struct virtqueue *vq)
 }
 
 static int
+virtqueue_reset_packed(struct rte_eth_dev *dev)
+{
+	uint16_t i;
+	struct virtnet_rx *rxvq;
+	struct virtnet_tx *txvq;
+
+	/* Vring reset for each Tx queue and Rx queue. */
+	for (i = 0; i < dev->data->nb_rx_queues; i++) {
+		rxvq = dev->data->rx_queues[i];
+		virtqueue_rxvq_reset_packed(rxvq->vq);
+		virtio_dev_rx_queue_setup_finish(dev, i);
+	}
+
+	for (i = 0; i < dev->data->nb_tx_queues; i++) {
+		txvq = dev->data->tx_queues[i];
+		virtqueue_txvq_reset_packed(txvq->vq);
+	}
+
+	return 0;
+}
+
+static int
 virtio_init_queue(struct rte_eth_dev *dev, uint16_t vtpci_queue_idx)
 {
 	char vq_name[VIRTQUEUE_MAX_NAME_SZ];
@@ -1913,6 +1935,8 @@ eth_virtio_dev_init(struct rte_eth_dev *eth_dev)
 			goto err_vtpci_init;
 	}
 
+	rte_spinlock_init(&hw->state_lock);
+
 	/* reset device and negotiate default features */
 	ret = virtio_init_device(eth_dev, VIRTIO_PMD_DEFAULT_GUEST_FEATURES);
 	if (ret < 0)
@@ -2154,8 +2178,6 @@ virtio_dev_configure(struct rte_eth_dev *dev)
 			PMD_DRV_LOG(ERR, "failed to set config vector");
 			return -EBUSY;
 		}
-
-	rte_spinlock_init(&hw->state_lock);
 
 	hw->use_simple_rx = 1;
 
@@ -2417,6 +2439,28 @@ virtio_dev_vlan_offload_set(struct rte_eth_dev *dev, int mask)
 
 	if (mask & ETH_VLAN_STRIP_MASK)
 		hw->vlan_strip = !!(offloads & DEV_RX_OFFLOAD_VLAN_STRIP);
+
+	return 0;
+}
+
+int
+virtio_user_reset_device(struct rte_eth_dev *dev)
+{
+	struct virtio_hw *hw = dev->data->dev_private;
+
+	/* Add lock to avoid queue contention. */
+	rte_spinlock_lock(&hw->state_lock);
+	hw->started = 0;
+	/*
+	 * Waitting for datapath to complete before resetting queues.
+	 * 1 ms should be enough for the ongoing Tx/Rx function to finish.
+	 */
+	rte_delay_ms(1);
+
+	virtqueue_reset_packed(dev);
+
+	hw->started = 1;
+	rte_spinlock_unlock(&hw->state_lock);
 
 	return 0;
 }
