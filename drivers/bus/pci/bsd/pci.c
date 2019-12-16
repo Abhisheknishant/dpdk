@@ -338,6 +338,9 @@ rte_pci_scan(void)
 			.match_buf_len = sizeof(matches),
 			.matches = &matches[0],
 	};
+	struct rte_pci_device dummy_dev;
+
+	memset(&dummy_dev, 0, sizeof(struct rte_pci_device));
 
 	/* for debug purposes, PCI can be disabled */
 	if (!rte_eal_has_pci())
@@ -357,9 +360,22 @@ rte_pci_scan(void)
 			goto error;
 		}
 
-		for (i = 0; i < conf_io.num_matches; i++)
+		for (i = 0; i < conf_io.num_matches; i++) {
+			/* Create dummy pci device to get devargs */
+			dummy_dev.addr.domain = matches[i].pc_sel.pc_domain;
+			dummy_dev.addr.bus = matches[i].pc_sel.pc_bus;
+			dummy_dev.addr.devid = matches[i].pc_sel.pc_dev;
+			dummy_dev.addr.function = matches[i].pc_sel.pc_func;
+			dummy_dev.device.devargs =
+						pci_devargs_lookup(&dummy_dev);
+
+			/* Check that device should be ignored or not  */
+			if (pci_ignore_device(&dummy_dev))
+				continue;
+
 			if (pci_scan_one(fd, &matches[i]) < 0)
 				goto error;
+		}
 
 		dev_count += conf_io.num_matches;
 	} while(conf_io.status == PCI_GETCONF_MORE_DEVS);

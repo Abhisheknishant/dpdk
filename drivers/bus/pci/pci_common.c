@@ -42,7 +42,7 @@ const char *rte_pci_get_sysfs_path(void)
 	return path;
 }
 
-static struct rte_devargs *pci_devargs_lookup(struct rte_pci_device *dev)
+struct rte_devargs *pci_devargs_lookup(struct rte_pci_device *dev)
 {
 	struct rte_devargs *devargs;
 	struct rte_pci_addr addr;
@@ -589,7 +589,7 @@ pci_dma_unmap(struct rte_device *dev, void *addr, uint64_t iova, size_t len)
 	return -1;
 }
 
-static bool
+bool
 pci_ignore_device(const struct rte_pci_device *dev)
 {
 	struct rte_devargs *devargs = dev->device.devargs;

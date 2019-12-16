@@ -43,6 +43,26 @@ void
 pci_name_set(struct rte_pci_device *dev);
 
 /**
+ * Get the devargs of a PCI device.
+ *
+ * @param pci_dev
+ *	PCI device to be validated
+ * @return
+ *	devargs on succes, NULL otherwise
+ */
+struct rte_devargs *pci_devargs_lookup(struct rte_pci_device *pci_dev);
+
+/**
+ * Validate whether a pci device should be ignored or not.
+ *
+ * @param pci_dev
+ *	PCI device to be validated
+ * @return
+ *	1 if device is to be ignored, 0 otherwise
+ */
+bool pci_ignore_device(const struct rte_pci_device *pci_dev);
+
+/**
  * Add a PCI device to the PCI Bus (append to PCI Device list). This function
  * also updates the bus references of the PCI Device (and the generic device
  * object embedded within.

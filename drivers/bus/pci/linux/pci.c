@@ -458,6 +458,9 @@ rte_pci_scan(void)
 	DIR *dir;
 	char dirname[PATH_MAX];
 	struct rte_pci_addr addr;
+	struct rte_pci_device dummy_dev;
+
+	memset(&dummy_dev, 0, sizeof(struct rte_pci_device));
 
 	/* for debug purposes, PCI can be disabled */
 	if (!rte_eal_has_pci())
@@ -480,6 +483,14 @@ rte_pci_scan(void)
 			continue;
 
 		if (parse_pci_addr_format(e->d_name, sizeof(e->d_name), &addr) != 0)
+			continue;
+
+		/* Create dummy pci device to get devargs */
+		dummy_dev.addr = addr;
+		dummy_dev.device.devargs = pci_devargs_lookup(&dummy_dev);
+
+		/* Check that device should be ignored or not  */
+		if (pci_ignore_device(&dummy_dev))
 			continue;
 
 		snprintf(dirname, sizeof(dirname), "%s/%s",
