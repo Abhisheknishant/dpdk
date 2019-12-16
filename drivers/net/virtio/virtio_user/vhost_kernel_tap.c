@@ -131,7 +131,8 @@ vhost_kernel_open_tap(char **p_ifname, int hdr_size, int req_mq,
 		goto error;
 	}
 
-	vhost_kernel_tap_set_offload(tapfd, features);
+	if (vhost_kernel_tap_set_offload(tapfd, features) < 0)
+		goto error;
 
 	memset(&ifr, 0, sizeof(ifr));
 	ifr.ifr_hwaddr.sa_family = ARPHRD_ETHER;
