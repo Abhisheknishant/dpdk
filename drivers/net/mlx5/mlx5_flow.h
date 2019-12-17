@@ -338,6 +338,7 @@ struct mlx5_flow_dv_matcher {
 	/**< Pointer to the table(group) the matcher associated with. */
 	rte_atomic32_t refcnt; /**< Reference counter. */
 	void *matcher_object; /**< Pointer to DV matcher */
+	bool shared;
 	uint16_t crc; /**< CRC of key. */
 	uint16_t priority; /**< Priority of matcher. */
 	struct mlx5_flow_dv_match_params mask; /**< Matcher mask. */
@@ -532,6 +533,7 @@ struct mlx5_flow {
 		uint32_t mtr_flow_id; /**< Unique meter match flow id. */
 	};
 	bool external; /**< true if the flow is created external to PMD. */
+	bool matcher_shared;
 };
 
 /* Flow meter state. */

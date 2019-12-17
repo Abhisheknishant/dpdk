@@ -3421,7 +3421,9 @@ flow_create_split_inner(struct rte_eth_dev *dev,
 			const struct rte_flow_attr *attr,
 			const struct rte_flow_item items[],
 			const struct rte_flow_action actions[],
-			bool external, struct rte_flow_error *error)
+			bool external,
+			bool shared,
+			struct rte_flow_error *error)
 {
 	struct mlx5_flow *dev_flow;
 
@@ -3434,6 +3436,7 @@ flow_create_split_inner(struct rte_eth_dev *dev,
 	LIST_INSERT_HEAD(&flow->dev_flows, dev_flow, next);
 	if (sub_flow)
 		*sub_flow = dev_flow;
+	dev_flow->matcher_shared = shared;
 	return flow_drv_translate(dev, dev_flow, attr, items, actions, error);
 }
 
@@ -3741,7 +3744,9 @@ flow_create_split_metadata(struct rte_eth_dev *dev,
 			   const struct rte_flow_attr *attr,
 			   const struct rte_flow_item items[],
 			   const struct rte_flow_action actions[],
-			   bool external, struct rte_flow_error *error)
+			   bool external,
+			   bool shared,
+			   struct rte_flow_error *error)
 {
 	struct mlx5_priv *priv = dev->data->dev_private;
 	struct mlx5_dev_config *config = &priv->config;
@@ -3759,7 +3764,8 @@ flow_create_split_metadata(struct rte_eth_dev *dev,
 	    config->dv_xmeta_en == MLX5_XMETA_MODE_LEGACY ||
 	    !mlx5_flow_ext_mreg_supported(dev))
 		return flow_create_split_inner(dev, flow, NULL, attr, items,
-					       actions, external, error);
+					       actions, external,
+					       shared, error);
 	actions_n = flow_parse_qrss_action(actions, &qrss);
 	if (qrss) {
 		/* Exclude hairpin flows from splitting. */
@@ -3842,7 +3848,7 @@ flow_create_split_metadata(struct rte_eth_dev *dev,
 	/* Add the unmodified original or prefix subflow. */
 	ret = flow_create_split_inner(dev, flow, &dev_flow, attr, items,
 				      ext_actions ? ext_actions : actions,
-				      external, error);
+				      external, shared, error);
 	if (ret < 0)
 		goto exit;
 	assert(dev_flow);
@@ -3906,7 +3912,7 @@ flow_create_split_metadata(struct rte_eth_dev *dev,
 		ret = flow_create_split_inner(dev, flow, &dev_flow,
 					      &q_attr, mtr_sfx ? items :
 					      q_items, q_actions,
-					      external, error);
+					      external, shared, error);
 		if (ret < 0)
 			goto exit;
 		assert(dev_flow);
@@ -3999,7 +4005,7 @@ flow_create_split_meter(struct rte_eth_dev *dev,
 		}
 		/* Add the prefix subflow. */
 		ret = flow_create_split_inner(dev, flow, &dev_flow, attr, items,
-						  pre_actions, external, error);
+					      pre_actions, external, false, error);
 		if (ret) {
 			ret = -rte_errno;
 			goto exit;
@@ -4035,7 +4041,7 @@ flow_create_split_meter(struct rte_eth_dev *dev,
 	ret = flow_create_split_metadata(dev, flow, &sfx_attr,
 					 sfx_items ? sfx_items : items,
 					 sfx_actions ? sfx_actions : actions,
-					 external, error);
+					 external, sfx_items == NULL, error);
 exit:
 	if (sfx_actions)
 		rte_free(sfx_actions);

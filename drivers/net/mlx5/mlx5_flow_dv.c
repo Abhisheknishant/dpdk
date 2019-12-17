@@ -6317,10 +6317,13 @@ flow_dv_matcher_register(struct rte_eth_dev *dev,
 	if (!tbl)
 		return -rte_errno;	/* No need to refill the error info */
 	tbl_data = container_of(tbl, struct mlx5_flow_tbl_data_entry, tbl);
+	if (!dev_flow->matcher_shared)
+		goto create_matcher;
 	/* Lookup from cache. */
 	LIST_FOREACH(cache_matcher, &tbl_data->matchers, next) {
 		if (matcher->crc == cache_matcher->crc &&
 		    matcher->priority == cache_matcher->priority &&
+		    cache_matcher->shared &&
 		    !memcmp((const void *)matcher->mask.buf,
 			    (const void *)cache_matcher->mask.buf,
 			    cache_matcher->mask.size)) {
@@ -6339,6 +6342,7 @@ flow_dv_matcher_register(struct rte_eth_dev *dev,
 			return 0;
 		}
 	}
+create_matcher:
 	/* Register new matcher. */
 	cache_matcher = rte_calloc(__func__, 1, sizeof(*cache_matcher), 0);
 	if (!cache_matcher) {
@@ -6348,6 +6352,7 @@ flow_dv_matcher_register(struct rte_eth_dev *dev,
 					  "cannot allocate matcher memory");
 	}
 	*cache_matcher = *matcher;
+	cache_matcher->shared = dev_flow->matcher_shared;
 	dv_attr.match_criteria_enable =
 		flow_dv_matcher_enable(cache_matcher->mask.buf);
 	dv_attr.priority = matcher->priority;
