@@ -91,6 +91,7 @@ DPDK_20.0 {
 	rte_intr_free_epoll_fd;
 	rte_intr_rx_ctl;
 	rte_intr_tls_epfd;
+	rte_thread_is_intr;
 	rte_keepalive_create;
 	rte_keepalive_dispatch_pings;
 	rte_keepalive_mark_alive;
