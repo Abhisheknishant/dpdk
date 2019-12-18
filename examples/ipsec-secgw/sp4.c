@@ -8,14 +8,13 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <sys/queue.h>
 
 #include <rte_acl.h>
 #include <rte_ip.h>
 
 #include "ipsec.h"
 #include "parser.h"
-
-#define MAX_ACL_RULE_NUM	1024
 
 #define IPV4_DST_FROM_SP(acr) \
 		(rte_cpu_to_be_32((acr).field[DST_FIELD_IPV4].value.u32))
@@ -97,16 +96,24 @@ static struct rte_acl_field_def ip4_defs[NUM_FIELDS_IPV4] = {
 
 RTE_ACL_RULE_DEF(acl4_rules, RTE_DIM(ip4_defs));
 
-static struct acl4_rules acl4_rules_out[MAX_ACL_RULE_NUM];
+struct ipsec_sp_mgmt {
+	STAILQ_ENTRY(ipsec_sp_mgmt)	next;
+	struct acl4_rules		sp;
+};
+STAILQ_HEAD(sp_head, ipsec_sp_mgmt);
+
+static struct sp_head sp_out_head = STAILQ_HEAD_INITIALIZER(sp_out_head);
 static uint32_t nb_acl4_rules_out;
 
-static struct acl4_rules acl4_rules_in[MAX_ACL_RULE_NUM];
+static struct sp_head sp_in_head = STAILQ_HEAD_INITIALIZER(sp_in_head);
 static uint32_t nb_acl4_rules_in;
 
 void
 parse_sp4_tokens(char **tokens, uint32_t n_tokens,
 	struct parse_status *status)
 {
+	struct ipsec_sp_mgmt *sp_mgmt;
+	struct sp_head *head;
 	struct acl4_rules *rule_ipv4 = NULL;
 
 	uint32_t *ri = NULL; /* rule index */
@@ -124,25 +131,18 @@ parse_sp4_tokens(char **tokens, uint32_t n_tokens,
 	uint32_t sport_p = 0;
 	uint32_t dport_p = 0;
 
+	sp_mgmt = calloc(1, sizeof(struct ipsec_sp_mgmt));
+	if (sp_mgmt == NULL)
+		return;
+
+	rule_ipv4 = &sp_mgmt->sp;
+
 	if (strcmp(tokens[1], "in") == 0) {
 		ri = &nb_acl4_rules_in;
-
-		APP_CHECK(*ri <= MAX_ACL_RULE_NUM - 1, status,
-			"too many sp rules, abort insertion\n");
-		if (status->status < 0)
-			return;
-
-		rule_ipv4 = &acl4_rules_in[*ri];
-
+		head = &sp_in_head;
 	} else if (strcmp(tokens[1], "out") == 0) {
 		ri = &nb_acl4_rules_out;
-
-		APP_CHECK(*ri <= MAX_ACL_RULE_NUM - 1, status,
-			"too many sp rules, abort insertion\n");
-		if (status->status < 0)
-			return;
-
-		rule_ipv4 = &acl4_rules_out[*ri];
+		head = &sp_out_head;
 	} else {
 		APP_CHECK(0, status, "unrecognized input \"%s\", expect"
 			" \"in\" or \"out\"\n", tokens[ti]);
@@ -400,6 +400,7 @@ parse_sp4_tokens(char **tokens, uint32_t n_tokens,
 	if (status->status < 0)
 		return;
 
+	STAILQ_INSERT_TAIL(head, sp_mgmt, next);
 	*ri = *ri + 1;
 }
 
@@ -443,17 +444,33 @@ dump_ip4_rules(const struct acl4_rules *rule, int32_t num, int32_t extra)
 }
 
 static struct rte_acl_ctx *
-acl4_init(const char *name, int32_t socketid, const struct acl4_rules *rules,
+acl4_init(const char *name, int32_t socketid, struct sp_head *rules_list,
 		uint32_t rules_nb)
 {
 	char s[PATH_MAX];
 	struct rte_acl_param acl_param;
 	struct rte_acl_config acl_build_param;
 	struct rte_acl_ctx *ctx;
+	struct acl4_rules *rules; /* Temporary array containing rules */
+	struct ipsec_sp_mgmt *sp_mgmt;
+	uint32_t i;
 
-	printf("Creating SP context with %u max rules\n", MAX_ACL_RULE_NUM);
+	printf("Creating SP context with %u rules\n", rules_nb);
 
 	memset(&acl_param, 0, sizeof(acl_param));
+
+	/* Create flat array of rules which is needed for acl context */
+	rules = calloc(rules_nb, sizeof(struct acl4_rules));
+	if (rules == NULL)
+		rte_exit(EXIT_FAILURE, "Can't allocate rules array\n");
+
+	sp_mgmt = STAILQ_FIRST(rules_list);
+	for (i = 0; i < rules_nb; i++) {
+		if (sp_mgmt == NULL)
+			rte_exit(EXIT_FAILURE, "SP list is broken\n");
+		rules[i] = sp_mgmt->sp;
+		sp_mgmt = STAILQ_NEXT(sp_mgmt, next);
+	}
 
 	/* Create ACL contexts */
 	snprintf(s, sizeof(s), "%s_%d", name, socketid);
@@ -464,7 +481,7 @@ acl4_init(const char *name, int32_t socketid, const struct acl4_rules *rules,
 	acl_param.name = s;
 	acl_param.socket_id = socketid;
 	acl_param.rule_size = RTE_ACL_RULE_SZ(RTE_DIM(ip4_defs));
-	acl_param.max_rule_num = MAX_ACL_RULE_NUM;
+	acl_param.max_rule_num = rules_nb;
 
 	ctx = rte_acl_create(&acl_param);
 	if (ctx == NULL)
@@ -486,6 +503,7 @@ acl4_init(const char *name, int32_t socketid, const struct acl4_rules *rules,
 
 	rte_acl_dump(ctx);
 
+	free(rules);
 	return ctx;
 }
 
@@ -495,20 +513,19 @@ acl4_init(const char *name, int32_t socketid, const struct acl4_rules *rules,
 static int
 check_spi_value(struct sa_ctx *sa_ctx, int inbound)
 {
-	uint32_t i, num, spi;
+	uint32_t spi;
 	int32_t spi_idx;
-	struct acl4_rules *acr;
+	struct ipsec_sp_mgmt	*sp_mgmt;
+	struct sp_head		*head;
 
-	if (inbound != 0) {
-		acr = acl4_rules_in;
-		num = nb_acl4_rules_in;
-	} else {
-		acr = acl4_rules_out;
-		num = nb_acl4_rules_out;
-	}
+	if (inbound != 0)
+		head = &sp_in_head;
+	else
+		head = &sp_out_head;
 
-	for (i = 0; i != num; i++) {
-		spi = acr[i].data.userdata;
+
+	STAILQ_FOREACH(sp_mgmt, head, next) {
+		spi = sp_mgmt->sp.data.userdata;
 		if (spi != DISCARD && spi != BYPASS) {
 			spi_idx = sa_spi_present(sa_ctx, spi, inbound);
 			if (spi_idx < 0) {
@@ -518,7 +535,7 @@ check_spi_value(struct sa_ctx *sa_ctx, int inbound)
 				return -ENOENT;
 			}
 			/* Update userdata with spi index */
-			acr[i].data.userdata = spi_idx + 1;
+			sp_mgmt->sp.data.userdata = spi_idx + 1;
 		}
 	}
 
@@ -548,11 +565,10 @@ sp4_init(struct socket_ctx *ctx, int32_t socket_id)
 	if (check_spi_value(ctx->sa_out, 0) < 0)
 		rte_exit(EXIT_FAILURE,
 			"Outbound IPv4 SP DB has unmatched in SAD SPIs\n");
-
 	if (nb_acl4_rules_in > 0) {
 		name = "sp_ip4_in";
 		ctx->sp_ip4_in = (struct sp_ctx *)acl4_init(name,
-			socket_id, acl4_rules_in, nb_acl4_rules_in);
+			socket_id, &sp_in_head, nb_acl4_rules_in);
 	} else
 		RTE_LOG(WARNING, IPSEC, "No IPv4 SP Inbound rule "
 			"specified\n");
@@ -560,7 +576,7 @@ sp4_init(struct socket_ctx *ctx, int32_t socket_id)
 	if (nb_acl4_rules_out > 0) {
 		name = "sp_ip4_out";
 		ctx->sp_ip4_out = (struct sp_ctx *)acl4_init(name,
-			socket_id, acl4_rules_out, nb_acl4_rules_out);
+			socket_id, &sp_out_head, nb_acl4_rules_out);
 	} else
 		RTE_LOG(WARNING, IPSEC, "No IPv4 SP Outbound rule "
 			"specified\n");
@@ -573,27 +589,28 @@ int
 sp4_spi_present(uint32_t spi, int inbound, struct ip_addr ip_addr[2],
 			uint32_t mask[2])
 {
-	uint32_t i, num;
-	const struct acl4_rules *acr;
+	uint32_t i = 0;
+	struct ipsec_sp_mgmt	*sp_mgmt;
+	struct sp_head		*head;
 
-	if (inbound != 0) {
-		acr = acl4_rules_in;
-		num = nb_acl4_rules_in;
-	} else {
-		acr = acl4_rules_out;
-		num = nb_acl4_rules_out;
-	}
+	if (inbound != 0)
+		head = &sp_in_head;
+	else
+		head = &sp_out_head;
 
-	for (i = 0; i != num; i++) {
-		if (acr[i].data.userdata == spi) {
+	STAILQ_FOREACH(sp_mgmt, head, next) {
+		if (sp_mgmt->sp.data.userdata == spi) {
 			if (NULL != ip_addr && NULL != mask) {
-				ip_addr[0].ip.ip4 = IPV4_SRC_FROM_SP(acr[i]);
-				ip_addr[1].ip.ip4 = IPV4_DST_FROM_SP(acr[i]);
-				mask[0] = IPV4_SRC_MASK_FROM_SP(acr[i]);
-				mask[1] = IPV4_DST_MASK_FROM_SP(acr[i]);
+				ip_addr[0].ip.ip4 =
+					IPV4_SRC_FROM_SP(sp_mgmt->sp);
+				ip_addr[1].ip.ip4 =
+					IPV4_DST_FROM_SP(sp_mgmt->sp);
+				mask[0] = IPV4_SRC_MASK_FROM_SP(sp_mgmt->sp);
+				mask[1] = IPV4_DST_MASK_FROM_SP(sp_mgmt->sp);
 			}
 			return i;
 		}
+		i++;
 	}
 
 	return -ENOENT;
