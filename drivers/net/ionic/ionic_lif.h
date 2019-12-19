@@ -23,8 +23,10 @@ struct ionic_lif {
 	uint16_t port_id;  /**< Device port identifier */
 	uint32_t index;
 	uint32_t hw_index;
-	char name[IONIC_LIF_NAME_MAX_SZ];
 	uint32_t state;
+	uint32_t kern_pid;
+	struct ionic_doorbell __iomem *kern_dbpage;
+	char name[IONIC_LIF_NAME_MAX_SZ];
 	uint32_t info_sz;
 	struct ionic_lif_info *info;
 	rte_iova_t info_pa;
