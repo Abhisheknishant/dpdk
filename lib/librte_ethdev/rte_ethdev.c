@@ -5065,10 +5065,10 @@ rte_eth_switch_domain_alloc(uint16_t *domain_id)
 	*domain_id = RTE_ETH_DEV_SWITCH_DOMAIN_ID_INVALID;
 
 	for (i = RTE_ETH_DEV_SWITCH_DOMAIN_ID_INVALID + 1;
-		i < RTE_MAX_ETHPORTS; i++) {
-		if (rte_eth_switch_domains[i].state ==
+		i <= RTE_MAX_ETHPORTS; i++) {
+		if (rte_eth_switch_domains[i - 1].state ==
 			RTE_ETH_SWITCH_DOMAIN_UNUSED) {
-			rte_eth_switch_domains[i].state =
+			rte_eth_switch_domains[i - 1].state =
 				RTE_ETH_SWITCH_DOMAIN_ALLOCATED;
 			*domain_id = i;
 			return 0;
@@ -5082,14 +5082,15 @@ int
 rte_eth_switch_domain_free(uint16_t domain_id)
 {
 	if (domain_id == RTE_ETH_DEV_SWITCH_DOMAIN_ID_INVALID ||
-		domain_id >= RTE_MAX_ETHPORTS)
+		domain_id > RTE_MAX_ETHPORTS)
 		return -EINVAL;
 
-	if (rte_eth_switch_domains[domain_id].state !=
+	if (rte_eth_switch_domains[domain_id - 1].state !=
 		RTE_ETH_SWITCH_DOMAIN_ALLOCATED)
 		return -EINVAL;
 
-	rte_eth_switch_domains[domain_id].state = RTE_ETH_SWITCH_DOMAIN_UNUSED;
+	rte_eth_switch_domains[domain_id - 1].state =
+		RTE_ETH_SWITCH_DOMAIN_UNUSED;
 
 	return 0;
 }
