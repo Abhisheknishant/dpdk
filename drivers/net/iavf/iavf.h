@@ -181,7 +181,6 @@ _clear_cmd(struct iavf_info *vf)
 {
 	rte_wmb();
 	vf->pend_cmd = VIRTCHNL_OP_UNKNOWN;
-	vf->cmd_retval = VIRTCHNL_STATUS_SUCCESS;
 }
 
 /* Check there is pending cmd in execution. If none, set new command. */
