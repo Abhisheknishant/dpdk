@@ -56,6 +56,10 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Added IONIC net PMD.**
+
+  Added the new ``ionic`` net driver for Pensando Ethernet Network Adapters.
+  See the :doc:`../nics/ionic` NIC guide for more details on this new driver.
 
 Removed Items
 -------------
