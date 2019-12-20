@@ -520,6 +520,9 @@ test_ring_perf(void)
 					dequeue_bulk) < 0)
 			return -1;
 	}
+	printf("\n### Testing using all slave nodes ###\n");
+	if (run_on_all_cores(r) < 0)
+		return -1;
 	rte_ring_free(r);
 
 	TEST_RING_CREATE(RING_NAME, 16, RING_SIZE, rte_socket_id(), 0, r);
@@ -566,9 +569,6 @@ test_ring_perf(void)
 					dequeue_bulk_16B) < 0)
 			return -1;
 	}
-
-	printf("\n### Testing using all slave nodes ###\n");
-	run_on_all_cores(r);
 
 	rte_ring_free(r);
 
