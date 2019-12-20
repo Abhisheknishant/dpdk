@@ -147,27 +147,24 @@ get_two_sockets(struct lcore_pair *lcp)
 
 /* Get cycle counts for dequeuing from an empty ring. Should be 2 or 3 cycles */
 static void
-test_empty_dequeue(struct rte_ring *r)
+test_empty_dequeue(struct rte_ring *r, const int esize,
+			const unsigned int api_type)
 {
-	const unsigned iter_shift = 26;
-	const unsigned iterations = 1<<iter_shift;
-	unsigned i = 0;
+	int ret;
+	const unsigned int iter_shift = 26;
+	const unsigned int iterations = 1 << iter_shift;
+	unsigned int i = 0;
 	void *burst[MAX_BURST];
 
-	const uint64_t sc_start = rte_rdtsc();
+	(void)ret;
+	const uint64_t start = rte_rdtsc();
 	for (i = 0; i < iterations; i++)
-		rte_ring_sc_dequeue_bulk(r, burst, bulk_sizes[0], NULL);
-	const uint64_t sc_end = rte_rdtsc();
+		TEST_RING_DEQUEUE(r, burst, esize, bulk_sizes[0],
+					ret, api_type);
+	const uint64_t end = rte_rdtsc();
 
-	const uint64_t mc_start = rte_rdtsc();
-	for (i = 0; i < iterations; i++)
-		rte_ring_mc_dequeue_bulk(r, burst, bulk_sizes[0], NULL);
-	const uint64_t mc_end = rte_rdtsc();
-
-	printf("SC empty dequeue: %.2F\n",
-			(double)(sc_end-sc_start) / iterations);
-	printf("MC empty dequeue: %.2F\n",
-			(double)(mc_end-mc_start) / iterations);
+	test_ring_print_test_string(api_type, esize, bulk_sizes[0],
+					((double)(end - start)) / iterations);
 }
 
 /*
@@ -466,6 +463,9 @@ test_ring_perf(void)
 	if (test_burst_bulk_enqueue_dequeue(r, -1,
 			TEST_RING_M | TEST_RING_BL) < 0)
 		return -1;
+	printf("\n### Testing empty bulk deq ###\n");
+	test_empty_dequeue(r, -1, TEST_RING_S | TEST_RING_BL);
+	test_empty_dequeue(r, -1, TEST_RING_M | TEST_RING_BL);
 	rte_ring_free(r);
 
 	TEST_RING_CREATE(RING_NAME, 16, RING_SIZE, rte_socket_id(), 0, r);
@@ -491,14 +491,14 @@ test_ring_perf(void)
 	if (test_burst_bulk_enqueue_dequeue(r, 16,
 			TEST_RING_M | TEST_RING_BL) < 0)
 		return -1;
+	printf("\n### Testing empty bulk deq ###\n");
+	test_empty_dequeue(r, 16, TEST_RING_S | TEST_RING_BL);
+	test_empty_dequeue(r, 16, TEST_RING_M | TEST_RING_BL);
 	rte_ring_free(r);
 
 	r = rte_ring_create(RING_NAME, RING_SIZE, rte_socket_id(), 0);
 	if (r == NULL)
 		return -1;
-
-	printf("\n### Testing empty dequeue ###\n");
-	test_empty_dequeue(r);
 
 	if (get_two_hyperthreads(&cores) == 0) {
 		printf("\n### Testing using two hyperthreads ###\n");
