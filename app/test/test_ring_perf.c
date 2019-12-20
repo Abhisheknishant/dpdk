@@ -178,19 +178,21 @@ struct thread_params {
 };
 
 /*
- * Function that uses rdtsc to measure timing for ring enqueue. Needs pair
- * thread running dequeue_bulk function
+ * Helper function to call bulk SP/MP enqueue functions.
+ * flag == 0 -> enqueue
+ * flag == 1 -> dequeue
  */
-static int
-enqueue_bulk(void *p)
+static __rte_always_inline int
+enqueue_dequeue_bulk_helper(const unsigned int flag, const int esize,
+	struct thread_params *p)
 {
-	const unsigned iter_shift = 23;
-	const unsigned iterations = 1<<iter_shift;
-	struct thread_params *params = p;
-	struct rte_ring *r = params->r;
-	const unsigned size = params->size;
-	unsigned i;
-	void *burst[MAX_BURST] = {0};
+	int ret;
+	const unsigned int iter_shift = 23;
+	const unsigned int iterations = 1 << iter_shift;
+	struct rte_ring *r = p->r;
+	unsigned int bsize = p->size;
+	unsigned int i;
+	void *burst = NULL;
 
 #ifdef RTE_USE_C11_MEM_MODEL
 	if (__atomic_add_fetch(&lcore_count, 1, __ATOMIC_RELAXED) != 2)
@@ -200,21 +202,53 @@ enqueue_bulk(void *p)
 		while(lcore_count != 2)
 			rte_pause();
 
+	burst = test_ring_calloc(MAX_BURST, esize);
+	if (burst == NULL)
+		return -1;
+
 	const uint64_t sp_start = rte_rdtsc();
 	for (i = 0; i < iterations; i++)
-		while (rte_ring_sp_enqueue_bulk(r, burst, size, NULL) == 0)
-			rte_pause();
+		do {
+			if (flag == 0)
+				TEST_RING_ENQUEUE(r, burst, esize, bsize, ret,
+						TEST_RING_S | TEST_RING_BL);
+			else if (flag == 1)
+				TEST_RING_DEQUEUE(r, burst, esize, bsize, ret,
+						TEST_RING_S | TEST_RING_BL);
+			if (ret == 0)
+				rte_pause();
+		} while (!ret);
 	const uint64_t sp_end = rte_rdtsc();
 
 	const uint64_t mp_start = rte_rdtsc();
 	for (i = 0; i < iterations; i++)
-		while (rte_ring_mp_enqueue_bulk(r, burst, size, NULL) == 0)
-			rte_pause();
+		do {
+			if (flag == 0)
+				TEST_RING_ENQUEUE(r, burst, esize, bsize, ret,
+						TEST_RING_M | TEST_RING_BL);
+			else if (flag == 1)
+				TEST_RING_DEQUEUE(r, burst, esize, bsize, ret,
+						TEST_RING_M | TEST_RING_BL);
+			if (ret == 0)
+				rte_pause();
+		} while (!ret);
 	const uint64_t mp_end = rte_rdtsc();
 
-	params->spsc = ((double)(sp_end - sp_start))/(iterations*size);
-	params->mpmc = ((double)(mp_end - mp_start))/(iterations*size);
+	p->spsc = ((double)(sp_end - sp_start))/(iterations * bsize);
+	p->mpmc = ((double)(mp_end - mp_start))/(iterations * bsize);
 	return 0;
+}
+
+/*
+ * Function that uses rdtsc to measure timing for ring enqueue. Needs pair
+ * thread running dequeue_bulk function
+ */
+static int
+enqueue_bulk(void *p)
+{
+	struct thread_params *params = p;
+
+	return enqueue_dequeue_bulk_helper(0, -1, params);
 }
 
 /*
@@ -224,45 +258,41 @@ enqueue_bulk(void *p)
 static int
 dequeue_bulk(void *p)
 {
-	const unsigned iter_shift = 23;
-	const unsigned iterations = 1<<iter_shift;
 	struct thread_params *params = p;
-	struct rte_ring *r = params->r;
-	const unsigned size = params->size;
-	unsigned i;
-	void *burst[MAX_BURST] = {0};
 
-#ifdef RTE_USE_C11_MEM_MODEL
-	if (__atomic_add_fetch(&lcore_count, 1, __ATOMIC_RELAXED) != 2)
-#else
-	if (__sync_add_and_fetch(&lcore_count, 1) != 2)
-#endif
-		while(lcore_count != 2)
-			rte_pause();
+	return enqueue_dequeue_bulk_helper(1, -1, params);
+}
 
-	const uint64_t sc_start = rte_rdtsc();
-	for (i = 0; i < iterations; i++)
-		while (rte_ring_sc_dequeue_bulk(r, burst, size, NULL) == 0)
-			rte_pause();
-	const uint64_t sc_end = rte_rdtsc();
+/*
+ * Function that uses rdtsc to measure timing for ring enqueue. Needs pair
+ * thread running dequeue_bulk function
+ */
+static int
+enqueue_bulk_16B(void *p)
+{
+	struct thread_params *params = p;
 
-	const uint64_t mc_start = rte_rdtsc();
-	for (i = 0; i < iterations; i++)
-		while (rte_ring_mc_dequeue_bulk(r, burst, size, NULL) == 0)
-			rte_pause();
-	const uint64_t mc_end = rte_rdtsc();
+	return enqueue_dequeue_bulk_helper(0, 16, params);
+}
 
-	params->spsc = ((double)(sc_end - sc_start))/(iterations*size);
-	params->mpmc = ((double)(mc_end - mc_start))/(iterations*size);
-	return 0;
+/*
+ * Function that uses rdtsc to measure timing for ring dequeue. Needs pair
+ * thread running enqueue_bulk function
+ */
+static int
+dequeue_bulk_16B(void *p)
+{
+	struct thread_params *params = p;
+
+	return enqueue_dequeue_bulk_helper(1, 16, params);
 }
 
 /*
  * Function that calls the enqueue and dequeue bulk functions on pairs of cores.
  * used to measure ring perf between hyperthreads, cores and sockets.
  */
-static void
-run_on_core_pair(struct lcore_pair *cores, struct rte_ring *r,
+static int
+run_on_core_pair(struct lcore_pair *cores, struct rte_ring *r, int esize,
 		lcore_function_t f1, lcore_function_t f2)
 {
 	struct thread_params param1 = {0}, param2 = {0};
@@ -278,14 +308,20 @@ run_on_core_pair(struct lcore_pair *cores, struct rte_ring *r,
 		} else {
 			rte_eal_remote_launch(f1, &param1, cores->c1);
 			rte_eal_remote_launch(f2, &param2, cores->c2);
-			rte_eal_wait_lcore(cores->c1);
-			rte_eal_wait_lcore(cores->c2);
+			if (rte_eal_wait_lcore(cores->c1) < 0)
+				return -1;
+			if (rte_eal_wait_lcore(cores->c2) < 0)
+				return -1;
 		}
-		printf("SP/SC bulk enq/dequeue (size: %u): %.2F\n", bulk_sizes[i],
-				param1.spsc + param2.spsc);
-		printf("MP/MC bulk enq/dequeue (size: %u): %.2F\n", bulk_sizes[i],
-				param1.mpmc + param2.mpmc);
+		test_ring_print_test_string(TEST_RING_S | TEST_RING_BL, esize,
+						bulk_sizes[i],
+						param1.spsc + param2.spsc);
+		test_ring_print_test_string(TEST_RING_M | TEST_RING_BL, esize,
+						bulk_sizes[i],
+						param1.mpmc + param2.mpmc);
 	}
+
+	return 0;
 }
 
 static rte_atomic32_t synchro;
@@ -466,6 +502,24 @@ test_ring_perf(void)
 	printf("\n### Testing empty bulk deq ###\n");
 	test_empty_dequeue(r, -1, TEST_RING_S | TEST_RING_BL);
 	test_empty_dequeue(r, -1, TEST_RING_M | TEST_RING_BL);
+	if (get_two_hyperthreads(&cores) == 0) {
+		printf("\n### Testing using two hyperthreads ###\n");
+		if (run_on_core_pair(&cores, r, -1, enqueue_bulk,
+					dequeue_bulk) < 0)
+			return -1;
+	}
+	if (get_two_cores(&cores) == 0) {
+		printf("\n### Testing using two physical cores ###\n");
+		if (run_on_core_pair(&cores, r, -1, enqueue_bulk,
+					dequeue_bulk) < 0)
+			return -1;
+	}
+	if (get_two_sockets(&cores) == 0) {
+		printf("\n### Testing using two NUMA nodes ###\n");
+		if (run_on_core_pair(&cores, r, -1, enqueue_bulk,
+					dequeue_bulk) < 0)
+			return -1;
+	}
 	rte_ring_free(r);
 
 	TEST_RING_CREATE(RING_NAME, 16, RING_SIZE, rte_socket_id(), 0, r);
@@ -494,29 +548,30 @@ test_ring_perf(void)
 	printf("\n### Testing empty bulk deq ###\n");
 	test_empty_dequeue(r, 16, TEST_RING_S | TEST_RING_BL);
 	test_empty_dequeue(r, 16, TEST_RING_M | TEST_RING_BL);
-	rte_ring_free(r);
-
-	r = rte_ring_create(RING_NAME, RING_SIZE, rte_socket_id(), 0);
-	if (r == NULL)
-		return -1;
-
 	if (get_two_hyperthreads(&cores) == 0) {
 		printf("\n### Testing using two hyperthreads ###\n");
-		run_on_core_pair(&cores, r, enqueue_bulk, dequeue_bulk);
+		if (run_on_core_pair(&cores, r, 16, enqueue_bulk_16B,
+					dequeue_bulk_16B) < 0)
+			return -1;
 	}
 	if (get_two_cores(&cores) == 0) {
 		printf("\n### Testing using two physical cores ###\n");
-		run_on_core_pair(&cores, r, enqueue_bulk, dequeue_bulk);
+		if (run_on_core_pair(&cores, r, 16, enqueue_bulk_16B,
+					dequeue_bulk_16B) < 0)
+			return -1;
 	}
 	if (get_two_sockets(&cores) == 0) {
 		printf("\n### Testing using two NUMA nodes ###\n");
-		run_on_core_pair(&cores, r, enqueue_bulk, dequeue_bulk);
+		if (run_on_core_pair(&cores, r, 16, enqueue_bulk_16B,
+					dequeue_bulk_16B) < 0)
+			return -1;
 	}
 
 	printf("\n### Testing using all slave nodes ###\n");
 	run_on_all_cores(r);
 
 	rte_ring_free(r);
+
 	return 0;
 }
 
