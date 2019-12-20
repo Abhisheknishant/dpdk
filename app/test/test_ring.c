@@ -57,8 +57,6 @@
 #define RING_SIZE 4096
 #define MAX_BULK 32
 
-static rte_atomic32_t synchro;
-
 #define	TEST_RING_VERIFY(exp)						\
 	if (!(exp)) {							\
 		printf("error at %s:%d\tcondition " #exp " failed\n",	\
@@ -664,8 +662,6 @@ test_ring(void)
 	/* some more basic operations */
 	if (test_ring_basic_ex() < 0)
 		goto test_fail;
-
-	rte_atomic32_init(&synchro);
 
 	/* Burst and bulk operations with sp/sc, mp/mc and default */
 	for (j = TEST_RING_BL; j <= TEST_RING_BR; j <<= 1)
