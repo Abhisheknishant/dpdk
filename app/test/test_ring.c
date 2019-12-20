@@ -113,50 +113,6 @@ test_ring_print_test_string(const char *istr, unsigned int api_type, int esize)
 		printf("burst\n");
 }
 
-/*
- * helper routine for test_ring_basic
- */
-static int
-test_ring_basic_full_empty(struct rte_ring *r, void * const src[], void *dst[])
-{
-	unsigned i, rand;
-	const unsigned rsz = RING_SIZE - 1;
-
-	printf("Basic full/empty test\n");
-
-	for (i = 0; TEST_RING_FULL_EMTPY_ITER != i; i++) {
-
-		/* random shift in the ring */
-		rand = RTE_MAX(rte_rand() % RING_SIZE, 1UL);
-		printf("%s: iteration %u, random shift: %u;\n",
-		    __func__, i, rand);
-		TEST_RING_VERIFY(rte_ring_enqueue_bulk(r, src, rand,
-				NULL) != 0);
-		TEST_RING_VERIFY(rte_ring_dequeue_bulk(r, dst, rand,
-				NULL) == rand);
-
-		/* fill the ring */
-		TEST_RING_VERIFY(rte_ring_enqueue_bulk(r, src, rsz, NULL) != 0);
-		TEST_RING_VERIFY(0 == rte_ring_free_count(r));
-		TEST_RING_VERIFY(rsz == rte_ring_count(r));
-		TEST_RING_VERIFY(rte_ring_full(r));
-		TEST_RING_VERIFY(0 == rte_ring_empty(r));
-
-		/* empty the ring */
-		TEST_RING_VERIFY(rte_ring_dequeue_bulk(r, dst, rsz,
-				NULL) == rsz);
-		TEST_RING_VERIFY(rsz == rte_ring_free_count(r));
-		TEST_RING_VERIFY(0 == rte_ring_count(r));
-		TEST_RING_VERIFY(0 == rte_ring_full(r));
-		TEST_RING_VERIFY(rte_ring_empty(r));
-
-		/* check data */
-		TEST_RING_VERIFY(0 == memcmp(src, dst, rsz));
-		rte_ring_dump(stdout, r);
-	}
-	return 0;
-}
-
 static int
 test_ring_basic(struct rte_ring *r)
 {
@@ -294,9 +250,6 @@ test_ring_basic(struct rte_ring *r)
 		goto fail;
 	}
 
-	if (test_ring_basic_full_empty(r, src, dst) != 0)
-		goto fail;
-
 	cur_src = src;
 	cur_dst = dst;
 
@@ -371,6 +324,8 @@ test_ring_burst_bulk_tests(unsigned int api_type)
 	int ret;
 	unsigned int i, j;
 	unsigned int num_elems;
+	int rand;
+	const unsigned int rsz = RING_SIZE - 1;
 
 	for (i = 0; i < RTE_DIM(esize); i++) {
 		test_ring_print_test_string("Test standard ring", api_type,
@@ -483,7 +438,6 @@ test_ring_burst_bulk_tests(unsigned int api_type)
 			goto fail;
 		TEST_RING_INCP(cur_src, esize[i], 2);
 
-
 		printf("Enqueue the remaining entries = MAX_BULK - 3\n");
 		/* Bulk APIs enqueue exact number of elements */
 		if ((api_type & TEST_RING_BL) == TEST_RING_BL)
@@ -544,6 +498,47 @@ test_ring_burst_bulk_tests(unsigned int api_type)
 			rte_hexdump(stdout, "dst", dst, cur_dst - dst);
 			printf("data after dequeue is not the same\n");
 			goto fail;
+		}
+
+		printf("Random full/empty test\n");
+		cur_src = src;
+		cur_dst = dst;
+
+		for (j = 0; j != TEST_RING_FULL_EMTPY_ITER; j++) {
+			/* random shift in the ring */
+			rand = RTE_MAX(rte_rand() % RING_SIZE, 1UL);
+			printf("%s: iteration %u, random shift: %u;\n",
+			    __func__, i, rand);
+			TEST_RING_ENQUEUE(r, cur_src, esize[i], rand,
+							ret, api_type);
+			TEST_RING_VERIFY(ret != 0);
+
+			TEST_RING_DEQUEUE(r, cur_dst, esize[i], rand,
+							ret, api_type);
+			TEST_RING_VERIFY(ret == rand);
+
+			/* fill the ring */
+			TEST_RING_ENQUEUE(r, cur_src, esize[i], rsz,
+							ret, api_type);
+			TEST_RING_VERIFY(ret != 0);
+
+			TEST_RING_VERIFY(rte_ring_free_count(r) == 0);
+			TEST_RING_VERIFY(rsz == rte_ring_count(r));
+			TEST_RING_VERIFY(rte_ring_full(r));
+			TEST_RING_VERIFY(rte_ring_empty(r) == 0);
+
+			/* empty the ring */
+			TEST_RING_DEQUEUE(r, cur_dst, esize[i], rsz,
+							ret, api_type);
+			TEST_RING_VERIFY(ret == (int)rsz);
+			TEST_RING_VERIFY(rsz == rte_ring_free_count(r));
+			TEST_RING_VERIFY(rte_ring_count(r) == 0);
+			TEST_RING_VERIFY(rte_ring_full(r) == 0);
+			TEST_RING_VERIFY(rte_ring_empty(r));
+
+			/* check data */
+			TEST_RING_VERIFY(memcmp(src, dst, rsz) == 0);
+			rte_ring_dump(stdout, r);
 		}
 
 		/* Free memory before test completed */
