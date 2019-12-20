@@ -23,11 +23,13 @@
 #include <rte_branch_prediction.h>
 #include <rte_malloc.h>
 #include <rte_ring.h>
+#include <rte_ring_elem.h>
 #include <rte_random.h>
 #include <rte_errno.h>
 #include <rte_hexdump.h>
 
 #include "test.h"
+#include "test_ring.h"
 
 /*
  * Ring
@@ -66,6 +68,50 @@ static rte_atomic32_t synchro;
 	}
 
 #define	TEST_RING_FULL_EMTPY_ITER	8
+
+static int esize[] = {-1, 4, 8, 16};
+
+static void
+test_ring_mem_init(void *obj, unsigned int count, int esize)
+{
+	unsigned int i;
+
+	/* Legacy queue APIs? */
+	if (esize == -1)
+		for (i = 0; i < count; i++)
+			((void **)obj)[i] = (void *)(unsigned long)i;
+	else
+		for (i = 0; i < (count * esize / sizeof(uint32_t)); i++)
+			((uint32_t *)obj)[i] = i;
+}
+
+static void
+test_ring_print_test_string(const char *istr, unsigned int api_type, int esize)
+{
+	printf("\n%s: ", istr);
+
+	if (esize == -1)
+		printf("legacy APIs: ");
+	else
+		printf("elem APIs: element size %dB ", esize);
+
+	if (api_type == TEST_RING_IGNORE_API_TYPE)
+		return;
+
+	if ((api_type & TEST_RING_N) == TEST_RING_N)
+		printf(": default enqueue/dequeue: ");
+	else if ((api_type & TEST_RING_S) == TEST_RING_S)
+		printf(": SP/SC: ");
+	else if ((api_type & TEST_RING_M) == TEST_RING_M)
+		printf(": MP/MC: ");
+
+	if ((api_type & TEST_RING_SL) == TEST_RING_SL)
+		printf("single\n");
+	else if ((api_type & TEST_RING_BL) == TEST_RING_BL)
+		printf("bulk\n");
+	else if ((api_type & TEST_RING_BR) == TEST_RING_BR)
+		printf("burst\n");
+}
 
 /*
  * helper routine for test_ring_basic
@@ -314,286 +360,203 @@ test_ring_basic(struct rte_ring *r)
 	return -1;
 }
 
+/*
+ * Burst and bulk operations with sp/sc, mp/mc and default (during creation)
+ */
 static int
-test_ring_burst_basic(struct rte_ring *r)
+test_ring_burst_bulk_tests(unsigned int api_type)
 {
+	struct rte_ring *r;
 	void **src = NULL, **cur_src = NULL, **dst = NULL, **cur_dst = NULL;
 	int ret;
-	unsigned i;
+	unsigned int i, j;
+	unsigned int num_elems;
 
-	/* alloc dummy object pointers */
-	src = malloc(RING_SIZE*2*sizeof(void *));
-	if (src == NULL)
-		goto fail;
+	for (i = 0; i < RTE_DIM(esize); i++) {
+		test_ring_print_test_string("Test standard ring", api_type,
+						esize[i]);
 
-	for (i = 0; i < RING_SIZE*2 ; i++) {
-		src[i] = (void *)(unsigned long)i;
-	}
-	cur_src = src;
+		/* Create the ring */
+		TEST_RING_CREATE("test_ring_burst_bulk_tests", esize[i],
+					RING_SIZE, SOCKET_ID_ANY, 0, r);
 
-	/* alloc some room for copied objects */
-	dst = malloc(RING_SIZE*2*sizeof(void *));
-	if (dst == NULL)
-		goto fail;
+		/* alloc dummy object pointers */
+		src = test_ring_calloc(RING_SIZE * 2, esize[i]);
+		if (src == NULL)
+			goto fail;
+		test_ring_mem_init(src, RING_SIZE * 2, esize[i]);
+		cur_src = src;
 
-	memset(dst, 0, RING_SIZE*2*sizeof(void *));
-	cur_dst = dst;
+		/* alloc some room for copied objects */
+		dst = test_ring_calloc(RING_SIZE * 2, esize[i]);
+		if (dst == NULL)
+			goto fail;
+		cur_dst = dst;
 
-	printf("Test SP & SC basic functions \n");
-	printf("enqueue 1 obj\n");
-	ret = rte_ring_sp_enqueue_burst(r, cur_src, 1, NULL);
-	cur_src += 1;
-	if (ret != 1)
-		goto fail;
+		printf("enqueue 1 obj\n");
+		TEST_RING_ENQUEUE(r, cur_src, esize[i], 1, ret, api_type);
+		if (ret != 1)
+			goto fail;
+		TEST_RING_INCP(cur_src, esize[i], 1);
 
-	printf("enqueue 2 objs\n");
-	ret = rte_ring_sp_enqueue_burst(r, cur_src, 2, NULL);
-	cur_src += 2;
-	if (ret != 2)
-		goto fail;
+		printf("enqueue 2 objs\n");
+		TEST_RING_ENQUEUE(r, cur_src, esize[i], 2, ret, api_type);
+		if (ret != 2)
+			goto fail;
+		TEST_RING_INCP(cur_src, esize[i], 2);
 
-	printf("enqueue MAX_BULK objs\n");
-	ret = rte_ring_sp_enqueue_burst(r, cur_src, MAX_BULK, NULL);
-	cur_src += MAX_BULK;
-	if (ret != MAX_BULK)
-		goto fail;
-
-	printf("dequeue 1 obj\n");
-	ret = rte_ring_sc_dequeue_burst(r, cur_dst, 1, NULL);
-	cur_dst += 1;
-	if (ret != 1)
-		goto fail;
-
-	printf("dequeue 2 objs\n");
-	ret = rte_ring_sc_dequeue_burst(r, cur_dst, 2, NULL);
-	cur_dst += 2;
-	if (ret != 2)
-		goto fail;
-
-	printf("dequeue MAX_BULK objs\n");
-	ret = rte_ring_sc_dequeue_burst(r, cur_dst, MAX_BULK, NULL);
-	cur_dst += MAX_BULK;
-	if (ret != MAX_BULK)
-		goto fail;
-
-	/* check data */
-	if (memcmp(src, dst, cur_dst - dst)) {
-		rte_hexdump(stdout, "src", src, cur_src - src);
-		rte_hexdump(stdout, "dst", dst, cur_dst - dst);
-		printf("data after dequeue is not the same\n");
-		goto fail;
-	}
-
-	cur_src = src;
-	cur_dst = dst;
-
-	printf("Test enqueue without enough memory space \n");
-	for (i = 0; i< (RING_SIZE/MAX_BULK - 1); i++) {
-		ret = rte_ring_sp_enqueue_burst(r, cur_src, MAX_BULK, NULL);
-		cur_src += MAX_BULK;
+		printf("enqueue MAX_BULK objs\n");
+		TEST_RING_ENQUEUE(r, cur_src, esize[i], MAX_BULK, ret,
+						api_type);
 		if (ret != MAX_BULK)
 			goto fail;
-	}
+		TEST_RING_INCP(cur_src, esize[i], MAX_BULK);
 
-	printf("Enqueue 2 objects, free entries = MAX_BULK - 2  \n");
-	ret = rte_ring_sp_enqueue_burst(r, cur_src, 2, NULL);
-	cur_src += 2;
-	if (ret != 2)
-		goto fail;
+		printf("dequeue 1 obj\n");
+		TEST_RING_DEQUEUE(r, cur_dst, esize[i], 1, ret, api_type);
+		if (ret != 1)
+			goto fail;
+		TEST_RING_INCP(cur_dst, esize[i], 1);
 
-	printf("Enqueue the remaining entries = MAX_BULK - 2  \n");
-	/* Always one free entry left */
-	ret = rte_ring_sp_enqueue_burst(r, cur_src, MAX_BULK, NULL);
-	cur_src += MAX_BULK - 3;
-	if (ret != MAX_BULK - 3)
-		goto fail;
+		printf("dequeue 2 objs\n");
+		TEST_RING_DEQUEUE(r, cur_dst, esize[i], 2, ret, api_type);
+		if (ret != 2)
+			goto fail;
+		TEST_RING_INCP(cur_dst, esize[i], 2);
 
-	printf("Test if ring is full  \n");
-	if (rte_ring_full(r) != 1)
-		goto fail;
-
-	printf("Test enqueue for a full entry  \n");
-	ret = rte_ring_sp_enqueue_burst(r, cur_src, MAX_BULK, NULL);
-	if (ret != 0)
-		goto fail;
-
-	printf("Test dequeue without enough objects \n");
-	for (i = 0; i<RING_SIZE/MAX_BULK - 1; i++) {
-		ret = rte_ring_sc_dequeue_burst(r, cur_dst, MAX_BULK, NULL);
-		cur_dst += MAX_BULK;
+		printf("dequeue MAX_BULK objs\n");
+		TEST_RING_DEQUEUE(r, cur_dst, esize[i], MAX_BULK, ret,
+						api_type);
 		if (ret != MAX_BULK)
 			goto fail;
-	}
+		TEST_RING_INCP(cur_dst, esize[i], MAX_BULK);
 
-	/* Available memory space for the exact MAX_BULK entries */
-	ret = rte_ring_sc_dequeue_burst(r, cur_dst, 2, NULL);
-	cur_dst += 2;
-	if (ret != 2)
-		goto fail;
-
-	ret = rte_ring_sc_dequeue_burst(r, cur_dst, MAX_BULK, NULL);
-	cur_dst += MAX_BULK - 3;
-	if (ret != MAX_BULK - 3)
-		goto fail;
-
-	printf("Test if ring is empty \n");
-	/* Check if ring is empty */
-	if (1 != rte_ring_empty(r))
-		goto fail;
-
-	/* check data */
-	if (memcmp(src, dst, cur_dst - dst)) {
-		rte_hexdump(stdout, "src", src, cur_src - src);
-		rte_hexdump(stdout, "dst", dst, cur_dst - dst);
-		printf("data after dequeue is not the same\n");
-		goto fail;
-	}
-
-	cur_src = src;
-	cur_dst = dst;
-
-	printf("Test MP & MC basic functions \n");
-
-	printf("enqueue 1 obj\n");
-	ret = rte_ring_mp_enqueue_burst(r, cur_src, 1, NULL);
-	cur_src += 1;
-	if (ret != 1)
-		goto fail;
-
-	printf("enqueue 2 objs\n");
-	ret = rte_ring_mp_enqueue_burst(r, cur_src, 2, NULL);
-	cur_src += 2;
-	if (ret != 2)
-		goto fail;
-
-	printf("enqueue MAX_BULK objs\n");
-	ret = rte_ring_mp_enqueue_burst(r, cur_src, MAX_BULK, NULL);
-	cur_src += MAX_BULK;
-	if (ret != MAX_BULK)
-		goto fail;
-
-	printf("dequeue 1 obj\n");
-	ret = rte_ring_mc_dequeue_burst(r, cur_dst, 1, NULL);
-	cur_dst += 1;
-	if (ret != 1)
-		goto fail;
-
-	printf("dequeue 2 objs\n");
-	ret = rte_ring_mc_dequeue_burst(r, cur_dst, 2, NULL);
-	cur_dst += 2;
-	if (ret != 2)
-		goto fail;
-
-	printf("dequeue MAX_BULK objs\n");
-	ret = rte_ring_mc_dequeue_burst(r, cur_dst, MAX_BULK, NULL);
-	cur_dst += MAX_BULK;
-	if (ret != MAX_BULK)
-		goto fail;
-
-	/* check data */
-	if (memcmp(src, dst, cur_dst - dst)) {
-		rte_hexdump(stdout, "src", src, cur_src - src);
-		rte_hexdump(stdout, "dst", dst, cur_dst - dst);
-		printf("data after dequeue is not the same\n");
-		goto fail;
-	}
-
-	cur_src = src;
-	cur_dst = dst;
-
-	printf("fill and empty the ring\n");
-	for (i = 0; i<RING_SIZE/MAX_BULK; i++) {
-		ret = rte_ring_mp_enqueue_burst(r, cur_src, MAX_BULK, NULL);
-		cur_src += MAX_BULK;
-		if (ret != MAX_BULK)
+		/* check data */
+		if (memcmp(src, dst, cur_dst - dst)) {
+			rte_hexdump(stdout, "src", src, cur_src - src);
+			rte_hexdump(stdout, "dst", dst, cur_dst - dst);
+			printf("data after dequeue is not the same\n");
 			goto fail;
-		ret = rte_ring_mc_dequeue_burst(r, cur_dst, MAX_BULK, NULL);
-		cur_dst += MAX_BULK;
-		if (ret != MAX_BULK)
+		}
+
+		cur_src = src;
+		cur_dst = dst;
+
+		printf("fill and empty the ring\n");
+		for (j = 0; j < RING_SIZE / MAX_BULK; j++) {
+			TEST_RING_ENQUEUE(r, cur_src, esize[i], MAX_BULK,
+							ret, api_type);
+			if (ret != MAX_BULK)
+				goto fail;
+			TEST_RING_INCP(cur_src, esize[i], MAX_BULK);
+
+			TEST_RING_DEQUEUE(r, cur_dst, esize[i], MAX_BULK,
+							ret, api_type);
+			if (ret != MAX_BULK)
+				goto fail;
+			TEST_RING_INCP(cur_dst, esize[i], MAX_BULK);
+		}
+
+		/* check data */
+		if (memcmp(src, dst, cur_dst - dst)) {
+			rte_hexdump(stdout, "src", src, cur_src - src);
+			rte_hexdump(stdout, "dst", dst, cur_dst - dst);
+			printf("data after dequeue is not the same\n");
 			goto fail;
-	}
+		}
 
-	/* check data */
-	if (memcmp(src, dst, cur_dst - dst)) {
-		rte_hexdump(stdout, "src", src, cur_src - src);
-		rte_hexdump(stdout, "dst", dst, cur_dst - dst);
-		printf("data after dequeue is not the same\n");
-		goto fail;
-	}
+		cur_src = src;
+		cur_dst = dst;
 
-	cur_src = src;
-	cur_dst = dst;
+		printf("Test enqueue without enough memory space\n");
+		for (j = 0; j < (RING_SIZE/MAX_BULK - 1); j++) {
+			TEST_RING_ENQUEUE(r, cur_src, esize[i], MAX_BULK,
+							ret, api_type);
+			if (ret != MAX_BULK)
+				goto fail;
+			TEST_RING_INCP(cur_src, esize[i], MAX_BULK);
+		}
 
-	printf("Test enqueue without enough memory space \n");
-	for (i = 0; i<RING_SIZE/MAX_BULK - 1; i++) {
-		ret = rte_ring_mp_enqueue_burst(r, cur_src, MAX_BULK, NULL);
-		cur_src += MAX_BULK;
-		if (ret != MAX_BULK)
+		printf("Enqueue 2 objects, free entries = MAX_BULK - 2\n");
+		TEST_RING_ENQUEUE(r, cur_src, esize[i], 2, ret, api_type);
+		if (ret != 2)
 			goto fail;
-	}
-
-	/* Available memory space for the exact MAX_BULK objects */
-	ret = rte_ring_mp_enqueue_burst(r, cur_src, 2, NULL);
-	cur_src += 2;
-	if (ret != 2)
-		goto fail;
-
-	ret = rte_ring_mp_enqueue_burst(r, cur_src, MAX_BULK, NULL);
-	cur_src += MAX_BULK - 3;
-	if (ret != MAX_BULK - 3)
-		goto fail;
+		TEST_RING_INCP(cur_src, esize[i], 2);
 
 
-	printf("Test dequeue without enough objects \n");
-	for (i = 0; i<RING_SIZE/MAX_BULK - 1; i++) {
-		ret = rte_ring_mc_dequeue_burst(r, cur_dst, MAX_BULK, NULL);
-		cur_dst += MAX_BULK;
-		if (ret != MAX_BULK)
+		printf("Enqueue the remaining entries = MAX_BULK - 3\n");
+		/* Bulk APIs enqueue exact number of elements */
+		if ((api_type & TEST_RING_BL) == TEST_RING_BL)
+			num_elems = MAX_BULK - 3;
+		else
+			num_elems = MAX_BULK;
+		/* Always one free entry left */
+		TEST_RING_ENQUEUE(r, cur_src, esize[i], num_elems,
+						ret, api_type);
+		if (ret != MAX_BULK - 3)
 			goto fail;
+		TEST_RING_INCP(cur_src, esize[i], MAX_BULK - 3);
+
+		printf("Test if ring is full\n");
+		if (rte_ring_full(r) != 1)
+			goto fail;
+
+		printf("Test enqueue for a full entry\n");
+		TEST_RING_ENQUEUE(r, cur_src, esize[i], MAX_BULK,
+						ret, api_type);
+		if (ret != 0)
+			goto fail;
+
+		printf("Test dequeue without enough objects\n");
+		for (j = 0; j < RING_SIZE / MAX_BULK - 1; j++) {
+			TEST_RING_DEQUEUE(r, cur_dst, esize[i], MAX_BULK,
+							ret, api_type);
+			if (ret != MAX_BULK)
+				goto fail;
+			TEST_RING_INCP(cur_dst, esize[i], MAX_BULK);
+		}
+
+		/* Available memory space for the exact MAX_BULK entries */
+		TEST_RING_DEQUEUE(r, cur_dst, esize[i], 2, ret, api_type);
+		if (ret != 2)
+			goto fail;
+		TEST_RING_INCP(cur_dst, esize[i], 2);
+
+		/* Bulk APIs enqueue exact number of elements */
+		if ((api_type & TEST_RING_BL) == TEST_RING_BL)
+			num_elems = MAX_BULK - 3;
+		else
+			num_elems = MAX_BULK;
+		TEST_RING_DEQUEUE(r, cur_dst, esize[i], num_elems,
+						ret, api_type);
+		if (ret != MAX_BULK - 3)
+			goto fail;
+		TEST_RING_INCP(cur_dst, esize[i], MAX_BULK - 3);
+
+		printf("Test if ring is empty\n");
+		/* Check if ring is empty */
+		if (rte_ring_empty(r) != 1)
+			goto fail;
+
+		/* check data */
+		if (memcmp(src, dst, cur_dst - dst)) {
+			rte_hexdump(stdout, "src", src, cur_src - src);
+			rte_hexdump(stdout, "dst", dst, cur_dst - dst);
+			printf("data after dequeue is not the same\n");
+			goto fail;
+		}
+
+		/* Free memory before test completed */
+		rte_ring_free(r);
+		rte_free(src);
+		rte_free(dst);
 	}
 
-	/* Available objects - the exact MAX_BULK */
-	ret = rte_ring_mc_dequeue_burst(r, cur_dst, 2, NULL);
-	cur_dst += 2;
-	if (ret != 2)
-		goto fail;
-
-	ret = rte_ring_mc_dequeue_burst(r, cur_dst, MAX_BULK, NULL);
-	cur_dst += MAX_BULK - 3;
-	if (ret != MAX_BULK - 3)
-		goto fail;
-
-	/* check data */
-	if (memcmp(src, dst, cur_dst - dst)) {
-		rte_hexdump(stdout, "src", src, cur_src - src);
-		rte_hexdump(stdout, "dst", dst, cur_dst - dst);
-		printf("data after dequeue is not the same\n");
-		goto fail;
-	}
-
-	cur_src = src;
-	cur_dst = dst;
-
-	printf("Covering rte_ring_enqueue_burst functions \n");
-
-	ret = rte_ring_enqueue_burst(r, cur_src, 2, NULL);
-	cur_src += 2;
-	if (ret != 2)
-		goto fail;
-
-	ret = rte_ring_dequeue_burst(r, cur_dst, 2, NULL);
-	cur_dst += 2;
-	if (ret != 2)
-		goto fail;
-
-	/* Free memory before test completed */
-	free(src);
-	free(dst);
 	return 0;
-
- fail:
-	free(src);
-	free(dst);
+fail:
+	rte_ring_free(r);
+	rte_free(src);
+	rte_free(dst);
 	return -1;
 }
 
@@ -810,6 +773,7 @@ end:
 static int
 test_ring(void)
 {
+	unsigned int i, j;
 	struct rte_ring *r = NULL;
 
 	/* some more basic operations */
@@ -828,9 +792,11 @@ test_ring(void)
 		goto test_fail;
 	}
 
-	/* burst operations */
-	if (test_ring_burst_basic(r) < 0)
-		goto test_fail;
+	/* Burst and bulk operations with sp/sc, mp/mc and default */
+	for (j = TEST_RING_BL; j <= TEST_RING_BR; j <<= 1)
+		for (i = TEST_RING_N; i <= TEST_RING_M; i <<= 1)
+			if (test_ring_burst_bulk_tests(i | j) < 0)
+				goto test_fail;
 
 	/* basic operations */
 	if (test_ring_basic(r) < 0)
