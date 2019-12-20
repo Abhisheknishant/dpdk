@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "test.h"
+#include "test_ring.h"
 
 /*
  * Ring
@@ -40,6 +41,35 @@ struct lcore_pair {
 };
 
 static volatile unsigned lcore_count = 0;
+
+static void
+test_ring_print_test_string(unsigned int api_type, int esize,
+	unsigned int bsz, double value)
+{
+	if (esize == -1)
+		printf("legacy APIs");
+	else
+		printf("elem APIs: element size %dB", esize);
+
+	if (api_type == TEST_RING_IGNORE_API_TYPE)
+		return;
+
+	if ((api_type & TEST_RING_N) == TEST_RING_N)
+		printf(": default enqueue/dequeue: ");
+	else if ((api_type & TEST_RING_S) == TEST_RING_S)
+		printf(": SP/SC: ");
+	else if ((api_type & TEST_RING_M) == TEST_RING_M)
+		printf(": MP/MC: ");
+
+	if ((api_type & TEST_RING_SL) == TEST_RING_SL)
+		printf("single: ");
+	else if ((api_type & TEST_RING_BL) == TEST_RING_BL)
+		printf("bulk (size: %u): ", bsz);
+	else if ((api_type & TEST_RING_BR) == TEST_RING_BR)
+		printf("burst (size: %u): ", bsz);
+
+	printf("%.2F\n", value);
+}
 
 /**** Functions to analyse our core mask to get cores for different tests ***/
 
@@ -335,32 +365,35 @@ run_on_all_cores(struct rte_ring *r)
  * Test function that determines how long an enqueue + dequeue of a single item
  * takes on a single lcore. Result is for comparison with the bulk enq+deq.
  */
-static void
-test_single_enqueue_dequeue(struct rte_ring *r)
+static int
+test_single_enqueue_dequeue(struct rte_ring *r, const int esize,
+	const unsigned int api_type)
 {
-	const unsigned iter_shift = 24;
-	const unsigned iterations = 1<<iter_shift;
-	unsigned i = 0;
+	int ret;
+	const unsigned int iter_shift = 24;
+	const unsigned int iterations = 1 << iter_shift;
+	unsigned int i = 0;
 	void *burst = NULL;
 
-	const uint64_t sc_start = rte_rdtsc();
-	for (i = 0; i < iterations; i++) {
-		rte_ring_sp_enqueue(r, burst);
-		rte_ring_sc_dequeue(r, &burst);
-	}
-	const uint64_t sc_end = rte_rdtsc();
+	(void)ret;
+	/* alloc dummy object pointers */
+	burst = test_ring_calloc(1, esize);
+	if (burst == NULL)
+		return -1;
 
-	const uint64_t mc_start = rte_rdtsc();
+	const uint64_t start = rte_rdtsc();
 	for (i = 0; i < iterations; i++) {
-		rte_ring_mp_enqueue(r, burst);
-		rte_ring_mc_dequeue(r, &burst);
+		TEST_RING_ENQUEUE(r, burst, esize, 1, ret, api_type);
+		TEST_RING_DEQUEUE(r, burst, esize, 1, ret, api_type);
 	}
-	const uint64_t mc_end = rte_rdtsc();
+	const uint64_t end = rte_rdtsc();
 
-	printf("SP/SC single enq/dequeue: %.2F\n",
-			((double)(sc_end-sc_start)) / iterations);
-	printf("MP/MC single enq/dequeue: %.2F\n",
-			((double)(mc_end-mc_start)) / iterations);
+	test_ring_print_test_string(api_type, esize, 1,
+					((double)(end - start)) / iterations);
+
+	rte_free(burst);
+
+	return 0;
 }
 
 /*
@@ -453,12 +486,39 @@ test_ring_perf(void)
 	struct lcore_pair cores;
 	struct rte_ring *r = NULL;
 
+	/*
+	 * Performance test for legacy/_elem APIs
+	 * SP-SC/MP-MC, single
+	 */
+	TEST_RING_CREATE(RING_NAME, -1, RING_SIZE, rte_socket_id(), 0, r);
+	if (r == NULL)
+		return -1;
+
+	printf("\n### Testing single element enq/deq ###\n");
+	if (test_single_enqueue_dequeue(r, -1, TEST_RING_S | TEST_RING_SL) < 0)
+		return -1;
+	if (test_single_enqueue_dequeue(r, -1, TEST_RING_M | TEST_RING_SL) < 0)
+		return -1;
+
+	rte_ring_free(r);
+
+	TEST_RING_CREATE(RING_NAME, 16, RING_SIZE, rte_socket_id(), 0, r);
+	if (r == NULL)
+		return -1;
+
+	printf("\n### Testing single element enq/deq ###\n");
+	if (test_single_enqueue_dequeue(r, 16, TEST_RING_S | TEST_RING_SL) < 0)
+		return -1;
+	if (test_single_enqueue_dequeue(r, 16, TEST_RING_M | TEST_RING_SL) < 0)
+		return -1;
+
+	rte_ring_free(r);
+
 	r = rte_ring_create(RING_NAME, RING_SIZE, rte_socket_id(), 0);
 	if (r == NULL)
 		return -1;
 
 	printf("### Testing single element and burst enq/deq ###\n");
-	test_single_enqueue_dequeue(r);
 	test_burst_enqueue_dequeue(r);
 
 	printf("\n### Testing empty dequeue ###\n");
