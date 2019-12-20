@@ -342,6 +342,8 @@ uint16_t fm10k_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
 uint16_t fm10k_prep_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
 	uint16_t nb_pkts);
 
+int fm10k_tx_done_cleanup(void *txq, uint32_t free_cnt);
+
 int fm10k_rxq_vec_setup(struct fm10k_rx_queue *rxq);
 int fm10k_rx_vec_condition_check(struct rte_eth_dev *);
 void fm10k_rx_queue_release_mbufs_vec(struct fm10k_rx_queue *rxq);

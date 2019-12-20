@@ -2897,6 +2897,7 @@ static const struct eth_dev_ops fm10k_eth_dev_ops = {
 	.reta_query		= fm10k_reta_query,
 	.rss_hash_update	= fm10k_rss_hash_update,
 	.rss_hash_conf_get	= fm10k_rss_hash_conf_get,
+	.tx_done_cleanup    = fm10k_tx_done_cleanup,
 };
 
 static int ftag_check_handler(__rte_unused const char *key,
