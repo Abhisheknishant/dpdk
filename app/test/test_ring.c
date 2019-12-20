@@ -113,6 +113,93 @@ test_ring_print_test_string(const char *istr, unsigned int api_type, int esize)
 		printf("burst\n");
 }
 
+/*
+ * Various negative test cases.
+ */
+static int
+test_ring_negative_tests(void)
+{
+	struct rte_ring *rp = NULL;
+	struct rte_ring *rt = NULL;
+	unsigned int i;
+
+	/* Test with esize not a multiple of 4 */
+	TEST_RING_CREATE("test_bad_element_size", 23,
+				RING_SIZE + 1, SOCKET_ID_ANY, 0, rp);
+	if (rp != NULL) {
+		printf("Test failed to detect invalid element size\n");
+		goto test_fail;
+	}
+
+
+	for (i = 0; i < RTE_DIM(esize); i++) {
+		/* Test if ring size is not power of 2 */
+		TEST_RING_CREATE("test_bad_ring_size", esize[i],
+					RING_SIZE + 1, SOCKET_ID_ANY, 0, rp);
+		if (rp != NULL) {
+			printf("Test failed to detect odd count\n");
+			goto test_fail;
+		}
+
+		/* Test if ring size is exceeding the limit */
+		TEST_RING_CREATE("test_bad_ring_size", esize[i],
+					RTE_RING_SZ_MASK + 1, SOCKET_ID_ANY,
+					0, rp);
+		if (rp != NULL) {
+			printf("Test failed to detect limits\n");
+			goto test_fail;
+		}
+
+		/* Tests if lookup returns NULL on non-existing ring */
+		rp = rte_ring_lookup("ring_not_found");
+		if (rp != NULL && rte_errno != ENOENT) {
+			printf("Test failed to detect NULL ring lookup\n");
+			goto test_fail;
+		}
+
+		/* Test to if a non-power of 2 count causes the create
+		 * function to fail correctly
+		 */
+		TEST_RING_CREATE("test_ring_count", esize[i], 4097,
+					SOCKET_ID_ANY, 0, rp);
+		if (rp != NULL)
+			goto test_fail;
+
+		TEST_RING_CREATE("test_ring_negative", esize[i], RING_SIZE,
+					SOCKET_ID_ANY,
+					RING_F_SP_ENQ | RING_F_SC_DEQ, rp);
+		if (rp == NULL) {
+			printf("test_ring_negative fail to create ring\n");
+			goto test_fail;
+		}
+
+		if (rte_ring_lookup("test_ring_negative") != rp)
+			goto test_fail;
+
+		if (rte_ring_empty(rp) != 1) {
+			printf("test_ring_nagative ring is not empty but it should be\n");
+			goto test_fail;
+		}
+
+		/* Tests if it would always fail to create ring with an used
+		 * ring name.
+		 */
+		TEST_RING_CREATE("test_ring_negative", esize[i], RING_SIZE,
+					SOCKET_ID_ANY, 0, rt);
+		if (rt != NULL)
+			goto test_fail;
+
+		rte_ring_free(rp);
+	}
+
+	return 0;
+
+test_fail:
+
+	rte_ring_free(rp);
+	return -1;
+}
+
 static int
 test_ring_basic(struct rte_ring *r)
 {
@@ -556,70 +643,6 @@ fail:
 }
 
 /*
- * it will always fail to create ring with a wrong ring size number in this function
- */
-static int
-test_ring_creation_with_wrong_size(void)
-{
-	struct rte_ring * rp = NULL;
-
-	/* Test if ring size is not power of 2 */
-	rp = rte_ring_create("test_bad_ring_size", RING_SIZE + 1, SOCKET_ID_ANY, 0);
-	if (NULL != rp) {
-		return -1;
-	}
-
-	/* Test if ring size is exceeding the limit */
-	rp = rte_ring_create("test_bad_ring_size", (RTE_RING_SZ_MASK + 1), SOCKET_ID_ANY, 0);
-	if (NULL != rp) {
-		return -1;
-	}
-	return 0;
-}
-
-/*
- * it tests if it would always fail to create ring with an used ring name
- */
-static int
-test_ring_creation_with_an_used_name(void)
-{
-	struct rte_ring * rp;
-
-	rp = rte_ring_create("test", RING_SIZE, SOCKET_ID_ANY, 0);
-	if (NULL != rp)
-		return -1;
-
-	return 0;
-}
-
-/*
- * Test to if a non-power of 2 count causes the create
- * function to fail correctly
- */
-static int
-test_create_count_odd(void)
-{
-	struct rte_ring *r = rte_ring_create("test_ring_count",
-			4097, SOCKET_ID_ANY, 0 );
-	if(r != NULL){
-		return -1;
-	}
-	return 0;
-}
-
-static int
-test_lookup_null(void)
-{
-	struct rte_ring *rlp = rte_ring_lookup("ring_not_found");
-	if (rlp ==NULL)
-	if (rte_errno != ENOENT){
-		printf( "test failed to returnn error on null pointer\n");
-		return -1;
-	}
-	return 0;
-}
-
-/*
  * Test default, single element, bulk and burst APIs
  */
 static int
@@ -835,6 +858,10 @@ test_ring(void)
 	unsigned int i, j;
 	struct rte_ring *r = NULL;
 
+	/* Negative test cases */
+	if (test_ring_negative_tests() < 0)
+		goto test_fail;
+
 	/* some more basic operations */
 	if (test_ring_basic_ex() < 0)
 		goto test_fail;
@@ -859,27 +886,6 @@ test_ring(void)
 
 	/* basic operations */
 	if (test_ring_basic(r) < 0)
-		goto test_fail;
-
-	/* basic operations */
-	if ( test_create_count_odd() < 0){
-		printf("Test failed to detect odd count\n");
-		goto test_fail;
-	} else
-		printf("Test detected odd count\n");
-
-	if ( test_lookup_null() < 0){
-		printf("Test failed to detect NULL ring lookup\n");
-		goto test_fail;
-	} else
-		printf("Test detected NULL ring lookup\n");
-
-	/* test of creating ring with wrong size */
-	if (test_ring_creation_with_wrong_size() < 0)
-		goto test_fail;
-
-	/* test of creation ring with an used name */
-	if (test_ring_creation_with_an_used_name() < 0)
 		goto test_fail;
 
 	if (test_ring_with_exact_size() < 0)
