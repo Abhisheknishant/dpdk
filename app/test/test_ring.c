@@ -727,75 +727,106 @@ fail_test:
 	return -1;
 }
 
+/*
+ * Basic test cases with exact size ring.
+ */
 static int
 test_ring_with_exact_size(void)
 {
-	struct rte_ring *std_ring = NULL, *exact_sz_ring = NULL;
-	void *ptr_array[16];
-	static const unsigned int ring_sz = RTE_DIM(ptr_array);
-	unsigned int i;
+	struct rte_ring *std_r = NULL, *exact_sz_r = NULL;
+	void *obj;
+	const unsigned int ring_sz = 16;
+	unsigned int i, j;
 	int ret = -1;
 
-	std_ring = rte_ring_create("std", ring_sz, rte_socket_id(),
-			RING_F_SP_ENQ | RING_F_SC_DEQ);
-	if (std_ring == NULL) {
-		printf("%s: error, can't create std ring\n", __func__);
-		goto end;
-	}
-	exact_sz_ring = rte_ring_create("exact sz", ring_sz, rte_socket_id(),
-			RING_F_SP_ENQ | RING_F_SC_DEQ | RING_F_EXACT_SZ);
-	if (exact_sz_ring == NULL) {
-		printf("%s: error, can't create exact size ring\n", __func__);
-		goto end;
-	}
+	for (i = 0; i < RTE_DIM(esize); i++) {
+		test_ring_print_test_string("Test exact size ring",
+				TEST_RING_IGNORE_API_TYPE,
+				esize[i]);
 
-	/*
-	 * Check that the exact size ring is bigger than the standard ring
-	 */
-	if (rte_ring_get_size(std_ring) >= rte_ring_get_size(exact_sz_ring)) {
-		printf("%s: error, std ring (size: %u) is not smaller than exact size one (size %u)\n",
-				__func__,
-				rte_ring_get_size(std_ring),
-				rte_ring_get_size(exact_sz_ring));
-		goto end;
-	}
-	/*
-	 * check that the exact_sz_ring can hold one more element than the
-	 * standard ring. (16 vs 15 elements)
-	 */
-	for (i = 0; i < ring_sz - 1; i++) {
-		rte_ring_enqueue(std_ring, NULL);
-		rte_ring_enqueue(exact_sz_ring, NULL);
-	}
-	if (rte_ring_enqueue(std_ring, NULL) != -ENOBUFS) {
-		printf("%s: error, unexpected successful enqueue\n", __func__);
-		goto end;
-	}
-	if (rte_ring_enqueue(exact_sz_ring, NULL) == -ENOBUFS) {
-		printf("%s: error, enqueue failed\n", __func__);
-		goto end;
-	}
+		/* alloc object pointers */
+		obj = test_ring_calloc(16, esize[i]);
+		if (obj == NULL)
+			goto test_fail;
 
-	/* check that dequeue returns the expected number of elements */
-	if (rte_ring_dequeue_burst(exact_sz_ring, ptr_array,
-			RTE_DIM(ptr_array), NULL) != ring_sz) {
-		printf("%s: error, failed to dequeue expected nb of elements\n",
+		TEST_RING_CREATE("std", esize[i], ring_sz, rte_socket_id(),
+					RING_F_SP_ENQ | RING_F_SC_DEQ, std_r);
+		if (std_r == NULL) {
+			printf("%s: error, can't create std ring\n", __func__);
+			goto test_fail;
+		}
+		TEST_RING_CREATE("exact sz", esize[i], ring_sz, rte_socket_id(),
+				RING_F_SP_ENQ | RING_F_SC_DEQ | RING_F_EXACT_SZ,
+				exact_sz_r);
+		if (exact_sz_r == NULL) {
+			printf("%s: error, can't create exact size ring\n",
+					__func__);
+			goto test_fail;
+		}
+
+		/*
+		 * Check that the exact size ring is bigger than the
+		 * standard ring
+		 */
+		if (rte_ring_get_size(std_r) >= rte_ring_get_size(exact_sz_r)) {
+			printf("%s: error, std ring (size: %u) is not smaller than exact size one (size %u)\n",
+					__func__,
+					rte_ring_get_size(std_r),
+					rte_ring_get_size(exact_sz_r));
+			goto test_fail;
+		}
+		/*
+		 * check that the exact_sz_ring can hold one more element
+		 * than the standard ring. (16 vs 15 elements)
+		 */
+		for (j = 0; j < ring_sz - 1; j++) {
+			TEST_RING_ENQUEUE(std_r, obj, esize[i], 1, ret,
+						TEST_RING_N | TEST_RING_SL);
+			TEST_RING_ENQUEUE(exact_sz_r, obj, esize[i], 1,
+					ret, TEST_RING_N | TEST_RING_SL);
+		}
+		TEST_RING_ENQUEUE(std_r, obj, esize[i], 1, ret,
+						TEST_RING_N | TEST_RING_SL);
+		if (ret != -ENOBUFS) {
+			printf("%s: error, unexpected successful enqueue\n",
 				__func__);
-		goto end;
-	}
+			goto test_fail;
+		}
+		TEST_RING_ENQUEUE(exact_sz_r, obj, esize[i], 1, ret,
+						TEST_RING_N | TEST_RING_SL);
+		if (ret == -ENOBUFS) {
+			printf("%s: error, enqueue failed\n", __func__);
+			goto test_fail;
+		}
 
-	/* check that the capacity function returns expected value */
-	if (rte_ring_get_capacity(exact_sz_ring) != ring_sz) {
-		printf("%s: error, incorrect ring capacity reported\n",
+		/* check that dequeue returns the expected number of elements */
+		TEST_RING_DEQUEUE(exact_sz_r, obj, esize[i], ring_sz,
+					ret, TEST_RING_N | TEST_RING_BR);
+		if (ret != (int)ring_sz) {
+			printf("%s: error, failed to dequeue expected nb of elements\n",
 				__func__);
-		goto end;
+			goto test_fail;
+		}
+
+		/* check that the capacity function returns expected value */
+		if (rte_ring_get_capacity(exact_sz_r) != ring_sz) {
+			printf("%s: error, incorrect ring capacity reported\n",
+					__func__);
+			goto test_fail;
+		}
+
+		rte_free(obj);
+		rte_ring_free(std_r);
+		rte_ring_free(exact_sz_r);
 	}
 
-	ret = 0; /* all ok if we get here */
-end:
-	rte_ring_free(std_ring);
-	rte_ring_free(exact_sz_ring);
-	return ret;
+	return 0;
+
+test_fail:
+	rte_free(obj);
+	rte_ring_free(std_r);
+	rte_ring_free(exact_sz_r);
+	return -1;
 }
 
 static int
