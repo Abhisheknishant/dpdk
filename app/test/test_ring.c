@@ -620,78 +620,111 @@ test_lookup_null(void)
 }
 
 /*
- * it tests some more basic ring operations
+ * Test default, single element, bulk and burst APIs
  */
 static int
 test_ring_basic_ex(void)
 {
 	int ret = -1;
-	unsigned i;
+	unsigned int i, j;
 	struct rte_ring *rp = NULL;
-	void **obj = NULL;
+	void *obj = NULL;
 
-	obj = rte_calloc("test_ring_basic_ex_malloc", RING_SIZE, sizeof(void *), 0);
-	if (obj == NULL) {
-		printf("test_ring_basic_ex fail to rte_malloc\n");
-		goto fail_test;
+	for (i = 0; i < RTE_DIM(esize); i++) {
+		obj = test_ring_calloc(RING_SIZE, esize[i]);
+		if (obj == NULL) {
+			printf("test_ring_basic_ex fail to rte_malloc\n");
+			goto fail_test;
+		}
+
+		TEST_RING_CREATE("test_ring_basic_ex", esize[i], RING_SIZE,
+					SOCKET_ID_ANY,
+					RING_F_SP_ENQ | RING_F_SC_DEQ, rp);
+		if (rp == NULL) {
+			printf("test_ring_basic_ex fail to create ring\n");
+			goto fail_test;
+		}
+
+		if (rte_ring_lookup("test_ring_basic_ex") != rp) {
+			printf("test_ring_basic_ex ring is not found\n");
+			goto fail_test;
+		}
+
+		if (rte_ring_empty(rp) != 1) {
+			printf("test_ring_basic_ex ring is not empty but it should be\n");
+			goto fail_test;
+		}
+
+		printf("%u ring entries are now free\n",
+			rte_ring_free_count(rp));
+
+		for (j = 0; j < RING_SIZE; j++) {
+			TEST_RING_ENQUEUE(rp, obj, esize[i], 1, ret,
+						TEST_RING_N | TEST_RING_SL);
+		}
+
+		if (rte_ring_full(rp) != 1) {
+			printf("test_ring_basic_ex ring is not full but it should be\n");
+			goto fail_test;
+		}
+
+		for (j = 0; j < RING_SIZE; j++) {
+			TEST_RING_DEQUEUE(rp, obj, esize[i], 1, ret,
+						TEST_RING_N | TEST_RING_SL);
+		}
+
+		if (rte_ring_empty(rp) != 1) {
+			printf("test_ring_basic_ex ring is not empty but it should be\n");
+			goto fail_test;
+		}
+
+		/* Following tests use the configured flags to decide
+		 * SP/SC or MP/MC.
+		 */
+		/* Covering the ring burst operation */
+		TEST_RING_ENQUEUE(rp, obj, esize[i], 2, ret,
+					TEST_RING_N | TEST_RING_BR);
+		if (ret != 2) {
+			printf("test_ring_basic_ex: rte_ring_enqueue_burst fails\n");
+			goto fail_test;
+		}
+
+		TEST_RING_DEQUEUE(rp, obj, esize[i], 2, ret,
+					TEST_RING_N | TEST_RING_BR);
+		if (ret != 2) {
+			printf("test_ring_basic_ex: rte_ring_dequeue_burst fails\n");
+			goto fail_test;
+		}
+
+		/* Covering the ring bulk operation */
+		TEST_RING_ENQUEUE(rp, obj, esize[i], 2, ret,
+					TEST_RING_N | TEST_RING_BL);
+		if (ret != 2) {
+			printf("test_ring_basic_ex: rte_ring_enqueue_bulk fails\n");
+			goto fail_test;
+		}
+
+		TEST_RING_DEQUEUE(rp, obj, esize[i], 2, ret,
+					TEST_RING_N | TEST_RING_BL);
+		if (ret != 2) {
+			printf("test_ring_basic_ex: rte_ring_dequeue_bulk fails\n");
+			goto fail_test;
+		}
+
+		rte_ring_free(rp);
+		rte_free(obj);
+		rp = NULL;
+		obj = NULL;
 	}
 
-	rp = rte_ring_create("test_ring_basic_ex", RING_SIZE, SOCKET_ID_ANY,
-			RING_F_SP_ENQ | RING_F_SC_DEQ);
-	if (rp == NULL) {
-		printf("test_ring_basic_ex fail to create ring\n");
-		goto fail_test;
-	}
+	return 0;
 
-	if (rte_ring_lookup("test_ring_basic_ex") != rp) {
-		goto fail_test;
-	}
-
-	if (rte_ring_empty(rp) != 1) {
-		printf("test_ring_basic_ex ring is not empty but it should be\n");
-		goto fail_test;
-	}
-
-	printf("%u ring entries are now free\n", rte_ring_free_count(rp));
-
-	for (i = 0; i < RING_SIZE; i ++) {
-		rte_ring_enqueue(rp, obj[i]);
-	}
-
-	if (rte_ring_full(rp) != 1) {
-		printf("test_ring_basic_ex ring is not full but it should be\n");
-		goto fail_test;
-	}
-
-	for (i = 0; i < RING_SIZE; i ++) {
-		rte_ring_dequeue(rp, &obj[i]);
-	}
-
-	if (rte_ring_empty(rp) != 1) {
-		printf("test_ring_basic_ex ring is not empty but it should be\n");
-		goto fail_test;
-	}
-
-	/* Covering the ring burst operation */
-	ret = rte_ring_enqueue_burst(rp, obj, 2, NULL);
-	if (ret != 2) {
-		printf("test_ring_basic_ex: rte_ring_enqueue_burst fails \n");
-		goto fail_test;
-	}
-
-	ret = rte_ring_dequeue_burst(rp, obj, 2, NULL);
-	if (ret != 2) {
-		printf("test_ring_basic_ex: rte_ring_dequeue_burst fails \n");
-		goto fail_test;
-	}
-
-	ret = 0;
 fail_test:
 	rte_ring_free(rp);
 	if (obj != NULL)
 		rte_free(obj);
 
-	return ret;
+	return -1;
 }
 
 static int
