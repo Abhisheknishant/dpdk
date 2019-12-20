@@ -2306,6 +2306,45 @@ ixgbe_tx_queue_release_mbufs(struct ixgbe_tx_queue *txq)
 	}
 }
 
+int ixgbe_tx_done_cleanup(void *txq, uint32_t free_cnt)
+{
+	struct ixgbe_tx_queue *q = (struct ixgbe_tx_queue *)txq;
+	struct ixgbe_tx_entry *sw_ring;
+	uint16_t tx_id;    /* Current segment being processed. */
+	uint16_t tx_cleaned;
+
+	int count = 0;
+
+	if (q == NULL)
+		return -ENODEV;
+
+	sw_ring = q->sw_ring;
+	tx_cleaned = q->last_desc_cleaned;
+	tx_id = sw_ring[q->last_desc_cleaned].next_id;
+	if (!(q->tx_ring[tx_id].wb.status &
+			IXGBE_TXD_STAT_DD))
+		return 0;
+
+	do {
+		if (sw_ring[tx_id].mbuf == NULL)
+			break;
+
+		rte_pktmbuf_free_seg(sw_ring[tx_id].mbuf);
+		sw_ring[tx_id].mbuf = NULL;
+		sw_ring[tx_id].last_id = tx_id;
+
+		/* Move to next segemnt. */
+		tx_cleaned = tx_id;
+		tx_id = sw_ring[tx_id].next_id;
+		count++;
+	} while (count != (int)free_cnt);
+
+	q->nb_tx_free += (uint16_t)count;
+	q->last_desc_cleaned = tx_cleaned;
+
+	return count;
+}
+
 static void __attribute__((cold))
 ixgbe_tx_free_swring(struct ixgbe_tx_queue *txq)
 {
