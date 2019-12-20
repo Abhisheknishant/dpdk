@@ -433,46 +433,6 @@ test_burst_bulk_enqueue_dequeue(struct rte_ring *r, const int esize,
 	return 0;
 }
 
-/* Times enqueue and dequeue on a single lcore */
-static void
-test_bulk_enqueue_dequeue(struct rte_ring *r)
-{
-	const unsigned iter_shift = 23;
-	const unsigned iterations = 1<<iter_shift;
-	unsigned sz, i = 0;
-	void *burst[MAX_BURST] = {0};
-
-	for (sz = 0; sz < sizeof(bulk_sizes)/sizeof(bulk_sizes[0]); sz++) {
-		const uint64_t sc_start = rte_rdtsc();
-		for (i = 0; i < iterations; i++) {
-			rte_ring_sp_enqueue_bulk(r, burst,
-					bulk_sizes[sz], NULL);
-			rte_ring_sc_dequeue_bulk(r, burst,
-					bulk_sizes[sz], NULL);
-		}
-		const uint64_t sc_end = rte_rdtsc();
-
-		const uint64_t mc_start = rte_rdtsc();
-		for (i = 0; i < iterations; i++) {
-			rte_ring_mp_enqueue_bulk(r, burst,
-					bulk_sizes[sz], NULL);
-			rte_ring_mc_dequeue_bulk(r, burst,
-					bulk_sizes[sz], NULL);
-		}
-		const uint64_t mc_end = rte_rdtsc();
-
-		double sc_avg = ((double)(sc_end-sc_start) /
-				(iterations * bulk_sizes[sz]));
-		double mc_avg = ((double)(mc_end-mc_start) /
-				(iterations * bulk_sizes[sz]));
-
-		printf("SP/SC bulk enq/dequeue (size: %u): %.2F\n", bulk_sizes[sz],
-				sc_avg);
-		printf("MP/MC bulk enq/dequeue (size: %u): %.2F\n", bulk_sizes[sz],
-				mc_avg);
-	}
-}
-
 static int
 test_ring_perf(void)
 {
@@ -499,6 +459,13 @@ test_ring_perf(void)
 	if (test_burst_bulk_enqueue_dequeue(r, -1,
 			TEST_RING_M | TEST_RING_BR) < 0)
 		return -1;
+	printf("\n### Testing bulk enq/deq ###\n");
+	if (test_burst_bulk_enqueue_dequeue(r, -1,
+			TEST_RING_S | TEST_RING_BL) < 0)
+		return -1;
+	if (test_burst_bulk_enqueue_dequeue(r, -1,
+			TEST_RING_M | TEST_RING_BL) < 0)
+		return -1;
 	rte_ring_free(r);
 
 	TEST_RING_CREATE(RING_NAME, 16, RING_SIZE, rte_socket_id(), 0, r);
@@ -517,6 +484,13 @@ test_ring_perf(void)
 	if (test_burst_bulk_enqueue_dequeue(r, 16,
 			TEST_RING_M | TEST_RING_BR) < 0)
 		return -1;
+	printf("\n### Testing bulk enq/deq ###\n");
+	if (test_burst_bulk_enqueue_dequeue(r, 16,
+			TEST_RING_S | TEST_RING_BL) < 0)
+		return -1;
+	if (test_burst_bulk_enqueue_dequeue(r, 16,
+			TEST_RING_M | TEST_RING_BL) < 0)
+		return -1;
 	rte_ring_free(r);
 
 	r = rte_ring_create(RING_NAME, RING_SIZE, rte_socket_id(), 0);
@@ -525,9 +499,6 @@ test_ring_perf(void)
 
 	printf("\n### Testing empty dequeue ###\n");
 	test_empty_dequeue(r);
-
-	printf("\n### Testing using a single lcore ###\n");
-	test_bulk_enqueue_dequeue(r);
 
 	if (get_two_hyperthreads(&cores) == 0) {
 		printf("\n### Testing using two hyperthreads ###\n");
