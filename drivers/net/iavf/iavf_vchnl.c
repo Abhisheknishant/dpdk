@@ -214,7 +214,7 @@ iavf_handle_virtchnl_msg(struct rte_eth_dev *dev)
 					vf->cmd_retval = msg_ret;
 					/* prevent compiler reordering */
 					rte_compiler_barrier();
-					_clear_cmd(vf);
+					_notify_cmd(vf);
 				} else
 					PMD_DRV_LOG(ERR, "command mismatch,"
 						    "expect %u, get %u",
