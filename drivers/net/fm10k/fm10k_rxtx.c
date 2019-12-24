@@ -541,6 +541,51 @@ static inline void tx_free_bulk_mbuf(struct rte_mbuf **txep, int num)
 	}
 }
 
+int fm10k_tx_done_cleanup(void *txq, uint32_t free_cnt)
+{
+	struct fm10k_tx_queue *q = (struct fm10k_tx_queue *)txq;
+	uint16_t next_rs, count = 0;
+
+	if (q == NULL)
+		return -ENODEV;
+
+	next_rs = fifo_peek(&q->rs_tracker);
+	if (!(q->hw_ring[next_rs].flags & FM10K_TXD_FLAG_DONE))
+		return count;
+
+	/* the DONE flag is set on this descriptor so remove the ID
+	 * from the RS bit tracker and free the buffers
+	 */
+	fifo_remove(&q->rs_tracker);
+
+	/* wrap around? if so, free buffers from last_free up to but NOT
+	 * including nb_desc
+	 */
+	if (q->last_free > next_rs) {
+		count = q->nb_desc - q->last_free;
+		tx_free_bulk_mbuf(&q->sw_ring[q->last_free], count);
+		q->last_free = 0;
+
+		if (unlikely(count == (int)free_cnt))
+			return count;
+	}
+
+	/* adjust free descriptor count before the next loop */
+	q->nb_free += count + (next_rs + 1 - q->last_free);
+
+	/* free buffers from last_free, up to and including next_rs */
+	if (q->last_free <= next_rs) {
+		count = next_rs - q->last_free + 1;
+		tx_free_bulk_mbuf(&q->sw_ring[q->last_free], count);
+		q->last_free += count;
+	}
+
+	if (q->last_free == q->nb_desc)
+		q->last_free = 0;
+
+	return count;
+}
+
 static inline void tx_free_descriptors(struct fm10k_tx_queue *q)
 {
 	uint16_t next_rs, count = 0;
