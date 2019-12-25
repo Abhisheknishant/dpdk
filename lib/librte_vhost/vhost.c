@@ -862,6 +862,10 @@ rte_vhost_get_vhost_ring_inflight(int vid, uint16_t vring_idx,
 	if (unlikely(!dev))
 		return -1;
 
+	if (unlikely(!(dev->protocol_features &
+	    (1ULL << VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD))))
+		return 0;
+
 	if (vring_idx >= VHOST_MAX_VRING)
 		return -1;
 
@@ -1430,6 +1434,10 @@ rte_vhost_get_vring_base_from_inflight(int vid,
 
 	if (dev == NULL || last_avail_idx == NULL || last_used_idx == NULL)
 		return -1;
+
+	if (unlikely(!(dev->protocol_features &
+	    (1ULL << VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD))))
+		return 0;
 
 	if (!vq_is_packed(dev))
 		return -1;
