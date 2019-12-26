@@ -470,6 +470,28 @@ struct ixgbe_tm_conf {
 	bool committed;
 };
 
+#define IXGBE_TASK_THREAD_NAME_LEN  64
+enum {
+	IXGBE_TASK_THREAD_EXIT = 0,
+	IXGBE_TASK_THREAD_RUNNING = 1,
+	IXGBE_TASK_THREAD_EXIT_DONE = 2
+};
+enum {
+	IXGBE_TASK_READY = 0,
+	IXGBE_TASK_RUNNING = 1,
+	IXGBE_TASK_FINISH = 2
+};
+
+typedef void (*ixgbe_task_cb_fn) (void *arg);
+struct ixgbe_task {
+	TAILQ_ENTRY(ixgbe_task) next;
+	void *arg;
+	int status;
+	ixgbe_task_cb_fn task_cb;
+};
+TAILQ_HEAD(ixgbe_task_head, ixgbe_task);
+
+
 /*
  * Structure to store private data for each driver instance (for each port).
  */
@@ -510,6 +532,13 @@ struct ixgbe_adapter {
 	 * mailbox status) link status.
 	 */
 	uint8_t pflink_fullchk;
+
+	/* Control thread per VF/PF, used for to do delay work */
+	pthread_t task_tid;
+	struct ixgbe_task_head task_head;
+	int task_status;
+	pthread_mutex_t task_lock;
+	pthread_cond_t task_cond;
 };
 
 struct ixgbe_vf_representor {
@@ -760,6 +789,9 @@ void ixgbe_dev_macsec_setting_save(struct rte_eth_dev *dev,
 		struct ixgbe_macsec_setting *macsec_setting);
 
 void ixgbe_dev_macsec_setting_reset(struct rte_eth_dev *dev);
+int ixgbe_add_task(struct rte_eth_dev *dev, ixgbe_task_cb_fn task_cb);
+int ixgbe_cancel_task(struct rte_eth_dev *dev, ixgbe_task_cb_fn task_cb);
+
 
 static inline int
 ixgbe_ethertype_filter_lookup(struct ixgbe_filter_info *filter_info,

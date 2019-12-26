@@ -15,6 +15,7 @@
 #include <rte_byteorder.h>
 #include <rte_common.h>
 #include <rte_cycles.h>
+#include <rte_tailq.h>
 
 #include <rte_interrupts.h>
 #include <rte_log.h>
@@ -378,6 +379,9 @@ static int ixgbe_dev_udp_tunnel_port_del(struct rte_eth_dev *dev,
 					 struct rte_eth_udp_tunnel *udp_tunnel);
 static int ixgbe_filter_restore(struct rte_eth_dev *dev);
 static void ixgbe_l2_tunnel_conf(struct rte_eth_dev *dev);
+static int ixgbe_task_thread_init(struct rte_eth_dev *dev);
+static void ixgbe_task_thread_uninit(struct rte_eth_dev *dev);
+
 
 /*
  * Define VF Stats MACRO for Non "cleared on read" register
@@ -1069,6 +1073,171 @@ ixgbe_swfw_lock_reset(struct ixgbe_hw *hw)
 }
 
 /*
+ * Add a task to task queue tail.
+ */
+int ixgbe_add_task(struct rte_eth_dev *dev, ixgbe_task_cb_fn task_cb)
+{
+	struct ixgbe_adapter *ad = dev->data->dev_private;
+	struct ixgbe_task *task;
+
+	if (ad->task_status == IXGBE_TASK_THREAD_RUNNING) {
+		task = rte_zmalloc("ixgbe", sizeof(struct ixgbe_task), 0);
+		if (task == NULL)
+			return -ENOMEM;
+
+		task->arg = dev;
+		task->task_cb = task_cb;
+		task->status = IXGBE_TASK_READY;
+
+		pthread_mutex_lock(&ad->task_lock);
+		TAILQ_INSERT_TAIL(&ad->task_head, task, next);
+		pthread_cond_signal(&ad->task_cond);
+		pthread_mutex_unlock(&ad->task_lock);
+	} else {
+		return -EPERM;	/* Operation not permitted */
+	}
+
+	return 0;
+}
+
+/*
+ * Sync cancel a task with all @task_cb be exit.
+ */
+int ixgbe_cancel_task(struct rte_eth_dev *dev, ixgbe_task_cb_fn task_cb)
+{
+	struct ixgbe_adapter *ad = dev->data->dev_private;
+	struct ixgbe_task *task, *ttask;
+	int i, executing;
+#define DELAY_TIMEOUT_LOG   2000	// 2s
+#define DELAY_TIMEOUT_MAX   10000	// 10s
+
+	for (i = 0; i < DELAY_TIMEOUT_MAX; i++) {
+		executing = 0;
+		if (ad->task_status == IXGBE_TASK_THREAD_RUNNING) {
+			pthread_mutex_lock(&ad->task_lock);
+			TAILQ_FOREACH_SAFE(task, &ad->task_head, next, ttask) {
+				if (task->task_cb == task_cb) {
+					if (task->status == IXGBE_TASK_RUNNING) {
+						executing++;
+					} else {
+						TAILQ_REMOVE(&ad->task_head, task, next);
+						rte_free(task);
+					}
+				}
+			}
+			pthread_mutex_unlock(&ad->task_lock);
+
+			if (executing) {
+				if (i > DELAY_TIMEOUT_LOG && (i % 1000 == 0)) {
+					PMD_DRV_LOG(WARNING,
+						    "Cannel task time wait %ds!", i / 1000);
+				}
+
+				rte_delay_us_sleep(1000);	// 1ms
+				continue;
+			}
+		}
+		break;
+	}
+
+	if (i == DELAY_TIMEOUT_MAX)
+		return -EBUSY;
+
+	return 0;
+}
+
+/*
+ * Task main thread. Loop until state is set to IXGBE_TASK_THREAD_EXIT.
+ * For each task, set the status to IXGBE_TASK_RUNNING before execution,
+ * execute and then be dequeue.
+ */
+static void *ixgbe_task_handler(void *args)
+{
+	struct ixgbe_adapter *ad =
+	    ((struct rte_eth_dev *)args)->data->dev_private;
+	struct ixgbe_task *task;
+
+	PMD_INIT_LOG(DEBUG, "ixgbe task thread created");
+	while (ad->task_status) {
+		pthread_mutex_lock(&ad->task_lock);
+		if (TAILQ_EMPTY(&ad->task_head)) {
+			pthread_cond_wait(&ad->task_cond, &ad->task_lock);
+			pthread_mutex_unlock(&ad->task_lock);
+			continue;
+		}
+
+		/* pop firt task and run it */
+		task = TAILQ_FIRST(&ad->task_head);
+		task->status = IXGBE_TASK_RUNNING;
+		pthread_mutex_unlock(&ad->task_lock);
+
+		if (task && task->task_cb)
+			task->task_cb(task->arg);
+
+		pthread_mutex_lock(&ad->task_lock);
+		TAILQ_REMOVE(&ad->task_head, task, next);
+		rte_free(task);
+		pthread_mutex_unlock(&ad->task_lock);
+	}
+
+	pthread_mutex_lock(&ad->task_lock);
+	while (!TAILQ_EMPTY(&ad->task_head)) {
+		task = TAILQ_FIRST(&ad->task_head);
+		TAILQ_REMOVE(&ad->task_head, task, next);
+		rte_free(task);
+	}
+	pthread_mutex_unlock(&ad->task_lock);
+	ad->task_status = IXGBE_TASK_THREAD_EXIT_DONE;
+
+	return NULL;
+}
+
+static int ixgbe_task_thread_init(struct rte_eth_dev *dev)
+{
+	struct ixgbe_adapter *ad = dev->data->dev_private;
+	struct rte_pci_device *pci_dev = RTE_ETH_DEV_TO_PCI(dev);
+	char name[IXGBE_TASK_THREAD_NAME_LEN];
+	int ret;
+
+	TAILQ_INIT(&ad->task_head);
+	pthread_mutex_init(&ad->task_lock, NULL);
+	pthread_cond_init(&ad->task_cond, NULL);
+
+	snprintf(name, IXGBE_TASK_THREAD_NAME_LEN, "ixgbe-delay:%s",
+		 pci_dev->name);
+
+	ret = rte_ctrl_thread_create(&ad->task_tid, name, NULL,
+				     ixgbe_task_handler, dev);
+	if (ret < 0) {
+		PMD_INIT_LOG(ERR, "Create control thread %s fail!", name);
+		return ret;
+	}
+	ad->task_status = IXGBE_TASK_THREAD_RUNNING;
+
+	return 0;
+}
+
+static void ixgbe_task_thread_uninit(struct rte_eth_dev *dev)
+{
+	struct ixgbe_adapter *ad = dev->data->dev_private;
+	int i;
+#define MAX_EXIT_TIMEOUT  3000	/* 3s */
+
+	if (ad->task_status == IXGBE_TASK_THREAD_RUNNING) {
+		ad->task_status = IXGBE_TASK_THREAD_EXIT;
+		pthread_cond_signal(&ad->task_cond);
+		for (i = 0; i < MAX_EXIT_TIMEOUT; i++) {
+			if (ad->task_status == IXGBE_TASK_THREAD_EXIT_DONE) {
+				pthread_cond_destroy(&ad->task_cond);
+				pthread_mutex_destroy(&ad->task_lock);
+				break;
+			}
+			rte_delay_us_sleep(1000);	// 1ms
+		}
+	}
+}
+
+/*
  * This function is based on code in ixgbe_attach() in base/ixgbe.c.
  * It returns 0 on success.
  */
@@ -1301,6 +1470,7 @@ eth_ixgbe_dev_init(struct rte_eth_dev *eth_dev, void *init_params __rte_unused)
 	/* enable support intr */
 	ixgbe_enable_intr(eth_dev);
 
+	ixgbe_task_thread_init(eth_dev);
 	ixgbe_dev_set_link_down(eth_dev);
 
 	/* initialize filter info */
@@ -1337,6 +1507,7 @@ eth_ixgbe_dev_uninit(struct rte_eth_dev *eth_dev)
 		return 0;
 
 	ixgbe_dev_close(eth_dev);
+	ixgbe_task_thread_uninit(eth_dev);
 
 	return 0;
 }
@@ -1713,6 +1884,7 @@ eth_ixgbevf_dev_init(struct rte_eth_dev *eth_dev)
 				   ixgbevf_dev_interrupt_handler, eth_dev);
 	rte_intr_enable(intr_handle);
 	ixgbevf_intr_enable(eth_dev);
+	ixgbe_task_thread_init(eth_dev);
 
 	PMD_INIT_LOG(DEBUG, "port %d vendorID=0x%x deviceID=0x%x mac.type=%s",
 		     eth_dev->data->port_id, pci_dev->id.vendor_id,
@@ -1732,6 +1904,7 @@ eth_ixgbevf_dev_uninit(struct rte_eth_dev *eth_dev)
 		return 0;
 
 	ixgbevf_dev_close(eth_dev);
+	ixgbe_task_thread_uninit(eth_dev);
 
 	return 0;
 }
@@ -2570,7 +2743,7 @@ ixgbe_dev_start(struct rte_eth_dev *dev)
 	}
 
 	/* Stop the link setup handler before resetting the HW. */
-	rte_eal_alarm_cancel(ixgbe_dev_setup_link_alarm_handler, dev);
+	ixgbe_cancel_task(dev, ixgbe_dev_setup_link_alarm_handler);
 
 	/* disable uio/vfio intr/eventfd mapping */
 	rte_intr_disable(intr_handle);
@@ -2842,7 +3015,7 @@ ixgbe_dev_stop(struct rte_eth_dev *dev)
 
 	PMD_INIT_FUNC_TRACE();
 
-	rte_eal_alarm_cancel(ixgbe_dev_setup_link_alarm_handler, dev);
+	ixgbe_cancel_task(dev, ixgbe_dev_setup_link_alarm_handler);
 
 	/* disable interrupts */
 	ixgbe_disable_intr(hw);
@@ -4162,8 +4335,7 @@ ixgbe_dev_link_update_share(struct rte_eth_dev *dev,
 	if (link_up == 0) {
 		if (ixgbe_get_media_type(hw) == ixgbe_media_type_fiber) {
 			intr->flags |= IXGBE_FLAG_NEED_LINK_CONFIG;
-			rte_eal_alarm_set(10,
-				ixgbe_dev_setup_link_alarm_handler, dev);
+			ixgbe_add_task(dev, ixgbe_dev_setup_link_alarm_handler);
 		}
 		return rte_eth_linkstatus_set(dev, &link);
 	}
@@ -5207,7 +5379,7 @@ ixgbevf_dev_start(struct rte_eth_dev *dev)
 	PMD_INIT_FUNC_TRACE();
 
 	/* Stop the link setup handler before resetting the HW. */
-	rte_eal_alarm_cancel(ixgbe_dev_setup_link_alarm_handler, dev);
+	ixgbe_cancel_task(dev, ixgbe_dev_setup_link_alarm_handler);
 
 	err = hw->mac.ops.reset_hw(hw);
 	if (err) {
@@ -5305,7 +5477,7 @@ ixgbevf_dev_stop(struct rte_eth_dev *dev)
 
 	PMD_INIT_FUNC_TRACE();
 
-	rte_eal_alarm_cancel(ixgbe_dev_setup_link_alarm_handler, dev);
+	ixgbe_cancel_task(dev, ixgbe_dev_setup_link_alarm_handler);
 
 	ixgbevf_intr_disable(dev);
 
