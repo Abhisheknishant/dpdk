@@ -1515,8 +1515,8 @@ ccp_perform_passthru(struct ccp_passthru *pst,
 
 	CCP_CMD_SOC(desc) = 0;
 	CCP_CMD_IOC(desc) = 0;
-	CCP_CMD_INIT(desc) = 0;
-	CCP_CMD_EOM(desc) = 0;
+	CCP_CMD_INIT(desc) = 1;
+	CCP_CMD_EOM(desc) = 1;
 	CCP_CMD_PROT(desc) = 0;
 
 	function.raw = 0;
@@ -2383,7 +2383,7 @@ ccp_perform_aes_gcm(struct rte_crypto_op *op, struct ccp_queue *cmd_q)
 					 op->sym->session,
 					 ccp_cryptodev_driver_id);
 	iv = rte_crypto_op_ctod_offset(op, uint8_t *, session->iv.offset);
-	key_addr = session->cipher.key_phys;
+	key_addr = (phys_addr_t)rte_mem_virt2phy(session->cipher.key_ccp);
 
 	src_addr = rte_pktmbuf_mtophys_offset(op->sym->m_src,
 					      op->sym->aead.data.offset);
@@ -2393,7 +2393,8 @@ ccp_perform_aes_gcm(struct rte_crypto_op *op, struct ccp_queue *cmd_q)
 	else
 		dest_addr = src_addr;
 	rte_pktmbuf_append(op->sym->m_src, session->auth.ctx_len);
-	digest_dest_addr = op->sym->aead.digest.phys_addr;
+	digest_dest_addr =
+		(phys_addr_t)rte_mem_virt2phy(op->sym->aead.digest.data);
 	temp = (uint64_t *)(op->sym->aead.digest.data + AES_BLOCK_SIZE);
 	*temp++ = rte_bswap64(session->auth.aad_length << 3);
 	*temp = rte_bswap64(op->sym->aead.data.length << 3);
@@ -2401,10 +2402,10 @@ ccp_perform_aes_gcm(struct rte_crypto_op *op, struct ccp_queue *cmd_q)
 	non_align_len = op->sym->aead.data.length % AES_BLOCK_SIZE;
 	length = CCP_ALIGN(op->sym->aead.data.length, AES_BLOCK_SIZE);
 
-	aad_addr = op->sym->aead.aad.phys_addr;
+	aad_addr = (phys_addr_t)rte_mem_virt2phy(op->sym->aead.aad.data);
 
 	/* CMD1 IV Passthru */
-	rte_memcpy(session->cipher.nonce + AES_BLOCK_SIZE, iv,
+	rte_memcpy(session->cipher.nonce, iv,
 		   session->iv.length);
 	pst.src_addr = session->cipher.nonce_phys;
 	pst.dest_addr = (phys_addr_t)(cmd_q->sb_iv * CCP_SB_BYTES);
@@ -2512,12 +2513,12 @@ ccp_perform_aes_gcm(struct rte_crypto_op *op, struct ccp_queue *cmd_q)
 	/* Last block (AAD_len || PT_len)*/
 	CCP_CMD_LEN(desc) = AES_BLOCK_SIZE;
 
-	CCP_CMD_SRC_LO(desc) = ((uint32_t)digest_dest_addr + AES_BLOCK_SIZE);
-	CCP_CMD_SRC_HI(desc) = high32_value(digest_dest_addr + AES_BLOCK_SIZE);
+	CCP_CMD_SRC_LO(desc) = ((uint32_t)digest_dest_addr);
+	CCP_CMD_SRC_HI(desc) = high32_value(digest_dest_addr);
 	CCP_CMD_SRC_MEM(desc) = CCP_MEMTYPE_SYSTEM;
 
-	CCP_CMD_DST_LO(desc) = ((uint32_t)digest_dest_addr);
-	CCP_CMD_DST_HI(desc) = high32_value(digest_dest_addr);
+	CCP_CMD_DST_LO(desc) = ((uint32_t)digest_dest_addr + AES_BLOCK_SIZE);
+	CCP_CMD_DST_HI(desc) = high32_value(digest_dest_addr + AES_BLOCK_SIZE);
 	CCP_CMD_SRC_MEM(desc) = CCP_MEMTYPE_SYSTEM;
 
 	CCP_CMD_KEY_LO(desc) = ((uint32_t)key_addr);
