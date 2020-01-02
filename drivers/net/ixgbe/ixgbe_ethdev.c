@@ -2544,7 +2544,8 @@ ixgbe_dev_start(struct rte_eth_dev *dev)
 	struct rte_pci_device *pci_dev = RTE_ETH_DEV_TO_PCI(dev);
 	struct rte_intr_handle *intr_handle = &pci_dev->intr_handle;
 	uint32_t intr_vector = 0;
-	int err, link_up = 0, negotiate = 0;
+	int err;
+	bool link_up = 0, negotiate = 0;
 	uint32_t speed = 0;
 	uint32_t allowed_speeds = 0;
 	int mask = 0;
@@ -3993,7 +3994,7 @@ ixgbevf_dev_info_get(struct rte_eth_dev *dev,
 
 static int
 ixgbevf_check_link(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
-		   int *link_up, int wait_to_complete)
+		   bool *link_up, int wait_to_complete)
 {
 	struct ixgbe_adapter *adapter = container_of(hw,
 						     struct ixgbe_adapter, hw);
@@ -4124,7 +4125,7 @@ ixgbe_dev_link_update_share(struct rte_eth_dev *dev,
 	ixgbe_link_speed link_speed = IXGBE_LINK_SPEED_UNKNOWN;
 	struct ixgbe_interrupt *intr =
 		IXGBE_DEV_PRIVATE_TO_INTR(dev->data->dev_private);
-	int link_up;
+	bool link_up;
 	int diag;
 	int wait = 1;
 	u32 esdp_reg;
