@@ -870,7 +870,7 @@ ice_add_mac_filter(struct ice_vsi *vsi, struct rte_ether_addr *mac_addr)
 		ret = -ENOMEM;
 		goto DONE;
 	}
-	rte_memcpy(&f->mac_info.mac_addr, mac_addr, ETH_ADDR_LEN);
+	rte_memcpy(&f->mac_info.mac_addr, mac_addr, RTE_ETHER_ADDR_LEN);
 	TAILQ_INSERT_TAIL(&vsi->mac_list, f, next);
 	vsi->mac_num++;
 
@@ -1659,7 +1659,7 @@ ice_setup_vsi(struct ice_pf *pf, enum ice_vsi_type type)
 		/* MAC configuration */
 		rte_memcpy(pf->dev_addr.addr_bytes,
 			   hw->port_info->mac.perm_addr,
-			   ETH_ADDR_LEN);
+			   RTE_ETHER_ADDR_LEN);
 
 		rte_memcpy(&mac_addr, &pf->dev_addr, RTE_ETHER_ADDR_LEN);
 		ret = ice_add_mac_filter(vsi, &mac_addr);
@@ -3264,7 +3264,7 @@ static int ice_macaddr_set(struct rte_eth_dev *dev,
 		PMD_DRV_LOG(ERR, "Failed to add mac filter");
 		return -EIO;
 	}
-	memcpy(&pf->dev_addr, mac_addr, ETH_ADDR_LEN);
+	rte_memcpy(&pf->dev_addr, mac_addr, RTE_ETHER_ADDR_LEN);
 
 	flags = ICE_AQC_MAN_MAC_UPDATE_LAA_WOL;
 	ret = ice_aq_manage_mac_write(hw, mac_addr->addr_bytes, flags, NULL);
