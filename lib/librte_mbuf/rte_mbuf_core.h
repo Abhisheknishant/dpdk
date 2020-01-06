@@ -124,12 +124,19 @@ extern "C" {
 #define PKT_RX_FDIR_FLX      (1ULL << 14)
 
 /**
- * The 2 vlans have been stripped by the hardware and their tci are
- * saved in mbuf->vlan_tci (inner) and mbuf->vlan_tci_outer (outer).
+ * The outer vlan has been stripped by the hardware and their tci are
+ * saved in mbuf->vlan_tci_outer (outer).
  * This can only happen if vlan stripping is enabled in the RX
  * configuration of the PMD.
- * When PKT_RX_QINQ_STRIPPED is set, the flags (PKT_RX_VLAN |
- * PKT_RX_VLAN_STRIPPED | PKT_RX_QINQ) must also be set.
+ * When PKT_RX_QINQ_STRIPPED is set, the flags (PKT_RX_VLAN |  PKT_RX_QINQ)
+ * must also be set.
+ * When both PKT_RX_QINQ_STRIPPED and PKT_RX_VLAN_STRIPPED are set, the 2 vlans
+ * have been stripped by the hardware and their tci are saved in
+ * mbuf->vlan_tci (inner) and mbuf->vlan_tci_outer (outer).
+ * This can only happen if vlan stripping is enabled in the RX configuration
+ * of the PMD.
+ * When PKT_RX_QINQ_STRIPPED and PKT_RX_VLAN_STRIPPED are set,
+ * (PKT_RX_VLAN | PKT_RX_QINQ) must also be set.
  */
 #define PKT_RX_QINQ_STRIPPED (1ULL << 15)
 
