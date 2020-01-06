@@ -1967,9 +1967,8 @@ fd_error:
 	close(fd);
 error:
 	/* map all segments into memory to make sure we get the addrs */
-	cur_seg = 0;
 	for (cur_seg = 0; cur_seg < i; cur_seg++) {
-		struct hugepage_file *hf = &hp[i];
+		struct hugepage_file *hf = &hp[cur_seg];
 		size_t map_sz = hf->size;
 		void *map_addr = hf->final_va;
 
