@@ -69,6 +69,19 @@ Device-related options
 
        --vdev 'net_pcap0,rx_pcap=input.pcap,tx_pcap=output.pcap'
 
+*   ``--manual-probe``
+
+    Switch the ``EAL`` probe mode to manual. The main bus probe step
+    is disabled and applications are expected to manually probe
+    devices using ``rte_dev_probe()``.
+
+    Devices declared on the command-line using ``-w`` and ``-vdev``
+    are interpreted as hotplug commands. They are thus probed in the
+    order they are declared.
+
+    This makes this option useful to enforce a specific device probe
+    order, instead of relying on each bus scan implementation details.
+
 *   ``-d <path to shared object or directory>``
 
     Load external drivers. An argument can be a single shared object file, or a
