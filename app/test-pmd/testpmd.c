@@ -3570,5 +3570,6 @@ main(int argc, char** argv)
 			return 1;
 	}
 
+	rte_eal_cleanup();
 	return 0;
 }
