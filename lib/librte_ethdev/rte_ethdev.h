@@ -3205,6 +3205,21 @@ int  rte_eth_led_on(uint16_t port_id);
 int  rte_eth_led_off(uint16_t port_id);
 
 /**
+ * Interrogate the Ethernet device to know if it is led control capable.
+ *
+ * @param port_id
+ *   The port identifier of the Ethernet device.
+ * @return
+ *   - (0) if successful.
+ *   - (-ENOTSUP) if underlying hardware OR driver doesn't support
+ *     that operation.
+ *   - (-ENODEV) if *port_id* invalid.
+ *   - (-EIO) if device is removed.
+ */
+int  __rte_experimental
+rte_eth_led_ctrl_capable(uint16_t port_id);
+
+/**
  * Get current status of the Ethernet link flow control for Ethernet device
  *
  * @param port_id

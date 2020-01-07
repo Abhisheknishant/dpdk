@@ -3612,6 +3612,18 @@ rte_eth_led_off(uint16_t port_id)
 	return eth_err(port_id, (*dev->dev_ops->dev_led_off)(dev));
 }
 
+int
+rte_eth_led_ctrl_capable(uint16_t port_id)
+{
+	struct rte_eth_dev *dev;
+
+	RTE_ETH_VALID_PORTID_OR_ERR_RET(port_id, -ENODEV);
+	dev = &rte_eth_devices[port_id];
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->dev_led_off, -ENOTSUP);
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->dev_led_on, -ENOTSUP);
+	return 0;
+}
+
 /*
  * Returns index into MAC address array of addr. Use 00:00:00:00:00:00 to find
  * an empty spot.

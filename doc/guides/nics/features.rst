@@ -732,6 +732,11 @@ registers and register size).
 LED
 ---
 
+Interrogates device to know if it is led control capable.
+
+* **[implements] eth_dev_ops**: ``dev_led_ctrl_capable``.
+* **[related]    API**: ``rte_eth_led_ctrl_capable()``.
+
 Supports turning on/off a software controllable LED on a device.
 
 * **[implements] eth_dev_ops**: ``dev_led_on``, ``dev_led_off``.

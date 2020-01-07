@@ -388,6 +388,9 @@ typedef int (*eth_dev_led_on_t)(struct rte_eth_dev *dev);
 typedef int (*eth_dev_led_off_t)(struct rte_eth_dev *dev);
 /**< @internal Turn off SW controllable LED on an Ethernet device */
 
+typedef int (*eth_dev_led_ctrl_capable_t)(struct rte_eth_dev *dev);
+/**< @internal Get led control capability on an Ethernet device */
+
 typedef void (*eth_mac_addr_remove_t)(struct rte_eth_dev *dev, uint32_t index);
 /**< @internal Remove MAC address from receive address register */
 
@@ -675,6 +678,7 @@ struct eth_dev_ops {
 
 	eth_dev_led_on_t           dev_led_on;    /**< Turn on LED. */
 	eth_dev_led_off_t          dev_led_off;   /**< Turn off LED. */
+	eth_dev_led_ctrl_capable_t dev_led_ctrl_capable;  /**< Get led control capability. */
 
 	flow_ctrl_get_t            flow_ctrl_get; /**< Get flow control. */
 	flow_ctrl_set_t            flow_ctrl_set; /**< Setup flow control. */
