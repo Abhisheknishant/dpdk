@@ -96,6 +96,8 @@ struct vhost_queue {
 struct pmd_internal {
 	rte_atomic32_t dev_attached;
 	char *iface_name;
+	uint64_t flags;
+	uint64_t disable_flags;
 	uint16_t max_queues;
 	int vid;
 	rte_atomic32_t started;
@@ -490,17 +492,6 @@ out:
 	return nb_tx;
 }
 
-static int
-eth_dev_configure(struct rte_eth_dev *dev __rte_unused)
-{
-	struct pmd_internal *internal = dev->data->dev_private;
-	const struct rte_eth_rxmode *rxmode = &dev->data->dev_conf.rxmode;
-
-	internal->vlan_strip = !!(rxmode->offloads & DEV_RX_OFFLOAD_VLAN_STRIP);
-
-	return 0;
-}
-
 static inline struct internal_list *
 find_internal_resource(char *ifname)
 {
@@ -876,6 +867,62 @@ static struct vhost_device_ops vhost_ops = {
 	.vring_state_changed = vring_state_changed,
 };
 
+static int
+vhost_driver_setup(struct rte_eth_dev *eth_dev)
+{
+	struct pmd_internal *internal = eth_dev->data->dev_private;
+	struct internal_list *list = NULL;
+	struct rte_vhost_vring_state *vring_state = NULL;
+	unsigned int numa_node = eth_dev->device->numa_node;
+	const char *name = eth_dev->device->name;
+
+	list = rte_zmalloc_socket(name, sizeof(*list), 0, numa_node);
+	if (list == NULL)
+		goto error;
+
+	vring_state = rte_zmalloc_socket(name, sizeof(*vring_state),
+					 0, numa_node);
+	if (vring_state == NULL)
+		goto error;
+
+	list->eth_dev = eth_dev;
+	pthread_mutex_lock(&internal_list_lock);
+	TAILQ_INSERT_TAIL(&internal_list, list, next);
+	pthread_mutex_unlock(&internal_list_lock);
+
+	rte_spinlock_init(&vring_state->lock);
+	vring_states[eth_dev->data->port_id] = vring_state;
+
+	if (rte_vhost_driver_register(internal->iface_name, internal->flags))
+		goto error;
+
+	if (internal->disable_flags) {
+		if (rte_vhost_driver_disable_features(internal->iface_name,
+						      internal->disable_flags))
+			goto error;
+	}
+
+	if (rte_vhost_driver_callback_register(internal->iface_name,
+					       &vhost_ops) < 0) {
+		VHOST_LOG(ERR, "Can't register callbacks\n");
+		goto error;
+	}
+
+	if (rte_vhost_driver_start(internal->iface_name) < 0) {
+		VHOST_LOG(ERR, "Failed to start driver for %s\n",
+			  internal->iface_name);
+		goto error;
+	}
+
+	return 0;
+
+error:
+	rte_free(vring_state);
+	rte_free(list);
+
+	return -1;
+}
+
 int
 rte_eth_vhost_get_queue_event(uint16_t port_id,
 		struct rte_eth_vhost_queue_event *event)
@@ -940,6 +987,24 @@ rte_eth_vhost_get_vid_from_port_id(uint16_t port_id)
 	pthread_mutex_unlock(&internal_list_lock);
 
 	return vid;
+}
+
+static int
+eth_dev_configure(struct rte_eth_dev *dev)
+{
+	struct pmd_internal *internal = dev->data->dev_private;
+	const struct rte_eth_rxmode *rxmode = &dev->data->dev_conf.rxmode;
+
+	/* NOTE: the same process has to operate a vhost interface
+	 * from beginning to end (from eth_dev configure to eth_dev close).
+	 * It is user's responsibility at the moment.
+	 */
+	if (vhost_driver_setup(dev) < 0)
+		return -1;
+
+	internal->vlan_strip = !!(rxmode->offloads & DEV_RX_OFFLOAD_VLAN_STRIP);
+
+	return 0;
 }
 
 static int
@@ -1217,15 +1282,9 @@ eth_dev_vhost_create(struct rte_vdev_device *dev, char *iface_name,
 	struct pmd_internal *internal = NULL;
 	struct rte_eth_dev *eth_dev = NULL;
 	struct rte_ether_addr *eth_addr = NULL;
-	struct rte_vhost_vring_state *vring_state = NULL;
-	struct internal_list *list = NULL;
 
 	VHOST_LOG(INFO, "Creating VHOST-USER backend on numa socket %u\n",
 		numa_node);
-
-	list = rte_zmalloc_socket(name, sizeof(*list), 0, numa_node);
-	if (list == NULL)
-		goto error;
 
 	/* reserve an ethdev entry */
 	eth_dev = rte_eth_vdev_allocate(dev, sizeof(*internal));
@@ -1240,11 +1299,6 @@ eth_dev_vhost_create(struct rte_vdev_device *dev, char *iface_name,
 	*eth_addr = base_eth_addr;
 	eth_addr->addr_bytes[5] = eth_dev->data->port_id;
 
-	vring_state = rte_zmalloc_socket(name,
-			sizeof(*vring_state), 0, numa_node);
-	if (vring_state == NULL)
-		goto error;
-
 	/* now put it all together
 	 * - store queue data in internal,
 	 * - point eth_dev_data to internals
@@ -1257,18 +1311,12 @@ eth_dev_vhost_create(struct rte_vdev_device *dev, char *iface_name,
 		goto error;
 	strcpy(internal->iface_name, iface_name);
 
-	list->eth_dev = eth_dev;
-	pthread_mutex_lock(&internal_list_lock);
-	TAILQ_INSERT_TAIL(&internal_list, list, next);
-	pthread_mutex_unlock(&internal_list_lock);
-
-	rte_spinlock_init(&vring_state->lock);
-	vring_states[eth_dev->data->port_id] = vring_state;
-
 	data->nb_rx_queues = queues;
 	data->nb_tx_queues = queues;
 	internal->max_queues = queues;
 	internal->vid = -1;
+	internal->flags = flags;
+	internal->disable_flags = disable_flags;
 	data->dev_link = pmd_link;
 	data->dev_flags = RTE_ETH_DEV_INTR_LSC | RTE_ETH_DEV_CLOSE_REMOVE;
 
@@ -1278,35 +1326,13 @@ eth_dev_vhost_create(struct rte_vdev_device *dev, char *iface_name,
 	eth_dev->rx_pkt_burst = eth_vhost_rx;
 	eth_dev->tx_pkt_burst = eth_vhost_tx;
 
-	if (rte_vhost_driver_register(iface_name, flags))
-		goto error;
-
-	if (disable_flags) {
-		if (rte_vhost_driver_disable_features(iface_name,
-					disable_flags))
-			goto error;
-	}
-
-	if (rte_vhost_driver_callback_register(iface_name, &vhost_ops) < 0) {
-		VHOST_LOG(ERR, "Can't register callbacks\n");
-		goto error;
-	}
-
-	if (rte_vhost_driver_start(iface_name) < 0) {
-		VHOST_LOG(ERR, "Failed to start driver for %s\n",
-			iface_name);
-		goto error;
-	}
-
 	rte_eth_dev_probing_finish(eth_dev);
 	return data->port_id;
 
 error:
 	if (internal)
 		rte_free(internal->iface_name);
-	rte_free(vring_state);
 	rte_eth_dev_release_port(eth_dev);
-	rte_free(list);
 
 	return -1;
 }
