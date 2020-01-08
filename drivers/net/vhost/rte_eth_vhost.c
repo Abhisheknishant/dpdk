@@ -1007,7 +1007,7 @@ eth_dev_close(struct rte_eth_dev *dev)
 		for (i = 0; i < dev->data->nb_tx_queues; i++)
 			rte_free(dev->data->tx_queues[i]);
 
-	free(internal->iface_name);
+	rte_free(internal->iface_name);
 	rte_free(internal);
 
 	dev->data->dev_private = NULL;
@@ -1251,9 +1251,11 @@ eth_dev_vhost_create(struct rte_vdev_device *dev, char *iface_name,
 	 * - and point eth_dev structure to new eth_dev_data structure
 	 */
 	internal = eth_dev->data->dev_private;
-	internal->iface_name = strdup(iface_name);
+	internal->iface_name = rte_malloc_socket(name, strlen(iface_name) + 1,
+						 0, numa_node);
 	if (internal->iface_name == NULL)
 		goto error;
+	strcpy(internal->iface_name, iface_name);
 
 	list->eth_dev = eth_dev;
 	pthread_mutex_lock(&internal_list_lock);
@@ -1301,7 +1303,7 @@ eth_dev_vhost_create(struct rte_vdev_device *dev, char *iface_name,
 
 error:
 	if (internal)
-		free(internal->iface_name);
+		rte_free(internal->iface_name);
 	rte_free(vring_state);
 	rte_eth_dev_release_port(eth_dev);
 	rte_free(list);
