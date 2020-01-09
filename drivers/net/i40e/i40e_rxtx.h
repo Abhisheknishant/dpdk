@@ -173,6 +173,8 @@ union i40e_tx_offload {
 		uint64_t outer_l3_len:16; /**< outer L3 Header Length */
 	};
 };
+typedef int (*i40e_tx_done_cleanup_t)(struct i40e_tx_queue *txq,
+				uint32_t free_cnt);
 
 int i40e_dev_rx_queue_start(struct rte_eth_dev *dev, uint16_t rx_queue_id);
 int i40e_dev_rx_queue_stop(struct rte_eth_dev *dev, uint16_t rx_queue_id);
@@ -212,6 +214,12 @@ void i40e_dev_free_queues(struct rte_eth_dev *dev);
 void i40e_reset_rx_queue(struct i40e_rx_queue *rxq);
 void i40e_reset_tx_queue(struct i40e_tx_queue *txq);
 void i40e_tx_queue_release_mbufs(struct i40e_tx_queue *txq);
+void i40e_set_tx_done_cleanup_func(i40e_tx_done_cleanup_t fn);
+i40e_tx_done_cleanup_t i40e_get_tx_done_cleanup_func(void);
+int i40e_tx_done_cleanup(void *txq, uint32_t free_cnt);
+int i40e_tx_done_cleanup_scalar(struct i40e_tx_queue *txq, uint32_t free_cnt);
+int i40e_tx_done_cleanup_vec(struct i40e_tx_queue *txq, uint32_t free_cnt);
+int i40e_tx_done_cleanup_simple(struct i40e_tx_queue *txq, uint32_t free_cnt);
 int i40e_alloc_rx_queue_mbufs(struct i40e_rx_queue *rxq);
 void i40e_rx_queue_release_mbufs(struct i40e_rx_queue *rxq);
 

@@ -2455,6 +2455,154 @@ i40e_tx_queue_release_mbufs(struct i40e_tx_queue *txq)
 	}
 }
 
+static i40e_tx_done_cleanup_t i40e_tx_done_cleanup_op;
+
+int
+i40e_tx_done_cleanup_scalar(struct i40e_tx_queue *txq,
+			uint32_t free_cnt)
+{
+	uint32_t pkt_cnt;
+	uint16_t i;
+	uint16_t tx_last;
+	uint16_t tx_id;
+	uint16_t nb_tx_to_clean;
+	uint16_t nb_tx_free_last;
+	struct i40e_tx_entry *swr_ring = txq->sw_ring;
+
+	/* Start free mbuf from the next of tx_tail */
+	tx_last = txq->tx_tail;
+	tx_id  = swr_ring[tx_last].next_id;
+
+	if (txq->nb_tx_free == 0)
+		if (i40e_xmit_cleanup(txq))
+			return 0;
+
+	nb_tx_to_clean = txq->nb_tx_free;
+	nb_tx_free_last = txq->nb_tx_free;
+	if (!free_cnt)
+		free_cnt = txq->nb_tx_desc;
+
+	/* Loop through swr_ring to count the amount of
+	 * freeable mubfs and packets.
+	 */
+	for (pkt_cnt = 0; pkt_cnt < free_cnt; ) {
+		for (i = 0; i < nb_tx_to_clean &&
+			pkt_cnt < free_cnt &&
+			tx_id != tx_last; i++) {
+			if (swr_ring[tx_id].mbuf != NULL) {
+				rte_pktmbuf_free_seg(swr_ring[tx_id].mbuf);
+				swr_ring[tx_id].mbuf = NULL;
+
+				/*
+				 * last segment in the packet,
+				 * increment packet count
+				 */
+				pkt_cnt += (swr_ring[tx_id].last_id == tx_id);
+			}
+
+			tx_id = swr_ring[tx_id].next_id;
+		}
+
+		if (tx_id == tx_last || txq->tx_rs_thresh
+			> txq->nb_tx_desc - txq->nb_tx_free)
+			break;
+
+		if (pkt_cnt < free_cnt) {
+			if (i40e_xmit_cleanup(txq))
+				break;
+
+			nb_tx_to_clean = txq->nb_tx_free - nb_tx_free_last;
+			nb_tx_free_last = txq->nb_tx_free;
+		}
+	}
+
+	PMD_TX_FREE_LOG(DEBUG,
+		"Free %u Packets successfully "
+		"(port=%d queue=%d)",
+		pkt_cnt, txq->port_id, txq->queue_id);
+
+	return (int)pkt_cnt;
+}
+
+int
+i40e_tx_done_cleanup_simple(struct i40e_tx_queue *txq,
+			uint32_t free_cnt)
+{
+	uint16_t i;
+	uint16_t tx_first;
+	uint16_t tx_id;
+	uint32_t pkt_cnt;
+	struct i40e_tx_entry *swr_ring = txq->sw_ring;
+
+	/* Start free mbuf from tx_first */
+	tx_first = txq->tx_next_dd - (txq->tx_rs_thresh - 1);
+	tx_id  = tx_first;
+
+	/* while free_cnt is 0,
+	 * suppose one mbuf per packet,
+	 * try to free packets as many as possible
+	 */
+	if (free_cnt == 0)
+		free_cnt = txq->nb_tx_desc;
+
+	/* Loop through swr_ring to count freeable packets */
+	for (pkt_cnt = 0; pkt_cnt < free_cnt; ) {
+		if (txq->nb_tx_desc - txq->nb_tx_free < txq->tx_rs_thresh)
+			break;
+
+		if (!i40e_tx_free_bufs(txq))
+			break;
+
+		for (i = 0; i != txq->tx_rs_thresh &&
+			tx_id != tx_first; i++) {
+			/* last segment in the packet,
+			 * increment packet count
+			 */
+			pkt_cnt += (tx_id == swr_ring[tx_id].last_id);
+			tx_id = swr_ring[tx_id].next_id;
+		}
+
+		if (tx_id == tx_first)
+			break;
+	}
+
+	PMD_TX_FREE_LOG(DEBUG,
+		"Free %u packets successfully "
+		"(port=%d queue=%d)",
+		pkt_cnt, txq->port_id, txq->queue_id);
+
+	return (int)pkt_cnt;
+}
+
+int
+i40e_tx_done_cleanup_vec(struct i40e_tx_queue *txq __rte_unused,
+			uint32_t free_cnt __rte_unused)
+{
+	return -ENOTSUP;
+}
+int
+i40e_tx_done_cleanup(void *txq, uint32_t free_cnt)
+{
+	i40e_tx_done_cleanup_t func = i40e_get_tx_done_cleanup_func();
+
+	if (!func)
+		return -ENOTSUP;
+
+	return func(txq, free_cnt);
+}
+
+void
+i40e_set_tx_done_cleanup_func(i40e_tx_done_cleanup_t fn)
+{
+	i40e_tx_done_cleanup_op = fn;
+}
+
+i40e_tx_done_cleanup_t
+i40e_get_tx_done_cleanup_func(void)
+{
+	return i40e_tx_done_cleanup_op;
+}
+
 void
 i40e_reset_tx_queue(struct i40e_tx_queue *txq)
 {
@@ -3139,15 +3287,18 @@ i40e_set_tx_function(struct rte_eth_dev *dev)
 			else
 				dev->tx_pkt_burst =
 					i40e_get_recommend_tx_vec();
+			i40e_set_tx_done_cleanup_func(i40e_tx_done_cleanup_vec);
 		} else {
 			PMD_INIT_LOG(DEBUG, "Simple tx finally be used.");
 			dev->tx_pkt_burst = i40e_xmit_pkts_simple;
+			i40e_set_tx_done_cleanup_func(i40e_tx_done_cleanup_simple);
 		}
 		dev->tx_pkt_prepare = NULL;
 	} else {
 		PMD_INIT_LOG(DEBUG, "Xmit tx finally be used.");
 		dev->tx_pkt_burst = i40e_xmit_pkts;
 		dev->tx_pkt_prepare = i40e_prep_pkts;
+		i40e_set_tx_done_cleanup_func(i40e_tx_done_cleanup_scalar);
 	}
 }
 

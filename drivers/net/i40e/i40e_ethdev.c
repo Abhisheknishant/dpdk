@@ -522,6 +522,7 @@ static const struct eth_dev_ops i40e_eth_dev_ops = {
 	.mac_addr_set                 = i40e_set_default_mac_addr,
 	.mtu_set                      = i40e_dev_mtu_set,
 	.tm_ops_get                   = i40e_tm_ops_get,
+	.tx_done_cleanup              = i40e_tx_done_cleanup,
 };
 
 /* store statistics names and its offset in stats structure */
@@ -1357,6 +1358,8 @@ eth_i40e_dev_init(struct rte_eth_dev *dev, void *init_params __rte_unused)
 	dev->rx_pkt_burst = i40e_recv_pkts;
 	dev->tx_pkt_burst = i40e_xmit_pkts;
 	dev->tx_pkt_prepare = i40e_prep_pkts;
+
+	i40e_set_tx_done_cleanup_func(i40e_tx_done_cleanup_scalar);
 
 	/* for secondary processes, we don't initialise any further as primary
 	 * has already done this work. Only check we don't need a different

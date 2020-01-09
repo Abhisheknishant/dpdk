@@ -215,6 +215,7 @@ static const struct eth_dev_ops i40evf_eth_dev_ops = {
 	.rss_hash_conf_get    = i40evf_dev_rss_hash_conf_get,
 	.mtu_set              = i40evf_dev_mtu_set,
 	.mac_addr_set         = i40evf_set_default_mac_addr,
+	.tx_done_cleanup      = i40e_tx_done_cleanup,
 };
 
 /*
@@ -1472,6 +1473,8 @@ i40evf_dev_init(struct rte_eth_dev *eth_dev)
 	eth_dev->dev_ops = &i40evf_eth_dev_ops;
 	eth_dev->rx_pkt_burst = &i40e_recv_pkts;
 	eth_dev->tx_pkt_burst = &i40e_xmit_pkts;
+
+	i40e_set_tx_done_cleanup_func(i40e_tx_done_cleanup_scalar);
 
 	/*
 	 * For secondary processes, we don't initialise any further as primary
