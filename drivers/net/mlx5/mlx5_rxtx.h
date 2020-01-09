@@ -273,9 +273,7 @@ struct mlx5_txq_data {
 	uint16_t wqe_thres; /* WQE threshold to request completion in CQ. */
 	/* WQ related fields. */
 	uint16_t cq_ci; /* Consumer index for completion queue. */
-#ifndef NDEBUG
-	uint16_t cq_pi; /* Counter of issued CQE "always" requests. */
-#endif
+	uint16_t cq_pi; /* Production index for completion queue. */
 	uint16_t cqe_s; /* Number of CQ elements. */
 	uint16_t cqe_m; /* Mask for CQ indices. */
 	/* CQ related fields. */
@@ -298,7 +296,7 @@ struct mlx5_txq_data {
 	struct mlx5_wqe *wqes; /* Work queue. */
 	struct mlx5_wqe *wqes_end; /* Work queue array limit. */
 #ifdef NDEBUG
-	uint32_t *fcqs; /* Free completion queue. */
+	uint16_t *fcqs; /* Free completion queue. */
 #else
 	uint32_t *fcqs; /* Free completion queue (debug extended). */
 #endif
