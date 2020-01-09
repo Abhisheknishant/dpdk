@@ -92,6 +92,8 @@ uint16_t ixgbe_xmit_fixed_burst_vec(void *tx_queue, struct rte_mbuf **tx_pkts,
 				    uint16_t nb_pkts);
 #endif
 
+static ixgbe_tx_done_cleanup_t ixgbe_tx_done_cleanup_op;
+
 /*********************************************************************
  *
  *  TX functions
@@ -2306,6 +2308,152 @@ ixgbe_tx_queue_release_mbufs(struct ixgbe_tx_queue *txq)
 	}
 }
 
+int
+ixgbe_tx_done_cleanup_scalar(struct ixgbe_tx_queue *txq, uint32_t free_cnt)
+{
+	uint32_t pkt_cnt;
+	uint16_t i;
+	uint16_t tx_last;
+	uint16_t tx_id;
+	uint16_t nb_tx_to_clean;
+	uint16_t nb_tx_free_last;
+	struct ixgbe_tx_entry *swr_ring = txq->sw_ring;
+
+	/* Start free mbuf from the next of tx_tail */
+	tx_last = txq->tx_tail;
+	tx_id  = swr_ring[tx_last].next_id;
+
+	if (txq->nb_tx_free == 0)
+		if (ixgbe_xmit_cleanup(txq))
+			return 0;
+
+	nb_tx_to_clean = txq->nb_tx_free;
+	nb_tx_free_last = txq->nb_tx_free;
+	if (!free_cnt)
+		free_cnt = txq->nb_tx_desc;
+
+	/* Loop through swr_ring to count the amount of
+	 * freeable mubfs and packets.
+	 */
+	for (pkt_cnt = 0; pkt_cnt < free_cnt; ) {
+		for (i = 0; i < nb_tx_to_clean &&
+			pkt_cnt < free_cnt &&
+			tx_id != tx_last; i++) {
+			if (swr_ring[tx_id].mbuf != NULL) {
+				rte_pktmbuf_free_seg(swr_ring[tx_id].mbuf);
+				swr_ring[tx_id].mbuf = NULL;
+
+				/*
+				 * last segment in the packet,
+				 * increment packet count
+				 */
+				pkt_cnt += (swr_ring[tx_id].last_id == tx_id);
+			}
+
+			tx_id = swr_ring[tx_id].next_id;
+		}
+
+		if (tx_id == tx_last || txq->tx_rs_thresh
+			> txq->nb_tx_desc - txq->nb_tx_free)
+			break;
+
+		if (pkt_cnt < free_cnt) {
+			if (ixgbe_xmit_cleanup(txq))
+				break;
+
+			nb_tx_to_clean = txq->nb_tx_free - nb_tx_free_last;
+			nb_tx_free_last = txq->nb_tx_free;
+		}
+	}
+
+	PMD_TX_FREE_LOG(DEBUG,
+		"Free %u Packets successfully "
+		"(port=%d queue=%d)",
+		pkt_cnt, txq->port_id, txq->queue_id);
+
+	return (int)pkt_cnt;
+}
+
+int
+ixgbe_tx_done_cleanup_vec(struct ixgbe_tx_queue *txq __rte_unused,
+			uint32_t free_cnt __rte_unused)
+{
+	return -ENOTSUP;
+}
+
+int
+ixgbe_tx_done_cleanup_simple(struct ixgbe_tx_queue *txq,
+			uint32_t free_cnt)
+{
+	uint16_t i;
+	uint16_t tx_first;
+	uint16_t tx_id;
+	uint32_t pkt_cnt;
+	struct ixgbe_tx_entry *swr_ring = txq->sw_ring;
+
+	/* Start free mbuf from tx_first */
+	tx_first = txq->tx_next_dd - (txq->tx_rs_thresh - 1);
+	tx_id  = tx_first;
+
+	/* while free_cnt is 0,
+	 * suppose one mbuf per packet,
+	 * try to free packets as many as possible
+	 */
+	if (free_cnt == 0)
+		free_cnt = txq->nb_tx_desc;
+
+	/* Loop through swr_ring to count freeable packets */
+	for (pkt_cnt = 0; pkt_cnt < free_cnt; ) {
+		if (txq->nb_tx_desc - txq->nb_tx_free < txq->tx_rs_thresh)
+			break;
+
+		if (!ixgbe_tx_free_bufs(txq))
+			break;
+
+		for (i = 0; i != txq->tx_rs_thresh &&
+			tx_id != tx_first; i++) {
+			/* last segment in the packet,
+			 * increment packet count
+			 */
+			pkt_cnt += (tx_id == swr_ring[tx_id].last_id);
+			tx_id = swr_ring[tx_id].next_id;
+		}
+
+		if (tx_id == tx_first)
+			break;
+	}
+
+	PMD_TX_FREE_LOG(DEBUG,
+		"Free %u packets successfully "
+		"(port=%d queue=%d)",
+		pkt_cnt, txq->port_id, txq->queue_id);
+
+	return (int)pkt_cnt;
+}
+
+int
+ixgbe_tx_done_cleanup(void *txq, uint32_t free_cnt)
+{
+	ixgbe_tx_done_cleanup_t func = ixgbe_get_tx_done_cleanup_func();
+
+	if (!func)
+		return -ENOTSUP;
+
+	return func(txq, free_cnt);
+}
+
+void
+ixgbe_set_tx_done_cleanup_func(ixgbe_tx_done_cleanup_t fn)
+{
+	ixgbe_tx_done_cleanup_op = fn;
+}
+
+ixgbe_tx_done_cleanup_t
+ixgbe_get_tx_done_cleanup_func(void)
+{
+	return ixgbe_tx_done_cleanup_op;
+}
+
 static void __attribute__((cold))
 ixgbe_tx_free_swring(struct ixgbe_tx_queue *txq)
 {
@@ -2398,9 +2546,14 @@ ixgbe_set_tx_function(struct rte_eth_dev *dev, struct ixgbe_tx_queue *txq)
 					ixgbe_txq_vec_setup(txq) == 0)) {
 			PMD_INIT_LOG(DEBUG, "Vector tx enabled.");
 			dev->tx_pkt_burst = ixgbe_xmit_pkts_vec;
-		} else
+			ixgbe_set_tx_done_cleanup_func(ixgbe_tx_done_cleanup_vec);
+		} else {
 #endif
 		dev->tx_pkt_burst = ixgbe_xmit_pkts_simple;
+		ixgbe_set_tx_done_cleanup_func(ixgbe_tx_done_cleanup_simple);
+#ifdef RTE_IXGBE_INC_VECTOR
+		}
+#endif
 	} else {
 		PMD_INIT_LOG(DEBUG, "Using full-featured tx code path");
 		PMD_INIT_LOG(DEBUG,
@@ -2412,6 +2565,7 @@ ixgbe_set_tx_function(struct rte_eth_dev *dev, struct ixgbe_tx_queue *txq)
 				(unsigned long)RTE_PMD_IXGBE_TX_MAX_BURST);
 		dev->tx_pkt_burst = ixgbe_xmit_pkts;
 		dev->tx_pkt_prepare = ixgbe_prep_pkts;
+		ixgbe_set_tx_done_cleanup_func(ixgbe_tx_done_cleanup_scalar);
 	}
 }
 

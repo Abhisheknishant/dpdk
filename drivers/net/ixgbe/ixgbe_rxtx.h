@@ -253,6 +253,8 @@ struct ixgbe_txq_ops {
 			 IXGBE_ADVTXD_DCMD_DEXT |\
 			 IXGBE_ADVTXD_DCMD_EOP)
 
+typedef int (*ixgbe_tx_done_cleanup_t)(struct ixgbe_tx_queue *txq,
+				uint32_t free_cnt);
 
 /* Takes an ethdev and a queue and sets up the tx function to be used based on
  * the queue parameters. Used in tx_queue_setup by primary process and then
@@ -284,6 +286,14 @@ uint16_t ixgbe_recv_scattered_pkts_vec(void *rx_queue,
 int ixgbe_rx_vec_dev_conf_condition_check(struct rte_eth_dev *dev);
 int ixgbe_rxq_vec_setup(struct ixgbe_rx_queue *rxq);
 void ixgbe_rx_queue_release_mbufs_vec(struct ixgbe_rx_queue *rxq);
+
+void ixgbe_set_tx_done_cleanup_func(ixgbe_tx_done_cleanup_t fn);
+ixgbe_tx_done_cleanup_t ixgbe_get_tx_done_cleanup_func(void);
+
+int ixgbe_tx_done_cleanup(void *txq, uint32_t free_cnt);
+int ixgbe_tx_done_cleanup_scalar(struct ixgbe_tx_queue *txq, uint32_t free_cnt);
+int ixgbe_tx_done_cleanup_vec(struct ixgbe_tx_queue *txq, uint32_t free_cnt);
+int ixgbe_tx_done_cleanup_simple(struct ixgbe_tx_queue *txq, uint32_t free_cnt);
 
 extern const uint32_t ptype_table[IXGBE_PACKET_TYPE_MAX];
 extern const uint32_t ptype_table_tn[IXGBE_PACKET_TYPE_TN_MAX];

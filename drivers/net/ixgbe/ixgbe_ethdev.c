@@ -601,6 +601,7 @@ static const struct eth_dev_ops ixgbe_eth_dev_ops = {
 	.udp_tunnel_port_add  = ixgbe_dev_udp_tunnel_port_add,
 	.udp_tunnel_port_del  = ixgbe_dev_udp_tunnel_port_del,
 	.tm_ops_get           = ixgbe_tm_ops_get,
+	.tx_done_cleanup      = ixgbe_tx_done_cleanup,
 };
 
 /*
@@ -649,6 +650,7 @@ static const struct eth_dev_ops ixgbevf_eth_dev_ops = {
 	.reta_query           = ixgbe_dev_rss_reta_query,
 	.rss_hash_update      = ixgbe_dev_rss_hash_update,
 	.rss_hash_conf_get    = ixgbe_dev_rss_hash_conf_get,
+	.tx_done_cleanup      = ixgbe_tx_done_cleanup,
 };
 
 /* store statistics names and its offset in stats structure */
@@ -1101,6 +1103,7 @@ eth_ixgbe_dev_init(struct rte_eth_dev *eth_dev, void *init_params __rte_unused)
 	eth_dev->rx_pkt_burst = &ixgbe_recv_pkts;
 	eth_dev->tx_pkt_burst = &ixgbe_xmit_pkts;
 	eth_dev->tx_pkt_prepare = &ixgbe_prep_pkts;
+	ixgbe_set_tx_done_cleanup_func(ixgbe_tx_done_cleanup_scalar);
 
 	/*
 	 * For secondary processes, we don't initialise any further as primary
@@ -1580,6 +1583,7 @@ eth_ixgbevf_dev_init(struct rte_eth_dev *eth_dev)
 	eth_dev->dev_ops = &ixgbevf_eth_dev_ops;
 	eth_dev->rx_pkt_burst = &ixgbe_recv_pkts;
 	eth_dev->tx_pkt_burst = &ixgbe_xmit_pkts;
+	ixgbe_set_tx_done_cleanup_func(ixgbe_tx_done_cleanup_scalar);
 
 	/* for secondary processes, we don't initialise any further as primary
 	 * has already done this work. Only check we don't need a different
