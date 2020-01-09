@@ -220,6 +220,7 @@ static const struct eth_dev_ops ice_eth_dev_ops = {
 	.filter_ctrl                  = ice_dev_filter_ctrl,
 	.udp_tunnel_port_add          = ice_dev_udp_tunnel_port_add,
 	.udp_tunnel_port_del          = ice_dev_udp_tunnel_port_del,
+	.tx_done_cleanup              = ice_tx_done_cleanup,
 };
 
 /* store statistics names and its offset in stats structure */
@@ -2136,6 +2137,8 @@ ice_dev_init(struct rte_eth_dev *dev)
 	dev->rx_pkt_burst = ice_recv_pkts;
 	dev->tx_pkt_burst = ice_xmit_pkts;
 	dev->tx_pkt_prepare = ice_prep_pkts;
+
+	ice_set_tx_done_cleanup_func(ice_tx_done_cleanup_scalar);
 
 	/* for secondary processes, we don't initialise any further as primary
 	 * has already done this work.

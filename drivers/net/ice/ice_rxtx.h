@@ -135,6 +135,9 @@ union ice_tx_offload {
 	};
 };
 
+typedef int (*ice_tx_done_cleanup_t)(struct ice_tx_queue *txq,
+				uint32_t free_cnt);
+
 int ice_rx_queue_setup(struct rte_eth_dev *dev,
 		       uint16_t queue_idx,
 		       uint16_t nb_desc,
@@ -183,6 +186,7 @@ int ice_rx_descriptor_status(void *rx_queue, uint16_t offset);
 int ice_tx_descriptor_status(void *tx_queue, uint16_t offset);
 void ice_set_default_ptype_table(struct rte_eth_dev *dev);
 const uint32_t *ice_dev_supported_ptypes_get(struct rte_eth_dev *dev);
+int ice_tx_done_cleanup(void *txq, uint32_t free_cnt);
 
 int ice_rx_vec_dev_check(struct rte_eth_dev *dev);
 int ice_tx_vec_dev_check(struct rte_eth_dev *dev);
@@ -202,4 +206,11 @@ uint16_t ice_recv_scattered_pkts_vec_avx2(void *rx_queue,
 uint16_t ice_xmit_pkts_vec_avx2(void *tx_queue, struct rte_mbuf **tx_pkts,
 				uint16_t nb_pkts);
 int ice_fdir_programming(struct ice_pf *pf, struct ice_fltr_desc *fdir_desc);
+void ice_set_tx_done_cleanup_func(ice_tx_done_cleanup_t fn);
+ice_tx_done_cleanup_t ice_get_tx_done_cleanup_func(void);
+int ice_tx_done_cleanup(void *txq, uint32_t free_cnt);
+int ice_tx_done_cleanup_scalar(struct ice_tx_queue *txq, uint32_t free_cnt);
+int ice_tx_done_cleanup_vec(struct ice_tx_queue *txq, uint32_t free_cnt);
+int ice_tx_done_cleanup_simple(struct ice_tx_queue *txq, uint32_t free_cnt);
+
 #endif /* _ICE_RXTX_H_ */
