@@ -1709,6 +1709,8 @@ add_mapping(struct rte_hash *map, const char *str, uint16_t cdev_id,
 	unsigned long i;
 	struct cdev_key key = { 0 };
 
+	key.port_id = params->port_id;
+	key.queue_id = params->queue_id;
 	key.lcore_id = params->lcore_id;
 	if (cipher)
 		key.cipher_algo = cipher->sym.cipher.algo;
@@ -1721,23 +1723,17 @@ add_mapping(struct rte_hash *map, const char *str, uint16_t cdev_id,
 	if (ret != -ENOENT)
 		return 0;
 
-	for (i = 0; i < ipsec_ctx->nb_qps; i++)
-		if (ipsec_ctx->tbl[i].id == cdev_id)
-			break;
-
-	if (i == ipsec_ctx->nb_qps) {
-		if (ipsec_ctx->nb_qps == MAX_QP_PER_LCORE) {
-			printf("Maximum number of crypto devices assigned to "
-				"a core, increase MAX_QP_PER_LCORE value\n");
-			return 0;
-		}
-		ipsec_ctx->tbl[i].id = cdev_id;
-		ipsec_ctx->tbl[i].qp = qp;
-		ipsec_ctx->nb_qps++;
-		printf("%s cdev mapping: lcore %u using cdev %u qp %u "
-				"(cdev_id_qp %lu)\n", str, key.lcore_id,
-				cdev_id, qp, i);
+	i = ipsec_ctx->nb_qps;
+	if (ipsec_ctx->nb_qps == MAX_QP_PER_LCORE) {
+		printf("Maximum number of crypto devices assigned to a core, "
+		       "increase MAX_QP_PER_LCORE value\n");
+		return 0;
 	}
+	ipsec_ctx->tbl[i].id = cdev_id;
+	ipsec_ctx->tbl[i].qp = qp;
+	ipsec_ctx->nb_qps++;
+	printf("%s cdev mapping: lcore %u using cdev %u qp %u "
+	       "(cdev_id_qp %lu)\n", str, key.lcore_id, cdev_id, qp, i);
 
 	ret = rte_hash_add_key_data(map, &key, (void *)i);
 	if (ret < 0) {
@@ -1785,8 +1781,10 @@ add_cdev_mapping(struct rte_cryptodev_info *dev_info, uint16_t cdev_id,
 			continue;
 
 		if (i->sym.xform_type == RTE_CRYPTO_SYM_XFORM_AEAD) {
-			ret |= add_mapping(map, str, cdev_id, qp, params,
+			ret = add_mapping(map, str, cdev_id, qp, params,
 					ipsec_ctx, NULL, NULL, i);
+			if (ret)
+				return ret;
 			continue;
 		}
 
@@ -1801,12 +1799,15 @@ add_cdev_mapping(struct rte_cryptodev_info *dev_info, uint16_t cdev_id,
 			if (j->sym.xform_type != RTE_CRYPTO_SYM_XFORM_AUTH)
 				continue;
 
-			ret |= add_mapping(map, str, cdev_id, qp, params,
+			ret = add_mapping(map, str, cdev_id, qp, params,
 						ipsec_ctx, i, j, NULL);
+			if (ret)
+				return ret;
+			continue;
 		}
 	}
 
-	return ret;
+	return 0;
 }
 
 /* Check if the device is enabled by cryptodev_mask */

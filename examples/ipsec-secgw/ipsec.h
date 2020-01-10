@@ -200,7 +200,9 @@ struct ipsec_ctx {
 };
 
 struct cdev_key {
-	uint16_t lcore_id;
+	uint16_t port_id;
+	uint8_t queue_id;
+	uint8_t lcore_id;
 	uint8_t cipher_algo;
 	uint8_t auth_algo;
 	uint8_t aead_algo;
