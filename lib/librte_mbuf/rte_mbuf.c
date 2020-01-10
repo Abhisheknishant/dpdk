@@ -59,9 +59,9 @@ rte_pktmbuf_pool_init(struct rte_mempool *mp, void *opaque_arg)
 	}
 
 	RTE_ASSERT(mp->elt_size >= sizeof(struct rte_mbuf) +
-		user_mbp_priv->mbuf_data_room_size +
+		((user_mbp_priv->flags & RTE_PKTMBUF_POOL_F_PINNED_EXT_BUF) ?
+		0 : user_mbp_priv->mbuf_data_room_size) +
 		user_mbp_priv->mbuf_priv_size);
-	RTE_ASSERT(user_mbp_priv->flags == 0);
 
 	mbp_priv = rte_mempool_get_priv(mp);
 	memcpy(mbp_priv, user_mbp_priv, sizeof(*mbp_priv));
@@ -106,6 +106,63 @@ rte_pktmbuf_init(struct rte_mempool *mp,
 	rte_mbuf_refcnt_set(m, 1);
 	m->next = NULL;
 }
+
+/*
+ * pktmbuf constructor for the pool with pinned external buffer,
+ * given as a callback function to rte_mempool_obj_iter() in
+ * rte_pktmbuf_pool_create_extbuf(). Set the fields of a packet
+ * mbuf to their default values.
+ */
+void
+rte_pktmbuf_init_extmem(struct rte_mempool *mp,
+			void *opaque_arg,
+			void *_m,
+			__attribute__((unused)) unsigned int i)
+{
+	struct rte_mbuf *m = _m;
+	struct rte_pktmbuf_extmem_init_ctx *ctx = opaque_arg;
+	struct rte_pktmbuf_extmem *ext_mem;
+	uint32_t mbuf_size, buf_len, priv_size;
+
+	priv_size = rte_pktmbuf_priv_size(mp);
+	mbuf_size = sizeof(struct rte_mbuf) + priv_size;
+	buf_len = rte_pktmbuf_data_room_size(mp);
+
+	RTE_ASSERT(RTE_ALIGN(priv_size, RTE_MBUF_PRIV_ALIGN) == priv_size);
+	RTE_ASSERT(mp->elt_size >= mbuf_size);
+	RTE_ASSERT(buf_len <= UINT16_MAX);
+
+	memset(m, 0, mbuf_size);
+	m->priv_size = priv_size;
+	m->buf_len = (uint16_t)buf_len;
+
+	/* set the data buffer pointers to external memory */
+	ext_mem = ctx->ext_mem + ctx->ext;
+
+	RTE_ASSERT(ctx->ext < ctx->ext_num);
+	RTE_ASSERT(ctx->off < ext_mem->buf_len);
+
+	m->buf_addr = RTE_PTR_ADD(ext_mem->buf_ptr, ctx->off);
+	m->buf_iova = ext_mem->buf_iova == RTE_BAD_IOVA ?
+		      RTE_BAD_IOVA : (ext_mem->buf_iova + ctx->off);
+
+	ctx->off += ext_mem->elt_size;
+	if (ctx->off >= ext_mem->buf_len) {
+		ctx->off = 0;
+		++ctx->ext;
+	}
+	/* keep some headroom between start of buffer and data */
+	m->data_off = RTE_MIN(RTE_PKTMBUF_HEADROOM, (uint16_t)m->buf_len);
+
+	/* init some constant fields */
+	m->pool = mp;
+	m->nb_segs = 1;
+	m->port = MBUF_INVALID_PORT;
+	m->ol_flags = EXT_ATTACHED_MBUF;
+	rte_mbuf_refcnt_set(m, 1);
+	m->next = NULL;
+}
+
 
 /* Helper to create a mbuf pool with given mempool ops name*/
 struct rte_mempool *
@@ -167,6 +224,90 @@ rte_pktmbuf_pool_create(const char *name, unsigned int n,
 {
 	return rte_pktmbuf_pool_create_by_ops(name, n, cache_size, priv_size,
 			data_room_size, socket_id, NULL);
+}
+
+/* Helper to create a mbuf pool with pinned external data buffers. */
+__rte_experimental
+struct rte_mempool *
+rte_pktmbuf_pool_create_extbuf(const char *name, unsigned int n,
+	unsigned int cache_size, uint16_t priv_size,
+	uint16_t data_room_size, int socket_id,
+	struct rte_pktmbuf_extmem *ext_mem, unsigned int ext_num)
+{
+	struct rte_mempool *mp;
+	struct rte_pktmbuf_pool_private mbp_priv;
+	struct rte_pktmbuf_extmem_init_ctx init_ctx;
+	const char *mp_ops_name;
+	unsigned int elt_size;
+	unsigned int i, n_elts = 0;
+	int ret;
+
+	if (RTE_ALIGN(priv_size, RTE_MBUF_PRIV_ALIGN) != priv_size) {
+		RTE_LOG(ERR, MBUF, "mbuf priv_size=%u is not aligned\n",
+			priv_size);
+		rte_errno = EINVAL;
+		return NULL;
+	}
+	/* Check the external memory descriptors. */
+	for (i = 0; i < ext_num; i++) {
+		struct rte_pktmbuf_extmem *extm = ext_mem + i;
+
+		if (!extm->elt_size || !extm->buf_len || !extm->buf_ptr) {
+			RTE_LOG(ERR, MBUF, "invalid extmem descriptor\n");
+			rte_errno = EINVAL;
+			return NULL;
+		}
+		if (data_room_size > extm->elt_size) {
+			RTE_LOG(ERR, MBUF, "ext elt_size=%u is too small\n",
+				priv_size);
+			rte_errno = EINVAL;
+			return NULL;
+		}
+		n_elts += extm->buf_len / extm->elt_size;
+	}
+	/* Check whether enough external memory provided. */
+	if (n_elts < n) {
+		RTE_LOG(ERR, MBUF, "not enough extmem\n");
+		rte_errno = ENOMEM;
+		return NULL;
+	}
+	elt_size = sizeof(struct rte_mbuf) + (unsigned int)priv_size;
+	memset(&mbp_priv, 0, sizeof(mbp_priv));
+	mbp_priv.mbuf_data_room_size = data_room_size;
+	mbp_priv.mbuf_priv_size = priv_size;
+	mbp_priv.flags = RTE_PKTMBUF_POOL_F_PINNED_EXT_BUF;
+
+	mp = rte_mempool_create_empty(name, n, elt_size, cache_size,
+		 sizeof(struct rte_pktmbuf_pool_private), socket_id, 0);
+	if (mp == NULL)
+		return NULL;
+
+	mp_ops_name = rte_mbuf_best_mempool_ops();
+	ret = rte_mempool_set_ops_byname(mp, mp_ops_name, NULL);
+	if (ret != 0) {
+		RTE_LOG(ERR, MBUF, "error setting mempool handler\n");
+		rte_mempool_free(mp);
+		rte_errno = -ret;
+		return NULL;
+	}
+	rte_pktmbuf_pool_init(mp, &mbp_priv);
+
+	ret = rte_mempool_populate_default(mp);
+	if (ret < 0) {
+		rte_mempool_free(mp);
+		rte_errno = -ret;
+		return NULL;
+	}
+
+	init_ctx = (struct rte_pktmbuf_extmem_init_ctx){
+		.ext_mem = ext_mem,
+		.ext_num = ext_num,
+		.ext = 0,
+		.off = 0,
+	};
+	rte_mempool_obj_iter(mp, rte_pktmbuf_init_extmem, &init_ctx);
+
+	return mp;
 }
 
 /* do some sanity checks on a mbuf: panic if it fails */
