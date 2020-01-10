@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright(c) 2018 Luca Boccassi <bluca@debian.org>
 
+if not get_option('enable_docs')
+	subdir_done()
+endif
+
 doc_targets = []
 doc_target_names = []
 subdir('api')
