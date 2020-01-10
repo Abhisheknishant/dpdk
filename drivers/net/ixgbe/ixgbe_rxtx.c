@@ -2306,6 +2306,114 @@ ixgbe_tx_queue_release_mbufs(struct ixgbe_tx_queue *txq)
 	}
 }
 
+int
+ixgbe_tx_done_cleanup_full(struct ixgbe_tx_queue *txq, uint32_t free_cnt)
+{
+	uint32_t pkt_cnt;
+	uint16_t i;
+	uint16_t tx_last;
+	uint16_t tx_id;
+	uint16_t nb_tx_to_clean;
+	uint16_t nb_tx_free_last;
+	struct ixgbe_tx_entry *swr_ring = txq->sw_ring;
+
+	/* Start free mbuf from the next of tx_tail */
+	tx_last = txq->tx_tail;
+	tx_id  = swr_ring[tx_last].next_id;
+
+	if (txq->nb_tx_free == 0 && ixgbe_xmit_cleanup(txq))
+		return 0;
+
+	nb_tx_to_clean = txq->nb_tx_free;
+	nb_tx_free_last = txq->nb_tx_free;
+	if (!free_cnt)
+		free_cnt = txq->nb_tx_desc;
+
+	/* Loop through swr_ring to count the amount of
+	 * freeable mubfs and packets.
+	 */
+	for (pkt_cnt = 0; pkt_cnt < free_cnt; ) {
+		for (i = 0; i < nb_tx_to_clean &&
+			pkt_cnt < free_cnt &&
+			tx_id != tx_last; i++) {
+			if (swr_ring[tx_id].mbuf != NULL) {
+				rte_pktmbuf_free_seg(swr_ring[tx_id].mbuf);
+				swr_ring[tx_id].mbuf = NULL;
+
+				/*
+				 * last segment in the packet,
+				 * increment packet count
+				 */
+				pkt_cnt += (swr_ring[tx_id].last_id == tx_id);
+			}
+
+			tx_id = swr_ring[tx_id].next_id;
+		}
+
+		if (txq->tx_rs_thresh > txq->nb_tx_desc -
+			txq->nb_tx_free || tx_id == tx_last)
+			break;
+
+		if (pkt_cnt < free_cnt) {
+			if (ixgbe_xmit_cleanup(txq))
+				break;
+
+			nb_tx_to_clean = txq->nb_tx_free - nb_tx_free_last;
+			nb_tx_free_last = txq->nb_tx_free;
+		}
+	}
+
+	return (int)pkt_cnt;
+}
+
+int
+ixgbe_tx_done_cleanup_vec(struct ixgbe_tx_queue *txq __rte_unused,
+			uint32_t free_cnt __rte_unused)
+{
+	return -ENOTSUP;
+}
+
+int
+ixgbe_tx_done_cleanup_simple(struct ixgbe_tx_queue *txq,
+			uint32_t free_cnt)
+{
+	int i, n, cnt;
+
+	if (free_cnt == 0 || free_cnt > txq->nb_tx_desc)
+		free_cnt = txq->nb_tx_desc;
+
+	cnt = free_cnt - free_cnt % txq->tx_rs_thresh;
+
+	for (i = 0; i < cnt; i += n) {
+		if (txq->nb_tx_desc - txq->nb_tx_free < txq->tx_rs_thresh)
+			break;
+
+		n = ixgbe_tx_free_bufs(txq);
+
+		if (n == 0)
+			break;
+	}
+
+	return i;
+}
+
+int
+ixgbe_dev_tx_done_cleanup(void *tx_queue, uint32_t free_cnt)
+{
+	struct ixgbe_tx_queue *txq = (struct ixgbe_tx_queue *)tx_queue;
+	return txq->ops->txq_done_cleanup(txq, free_cnt);
+}
+
+int
+ixgbe_tx_done_cleanup(struct ixgbe_tx_queue *txq, uint32_t free_cnt)
+{
+	/* Use a simple Tx queue (no offloads, no multi segs) if possible */
+	if (txq->offloads == 0)
+		return ixgbe_tx_done_cleanup_simple(txq, free_cnt);
+	else
+		return ixgbe_tx_done_cleanup_full(txq, free_cnt);
+}
+
 static void __attribute__((cold))
 ixgbe_tx_free_swring(struct ixgbe_tx_queue *txq)
 {
@@ -2375,6 +2483,7 @@ static const struct ixgbe_txq_ops def_txq_ops = {
 	.release_mbufs = ixgbe_tx_queue_release_mbufs,
 	.free_swring = ixgbe_tx_free_swring,
 	.reset = ixgbe_reset_tx_queue,
+	.txq_done_cleanup = ixgbe_tx_done_cleanup,
 };
 
 /* Takes an ethdev and a queue and sets up the tx function to be used based on

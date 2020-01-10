@@ -559,6 +559,7 @@ static const struct ixgbe_txq_ops vec_txq_ops = {
 	.release_mbufs = ixgbe_tx_queue_release_mbufs_vec,
 	.free_swring = ixgbe_tx_free_swring,
 	.reset = ixgbe_reset_tx_queue,
+	.txq_done_cleanup = ixgbe_tx_done_cleanup_vec,
 };
 
 int __attribute__((cold))
