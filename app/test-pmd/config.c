@@ -2395,6 +2395,8 @@ mp_alloc_to_str(uint8_t mode)
 		return "xmem";
 	case MP_ALLOC_XMEM_HUGE:
 		return "xmemhuge";
+	case MP_ALLOC_XBUF:
+		return "xbuf";
 	default:
 		return "invalid";
 	}
