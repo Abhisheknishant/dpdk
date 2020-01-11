@@ -460,6 +460,37 @@ test_lpm_perf(void)
 			(double)total_time / ((double)ITERATIONS * BATCH_SIZE),
 			(count * 100.0) / (double)(ITERATIONS * BATCH_SIZE));
 
+	/* Measure LookupX4 DefaultX4 */
+	total_time = 0;
+	count = 0;
+	uint32_t def[4] = {UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX};
+	for (i = 0; i < ITERATIONS; i++) {
+		static uint32_t ip_batch[BATCH_SIZE];
+		uint32_t next_hops[4];
+
+		/* Create array of random IP addresses */
+		for (j = 0; j < BATCH_SIZE; j++)
+			ip_batch[j] = rte_rand();
+
+		/* Lookup per batch */
+		begin = rte_rdtsc();
+		for (j = 0; j < BATCH_SIZE; j += RTE_DIM(next_hops)) {
+			unsigned int k;
+			xmm_t ipx4;
+
+			ipx4 = vect_loadu_sil128((xmm_t *)(ip_batch + j));
+			ipx4 = *(xmm_t *)(ip_batch + j);
+			rte_lpm_lookupx4_defx4(lpm, ipx4, next_hops, def);
+			for (k = 0; k < RTE_DIM(next_hops); k++)
+				if (unlikely(next_hops[k] == UINT32_MAX))
+					count++;
+		}
+
+		total_time += rte_rdtsc() - begin;
+	}
+	printf("LPM LookupX4 Defx4: %.1f cycles (fails = %.1f%%)\n",
+			(double)total_time / ((double)ITERATIONS * BATCH_SIZE),
+			(count * 100.0) / (double)(ITERATIONS * BATCH_SIZE));
 	/* Measure Delete */
 	status = 0;
 	begin = rte_rdtsc();

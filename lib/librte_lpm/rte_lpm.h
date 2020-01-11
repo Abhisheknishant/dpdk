@@ -370,6 +370,29 @@ static inline void
 rte_lpm_lookupx4(const struct rte_lpm *lpm, xmm_t ip, uint32_t hop[4],
 	uint32_t defv);
 
+/**
+ * Lookup four IP addresses in an LPM table.
+ *
+ * @param lpm
+ *   LPM object handle
+ * @param ip
+ *   Four IPs to be looked up in the LPM table
+ * @param hop
+ *   Next hop of the most specific rule found for IP (valid on lookup hit only).
+ *   This is an 4 elements array of two byte values.
+ *   If the lookup was successful for the given IP, then least significant byte
+ *   of the corresponding element is the  actual next hop and the most
+ *   significant byte is zero.
+ *   If the lookup for the given IP failed, then corresponding element would
+ *   contain default value, see description of then next parameter.
+ * @param defv
+ *   Default value[] to populate into corresponding element of hop[] array,
+ *   if lookup would fail.
+ */
+static inline void
+rte_lpm_lookupx4_defx4(const struct rte_lpm *lpm, xmm_t ip, uint32_t hop[4],
+	uint32_t defv[4]);
+
 #if defined(RTE_ARCH_ARM) || defined(RTE_ARCH_ARM64)
 #include "rte_lpm_neon.h"
 #elif defined(RTE_ARCH_PPC_64)
