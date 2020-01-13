@@ -6,7 +6,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#ifndef _WIN64
 #include <syslog.h>
+#endif
 #include <ctype.h>
 #include <limits.h>
 #include <errno.h>
@@ -204,9 +206,9 @@ eal_reset_internal_config(struct internal_config *internal_cfg)
 		internal_cfg->hugepage_info[i].lock_descriptor = -1;
 	}
 	internal_cfg->base_virtaddr = 0;
-
+#ifndef _WIN64
 	internal_cfg->syslog_facility = LOG_DAEMON;
-
+#endif
 	/* if set to NONE, interrupt mode is determined automatically */
 	internal_cfg->vfio_intr_mode = RTE_INTR_MODE_NONE;
 
@@ -930,6 +932,7 @@ err:
 	return ret;
 }
 
+#ifndef _WIN64
 static int
 eal_parse_syslog(const char *facility, struct internal_config *conf)
 {
@@ -968,6 +971,7 @@ eal_parse_syslog(const char *facility, struct internal_config *conf)
 	}
 	return -1;
 }
+#endif
 
 static int
 eal_parse_log_priority(const char *level)
@@ -1391,7 +1395,7 @@ eal_parse_common_option(int opt, const char *optarg,
 			return -1;
 		}
 		break;
-
+#ifndef _WIN64
 	case OPT_SYSLOG_NUM:
 		if (eal_parse_syslog(optarg, conf) < 0) {
 			RTE_LOG(ERR, EAL, "invalid parameters for --"
@@ -1399,7 +1403,7 @@ eal_parse_common_option(int opt, const char *optarg,
 			return -1;
 		}
 		break;
-
+#endif
 	case OPT_LOG_LEVEL_NUM: {
 		if (eal_parse_log_level(optarg) < 0) {
 			RTE_LOG(ERR, EAL,
