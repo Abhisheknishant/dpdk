@@ -253,7 +253,6 @@ struct ixgbe_txq_ops {
 			 IXGBE_ADVTXD_DCMD_DEXT |\
 			 IXGBE_ADVTXD_DCMD_EOP)
 
-
 /* Takes an ethdev and a queue and sets up the tx function to be used based on
  * the queue parameters. Used in tx_queue_setup by primary process and then
  * in dev_init by secondary process when attaching to an existing ethdev.
@@ -284,6 +283,7 @@ uint16_t ixgbe_recv_scattered_pkts_vec(void *rx_queue,
 int ixgbe_rx_vec_dev_conf_condition_check(struct rte_eth_dev *dev);
 int ixgbe_rxq_vec_setup(struct ixgbe_rx_queue *rxq);
 void ixgbe_rx_queue_release_mbufs_vec(struct ixgbe_rx_queue *rxq);
+int ixgbe_dev_tx_done_cleanup(void *tx_queue, uint32_t free_cnt);
 
 extern const uint32_t ptype_table[IXGBE_PACKET_TYPE_MAX];
 extern const uint32_t ptype_table_tn[IXGBE_PACKET_TYPE_TN_MAX];
