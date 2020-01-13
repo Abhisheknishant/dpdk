@@ -46,6 +46,7 @@
 #include "mlx5_glue.h"
 #include "mlx5_mr.h"
 #include "mlx5_flow.h"
+#include "rte_pmd_mlx5.h"
 
 /* Device parameter to enable RX completion queue compression. */
 #define MLX5_RXQ_CQE_COMP_EN "rxq_cqe_comp_en"
@@ -1981,6 +1982,20 @@ mlx5_release_dbr(struct rte_eth_dev *dev, uint32_t umem_id, uint64_t offset)
 		page->dbr_bitmap[i] &= ~(1 << j);
 	}
 	return ret;
+}
+
+int
+rte_pmd_mlx5_get_dyn_flag_names(char *names[], uint16_t n)
+{
+	static const char *const dynf_names[] = {
+		RTE_PMD_MLX5_FINE_GRANULARITY_INLINE,
+	};
+	int num = RTE_MIN(n, RTE_DIM(dynf_names));
+	int i;
+
+	for (i = 0; i < num; i++)
+		strcpy(names[i], dynf_names[i]);
+	return num;
 }
 
 /**
