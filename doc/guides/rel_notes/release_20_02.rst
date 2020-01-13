@@ -68,6 +68,11 @@ New Features
   * Transistioned underlying library from libSSO KASUMI to intel-ipsec-mb
     library (minimum version required 0.53).
 
+* **Updated the SNOW3G PMD.**
+
+  * Transistioned underlying library from libSSO SNOW3G to intel-ipsec-mb
+    library (minimum version required 0.53).
+
 
 Removed Items
 -------------
