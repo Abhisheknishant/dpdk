@@ -56,6 +56,20 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+   * **Updated rte_flow api to support L2TPv3 over IP flows.**
+
+     Added support for new flow item to handle L2TPv3 over IP rte_flow patterns.
+
+   * **Updated i40e driver to support L2TPv3 over IP flows.**
+
+     Updated the i40e PMD to support L2TPv3 over IP profiles which can be
+     programmed by the dynamic device personalization (DDP) process.
+
+   * **Updated testpmd to support L2TPv3 over IP flows.**
+
+     Added support for L2TPv3 over IP rte_flow patterns to the testpmd
+     application.
+
 
 Removed Items
 -------------
