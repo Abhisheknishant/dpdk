@@ -393,6 +393,23 @@ rte_pci_add_device(struct rte_pci_device *pci_dev)
 	TAILQ_INSERT_TAIL(&rte_pci_bus.device_list, pci_dev, next);
 }
 
+/* Search for a specific device in PCI bus */
+
+int
+rte_pci_search_device(int vendor_id, int device_id)
+{
+	struct rte_pci_device *pdev;
+	pdev = TAILQ_FIRST(&rte_pci_bus.device_list);
+
+	while (pdev != NULL) {
+		if (pdev->id.vendor_id == vendor_id &&
+			pdev->id.device_id == device_id)
+			return true;
+		pdev = TAILQ_NEXT(pdev, next);
+	}
+	return false;
+}
+
 /* Insert a device into a predefined position in PCI bus */
 void
 rte_pci_insert_device(struct rte_pci_device *exist_pci_dev,

@@ -354,6 +354,18 @@ void rte_pci_ioport_read(struct rte_pci_ioport *p,
 void rte_pci_ioport_write(struct rte_pci_ioport *p,
 		const void *data, size_t len, off_t offset);
 
+/*
+ * Search for a specific device in pci bus
+ *
+ * @param vendor_id
+ *   vendor_id of the device to search
+ * @param device_id
+ *   device_id of the device to search
+ * @return
+ *   1 on success, 0 on failure
+ */
+int rte_pci_search_device(int vendor_id, int device_id);
+
 #ifdef __cplusplus
 }
 #endif
