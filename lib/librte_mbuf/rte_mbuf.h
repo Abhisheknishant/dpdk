@@ -306,6 +306,46 @@ struct rte_pktmbuf_pool_private {
 	uint32_t flags; /**< reserved for future use. */
 };
 
+/**
+ * When set pktmbuf mempool will hold only mbufs with pinned external
+ * buffer. The external buffer will be attached on the mbuf at the
+ * memory pool creation and will never be detached by the mbuf free calls.
+ * mbuf should not contain any room for data after the mbuf structure.
+ */
+#define RTE_PKTMBUF_POOL_F_PINNED_EXT_BUF (1 << 0)
+
+/**
+ * Returns TRUE if given mbuf has an pinned external buffer, or FALSE
+ * otherwise. The pinned external buffer is allocated at pool creation
+ * time and should not be freed.
+ *
+ * External buffer is a user-provided anonymous buffer.
+ */
+#ifdef ALLOW_EXPERIMENTAL_API
+#define RTE_MBUF_HAS_PINNED_EXTBUF(mb) rte_mbuf_has_pinned_extbuf(mb)
+#else
+#define RTE_MBUF_HAS_PINNED_EXTBUF(mb) false
+#endif
+
+__rte_experimental
+static inline uint32_t
+rte_mbuf_has_pinned_extbuf(const struct rte_mbuf *m)
+{
+	if (RTE_MBUF_HAS_EXTBUF(m)) {
+		/*
+		 * The mbuf has the external attached buffer,
+		 * we should check the type of the memory pool where
+		 * the mbuf was allocated from.
+		 */
+		struct rte_pktmbuf_pool_private *priv =
+			(struct rte_pktmbuf_pool_private *)
+				rte_mempool_get_priv(m->pool);
+
+		return priv->flags & RTE_PKTMBUF_POOL_F_PINNED_EXT_BUF;
+	}
+	return 0;
+}
+
 #ifdef RTE_LIBRTE_MBUF_DEBUG
 
 /**  check mbuf type in debug mode */
@@ -571,7 +611,8 @@ static inline struct rte_mbuf *rte_mbuf_raw_alloc(struct rte_mempool *mp)
 static __rte_always_inline void
 rte_mbuf_raw_free(struct rte_mbuf *m)
 {
-	RTE_ASSERT(RTE_MBUF_DIRECT(m));
+	RTE_ASSERT(!RTE_MBUF_CLONED(m) &&
+		  (!RTE_MBUF_HAS_EXTBUF(m) || RTE_MBUF_HAS_PINNED_EXTBUF(m)));
 	RTE_ASSERT(rte_mbuf_refcnt_read(m) == 1);
 	RTE_ASSERT(m->next == NULL);
 	RTE_ASSERT(m->nb_segs == 1);
@@ -1141,11 +1182,26 @@ static inline void rte_pktmbuf_detach(struct rte_mbuf *m)
 	uint32_t mbuf_size, buf_len;
 	uint16_t priv_size;
 
-	if (RTE_MBUF_HAS_EXTBUF(m))
-		__rte_pktmbuf_free_extbuf(m);
-	else
-		__rte_pktmbuf_free_direct(m);
+	if (RTE_MBUF_HAS_EXTBUF(m)) {
+		/*
+		 * The mbuf has the external attached buffed,
+		 * we should check the type of the memory pool where
+		 * the mbuf was allocated from to detect the pinned
+		 * external buffer.
+		 */
+		struct rte_pktmbuf_pool_private *priv =
+			(struct rte_pktmbuf_pool_private *)
+				rte_mempool_get_priv(mp);
 
+		if (priv->flags & RTE_PKTMBUF_POOL_F_PINNED_EXT_BUF) {
+			RTE_ASSERT(m->shinfo == NULL);
+			m->ol_flags = EXT_ATTACHED_MBUF;
+			return;
+		}
+		__rte_pktmbuf_free_extbuf(m);
+	} else {
+		__rte_pktmbuf_free_direct(m);
+	}
 	priv_size = rte_pktmbuf_priv_size(mp);
 	mbuf_size = (uint32_t)(sizeof(struct rte_mbuf) + priv_size);
 	buf_len = rte_pktmbuf_data_room_size(mp);
