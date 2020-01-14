@@ -357,6 +357,8 @@ bnx2x_recv_pkts(void *p_rxq, struct rte_mbuf **rx_pkts, uint16_t nb_pkts)
 	uint16_t len, pad;
 	struct rte_mbuf *rx_mb = NULL;
 
+	rte_spinlock_lock(&(fp)->rx_mtx);
+
 	/* Add memory barrier as status block fields can change. This memory
 	 * barrier will flush out all the read/write operations to status block
 	 * generated before the barrier. It will ensure stale data is not read
@@ -379,8 +381,10 @@ bnx2x_recv_pkts(void *p_rxq, struct rte_mbuf **rx_pkts, uint16_t nb_pkts)
 	 */
 	rmb();
 
-	if (sw_cq_cons == hw_cq_cons)
+	if (sw_cq_cons == hw_cq_cons) {
+		rte_spinlock_unlock(&(fp)->rx_mtx);
 		return 0;
+	}
 
 	while (nb_rx < nb_pkts && sw_cq_cons != hw_cq_cons) {
 
@@ -460,6 +464,8 @@ next_rx:
 	rxq->rx_cq_tail = sw_cq_prod;
 
 	bnx2x_upd_rx_prod_fast(sc, fp, bd_prod, sw_cq_prod);
+
+	rte_spinlock_unlock(&(fp)->rx_mtx);
 
 	return nb_rx;
 }
