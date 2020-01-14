@@ -1255,6 +1255,11 @@ static uint8_t bnx2x_rxeof(struct bnx2x_softc *sc, struct bnx2x_fastpath *fp)
 		return 0;
 	}
 
+	/* Add memory barrier as status block fields can change. This memory
+	 * barrier will flush out all the read/write operations to status block
+	 * generated before the barrier. It will ensure stale data is not read
+	 */
+	mb();
 	/* CQ "next element" is of the size of the regular element */
 	hw_cq_cons = le16toh(*fp->rx_cq_cons_sb);
 	if (unlikely((hw_cq_cons & USABLE_RCQ_ENTRIES_PER_PAGE) ==

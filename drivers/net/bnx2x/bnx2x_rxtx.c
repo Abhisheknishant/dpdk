@@ -324,11 +324,22 @@ bnx2x_upd_rx_prod_fast(struct bnx2x_softc *sc, struct bnx2x_fastpath *fp,
 	struct ustorm_eth_rx_producers rx_prods = { 0 };
 	uint32_t *val = NULL;
 
+	/* Update producers */
 	rx_prods.bd_prod  = rx_bd_prod;
 	rx_prods.cqe_prod = rx_cq_prod;
 
+	/*
+	 * Make sure that the BD and SGE data is updated before updating the
+	 * producers since FW might read the BD/SGE right after the producer
+	 * is updated.
+	 * The following barrier is also mandatory since FW will assumes BDs
+	 * must have buffers.
+	 */
+	wmb();
 	val = (uint32_t *)&rx_prods;
 	REG_WR(sc, fp->ustorm_rx_prods_offset, val[0]);
+
+	wmb();			/* keep prod updates ordered */
 }
 
 static uint16_t
@@ -346,6 +357,11 @@ bnx2x_recv_pkts(void *p_rxq, struct rte_mbuf **rx_pkts, uint16_t nb_pkts)
 	uint16_t len, pad;
 	struct rte_mbuf *rx_mb = NULL;
 
+	/* Add memory barrier as status block fields can change. This memory
+	 * barrier will flush out all the read/write operations to status block
+	 * generated before the barrier. It will ensure stale data is not read
+	 */
+	mb();
 	hw_cq_cons = le16toh(*fp->rx_cq_cons_sb);
 	if ((hw_cq_cons & USABLE_RCQ_ENTRIES_PER_PAGE) ==
 			USABLE_RCQ_ENTRIES_PER_PAGE) {
@@ -356,6 +372,12 @@ bnx2x_recv_pkts(void *p_rxq, struct rte_mbuf **rx_pkts, uint16_t nb_pkts)
 	bd_prod = rxq->rx_bd_tail;
 	sw_cq_cons = rxq->rx_cq_head;
 	sw_cq_prod = rxq->rx_cq_tail;
+
+	/*
+	 * Memory barrier necessary as speculative reads of the Rx
+	 * buffer can be ahead of the index in the status block
+	 */
+	rmb();
 
 	if (sw_cq_cons == hw_cq_cons)
 		return 0;
