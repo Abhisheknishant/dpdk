@@ -56,6 +56,10 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Added support for ECDSA.**
+
+  Added ECDSA(Elliptic Curve Digital Signature Algorithm) support to asymmetric
+  crypto library specifications.
 
 Removed Items
 -------------
