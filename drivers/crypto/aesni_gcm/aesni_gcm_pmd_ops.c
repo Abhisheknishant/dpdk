@@ -331,9 +331,12 @@ struct rte_cryptodev_ops aesni_gcm_pmd_ops = {
 		.queue_pair_release	= aesni_gcm_pmd_qp_release,
 		.queue_pair_count	= aesni_gcm_pmd_qp_count,
 
+		.sym_cpu_process        = aesni_gcm_pmd_cpu_crypto_process,
+
 		.sym_session_get_size	= aesni_gcm_pmd_sym_session_get_size,
 		.sym_session_configure	= aesni_gcm_pmd_sym_session_configure,
 		.sym_session_clear	= aesni_gcm_pmd_sym_session_clear
 };
 
 struct rte_cryptodev_ops *rte_aesni_gcm_pmd_ops = &aesni_gcm_pmd_ops;
+

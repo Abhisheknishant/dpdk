@@ -73,6 +73,11 @@ enum aesni_gcm_operation {
 	AESNI_GMAC_OP_VERIFY
 };
 
+enum aesni_gcm_mode {
+	AESNI_GCM_MODE_ASYNC,
+	AESNI_GCM_MODE_SYNC
+};
+
 /** AESNI GCM private session structure */
 struct aesni_gcm_session {
 	struct {
@@ -90,8 +95,12 @@ struct aesni_gcm_session {
 	/**< GCM operation type */
 	enum aesni_gcm_key key;
 	/**< GCM key type */
+	enum aesni_gcm_mode mode;
+	/**< Sync/async mode */
 	struct gcm_key_data gdata_key;
 	/**< GCM parameters */
+	struct aesni_gcm_session_ops ops;
+	/**< Session handlers */
 };
 
 
@@ -109,10 +118,13 @@ aesni_gcm_set_session_parameters(const struct aesni_gcm_ops *ops,
 		struct aesni_gcm_session *sess,
 		const struct rte_crypto_sym_xform *xform);
 
-
-/**
- * Device specific operations function pointer structure */
+/* Device specific operations function pointer structure */
 extern struct rte_cryptodev_ops *rte_aesni_gcm_pmd_ops;
 
+/** CPU crypto bulk process handler */
+uint32_t
+aesni_gcm_pmd_cpu_crypto_process(struct rte_cryptodev *dev,
+	struct rte_cryptodev_sym_session *sess, union rte_crypto_sym_ofs ofs,
+	struct rte_crypto_sym_vec *vec);
 
 #endif /* _AESNI_GCM_PMD_PRIVATE_H_ */
