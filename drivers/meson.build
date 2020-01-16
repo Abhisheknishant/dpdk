@@ -56,6 +56,7 @@ foreach class:dpdk_driver_classes
 		# too, so that it can be reflected in the pkgconfig output for
 		# static builds.
 		ext_deps = []
+		hidden_deps = []
 		pkgconfig_extra_libs = []
 
 		# pull in driver directory which should assign to each of the above
@@ -71,8 +72,9 @@ foreach class:dpdk_driver_classes
 		endforeach
 		if build
 			# get dependency objs from strings
-			shared_deps = ext_deps
-			static_deps = ext_deps
+			shared_deps = ext_deps + hidden_deps
+			static_deps = ext_deps + hidden_deps
+			static_pub_deps = ext_deps
 			foreach d:deps
 				if not is_variable('shared_rte_' + d)
 					build = false
@@ -82,6 +84,7 @@ foreach class:dpdk_driver_classes
 				else
 					shared_deps += [get_variable('shared_rte_' + d)]
 					static_deps += [get_variable('static_rte_' + d)]
+					static_pub_deps += [get_variable('static_rte_' + d)]
 				endif
 			endforeach
 		endif
@@ -144,7 +147,7 @@ foreach class:dpdk_driver_classes
 				sources,
 				objects: objs,
 				include_directories: includes,
-				dependencies: static_deps,
+				dependencies: static_pub_deps, # skip hidden_deps
 				c_args: cflags,
 				install: true)
 
