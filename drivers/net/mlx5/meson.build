@@ -186,6 +186,8 @@ if build
 		'RDMA_NLDEV_ATTR_PORT_INDEX' ],
 		[ 'HAVE_RDMA_NLDEV_ATTR_NDEV_INDEX', 'rdma/rdma_netlink.h',
 		'RDMA_NLDEV_ATTR_NDEV_INDEX' ],
+		[ 'HAVE_MLX5_DR_FLOW_DUMP', 'infiniband/mlx5dv.h',
+		'mlx5dv_dump_dr_domain'],
 	]
 	config = configuration_data()
 	foreach arg:has_sym_args
