@@ -9,6 +9,7 @@ if not is_linux
 endif
 build = true
 
+static_ibverbs = (get_option('ibverbs_link') == 'static')
 pmd_dlopen = (get_option('ibverbs_link') == 'dlopen')
 LIB_GLUE_BASE = 'librte_pmd_mlx5_glue.so'
 LIB_GLUE_VERSION = '19.08.0'
@@ -24,12 +25,24 @@ endif
 libnames = [ 'mlx5', 'ibverbs' ]
 libs = []
 foreach libname:libnames
-	lib = dependency('lib' + libname, required:false)
-	if not lib.found()
+	lib = dependency('lib' + libname, static:static_ibverbs, required:false)
+	if not lib.found() and not static_ibverbs
 		lib = cc.find_library(libname, required:false)
 	endif
 	if lib.found()
-		libs += [ lib ]
+		libs += lib
+		if static_ibverbs
+			# Workaround static dependency handling miss of meson
+			# See https://github.com/mesonbuild/meson/pull/6393
+			# Build without adding shared libs to Requires.private
+			hidden_deps += lib.partial_dependency(compile_args:true)
+			# Add static lib deps to internal apps and Libs.private
+			ldflags = run_command(pkg_config_static,
+				'lib' + libname, check:true).stdout()
+			ext_deps += declare_dependency(link_args:ldflags.split())
+		else
+			ext_deps += lib
+		endif
 	else
 		build = false
 		reason = 'missing dependency, "' + libname + '"'
@@ -39,7 +52,6 @@ endforeach
 if build
 	allow_experimental_apis = true
 	deps += ['hash']
-	ext_deps += libs
 	sources = files(
 		'mlx5.c',
 		'mlx5_ethdev.c',
