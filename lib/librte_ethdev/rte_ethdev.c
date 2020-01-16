@@ -3257,6 +3257,7 @@ rte_eth_dev_set_vlan_offload(uint16_t port_id, int offload_mask)
 
 	RTE_ETH_VALID_PORTID_OR_ERR_RET(port_id, -ENODEV);
 	dev = &rte_eth_devices[port_id];
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->vlan_offload_set, -ENOTSUP);
 
 	/* save original values in case of failure */
 	orig_offloads = dev->data->dev_conf.rxmode.offloads;
@@ -3307,7 +3308,6 @@ rte_eth_dev_set_vlan_offload(uint16_t port_id, int offload_mask)
 	if (mask == 0)
 		return ret;
 
-	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->vlan_offload_set, -ENOTSUP);
 	ret = (*dev->dev_ops->vlan_offload_set)(dev, mask);
 	if (ret) {
 		/* hit an error restore  original values */
