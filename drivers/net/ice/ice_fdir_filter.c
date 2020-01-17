@@ -987,6 +987,7 @@ ice_fdir_input_set_conf(struct ice_pf *pf, enum ice_fltr_ptype flow,
 		ICE_FLOW_SET_HDRS(seg, ICE_FLOW_SEG_HDR_GTPU_EH |
 				       ICE_FLOW_SEG_HDR_GTPU_IP |
 				  ICE_FLOW_SEG_HDR_IPV4);
+		is_tunnel = true;
 		break;
 	default:
 		PMD_DRV_LOG(ERR, "not supported filter type.");
