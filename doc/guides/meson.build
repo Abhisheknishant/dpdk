@@ -7,6 +7,10 @@ if not sphinx.found()
 	subdir_done()
 endif
 
+if get_option('werror')
+	sphinx = [sphinx, '-W']
+endif
+
 htmldir = join_paths(get_option('datadir'), 'doc', 'dpdk')
 html_guides = custom_target('html_guides',
 	input: files('index.rst'),
