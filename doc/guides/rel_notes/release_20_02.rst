@@ -61,6 +61,11 @@ New Features
   A new API has been added to wait for a memory location to be updated with a
   16-bit, 32-bit, 64-bit value.
 
+* **Disabled all the Linux kernel modules build by default.**
+
+  In order to remove the build time dependency with Linux kernel,
+  The techboard decided to disable all the kernel modules build by
+  default from v20.02 version.
 
 Removed Items
 -------------
