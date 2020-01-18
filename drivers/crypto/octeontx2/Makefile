@@ -20,6 +20,7 @@ VPATH += $(RTE_SDK)/drivers/crypto/octeontx2
 CFLAGS += -O3
 CFLAGS += -I$(RTE_SDK)/drivers/common/cpt
 CFLAGS += -I$(RTE_SDK)/drivers/common/octeontx2
+CFLAGS += -I$(RTE_SDK)/drivers/crypto/octeontx2
 CFLAGS += -I$(RTE_SDK)/drivers/mempool/octeontx2
 CFLAGS += -I$(RTE_SDK)/drivers/net/octeontx2
 CFLAGS += -DALLOW_EXPERIMENTAL_API

@@ -25,6 +25,7 @@ sources = files('otx2_rx.c',
 		)
 
 deps += ['bus_pci', 'common_octeontx2', 'mempool_octeontx2']
+deps += ['cryptodev', 'security']
 
 cflags += ['-flax-vector-conversions']
 
@@ -39,3 +40,5 @@ foreach flag: extra_flags
 		cflags += flag
 	endif
 endforeach
+
+includes += include_directories('../../crypto/octeontx2')
