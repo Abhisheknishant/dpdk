@@ -31,6 +31,7 @@ foreach flag: extra_flags
 	endif
 endforeach
 
-deps += ['bus_pci', 'common_octeontx2', 'mempool_octeontx2', 'pmd_octeontx2']
+deps += ['bus_pci', 'common_octeontx2', 'cryptodev', 'mempool_octeontx2', 'pmd_octeontx2',
+         'security']
 
 includes += include_directories('../../crypto/octeontx2')
