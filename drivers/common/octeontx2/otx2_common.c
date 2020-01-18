@@ -11,6 +11,8 @@
 #include "otx2_dev.h"
 #include "otx2_mbox.h"
 
+struct otx2_sec_eth_crypto_idev_ops otx2_sec_idev_ops;
+
 /**
  * @internal
  * Set default NPA configuration.

@@ -11,7 +11,7 @@ LIB = librte_pmd_octeontx2_crypto.a
 CFLAGS += $(WERROR_FLAGS)
 
 LDLIBS += -lrte_eal -lrte_ethdev -lrte_mbuf -lrte_mempool -lrte_ring
-LDLIBS += -lrte_cryptodev
+LDLIBS += -lrte_cryptodev -lrte_security
 LDLIBS += -lrte_pci -lrte_bus_pci
 LDLIBS += -lrte_common_cpt -lrte_common_octeontx2
 
@@ -38,6 +38,7 @@ SRCS-$(CONFIG_RTE_LIBRTE_PMD_OCTEONTX2_CRYPTO) += otx2_cryptodev_capabilities.c
 SRCS-$(CONFIG_RTE_LIBRTE_PMD_OCTEONTX2_CRYPTO) += otx2_cryptodev_hw_access.c
 SRCS-$(CONFIG_RTE_LIBRTE_PMD_OCTEONTX2_CRYPTO) += otx2_cryptodev_mbox.c
 SRCS-$(CONFIG_RTE_LIBRTE_PMD_OCTEONTX2_CRYPTO) += otx2_cryptodev_ops.c
+SRCS-$(CONFIG_RTE_LIBRTE_PMD_OCTEONTX2_CRYPTO) += otx2_security.c
 
 # export include files
 SYMLINK-y-include +=
