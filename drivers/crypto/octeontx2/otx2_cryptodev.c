@@ -160,4 +160,6 @@ RTE_INIT(otx2_cpt_init_log)
 	otx2_sec_idev_ops.ctx_destroy = otx2_sec_eth_ctx_destroy;
 	otx2_sec_idev_ops.init = otx2_sec_eth_init;
 	otx2_sec_idev_ops.fini = otx2_sec_eth_fini;
+	otx2_sec_idev_ops.update_tag_type = otx2_sec_eth_update_tag_type;
+
 }

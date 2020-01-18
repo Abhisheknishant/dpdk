@@ -81,12 +81,14 @@ typedef int (*otx2_sec_eth_ctx_create_t)(struct rte_eth_dev *eth_dev);
 typedef void (*otx2_sec_eth_ctx_destroy_t)(struct rte_eth_dev *eth_dev);
 typedef int (*otx2_sec_eth_init_t)(struct rte_eth_dev *eth_dev);
 typedef void (*otx2_sec_eth_fini_t)(struct rte_eth_dev *eth_dev);
+typedef int (*otx2_sec_eth_update_tag_type_t)(struct rte_eth_dev *eth_dev);
 
 struct otx2_sec_eth_crypto_idev_ops {
 	otx2_sec_eth_ctx_create_t ctx_create;
 	otx2_sec_eth_ctx_destroy_t ctx_destroy;
 	otx2_sec_eth_init_t init;
 	otx2_sec_eth_fini_t fini;
+	otx2_sec_eth_update_tag_type_t update_tag_type;
 };
 
 extern struct otx2_sec_eth_crypto_idev_ops otx2_sec_idev_ops;

@@ -146,6 +146,8 @@ int otx2_sec_eth_ctx_create(struct rte_eth_dev *eth_dev);
 
 void otx2_sec_eth_ctx_destroy(struct rte_eth_dev *eth_dev);
 
+int otx2_sec_eth_update_tag_type(struct rte_eth_dev *eth_dev);
+
 int otx2_sec_eth_init(struct rte_eth_dev *eth_dev);
 
 void otx2_sec_eth_fini(struct rte_eth_dev *eth_dev);
