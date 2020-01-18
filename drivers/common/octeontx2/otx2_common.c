@@ -3,6 +3,7 @@
  */
 
 #include <rte_atomic.h>
+#include <rte_ethdev.h>
 #include <rte_malloc.h>
 #include <rte_log.h>
 
@@ -19,6 +20,25 @@ otx2_npa_set_defaults(struct otx2_idev_cfg *idev)
 {
 	idev->npa_pf_func = 0;
 	rte_atomic16_set(&idev->npa_refcnt, 0);
+}
+
+/**
+ * @internal
+ * Check if rte_eth_dev is security offload capable otx2_eth_dev
+ */
+uint8_t
+otx2_ethdev_is_sec_capable(struct rte_eth_dev *eth_dev)
+{
+	struct rte_pci_device *pci_dev;
+
+	pci_dev = RTE_ETH_DEV_TO_PCI(eth_dev);
+
+	if (pci_dev->id.device_id == PCI_DEVID_OCTEONTX2_RVU_PF ||
+	    pci_dev->id.device_id == PCI_DEVID_OCTEONTX2_RVU_VF ||
+	    pci_dev->id.device_id == PCI_DEVID_OCTEONTX2_RVU_AF_VF)
+		return 1;
+
+	return 0;
 }
 
 /**

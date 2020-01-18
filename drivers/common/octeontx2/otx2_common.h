@@ -8,6 +8,7 @@
 #include <rte_atomic.h>
 #include <rte_common.h>
 #include <rte_cycles.h>
+#include <rte_ethdev.h>
 #include <rte_memory.h>
 #include <rte_memzone.h>
 #include <rte_io.h>
@@ -70,6 +71,7 @@ struct otx2_idev_cfg *otx2_intra_dev_get_cfg(void);
 void otx2_sso_pf_func_set(uint16_t sso_pf_func);
 uint16_t otx2_sso_pf_func_get(void);
 uint16_t otx2_npa_pf_func_get(void);
+uint8_t otx2_ethdev_is_sec_capable(struct rte_eth_dev *eth_dev);
 struct otx2_npa_lf *otx2_npa_lf_obj_get(void);
 void otx2_npa_set_defaults(struct otx2_idev_cfg *idev);
 int otx2_npa_lf_active(void *dev);
