@@ -81,6 +81,15 @@ New Features
 
   Added Chacha20-Poly1305 AEAD algorithm.
 
+* **Added inline IPsec support to Marvell OCTEONTX2 PMD.**
+
+  Added inline IPsec support to Marvell OCTEONTX2 PMD. With the feature,
+  applications would be able to offload entire IPsec offload to the hardware.
+  For the configured sessions, hardware will do the lookup and perform
+  decryption and IPsec transformation. For the outbound path, application
+  can submit a plain packet to the PMD, and it would be sent out on wire
+  after doing encryption and IPsec transformation of the packet.
+
 
 Removed Items
 -------------
