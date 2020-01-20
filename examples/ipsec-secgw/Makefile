@@ -15,6 +15,7 @@ SRCS-y += sa.c
 SRCS-y += rt.c
 SRCS-y += ipsec_process.c
 SRCS-y += ipsec-secgw.c
+SRCS-y += event_helper.c
 
 CFLAGS += -gdwarf-2
 
