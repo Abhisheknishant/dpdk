@@ -966,6 +966,8 @@ eh_find_worker(uint32_t lcore_id, struct eh_conf *conf,
 	else
 		curr_conf.cap.burst = EH_RX_TYPE_NON_BURST;
 
+	curr_conf.cap.ipsec_mode = conf->ipsec_mode;
+
 	/* Parse the passed list and see if we have matching capabilities */
 
 	/* Initialize the pointer used to traverse the list */
@@ -1625,7 +1627,7 @@ eh_launch_worker(struct eh_conf *conf, struct eh_app_worker_params *app_wrkr,
 	}
 
 	/* Get eventmode conf */
-	em_conf = (struct eventmode_conf *)(conf->mode_params);
+	em_conf = conf->mode_params;
 
 	/* Get core ID */
 	lcore_id = rte_lcore_id();
