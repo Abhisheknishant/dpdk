@@ -13,6 +13,8 @@
 #include <rte_flow.h>
 #include <rte_ipsec.h>
 
+#include "ipsec-secgw.h"
+
 #define RTE_LOGTYPE_IPSEC       RTE_LOGTYPE_USER1
 #define RTE_LOGTYPE_IPSEC_ESP   RTE_LOGTYPE_USER2
 #define RTE_LOGTYPE_IPSEC_IPIP  RTE_LOGTYPE_USER3
@@ -257,6 +259,15 @@ struct ipsec_traffic {
 	struct traffic_type ip4;
 	struct traffic_type ip6;
 };
+
+/* Socket ctx */
+struct socket_ctx socket_ctx[NB_SOCKETS];
+
+void
+ipsec_poll_mode_worker(void);
+
+int
+ipsec_launch_one_lcore(void *args);
 
 uint16_t
 ipsec_inbound(struct ipsec_ctx *ctx, struct rte_mbuf *pkts[],

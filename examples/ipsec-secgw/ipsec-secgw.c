@@ -70,16 +70,12 @@ volatile bool force_quit;
 
 #define BURST_TX_DRAIN_US 100 /* TX drain every ~100us */
 
-#define NB_SOCKETS 4
-
 /* Configure how many packets ahead to prefetch, when reading packets */
 #define PREFETCH_OFFSET	3
 
 #define MAX_RX_QUEUE_PER_LCORE 16
 
 #define MAX_LCORE_PARAMS 1024
-
-#define UNPROTECTED_PORT(port) (unprotected_port_mask & (1 << portid))
 
 /*
  * Configurable number of RX/TX ring descriptors
@@ -190,12 +186,10 @@ static const struct option lgopts[] = {
 /* mask of enabled ports */
 static uint32_t enabled_port_mask;
 static uint64_t enabled_cryptodev_mask = UINT64_MAX;
-static uint32_t unprotected_port_mask;
 static int32_t promiscuous_on = 1;
 static int32_t numa_on = 1; /**< NUMA is enabled by default. */
 static uint32_t nb_lcores;
 static uint32_t single_sa;
-static uint32_t single_sa_idx;
 static uint32_t schedule_type;
 
 /*
@@ -278,8 +272,6 @@ static struct rte_eth_conf port_conf = {
 		.mq_mode = ETH_MQ_TX_NONE,
 	},
 };
-
-static struct socket_ctx socket_ctx[NB_SOCKETS];
 
 /*
  * Determine is multi-segment support required:
@@ -1114,8 +1106,8 @@ drain_outbound_crypto_queues(const struct lcore_conf *qconf,
 }
 
 /* main processing loop */
-static int32_t
-main_loop(__attribute__((unused)) void *dummy)
+void
+ipsec_poll_mode_worker(void)
 {
 	struct rte_mbuf *pkts[MAX_PKT_BURST];
 	uint32_t lcore_id;
@@ -1157,7 +1149,7 @@ main_loop(__attribute__((unused)) void *dummy)
 	if (qconf->nb_rx_queue == 0) {
 		RTE_LOG(DEBUG, IPSEC, "lcore %u has nothing to do\n",
 			lcore_id);
-		return 0;
+		return;
 	}
 
 	RTE_LOG(INFO, IPSEC, "entering main loop on lcore %u\n", lcore_id);
@@ -1170,7 +1162,7 @@ main_loop(__attribute__((unused)) void *dummy)
 			lcore_id, portid, queueid);
 	}
 
-	while (1) {
+	while (!force_quit) {
 		cur_tsc = rte_rdtsc();
 
 		/* TX queue buffer drain */
@@ -1324,8 +1316,10 @@ print_usage(const char *prgname)
 		"  -a enables SA SQN atomic behaviour\n"
 		"  -f CONFIG_FILE: Configuration file\n"
 		"  --config (port,queue,lcore): Rx queue configuration\n"
-		"  --single-sa SAIDX: Use single SA index for outbound traffic,\n"
-		"                     bypassing the SP\n"
+		"  --single-sa SAIDX: In poll mode use single SA index for\n"
+		"                     outbound traffic, bypassing the SP\n"
+		"                     In event mode selects driver mode,\n"
+		"                     SA index value is ignored\n"
 		"  --cryptodev_mask MASK: Hexadecimal bitmask of the crypto\n"
 		"                         devices to configure\n"
 		"  --transfer-mode MODE\n"
@@ -1979,6 +1973,18 @@ cryptodevs_init(void)
 			idx = idx % nb_lcore_params;
 			i++;
 		}
+
+		/*
+		 * Set the queue pair to at least the number of ethernet
+		 * devices for inline outbound.
+		 */
+		qp = RTE_MAX(rte_eth_dev_count_avail(), qp);
+
+		/*
+		 * The requested number of queues should never exceed
+		 * the max available
+		 */
+		qp = RTE_MIN(qp, max_nb_qps);
 
 		if (qp == 0)
 			continue;
@@ -2871,7 +2877,7 @@ main(int32_t argc, char **argv)
 	check_all_ports_link_status(enabled_port_mask);
 
 	/* launch per-lcore init on every lcore */
-	rte_eal_mp_remote_launch(main_loop, NULL, CALL_MASTER);
+	rte_eal_mp_remote_launch(ipsec_launch_one_lcore, eh_conf, CALL_MASTER);
 
 	RTE_LCORE_FOREACH_SLAVE(lcore_id) {
 		if (rte_eal_wait_lcore(lcore_id) < 0)
