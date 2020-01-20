@@ -50,11 +50,10 @@
 
 #include "event_helper.h"
 #include "ipsec.h"
+#include "ipsec_worker.h"
 #include "parser.h"
 
 volatile bool force_quit;
-
-#define RTE_LOGTYPE_IPSEC RTE_LOGTYPE_USER1
 
 #define MAX_JUMBO_PKT_LEN  9600
 
@@ -85,29 +84,6 @@ volatile bool force_quit;
 static uint16_t nb_rxd = IPSEC_SECGW_RX_DESC_DEFAULT;
 static uint16_t nb_txd = IPSEC_SECGW_TX_DESC_DEFAULT;
 
-#if RTE_BYTE_ORDER != RTE_LITTLE_ENDIAN
-#define __BYTES_TO_UINT64(a, b, c, d, e, f, g, h) \
-	(((uint64_t)((a) & 0xff) << 56) | \
-	((uint64_t)((b) & 0xff) << 48) | \
-	((uint64_t)((c) & 0xff) << 40) | \
-	((uint64_t)((d) & 0xff) << 32) | \
-	((uint64_t)((e) & 0xff) << 24) | \
-	((uint64_t)((f) & 0xff) << 16) | \
-	((uint64_t)((g) & 0xff) << 8)  | \
-	((uint64_t)(h) & 0xff))
-#else
-#define __BYTES_TO_UINT64(a, b, c, d, e, f, g, h) \
-	(((uint64_t)((h) & 0xff) << 56) | \
-	((uint64_t)((g) & 0xff) << 48) | \
-	((uint64_t)((f) & 0xff) << 40) | \
-	((uint64_t)((e) & 0xff) << 32) | \
-	((uint64_t)((d) & 0xff) << 24) | \
-	((uint64_t)((c) & 0xff) << 16) | \
-	((uint64_t)((b) & 0xff) << 8) | \
-	((uint64_t)(a) & 0xff))
-#endif
-#define ETHADDR(a, b, c, d, e, f) (__BYTES_TO_UINT64(a, b, c, d, e, f, 0, 0))
-
 #define ETHADDR_TO_UINT64(addr) __BYTES_TO_UINT64( \
 		(addr)->addr_bytes[0], (addr)->addr_bytes[1], \
 		(addr)->addr_bytes[2], (addr)->addr_bytes[3], \
@@ -118,18 +94,6 @@ static uint16_t nb_txd = IPSEC_SECGW_TX_DESC_DEFAULT;
 #define	MAX_FRAG_TTL_NS		(10LL * NS_PER_S)
 
 #define MTU_TO_FRAMELEN(x)	((x) + RTE_ETHER_HDR_LEN + RTE_ETHER_CRC_LEN)
-
-/* port/source ethernet addr and destination ethernet addr */
-struct ethaddr_info {
-	uint64_t src, dst;
-};
-
-struct ethaddr_info ethaddr_tbl[RTE_MAX_ETHPORTS] = {
-	{ 0, ETHADDR(0x00, 0x16, 0x3e, 0x7e, 0x94, 0x9a) },
-	{ 0, ETHADDR(0x00, 0x16, 0x3e, 0x22, 0xa1, 0xd9) },
-	{ 0, ETHADDR(0x00, 0x16, 0x3e, 0x08, 0x69, 0x26) },
-	{ 0, ETHADDR(0x00, 0x16, 0x3e, 0x49, 0x9e, 0xdd) }
-};
 
 struct flow_info flow_info_tbl[RTE_MAX_ETHPORTS];
 
@@ -181,6 +145,13 @@ static const struct option lgopts[] = {
 	{CMD_LINE_OPT_MTU, 1, 0, CMD_LINE_OPT_MTU_NUM},
 	{CMD_LINE_OPT_FRAG_TTL, 1, 0, CMD_LINE_OPT_FRAG_TTL_NUM},
 	{NULL, 0, 0, 0}
+};
+
+struct ethaddr_info ethaddr_tbl[RTE_MAX_ETHPORTS] = {
+	{ 0, ETHADDR(0x00, 0x16, 0x3e, 0x7e, 0x94, 0x9a) },
+	{ 0, ETHADDR(0x00, 0x16, 0x3e, 0x22, 0xa1, 0xd9) },
+	{ 0, ETHADDR(0x00, 0x16, 0x3e, 0x08, 0x69, 0x26) },
+	{ 0, ETHADDR(0x00, 0x16, 0x3e, 0x49, 0x9e, 0xdd) }
 };
 
 /* mask of enabled ports */
