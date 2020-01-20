@@ -1534,6 +1534,10 @@ ice_fdir_parse_action(struct ice_adapter *ad,
 			   RTE_FLOW_ERROR_TYPE_ACTION, actions,
 			   "Too many mark actions");
 		return -rte_errno;
+	} else if (mark_num == 0) {
+		filter->input.fdid_prio = ICE_FXD_FLTR_QW1_FDID_PRI_ZERO;
+	} else {
+		filter->input.fdid_prio = ICE_FXD_FLTR_QW1_FDID_PRI_ONE;
 	}
 
 	if (counter_num >= 2) {
