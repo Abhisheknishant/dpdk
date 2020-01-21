@@ -1063,12 +1063,7 @@ i40e_flow_fdir_fill_eth_ip_head(struct i40e_pf *pf,
 		 pctype == I40E_FILTER_PCTYPE_NONF_IPV4_SCTP ||
 		 pctype == I40E_FILTER_PCTYPE_NONF_IPV4_OTHER ||
 		 pctype == I40E_FILTER_PCTYPE_FRAG_IPV4 ||
-		 ((is_customized_pctype) &&
-		  ((cus_pctype->index == I40E_CUSTOMIZED_GTPC) ||
-		   (cus_pctype->index == I40E_CUSTOMIZED_GTPU_IPV4) ||
-		   (cus_pctype->index == I40E_CUSTOMIZED_GTPU_IPV6) ||
-		   (cus_pctype->index == I40E_CUSTOMIZED_GTPU) ||
-		   (cus_pctype->index == I40E_CUSTOMIZED_IPV4_L2TPV3)))) {
+		 is_customized_pctype) {
 		ip = (struct rte_ipv4_hdr *)raw_pkt;
 
 		*ether_type = rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4);
