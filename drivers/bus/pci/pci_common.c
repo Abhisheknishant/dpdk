@@ -136,7 +136,7 @@ rte_pci_probe_one_driver(struct rte_pci_driver *dr,
 		/* Match of device and driver failed */
 		return 1;
 
-	RTE_LOG(INFO, EAL, "PCI device "PCI_PRI_FMT" on NUMA socket %i\n",
+	RTE_LOG(DEBUG, EAL, "PCI device "PCI_PRI_FMT" on NUMA socket %i\n",
 			loc->domain, loc->bus, loc->devid, loc->function,
 			dev->device.numa_node);
 
@@ -161,7 +161,7 @@ rte_pci_probe_one_driver(struct rte_pci_driver *dr,
 		return -EEXIST;
 	}
 
-	RTE_LOG(INFO, EAL, "  probe driver: %x:%x %s\n", dev->id.vendor_id,
+	RTE_LOG(DEBUG, EAL, "  probe driver: %x:%x %s\n", dev->id.vendor_id,
 		dev->id.device_id, dr->driver.name);
 
 	/*
