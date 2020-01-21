@@ -1895,6 +1895,18 @@ ice_fdir_parse_pattern(__rte_unused struct ice_adapter *ad,
 
 				filter->input.gtpu_data.qfi =
 					gtp_psc_spec->qfi;
+			} else {
+				/* forbid pattern like:
+				 * "gtpu teid is XXX / gtp_psc / end"
+				 */
+				if (ice_flow_inset_get_field(input_set,
+					ICE_INSET_GTPU_TEID)) {
+					rte_flow_error_set(error, EINVAL,
+						   RTE_FLOW_ERROR_TYPE_ITEM,
+						   item,
+						   "Invalid GTP mask");
+					return -rte_errno;
+				}
 			}
 			break;
 		default:

@@ -483,4 +483,10 @@ ice_search_pattern_match_item(const struct rte_flow_item pattern[],
 		struct ice_pattern_match_item *array,
 		uint32_t array_len,
 		struct rte_flow_error *error);
+
+static inline int
+ice_flow_inset_get_field(uint64_t input_set, uint64_t field)
+{
+	return (input_set & field) == field;
+}
 #endif
