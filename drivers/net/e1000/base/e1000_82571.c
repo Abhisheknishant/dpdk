@@ -153,6 +153,13 @@ STATIC s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 			ret_val = -E1000_ERR_PHY;
 		break;
 	case e1000_82574:
+		if (phy->id == 0) {
+			RTE_LOG(WARNING, PMD,
+				"Warning: Assuming device ID for Intel 82574 NIC, workaround for VMware Workstation bug\n");
+			/* VMWare Workstation 15.5.1 returns zero */
+			phy->id = BME1000_E_PHY_ID_R2;
+		}
+		/* fall through */
 	case e1000_82583:
 		if (phy->id != BME1000_E_PHY_ID_R2)
 			ret_val = -E1000_ERR_PHY;
