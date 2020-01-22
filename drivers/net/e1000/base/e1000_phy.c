@@ -2785,6 +2785,162 @@ s32 e1000_get_phy_info_ife(struct e1000_hw *hw)
 }
 
 /**
+ *  e1000_set_phy_loopback - set M88 PHY in loopback mode
+ *  @hw: pointer to the HW structure
+ **/
+s32 e1000_set_phy_loopback_m88(struct e1000_hw *hw)
+{
+	s32 ret_val;
+
+	if (hw->phy.media_type == e1000_media_type_copper) {
+		uint32_t ctrl = E1000_READ_REG(hw, E1000_CTRL);
+		E1000_WRITE_REG(hw, E1000_CTRL, ctrl | E1000_CTRL_ILOS);
+	}
+
+	/* Disable the transceiver */
+	ret_val = hw->phy.ops.write_reg(hw, M88E1000_PHY_PAGE_SELECT, 0x001F);
+	if (ret_val)
+		return ret_val;
+	ret_val = hw->phy.ops.write_reg(hw, M88E1000_PHY_GEN_CONTROL, 0x8FFC);
+	if (ret_val)
+		return ret_val;
+	ret_val = hw->phy.ops.write_reg(hw, M88E1000_PHY_PAGE_SELECT, 0x001A);
+	if (ret_val)
+		return ret_val;
+	ret_val = hw->phy.ops.write_reg(hw, M88E1000_PHY_GEN_CONTROL, 0x8FF0);
+	if (ret_val)
+		return ret_val;
+
+	return E1000_SUCCESS;
+}
+
+/**
+ *  e1000_set_phy_loopback - set BM PHY in loopback mode
+ *  @hw: pointer to the HW structure
+ **/
+s32 e1000_set_phy_loopback_bm(struct e1000_hw *hw)
+{
+	u16 data;
+	s32 ret_val;
+
+	/* Force full duplex */
+	ret_val = hw->phy.ops.read_reg(hw, HV_KMRN_MODE_CTRL, &data);
+	if (ret_val)
+		return ret_val;
+	data |= HV_KMRN_FORCE_FD;
+	ret_val = hw->phy.ops.write_reg(hw, HV_KMRN_MODE_CTRL, data);
+	if (ret_val)
+		return ret_val;
+
+	/* Set link up */
+	ret_val = hw->phy.ops.read_reg(hw, HV_MUX_DATA_CTRL, &data);
+	if (ret_val)
+		return ret_val;
+	data |= HV_MUX_DATA_CTRL_SET_LINK_UP;
+	ret_val = hw->phy.ops.write_reg(hw, HV_MUX_DATA_CTRL, data);
+	if (ret_val)
+		return ret_val;
+
+	/* Force link */
+	ret_val = hw->phy.ops.read_reg(hw, HV_KMRN_MODE_CTRL, &data);
+	if (ret_val)
+		return ret_val;
+	data |= HV_KMRN_FORCE_LINK;
+	ret_val = hw->phy.ops.write_reg(hw, HV_KMRN_MODE_CTRL, data);
+	if (ret_val)
+		return ret_val;
+
+	/* Set early link enable */
+	ret_val = hw->phy.ops.read_reg(hw, I82579_DFT_CTRL, &data);
+	if (ret_val)
+		return ret_val;
+	data |= I82579_DFT_CTRL_EARLY_LINK_ENABLE;
+	ret_val = hw->phy.ops.write_reg(hw, I82579_DFT_CTRL, data);
+	if (ret_val)
+		return ret_val;
+
+	return E1000_SUCCESS;
+}
+
+/**
+ *  e1000_set_phy_loopback - set PHY in loopback mode
+ *  @hw: pointer to the HW structure
+ **/
+s32 e1000_set_phy_loopback(struct e1000_hw *hw)
+{
+	struct e1000_mac_info *mac = &hw->mac;
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val;
+	u16 phy_ctrl;
+
+	DEBUGFUNC("e1000_set_phy_loopback");
+
+	if (phy->type != e1000_phy_none && phy->type != e1000_phy_ife &&
+		phy->type != e1000_phy_m88 && phy->type != e1000_phy_bm) {
+		/* not implemented */
+		return -E1000_ERR_PHY_TYPE;
+	}
+
+	/* must be forced 1000 full-duplex */
+	if (mac->autoneg || mac->forced_speed_duplex != ADVERTISE_1000_FULL ||
+		phy->autoneg_advertised != ADVERTISE_1000_FULL)
+		return -E1000_ERR_CONFIG;
+
+	/* set the PHY basic mode control register */
+	ret_val = phy->ops.read_reg(hw, PHY_CONTROL, &phy_ctrl);
+	if (ret_val)
+		return ret_val;
+
+	phy_ctrl |= MII_CR_LOOPBACK;
+	ret_val = phy->ops.write_reg(hw, PHY_CONTROL, phy_ctrl);
+	if (ret_val)
+		return ret_val;
+
+	/* put the PHY in loopback */
+	switch (mac->type) {
+	case e1000_82543:
+		if (phy->media_type == e1000_media_type_copper)
+			ret_val = e1000_set_phy_loopback_m88(hw);
+		break;
+
+	case e1000_82540:
+	case e1000_82541:
+	case e1000_82541_rev_2:
+	case e1000_82544:
+	case e1000_82545:
+	case e1000_82545_rev_3:
+	case e1000_82546:
+	case e1000_82546_rev_3:
+	case e1000_82547:
+	case e1000_82547_rev_2:
+		/* certain M88 registers are not implemented in QEMU. for now,
+		 * try to set them but don't check the return value.
+		 */
+		e1000_set_phy_loopback_m88(hw);
+		break;
+
+	case e1000_ich8lan:
+	case e1000_82574:
+	case e1000_82583:
+		/* datasheet doesn't mention more than 7 pages and they aren't
+		 * implemented in QEMU, but they appear to be used. for now, try
+		 * to set them but don't check the return value.
+		 */
+		e1000_set_phy_loopback_bm(hw);
+		break;
+
+	case e1000_pch_spt:
+		ret_val = e1000_set_phy_loopback_bm(hw);
+		break;
+
+	default:
+		break;
+	}
+
+	return ret_val;
+}
+
+/**
  *  e1000_phy_sw_reset_generic - PHY software reset
  *  @hw: pointer to the HW structure
  *
@@ -2805,6 +2961,8 @@ s32 e1000_phy_sw_reset_generic(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
+	if (!hw->mac.loopback)
+		phy_ctrl &= ~MII_CR_LOOPBACK;
 	phy_ctrl |= MII_CR_RESET;
 	ret_val = hw->phy.ops.write_reg(hw, PHY_CONTROL, phy_ctrl);
 	if (ret_val)

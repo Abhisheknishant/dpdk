@@ -666,6 +666,11 @@ eth_em_start(struct rte_eth_dev *dev)
 		}
 	}
 
+	/* Set up loopback */
+	if (dev->data->dev_conf.lpbk_mode)
+		if (e1000_set_loopback(hw))
+			goto error_invalid_config;
+
 	e1000_setup_link(hw);
 
 	if (rte_intr_allow_others(intr_handle)) {

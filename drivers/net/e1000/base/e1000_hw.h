@@ -789,6 +789,7 @@ struct e1000_mac_info {
 	enum e1000_serdes_link_state serdes_link_state;
 	bool serdes_has_link;
 	bool tx_pkt_filtering;
+	bool loopback;
 };
 
 struct e1000_phy_info {

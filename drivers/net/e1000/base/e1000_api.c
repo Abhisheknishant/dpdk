@@ -672,6 +672,48 @@ s32 e1000_get_speed_and_duplex(struct e1000_hw *hw, u16 *speed, u16 *duplex)
 }
 
 /**
+ *  e1000_set_loopback - Set adapter in loopback mode
+ *  @hw: pointer to the HW structure
+ *
+ *  This sets the MAC and/or PHY into loopback mode.
+ **/
+s32 e1000_set_loopback(struct e1000_hw *hw)
+{
+	s32 ret_val = 0;
+
+	if (hw->phy.media_type == e1000_media_type_fiber ||
+	    hw->phy.media_type == e1000_media_type_internal_serdes) {
+		switch (hw->mac.type) {
+		case e1000_80003es2lan:
+		case e1000_82571:
+		case e1000_82572:
+			/* not implemented */
+			return -E1000_ERR_PHY_TYPE;
+
+		case e1000_82545:
+		case e1000_82546:
+		case e1000_82545_rev_3:
+		case e1000_82546_rev_3:
+			ret_val = e1000_set_phy_loopback(hw);
+			if (ret_val)
+				return ret_val;
+		break;
+
+		default:
+			/* use transceiver loopback */
+			break;
+		}
+	} else if (hw->phy.media_type == e1000_media_type_copper) {
+		ret_val = e1000_set_phy_loopback(hw);
+		if (ret_val)
+			return ret_val;
+	}
+
+	hw->mac.loopback = true;
+	return E1000_SUCCESS;
+}
+
+/**
  *  e1000_setup_led - Configures SW controllable LED
  *  @hw: pointer to the HW structure
  *

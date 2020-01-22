@@ -2548,9 +2548,14 @@ eth_igb_rx_init(struct rte_eth_dev *dev)
 	}
 
 	rctl &= ~(3 << E1000_RCTL_MO_SHIFT);
-	rctl |= E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_LBM_NO |
-		E1000_RCTL_RDMTS_HALF |
+	rctl |= E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_RDMTS_HALF |
 		(hw->mac.mc_filter_type << E1000_RCTL_MO_SHIFT);
+
+	/* Set up transceiver loopback */
+	if (hw->mac.loopback)
+		rctl |= E1000_RCTL_LBM_TCVR;
+	else
+		rctl |= E1000_RCTL_LBM_NO;
 
 	/* Make sure VLAN Filters are off. */
 	if (dev->data->dev_conf.rxmode.mq_mode != ETH_MQ_RX_VMDQ_ONLY)

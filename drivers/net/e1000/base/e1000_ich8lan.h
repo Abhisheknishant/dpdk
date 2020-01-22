@@ -144,6 +144,7 @@
 #define HV_LED_CONFIG		PHY_REG(768, 30) /* LED Configuration */
 #define HV_MUX_DATA_CTRL	PHY_REG(776, 16)
 #define HV_MUX_DATA_CTRL_GEN_TO_MAC	0x0400
+#define HV_MUX_DATA_CTRL_SET_LINK_UP	0x0040 /* Set Link Up */
 #define HV_MUX_DATA_CTRL_FORCE_SPEED	0x0004
 #define HV_STATS_PAGE	778
 /* Half-duplex collision counts */
@@ -213,6 +214,8 @@
 
 /* KMRN Mode Control */
 #define HV_KMRN_MODE_CTRL	PHY_REG(769, 16)
+#define HV_KMRN_FORCE_FD	0x000C /* Force Full-Duplex */
+#define HV_KMRN_FORCE_LINK	0x0040 /* Force Link */
 #define HV_KMRN_MDIO_SLOW	0x0400
 
 /* KMRN FIFO Control and Status */
@@ -248,6 +251,7 @@
 /* 82579 DFT Control */
 #define I82579_DFT_CTRL			PHY_REG(769, 20)
 #define I82579_DFT_CTRL_GATE_PHY_RESET	0x0040 /* Gate PHY Reset on MAC Reset */
+#define I82579_DFT_CTRL_EARLY_LINK_ENABLE	0x0400 /* Early Link Enable */
 
 /* Extended Management Interface (EMI) Registers */
 #define I82579_EMI_ADDR		0x10

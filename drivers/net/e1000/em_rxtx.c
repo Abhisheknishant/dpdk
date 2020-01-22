@@ -1892,9 +1892,14 @@ eth_em_rx_init(struct rte_eth_dev *dev)
 		rctl |= E1000_RCTL_SECRC; /* Strip Ethernet CRC. */
 
 	rctl &= ~(3 << E1000_RCTL_MO_SHIFT);
-	rctl |= E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_LBM_NO |
-		E1000_RCTL_RDMTS_HALF |
+	rctl |= E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_RDMTS_HALF |
 		(hw->mac.mc_filter_type << E1000_RCTL_MO_SHIFT);
+
+	/* Set up transceiver loopback */
+	if (hw->mac.loopback)
+		rctl |= E1000_RCTL_LBM_TCVR;
+	else
+		rctl |= E1000_RCTL_LBM_NO;
 
 	/* Make sure VLAN Filters are off. */
 	rctl &= ~E1000_RCTL_VFE;
