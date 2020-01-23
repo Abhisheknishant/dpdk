@@ -143,6 +143,11 @@ New Features
   Added a new OCTEON TX2 rawdev PMD for End Point mode of operation.
   See the :doc:`../rawdevs/octeontx2_ep` for more details on this new PMD.
 
+* **Changed armv8 crypto PMD external dependency.**
+
+  armv8 crypto PMD now depends on Arm crypto library, and Marvell's
+  armv8 crypto library is not used anymore. Library name is changed
+  from armv8_crypto to AArch64crypto.
 
 Removed Items
 -------------
