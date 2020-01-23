@@ -610,8 +610,10 @@ mlx5_nl_mac_addr_add(struct rte_eth_dev *dev, struct rte_ether_addr *mac,
 	int ret;
 
 	ret = mlx5_nl_mac_addr_modify(dev, mac, 1);
-	if (!ret)
+	if (!ret) {
+		MLX5_ASSERT((size_t)(index) < sizeof(priv->mac_own) * CHAR_BIT);
 		BITFIELD_SET(priv->mac_own, index);
+	}
 	if (ret == -EEXIST)
 		return 0;
 	return ret;
@@ -636,6 +638,7 @@ mlx5_nl_mac_addr_remove(struct rte_eth_dev *dev, struct rte_ether_addr *mac,
 {
 	struct mlx5_priv *priv = dev->data->dev_private;
 
+	MLX5_ASSERT((size_t)(index) < sizeof(priv->mac_own) * CHAR_BIT);
 	BITFIELD_RESET(priv->mac_own, index);
 	return mlx5_nl_mac_addr_modify(dev, mac, 0);
 }
@@ -692,6 +695,7 @@ mlx5_nl_mac_addr_flush(struct rte_eth_dev *dev)
 	for (i = MLX5_MAX_MAC_ADDRESSES - 1; i >= 0; --i) {
 		struct rte_ether_addr *m = &dev->data->mac_addrs[i];
 
+		MLX5_ASSERT((size_t)(i) < sizeof(priv->mac_own) * CHAR_BIT);
 		if (BITFIELD_ISSET(priv->mac_own, i))
 			mlx5_nl_mac_addr_remove(dev, m, i);
 	}
@@ -733,7 +737,7 @@ mlx5_nl_device_flags(struct rte_eth_dev *dev, uint32_t flags, int enable)
 	int fd;
 	int ret;
 
-	assert(!(flags & ~(IFF_PROMISC | IFF_ALLMULTI)));
+	MLX5_ASSERT(!(flags & ~(IFF_PROMISC | IFF_ALLMULTI)));
 	if (priv->nl_socket_route < 0)
 		return 0;
 	fd = priv->nl_socket_route;
@@ -1050,7 +1054,7 @@ mlx5_nl_switch_info_cb(struct nlmsghdr *nh, void *arg)
 		/* We have some E-Switch configuration. */
 		mlx5_nl_check_switch_info(num_vf_set, &info);
 	}
-	assert(!(info.master && info.representor));
+	MLX5_ASSERT(!(info.master && info.representor));
 	memcpy(arg, &info, sizeof(info));
 	return 0;
 error:
@@ -1250,7 +1254,7 @@ mlx5_vlan_vmwa_create(struct mlx5_vlan_vmwa_context *vmwa,
 	nl_attr_put(nlh, IFLA_VLAN_ID, &tag, sizeof(tag));
 	nl_attr_nest_end(nlh, na_vlan);
 	nl_attr_nest_end(nlh, na_info);
-	assert(sizeof(buf) >= nlh->nlmsg_len);
+	MLX5_ASSERT(sizeof(buf) >= nlh->nlmsg_len);
 	ret = mlx5_nl_send(vmwa->nl_socket, nlh, vmwa->nl_sn);
 	if (ret >= 0)
 		ret = mlx5_nl_recv(vmwa->nl_socket, vmwa->nl_sn, NULL, NULL);
@@ -1285,12 +1289,12 @@ void mlx5_vlan_vmwa_release(struct rte_eth_dev *dev,
 	struct mlx5_vlan_vmwa_context *vmwa = priv->vmwa_context;
 	struct mlx5_vlan_dev *vlan_dev = &vmwa->vlan_dev[0];
 
-	assert(vlan->created);
-	assert(priv->vmwa_context);
+	MLX5_ASSERT(vlan->created);
+	MLX5_ASSERT(priv->vmwa_context);
 	if (!vlan->created || !vmwa)
 		return;
 	vlan->created = 0;
-	assert(vlan_dev[vlan->tag].refcnt);
+	MLX5_ASSERT(vlan_dev[vlan->tag].refcnt);
 	if (--vlan_dev[vlan->tag].refcnt == 0 &&
 	    vlan_dev[vlan->tag].ifindex) {
 		mlx5_vlan_vmwa_delete(vmwa, vlan_dev[vlan->tag].ifindex);
@@ -1313,12 +1317,12 @@ void mlx5_vlan_vmwa_acquire(struct rte_eth_dev *dev,
 	struct mlx5_vlan_vmwa_context *vmwa = priv->vmwa_context;
 	struct mlx5_vlan_dev *vlan_dev = &vmwa->vlan_dev[0];
 
-	assert(!vlan->created);
-	assert(priv->vmwa_context);
+	MLX5_ASSERT(!vlan->created);
+	MLX5_ASSERT(priv->vmwa_context);
 	if (vlan->created || !vmwa)
 		return;
 	if (vlan_dev[vlan->tag].refcnt == 0) {
-		assert(!vlan_dev[vlan->tag].ifindex);
+		MLX5_ASSERT(!vlan_dev[vlan->tag].ifindex);
 		vlan_dev[vlan->tag].ifindex =
 			mlx5_vlan_vmwa_create(vmwa,
 					      vmwa->vf_ifindex,

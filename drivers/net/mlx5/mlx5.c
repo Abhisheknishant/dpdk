@@ -6,7 +6,6 @@
 #include <stddef.h>
 #include <unistd.h>
 #include <string.h>
-#include <assert.h>
 #include <dlfcn.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -290,7 +289,7 @@ mlx5_flow_id_release(struct mlx5_flow_id_pool *pool, uint32_t id)
 	if (pool->curr == pool->last) {
 		size = pool->curr - pool->free_arr;
 		size2 = size * MLX5_ID_GENERATION_ARRAY_FACTOR;
-		assert(size2 > size);
+		MLX5_ASSERT(size2 > size);
 		mem = rte_malloc("", size2 * sizeof(uint32_t), 0);
 		if (!mem) {
 			DRV_LOG(ERR, "can't allocate mem for id pool");
@@ -436,7 +435,7 @@ mlx5_config_doorbell_mapping_env(const struct mlx5_dev_config *config)
 	char *env;
 	int value;
 
-	assert(rte_eal_process_type() == RTE_PROC_PRIMARY);
+	MLX5_ASSERT(rte_eal_process_type() == RTE_PROC_PRIMARY);
 	/* Get environment variable to store. */
 	env = getenv(MLX5_SHUT_UP_BF);
 	value = env ? !!strcmp(env, "0") : MLX5_ARG_UNSET;
@@ -451,7 +450,7 @@ mlx5_config_doorbell_mapping_env(const struct mlx5_dev_config *config)
 static void
 mlx5_restore_doorbell_mapping_env(int value)
 {
-	assert(rte_eal_process_type() == RTE_PROC_PRIMARY);
+	MLX5_ASSERT(rte_eal_process_type() == RTE_PROC_PRIMARY);
 	/* Restore the original environment variable state. */
 	if (value == MLX5_ARG_UNSET)
 		unsetenv(MLX5_SHUT_UP_BF);
@@ -491,9 +490,9 @@ mlx5_alloc_shared_ibctx(const struct mlx5_dev_spawn_data *spawn,
 	struct mlx5_devx_tis_attr tis_attr = { 0 };
 #endif
 
-	assert(spawn);
+	MLX5_ASSERT(spawn);
 	/* Secondary process should not create the shared context. */
-	assert(rte_eal_process_type() == RTE_PROC_PRIMARY);
+	MLX5_ASSERT(rte_eal_process_type() == RTE_PROC_PRIMARY);
 	pthread_mutex_lock(&mlx5_ibv_list_mutex);
 	/* Search for IB context by device name. */
 	LIST_FOREACH(sh, &mlx5_ibv_list, next) {
@@ -503,7 +502,7 @@ mlx5_alloc_shared_ibctx(const struct mlx5_dev_spawn_data *spawn,
 		}
 	}
 	/* No device found, we have to create new shared context. */
-	assert(spawn->max_port);
+	MLX5_ASSERT(spawn->max_port);
 	sh = rte_zmalloc("ethdev shared ib context",
 			 sizeof(struct mlx5_ibv_shared) +
 			 spawn->max_port *
@@ -626,7 +625,7 @@ exit:
 	return sh;
 error:
 	pthread_mutex_unlock(&mlx5_ibv_list_mutex);
-	assert(sh);
+	MLX5_ASSERT(sh);
 	if (sh->tis)
 		claim_zero(mlx5_devx_cmd_destroy(sh->tis));
 	if (sh->td)
@@ -638,7 +637,7 @@ error:
 	if (sh->flow_id_pool)
 		mlx5_flow_id_pool_release(sh->flow_id_pool);
 	rte_free(sh);
-	assert(err > 0);
+	MLX5_ASSERT(err > 0);
 	rte_errno = err;
 	return NULL;
 }
@@ -661,16 +660,16 @@ mlx5_free_shared_ibctx(struct mlx5_ibv_shared *sh)
 	LIST_FOREACH(lctx, &mlx5_ibv_list, next)
 		if (lctx == sh)
 			break;
-	assert(lctx);
+	MLX5_ASSERT(lctx);
 	if (lctx != sh) {
 		DRV_LOG(ERR, "Freeing non-existing shared IB context");
 		goto exit;
 	}
 #endif
-	assert(sh);
-	assert(sh->refcnt);
+	MLX5_ASSERT(sh);
+	MLX5_ASSERT(sh->refcnt);
 	/* Secondary process should not free the shared context. */
-	assert(rte_eal_process_type() == RTE_PROC_PRIMARY);
+	MLX5_ASSERT(rte_eal_process_type() == RTE_PROC_PRIMARY);
 	if (--sh->refcnt)
 		goto exit;
 	/* Release created Memory Regions. */
@@ -686,7 +685,7 @@ mlx5_free_shared_ibctx(struct mlx5_ibv_shared *sh)
 	 *  Only primary process handles async device events.
 	 **/
 	mlx5_flow_counters_mng_close(sh);
-	assert(!sh->intr_cnt);
+	MLX5_ASSERT(!sh->intr_cnt);
 	if (sh->intr_cnt)
 		mlx5_intr_callback_unregister
 			(&sh->intr_handle, mlx5_dev_interrupt_handler, sh);
@@ -742,7 +741,7 @@ mlx5_free_table_hash_list(struct mlx5_priv *priv)
 	if (pos) {
 		tbl_data = container_of(pos, struct mlx5_flow_tbl_data_entry,
 					entry);
-		assert(tbl_data);
+		MLX5_ASSERT(tbl_data);
 		mlx5_hlist_remove(sh->flow_tbls, pos);
 		rte_free(tbl_data);
 	}
@@ -751,7 +750,7 @@ mlx5_free_table_hash_list(struct mlx5_priv *priv)
 	if (pos) {
 		tbl_data = container_of(pos, struct mlx5_flow_tbl_data_entry,
 					entry);
-		assert(tbl_data);
+		MLX5_ASSERT(tbl_data);
 		mlx5_hlist_remove(sh->flow_tbls, pos);
 		rte_free(tbl_data);
 	}
@@ -761,7 +760,7 @@ mlx5_free_table_hash_list(struct mlx5_priv *priv)
 	if (pos) {
 		tbl_data = container_of(pos, struct mlx5_flow_tbl_data_entry,
 					entry);
-		assert(tbl_data);
+		MLX5_ASSERT(tbl_data);
 		mlx5_hlist_remove(sh->flow_tbls, pos);
 		rte_free(tbl_data);
 	}
@@ -785,7 +784,7 @@ mlx5_alloc_table_hash_list(struct mlx5_priv *priv)
 	char s[MLX5_HLIST_NAMESIZE];
 	int err = 0;
 
-	assert(sh);
+	MLX5_ASSERT(sh);
 	snprintf(s, sizeof(s), "%s_flow_table", priv->sh->ibdev_name);
 	sh->flow_tbls = mlx5_hlist_create(s, MLX5_FLOW_TABLE_HLIST_ARRAY_SIZE);
 	if (!sh->flow_tbls) {
@@ -976,9 +975,9 @@ mlx5_free_shared_dr(struct mlx5_priv *priv)
 		return;
 	priv->dr_shared = 0;
 	sh = priv->sh;
-	assert(sh);
+	MLX5_ASSERT(sh);
 #ifdef HAVE_MLX5DV_DR
-	assert(sh->dv_refcnt);
+	MLX5_ASSERT(sh->dv_refcnt);
 	if (sh->dv_refcnt && --sh->dv_refcnt)
 		return;
 	if (sh->rx_domain) {
@@ -1113,7 +1112,7 @@ mlx5_alloc_verbs_buf(size_t size, void *data)
 
 		socket = ctrl->socket;
 	}
-	assert(data != NULL);
+	MLX5_ASSERT(data != NULL);
 	ret = rte_malloc_socket(__func__, size, alignment, socket);
 	if (!ret && size)
 		rte_errno = ENOMEM;
@@ -1131,7 +1130,7 @@ mlx5_alloc_verbs_buf(size_t size, void *data)
 static void
 mlx5_free_verbs_buf(void *ptr, void *data __rte_unused)
 {
-	assert(data != NULL);
+	MLX5_ASSERT(data != NULL);
 	rte_free(ptr);
 }
 
@@ -1150,7 +1149,7 @@ int
 mlx5_udp_tunnel_port_add(struct rte_eth_dev *dev __rte_unused,
 			 struct rte_eth_udp_tunnel *udp_tunnel)
 {
-	assert(udp_tunnel != NULL);
+	MLX5_ASSERT(udp_tunnel != NULL);
 	if (udp_tunnel->prot_type == RTE_TUNNEL_TYPE_VXLAN &&
 	    udp_tunnel->udp_port == 4789)
 		return 0;
@@ -1662,7 +1661,7 @@ mlx5_init_once(void)
 	if (mlx5_init_shared_data())
 		return -rte_errno;
 	sd = mlx5_shared_data;
-	assert(sd);
+	MLX5_ASSERT(sd);
 	rte_spinlock_lock(&sd->lock);
 	switch (rte_eal_process_type()) {
 	case RTE_PROC_PRIMARY:
@@ -1844,7 +1843,7 @@ mlx5_set_metadata_mask(struct rte_eth_dev *dev)
 	default:
 		meta = 0;
 		mark = 0;
-		assert(false);
+		MLX5_ASSERT(false);
 		break;
 	}
 	if (sh->dv_mark_mask && sh->dv_mark_mask != mark)
@@ -1937,7 +1936,7 @@ mlx5_get_dbr(struct rte_eth_dev *dev, struct mlx5_devx_dbr_page **dbr_page)
 		; /* Empty. */
 	/* Find the first clear bit. */
 	j = rte_bsf64(~page->dbr_bitmap[i]);
-	assert(i < (MLX5_DBR_PER_PAGE / 64));
+	MLX5_ASSERT(i < (MLX5_DBR_PER_PAGE / 64));
 	page->dbr_bitmap[i] |= (1 << j);
 	page->dbr_count++;
 	*dbr_page = page;
@@ -2011,7 +2010,7 @@ mlx5_dev_check_sibling_config(struct mlx5_priv *priv,
 	struct mlx5_dev_config *sh_conf = NULL;
 	uint16_t port_id;
 
-	assert(sh);
+	MLX5_ASSERT(sh);
 	/* Nothing to compare for the single/first device. */
 	if (sh->refcnt == 1)
 		return 0;
@@ -2591,7 +2590,7 @@ mlx5_dev_spawn(struct rte_device *dpdk_dev,
 	 * is permanent throughout the lifetime of device. So, we may store
 	 * the ifindex here and use the cached value further.
 	 */
-	assert(spawn->ifindex);
+	MLX5_ASSERT(spawn->ifindex);
 	priv->if_index = spawn->ifindex;
 	eth_dev->data->dev_private = priv;
 	priv->dev_data = eth_dev->data;
@@ -2766,7 +2765,7 @@ error:
 	}
 	if (sh)
 		mlx5_free_shared_ibctx(sh);
-	assert(err > 0);
+	MLX5_ASSERT(err > 0);
 	rte_errno = err;
 	return NULL;
 }
@@ -2869,7 +2868,7 @@ mlx5_device_bond_pci_match(const struct ibv_device *ibv_dev,
 	if (!file)
 		return -1;
 	/* Use safe format to check maximal buffer length. */
-	assert(atol(RTE_STR(IF_NAMESIZE)) == IF_NAMESIZE);
+	MLX5_ASSERT(atol(RTE_STR(IF_NAMESIZE)) == IF_NAMESIZE);
 	while (fscanf(file, "%" RTE_STR(IF_NAMESIZE) "s", ifname) == 1) {
 		char tmp_str[IF_NAMESIZE + 32];
 		struct rte_pci_addr pci_addr;
@@ -2962,7 +2961,7 @@ mlx5_pci_probe(struct rte_pci_driver *pci_drv __rte_unused,
 			strerror(rte_errno));
 		return -rte_errno;
 	}
-	assert(pci_drv == &mlx5_driver);
+	MLX5_ASSERT(pci_drv == &mlx5_driver);
 	errno = 0;
 	ibv_list = mlx5_glue->get_device_list(&ret);
 	if (!ibv_list) {
@@ -3083,10 +3082,10 @@ mlx5_pci_probe(struct rte_pci_driver *pci_drv __rte_unused,
 		 * it may be E-Switch master device and representors.
 		 * We have to perform identification trough the ports.
 		 */
-		assert(nl_rdma >= 0);
-		assert(ns == 0);
-		assert(nd == 1);
-		assert(np);
+		MLX5_ASSERT(nl_rdma >= 0);
+		MLX5_ASSERT(ns == 0);
+		MLX5_ASSERT(nd == 1);
+		MLX5_ASSERT(np);
 		for (i = 1; i <= np; ++i) {
 			list[ns].max_port = np;
 			list[ns].ibv_port = i;
@@ -3261,7 +3260,7 @@ mlx5_pci_probe(struct rte_pci_driver *pci_drv __rte_unused,
 			goto exit;
 		}
 	}
-	assert(ns);
+	MLX5_ASSERT(ns);
 	/*
 	 * Sort list to probe devices in natural order for users convenience
 	 * (i.e. master first, then representors from lowest to highest ID).
@@ -3356,7 +3355,7 @@ exit:
 		close(nl_route);
 	if (list)
 		rte_free(list);
-	assert(ibv_list);
+	MLX5_ASSERT(ibv_list);
 	mlx5_glue->free_device_list(ibv_list);
 	return ret;
 }
@@ -3656,7 +3655,7 @@ RTE_INIT(rte_mlx5_pmd_init)
 #ifdef RTE_IBVERBS_LINK_DLOPEN
 	if (mlx5_glue_init())
 		return;
-	assert(mlx5_glue);
+	MLX5_ASSERT(mlx5_glue);
 #endif
 #ifdef MLX5_DEBUG
 	/* Glue structure must not contain any NULL pointers. */
@@ -3664,7 +3663,7 @@ RTE_INIT(rte_mlx5_pmd_init)
 		unsigned int i;
 
 		for (i = 0; i != sizeof(*mlx5_glue) / sizeof(void *); ++i)
-			assert(((const void *const *)mlx5_glue)[i]);
+			MLX5_ASSERT(((const void *const *)mlx5_glue)[i]);
 	}
 #endif
 	if (strcmp(mlx5_glue->version, MLX5_GLUE_VERSION)) {

@@ -954,11 +954,11 @@ mlx5_devx_cmd_flow_dump(struct mlx5_ibv_shared *sh __rte_unused,
 		if (ret)
 			return ret;
 	}
-	assert(sh->rx_domain);
+	MLX5_ASSERT(sh->rx_domain);
 	ret = mlx5_glue->dr_dump_domain(file, sh->rx_domain);
 	if (ret)
 		return ret;
-	assert(sh->tx_domain);
+	MLX5_ASSERT(sh->tx_domain);
 	ret = mlx5_glue->dr_dump_domain(file, sh->tx_domain);
 #else
 	ret = ENOTSUP;

@@ -10,7 +10,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <limits.h>
-#include <assert.h>
 #include <errno.h>
 
 #include "mlx5_defs.h"
@@ -32,17 +31,14 @@
 #define BITFIELD_DEFINE(bf, type, size) \
 	BITFIELD_DECLARE((bf), type, (size)) = { 0 }
 #define BITFIELD_SET(bf, b) \
-	(assert((size_t)(b) < (sizeof(bf) * CHAR_BIT)), \
-	 (void)((bf)[((b) / (sizeof((bf)[0]) * CHAR_BIT))] |= \
-		((size_t)1 << ((b) % (sizeof((bf)[0]) * CHAR_BIT)))))
+	 ((void)((bf)[((b) / (sizeof((bf)[0]) * CHAR_BIT))] |= \
+		 ((size_t)1 << ((b) % (sizeof((bf)[0]) * CHAR_BIT)))))
 #define BITFIELD_RESET(bf, b) \
-	(assert((size_t)(b) < (sizeof(bf) * CHAR_BIT)), \
-	 (void)((bf)[((b) / (sizeof((bf)[0]) * CHAR_BIT))] &= \
-		~((size_t)1 << ((b) % (sizeof((bf)[0]) * CHAR_BIT)))))
+	 ((void)((bf)[((b) / (sizeof((bf)[0]) * CHAR_BIT))] &= \
+		 ~((size_t)1 << ((b) % (sizeof((bf)[0]) * CHAR_BIT)))))
 #define BITFIELD_ISSET(bf, b) \
-	(assert((size_t)(b) < (sizeof(bf) * CHAR_BIT)), \
-	 !!(((bf)[((b) / (sizeof((bf)[0]) * CHAR_BIT))] & \
-	     ((size_t)1 << ((b) % (sizeof((bf)[0]) * CHAR_BIT))))))
+	 (!!(((bf)[((b) / (sizeof((bf)[0]) * CHAR_BIT))] & \
+	      ((size_t)1 << ((b) % (sizeof((bf)[0]) * CHAR_BIT))))))
 
 /* Convert a bit number to the corresponding 64-bit mask */
 #define MLX5_BITSHIFT(v) (UINT64_C(1) << (v))
@@ -114,12 +110,14 @@ extern int mlx5_logtype;
 #ifdef MLX5_DEBUG
 
 #define DEBUG(...) DRV_LOG(DEBUG, __VA_ARGS__)
-#define claim_zero(...) assert((__VA_ARGS__) == 0)
-#define claim_nonzero(...) assert((__VA_ARGS__) != 0)
+#define MLX5_ASSERT(exp) RTE_VERIFY(exp)
+#define claim_zero(...) MLX5_ASSERT((__VA_ARGS__) == 0)
+#define claim_nonzero(...) MLX5_ASSERT((__VA_ARGS__) != 0)
 
 #else /* MLX5_DEBUG */
 
 #define DEBUG(...) (void)0
+#define MLX5_ASSERT(exp) RTE_ASSERT(exp)
 #define claim_zero(...) (__VA_ARGS__)
 #define claim_nonzero(...) (__VA_ARGS__)
 
