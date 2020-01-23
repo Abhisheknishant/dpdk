@@ -84,9 +84,9 @@ if build
 		endif
 	endforeach
 	if get_option('buildtype').contains('debug')
-		cflags += [ '-pedantic', '-UNDEBUG', '-DPEDANTIC' ]
+		cflags += [ '-pedantic', '-DMLX5_DEBUG', '-DPEDANTIC' ]
 	else
-		cflags += [ '-DNDEBUG', '-UPEDANTIC' ]
+		cflags += [ '-UMLX5_DEBUG', '-UPEDANTIC' ]
 	endif
 	# To maintain the compatibility with the make build system
 	# mlx5_autoconf.h file is still generated.
