@@ -2641,9 +2641,6 @@ detach_port_device(portid_t port_id)
 
 	printf("Removing a device...\n");
 
-	if (port_id_is_invalid(port_id, ENABLED_WARN))
-		return;
-
 	dev = rte_eth_devices[port_id].device;
 	if (dev == NULL) {
 		printf("Device already removed\n");
@@ -2875,7 +2872,8 @@ rmv_port_callback(void *arg)
 	int org_no_link_check = no_link_check;
 	portid_t port_id = (intptr_t)arg;
 
-	RTE_ETH_VALID_PORTID_OR_RET(port_id);
+	if (!rte_eth_dev_is_valid_port(port_id))
+		return;
 
 	if (!test_done && port_is_forwarding(port_id)) {
 		need_to_start = 1;
