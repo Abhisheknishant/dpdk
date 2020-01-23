@@ -56,6 +56,15 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **EAL will now allow probing devices manually.**
+
+  Previously, a user could not force an order when probing declared devices.
+  This could cause issues for drivers depending on another device being present.
+  A new option ``--manual-probe`` is now available to do just that.
+  This new option relies on the device bus supporting hotplug. It can
+  also be used to disable automatic probing from the ``PCI`` bus without
+  having to disable the whole bus.
+
 * **Added Wait Until Equal API.**
 
   A new API has been added to wait for a memory location to be updated with a
