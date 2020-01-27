@@ -975,6 +975,12 @@ deps
 ext_deps
 	As above.
 
+hidden_deps
+	**Default Value = []**.
+	Used to specify external dependencies, same as ``ext_deps``, except
+	the libraries won't be exposed as requirements of the static driver,
+	in the section ``Requires.private`` of the generated ``.pc`` file.
+
 includes
 	**Default Value = <driver directory>** Some drivers include a base
 	directory for additional source files and headers, so we have this
