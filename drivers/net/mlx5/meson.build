@@ -30,17 +30,27 @@ foreach libname:libnames
 		lib = cc.find_library(libname, required:false)
 	endif
 	if lib.found()
-		libs += [ lib ]
+		libs += lib
+		if static_ibverbs
+			# Build without adding shared libs to Requires.private
+			hidden_deps += lib.partial_dependency(compile_args:true)
+		else
+			ext_deps += lib
+		endif
 	else
 		build = false
 		reason = 'missing dependency, "' + libname + '"'
 	endif
 endforeach
+if build and static_ibverbs
+	# Add static deps ldflags to internal apps and Libs.private
+	ldflags = run_command(ldflags_ibverbs_static, check:true).stdout()
+	ext_deps += declare_dependency(link_args:ldflags.split())
+endif
 
 if build
 	allow_experimental_apis = true
 	deps += ['hash']
-	ext_deps += libs
 	sources = files(
 		'mlx5.c',
 		'mlx5_ethdev.c',
