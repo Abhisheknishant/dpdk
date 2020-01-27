@@ -2588,6 +2588,31 @@ set_fwd_ports_list(unsigned int *portlist, unsigned int nb_pt)
 }
 
 void
+parse_fwd_portlist(const char *portlist)
+{
+	unsigned int portcount = 0;
+	int portindex[RTE_MAX_ETHPORTS];
+	unsigned int ports[RTE_MAX_ETHPORTS];
+	unsigned int idx;
+	/*
+	 * eal_parse_portlist() will mark the portindex array
+	 * with -1 if the port is not listed and with a positive value
+	 * for the listed ports. however, the function set_fwd_ports_list()
+	 * requires a list of portids' so we use 2 arrays to do the
+	 * conversion between 2 formats.
+	 */
+	if (eal_parse_optionlist(portlist, portindex, RTE_MAX_ETHPORTS) < 0)
+		rte_exit(EXIT_FAILURE, "Invalid fwd port list\n");
+
+	RTE_ETH_FOREACH_DEV(idx) {
+		if (portindex[idx] != -1)
+			ports[portcount++] = idx;
+	}
+
+	set_fwd_ports_list(ports, portcount);
+}
+
+void
 set_fwd_ports_mask(uint64_t portmask)
 {
 	unsigned int portlist[64];
