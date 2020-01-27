@@ -571,33 +571,36 @@ eal_parse_service_corelist(const char *corelist)
 	return 0;
 }
 
-static int
-eal_parse_corelist(const char *corelist, int *cores)
+int
+eal_parse_optionlist(const char *list, int *values, int maxsize)
 {
 	unsigned count = 0;
 	char *end = NULL;
 	int min, max;
 	int idx;
 
-	for (idx = 0; idx < RTE_MAX_LCORE; idx++)
-		cores[idx] = -1;
+	if (list == NULL || values == NULL || maxsize < 0)
+		return -1;
+
+	for (idx = 0; idx < maxsize; idx++)
+		values[idx] = -1;
 
 	/* Remove all blank characters ahead */
-	while (isblank(*corelist))
-		corelist++;
+	while (isblank(*list))
+		list++;
 
-	/* Get list of cores */
-	min = RTE_MAX_LCORE;
+	min = maxsize;
+
 	do {
-		while (isblank(*corelist))
-			corelist++;
-		if (*corelist == '\0')
+		while (isblank(*list))
+			list++;
+		if (*list == '\0')
 			return -1;
 		errno = 0;
-		idx = strtol(corelist, &end, 10);
+		idx = strtol(list, &end, 10);
 		if (errno || end == NULL)
 			return -1;
-		if (idx < 0 || idx >= RTE_MAX_LCORE)
+		if (idx < 0 || idx >= maxsize)
 			return -1;
 		while (isblank(*end))
 			end++;
@@ -605,23 +608,29 @@ eal_parse_corelist(const char *corelist, int *cores)
 			min = idx;
 		} else if ((*end == ',') || (*end == '\0')) {
 			max = idx;
-			if (min == RTE_MAX_LCORE)
+			if (min == maxsize)
 				min = idx;
 			for (idx = min; idx <= max; idx++) {
-				if (cores[idx] == -1) {
-					cores[idx] = count;
+				if (values[idx] == -1) {
+					values[idx] = count;
 					count++;
 				}
 			}
-			min = RTE_MAX_LCORE;
+			min = maxsize;
 		} else
 			return -1;
-		corelist = end + 1;
+		list = end + 1;
 	} while (*end != '\0');
 
 	if (count == 0)
 		return -1;
 	return 0;
+}
+
+static int
+eal_parse_corelist(const char *corelist, int *cores)
+{
+	return eal_parse_optionlist(corelist, cores, RTE_MAX_LCORE);
 }
 
 /* Changes the lcore id of the master thread */

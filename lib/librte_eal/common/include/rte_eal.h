@@ -71,6 +71,40 @@ enum rte_proc_type_t rte_eal_process_type(void);
 int rte_eal_iopl_init(void);
 
 /**
+ * Parse the user input
+ *
+ * This function can be used to read and parse the user input
+ * from the command line. For example, when the user specifies
+ * corelist or port list this function will read the input
+ * and set the forwarding cores or ports
+ *
+ * @param[in] list
+ *   String containing the user input. User can specify
+ *   in these formats 1,3,5 or 1-3 or 1-2,5 or 3,5-6.
+ *   For example, if the user wants to use all the available
+ *   4 ports in his system, then the input can be 0-3 or 0,1,2,3.
+ *   If the user wants to use only the ports 1,2 then the input
+ *   is 1,2.
+ *   valid characters are '-' and ','
+ *   invalid chars like '.' or '#' will result in
+ *   EAL: Error - exiting with code: 1
+ *     Cause: Invalid fwd port list
+ * @param[in] values
+ *   An array pointer, used by this function to set the
+ *   array contents to a positive value if they are listed
+ *   in the input
+ *   else sets it to -1
+ * @param[in] maxsize
+ *   This is the maximum value the list string can contain
+ * @return
+ *   -On success, returns 0.
+ *   -On failure, returns -1.
+ */
+__rte_experimental
+int
+eal_parse_optionlist(const char *list, int *values, int maxsize);
+
+/**
  * Initialize the Environment Abstraction Layer (EAL).
  *
  * This function is to be executed on the MASTER lcore only, as soon
