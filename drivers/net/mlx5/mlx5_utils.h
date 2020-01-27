@@ -81,10 +81,10 @@ extern int mlx5_logtype;
 		RTE_FMT_TAIL(__VA_ARGS__,)))
 
 /*
- * When debugging is enabled (NDEBUG not defined), file, line and function
+ * When debugging is enabled (MLX5_DEBUG is defined), file, line and function
  * information replace the driver name (MLX5_DRIVER_NAME) in log messages.
  */
-#ifndef NDEBUG
+#ifdef RTE_LIBRTE_MLX5_DEBUG
 
 #define PMD_DRV_LOG__(level, ...) \
 	PMD_DRV_LOG___(level, "%s:%u: %s(): " __VA_ARGS__)
@@ -96,13 +96,13 @@ extern int mlx5_logtype;
 		__func__, \
 		__VA_ARGS__)
 
-#else /* NDEBUG */
+#else /* RTE_LIBRTE_MLX5_DEBUG */
 #define PMD_DRV_LOG__(level, ...) \
 	PMD_DRV_LOG___(level, __VA_ARGS__)
 #define PMD_DRV_LOG_(level, s, ...) \
 	PMD_DRV_LOG__(level, s "\n", __VA_ARGS__)
 
-#endif /* NDEBUG */
+#endif /* RTE_LIBRTE_MLX5_DEBUG */
 
 /* Generic printf()-like logging macro with automatic line feed. */
 #define DRV_LOG(level, ...) \
@@ -111,19 +111,19 @@ extern int mlx5_logtype;
 		PMD_DRV_LOG_CPAREN)
 
 /* claim_zero() does not perform any check when debugging is disabled. */
-#ifndef NDEBUG
+#ifdef RTE_LIBRTE_MLX5_DEBUG
 
 #define DEBUG(...) DRV_LOG(DEBUG, __VA_ARGS__)
 #define claim_zero(...) assert((__VA_ARGS__) == 0)
 #define claim_nonzero(...) assert((__VA_ARGS__) != 0)
 
-#else /* NDEBUG */
+#else /* RTE_LIBRTE_MLX5_DEBUG */
 
 #define DEBUG(...) (void)0
 #define claim_zero(...) (__VA_ARGS__)
 #define claim_nonzero(...) (__VA_ARGS__)
 
-#endif /* NDEBUG */
+#endif /* RTE_LIBRTE_MLX5_DEBUG */
 
 #define INFO(...) DRV_LOG(INFO, __VA_ARGS__)
 #define WARN(...) DRV_LOG(WARNING, __VA_ARGS__)
