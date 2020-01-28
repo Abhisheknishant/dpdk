@@ -81,6 +81,14 @@ In that mode the library functions perform
   - verify that crypto device operations (encryption, ICV generation)
     were completed successfully
 
+RTE_SECURITY_ACTION_TYPE_CPU_CRYPTO
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In that mode the library functions perform same operations as in
+``RTE_SECURITY_ACTION_TYPE_NONE``. The only differnce is that crypto operations
+are performed with CPU crypto synchronous API.
+
+
 RTE_SECURITY_ACTION_TYPE_INLINE_CRYPTO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -9,6 +9,11 @@ The AES-NI GCM PMD (**librte_pmd_aesni_gcm**) provides poll mode crypto driver
 support for utilizing Intel multi buffer library (see AES-NI Multi-buffer PMD documentation
 to learn more about it, including installation).
 
+The AES-NI GCM PMD supports synchronous mode of operation with
+``rte_cryptodev_sym_cpu_crypto_process`` function call for both AES-GCM and
+GMAC, however GMAC support is limited to one segment per operation. Please
+refer to ``rte_crypto`` programmer's guide for more detail.
+
 Features
 --------
 
