@@ -307,9 +307,13 @@ enum rte_security_session_action_type {
 	/**< All security protocol processing is performed inline during
 	 * transmission
 	 */
-	RTE_SECURITY_ACTION_TYPE_LOOKASIDE_PROTOCOL
+	RTE_SECURITY_ACTION_TYPE_LOOKASIDE_PROTOCOL,
 	/**< All security protocol processing including crypto is performed
 	 * on a lookaside accelerator
+	 */
+	RTE_SECURITY_ACTION_TYPE_CPU_CRYPTO
+	/**< Crypto processing for security protocol is processed by CPU
+	 * synchronously
 	 */
 };
 
