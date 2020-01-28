@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018-2020 Intel Corporation
  */
 
 #ifndef _MISC_H_
@@ -103,6 +103,124 @@ mbuf_cut_seg_ofs(struct rte_mbuf *mb, struct rte_mbuf *ms, uint32_t ofs,
 	}
 
 	mb->pkt_len -= len;
+}
+
+static inline int
+mbuf_to_cryptovec(const struct rte_mbuf *mb, uint32_t ofs, uint32_t data_len,
+	struct rte_crypto_vec vec[], uint32_t num)
+{
+	uint32_t i;
+	struct rte_mbuf *nseg;
+	uint32_t left;
+	uint32_t seglen;
+
+	/* assuming that requested data starts in the first segment */
+	RTE_ASSERT(mb->data_len > ofs);
+
+	if (mb->nb_segs > num)
+		return -mb->nb_segs;
+
+	vec[0].base = rte_pktmbuf_mtod_offset(mb, void *, ofs);
+
+	/* whole data lies in the first segment */
+	seglen = mb->data_len - ofs;
+	if (data_len <= seglen) {
+		vec[0].len = data_len;
+		return 1;
+	}
+
+	/* data spread across segments */
+	vec[0].len = seglen;
+	left = data_len - seglen;
+	for (i = 1, nseg = mb->next; nseg != NULL; nseg = nseg->next, i++) {
+		vec[i].base = rte_pktmbuf_mtod(nseg, void *);
+
+		seglen = nseg->data_len;
+		if (left <= seglen) {
+			/* whole requested data is completed */
+			vec[i].len = left;
+			left = 0;
+			break;
+		}
+
+		/* use whole segment */
+		vec[i].len = seglen;
+		left -= seglen;
+	}
+
+	RTE_ASSERT(left == 0);
+	return i + 1;
+}
+
+/*
+ * process packets using sync crypto engine
+ */
+static inline void
+cpu_crypto_bulk(const struct rte_ipsec_session *ss,
+	union rte_crypto_sym_ofs ofs, struct rte_mbuf *mb[],
+	void *iv[], void *aad[], void *dgst[], uint32_t l4ofs[],
+	uint32_t clen[], uint32_t num)
+{
+	uint32_t i, j, n;
+	int32_t vcnt, vofs;
+	int32_t st[num];
+	struct rte_crypto_sgl vecpkt[num];
+	struct rte_crypto_vec vec[UINT8_MAX];
+	struct rte_crypto_sym_vec symvec;
+
+	const uint32_t vnum = RTE_DIM(vec);
+
+	j = 0, n = 0;
+	vofs = 0;
+	for (i = 0; i != num; i++) {
+
+		vcnt = mbuf_to_cryptovec(mb[i], l4ofs[i], clen[i], &vec[vofs],
+			vnum - vofs);
+
+		/* not enough space in vec[] to hold all segments */
+		if (vcnt < 0) {
+			/* fill the request structure */
+			symvec.sgl = &vecpkt[j];
+			symvec.iv = &iv[j];
+			symvec.aad = &aad[j];
+			symvec.digest = &dgst[j];
+			symvec.status = &st[j];
+			symvec.num = i - j;
+
+			/* flush vec array and try again */
+			n += rte_cryptodev_sym_cpu_crypto_process(
+				ss->crypto.dev_id, ss->crypto.ses, ofs,
+				&symvec);
+			vofs = 0;
+			vcnt = mbuf_to_cryptovec(mb[i], l4ofs[i], clen[i], vec,
+				vnum);
+			RTE_ASSERT(vcnt > 0);
+			j = i;
+		}
+
+		vecpkt[i].vec = &vec[vofs];
+		vecpkt[i].num = vcnt;
+		vofs += vcnt;
+	}
+
+	/* fill the request structure */
+	symvec.sgl = &vecpkt[j];
+	symvec.iv = &iv[j];
+	symvec.aad = &aad[j];
+	symvec.digest = &dgst[j];
+	symvec.status = &st[j];
+	symvec.num = i - j;
+
+	n += rte_cryptodev_sym_cpu_crypto_process(ss->crypto.dev_id,
+		ss->crypto.ses, ofs, &symvec);
+
+	j = num - n;
+	for (i = 0; j != 0 && i != num; i++) {
+		if (st[i] != 0) {
+			mb[i]->ol_flags |= PKT_RX_SEC_OFFLOAD_FAILED;
+			j--;
+		}
+	}
 }
 
 #endif /* _MISC_H_ */
