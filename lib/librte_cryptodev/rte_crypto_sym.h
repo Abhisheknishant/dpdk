@@ -25,6 +25,67 @@ extern "C" {
 #include <rte_mempool.h>
 #include <rte_common.h>
 
+/**
+ * Crypto IO Vector (in analogy with struct iovec)
+ * Supposed be used to pass input/output data buffers for crypto data-path
+ * functions.
+ */
+struct rte_crypto_vec {
+	/** virtual address of the data buffer */
+	void *base;
+	/** IOVA of the data buffer */
+	rte_iova_t *iova;
+	/** length of the data buffer */
+	uint32_t len;
+};
+
+/**
+ * Crypto scatter-gather list descriptor. Consists of a pointer to an array
+ * of Crypto IO vectors with its size.
+ */
+struct rte_crypto_sgl {
+	/** start of an array of vectors */
+	struct rte_crypto_vec *vec;
+	/** size of an array of vectors */
+	uint32_t num;
+};
+
+/**
+ * Synchronous operation descriptor.
+ * Supposed to be used with CPU crypto API call.
+ */
+struct rte_crypto_sym_vec {
+	/** array of SGL vectors */
+	struct rte_crypto_sgl *sgl;
+	/** array of pointers to IV */
+	void **iv;
+	/** array of pointers to AAD */
+	void **aad;
+	/** array of pointers to digest */
+	void **digest;
+	/**
+	 * array of statuses for each operation:
+	 *  - 0 on success
+	 *  - errno on error
+	 */
+	int32_t *status;
+	/** number of operations to perform */
+	uint32_t num;
+};
+
+/**
+ * used for cpu_crypto_process_bulk() to specify head/tail offsets
+ * for auth/cipher processing.
+ */
+union rte_crypto_sym_ofs {
+	uint64_t raw;
+	struct {
+		struct {
+			uint16_t head;
+			uint16_t tail;
+		} auth, cipher;
+	} ofs;
+};
 
 /** Symmetric Cipher Algorithms */
 enum rte_crypto_cipher_algorithm {
