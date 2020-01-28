@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright(c) 2017 Intel Corporation
+# Copyright(c) 2017-2020 Intel Corporation
 
 if not get_option('tests')
 	subdir_done()
@@ -30,6 +30,7 @@ test_sources = files('commands.c',
 	'test_cryptodev.c',
 	'test_cryptodev_asym.c',
 	'test_cryptodev_blockcipher.c',
+	'test_cryptodev_cpu_crypto.c',
 	'test_cryptodev_security_pdcp.c',
 	'test_cycles.c',
 	'test_debug.c',
