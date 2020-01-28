@@ -143,6 +143,14 @@ New Features
   Added a new OCTEON TX2 rawdev PMD for End Point mode of operation.
   See the :doc:`../rawdevs/octeontx2_ep` for more details on this new PMD.
 
+* **Added synchronous Crypto burst API.**
+
+  A new API is introduced in crypto library to handle synchronous cryptographic
+  operations allowing to achieve performance gain for cryptodevs which use
+  CPU based acceleration, such as Intel AES-NI. An example implementation
+  for aesni_gcm cryptodev is provided including unit tests. The IPsec example
+  application and ipsec library itself were changed to allow utilization of this
+  new feature.
 
 Removed Items
 -------------
