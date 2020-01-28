@@ -65,4 +65,13 @@ struct aesni_gcm_ops {
 	aesni_gcm_finalize_t finalize_dec;
 };
 
+/** GCM per-session operation handlers */
+struct aesni_gcm_session_ops {
+	aesni_gcm_t cipher;
+	aesni_gcm_pre_t pre;
+	aesni_gcm_init_t init;
+	aesni_gcm_update_t update;
+	aesni_gcm_finalize_t finalize;
+};
+
 #endif /* _AESNI_GCM_OPS_H_ */
