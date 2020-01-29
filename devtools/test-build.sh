@@ -30,7 +30,8 @@ default_path=$PATH
 # - LIBSSO_SNOW3G_PATH
 # - LIBSSO_KASUMI_PATH
 # - LIBSSO_ZUC_PATH
-. $(dirname $(readlink -f $0))/load-devel-config
+devtools_dir=$(dirname $(readlink -f $0))
+. $devtools_dir/load-devel-config
 
 print_usage () {
 	echo "usage: $(basename $0) [-h] [-jX] [-s] [config1 [config2] ...]]"
@@ -64,6 +65,7 @@ print_help () {
 [ -z $MAKE ] && echo "Cannot find make or gmake" && exit 1
 
 J=$DPDK_MAKE_JOBS
+refsrcdir=$(mktemp -d -t dpdk-${DPDK_ABI_REF_VERSION:-}.XXX)
 builds_dir=${DPDK_BUILD_TEST_DIR:-.}
 short=false
 unset verbose
@@ -91,13 +93,14 @@ on_exit ()
 		[ "$DPDK_NOTIFY" != notify-send ] || \
 			notify-send -u low --icon=dialog-error 'DPDK build' 'failed'
 	fi
+	rm -rf $refsrcdir
 }
 # catch manual interrupt to ignore notification
 trap "signal=INT ; trap - INT ; kill -INT $$" INT
 # notify result on exit
 trap on_exit EXIT
 
-cd $(dirname $(readlink -f $0))/..
+cd $devtools_dir/..
 
 reset_env ()
 {
@@ -233,7 +236,7 @@ for conf in $configs ; do
 	# reload config with DPDK_TARGET set
 	DPDK_TARGET=$target
 	reset_env
-	. $(dirname $(readlink -f $0))/load-devel-config
+	. $devtools_dir/load-devel-config
 
 	options=$(echo $conf | sed 's,[^~+]*,,')
 	dir=$builds_dir/$conf
@@ -253,6 +256,42 @@ for conf in $configs ; do
 		EXTRA_LDFLAGS="$DPDK_DEP_LDFLAGS" $verbose \
 		O=$(readlink -f $dir)/examples
 	unset RTE_TARGET
+	if [ -n "$DPDK_ABI_REF_VERSION" ]; then
+		DPDK_ABI_REF_DIR=${DPDK_ABI_REF_DIR:-reference}
+		abirefdir=$DPDK_ABI_REF_DIR/$DPDK_ABI_REF_VERSION/$conf
+		if [ ! -d $abirefdir ]; then
+			# clone current sources
+			if [ ! -d $refsrcdir/.git ]; then
+				git clone --local --no-hardlinks \
+					--single-branch \
+					-b $DPDK_ABI_REF_VERSION \
+					$(pwd) $refsrcdir
+			fi
+
+			cd $refsrcdir
+
+			rm -rf build
+			config build $target $options
+
+			echo -n "================== Build $conf "
+			echo "($DPDK_ABI_REF_VERSION)"
+			${MAKE} -j$J EXTRA_CFLAGS="$maxerr $DPDK_DEP_CFLAGS" \
+				EXTRA_LDFLAGS="$DPDK_DEP_LDFLAGS" $verbose \
+				O=build
+			! $short || break
+			export RTE_TARGET=$target
+			${MAKE} install O=build DESTDIR=$abirefdir \
+				prefix=
+			$devtools_dir/gen-abi.sh $abirefdir
+
+			# back to current workdir
+			cd $devtools_dir/..
+		fi
+
+		echo "================== Check ABI $conf"
+		$devtools_dir/gen-abi.sh $dir/install
+		$devtools_dir/check-abi.sh $abirefdir $dir/install
+	fi
 	echo "################## $conf done."
 	unset dir
 done
