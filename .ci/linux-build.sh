@@ -29,11 +29,15 @@ if [ "$BUILD_32BIT" = "1" ]; then
 fi
 
 OPTS="$OPTS --default-library=$DEF_LIB"
+OPTS="$OPTS --prefix=/usr -Dlibdir=lib"
 meson build --werror -Dexamples=all $OPTS
 ninja -C build
+DESTDIR=$(pwd)/install ninja -C build install
 
 if [ "$AARCH64" != "1" ]; then
-    devtools/test-null.sh
+    export LD_LIBRARY_PATH=$(pwd)/install/usr/lib
+    devtools/test-null.sh install/usr/bin/dpdk-testpmd
+    unset LD_LIBRARY_PATH
 fi
 
 if [ "$RUN_TESTS" = "1" ]; then

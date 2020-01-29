@@ -63,7 +63,7 @@ config () # <dir> <builddir> <meson options>
 	shift
 	builddir=$1
 	shift
-	options="--werror -Dexamples=all"
+	options="--werror -Dexamples=all --prefix=/usr -Dlibdir=lib"
 	for option in $DPDK_MESON_OPTIONS ; do
 		options="$options -D$option"
 	done
@@ -74,22 +74,29 @@ config () # <dir> <builddir> <meson options>
 	fi
 }
 
-compile () # <builddir>
+compile () # <builddir> <installdir>
 {
 	builddir=$1
 	shift
+	export DESTDIR=$1
+	shift
+	rm -rf $DESTDIR
 	if [ -n "$TEST_MESON_BUILD_VERY_VERBOSE" ] ; then
 		# for full output from ninja use "-v"
 		echo "$ninja_cmd -v -C $builddir"
 		$ninja_cmd -v -C $builddir
+		$ninja_cmd -v -C $builddir install
 	elif [ -n "$TEST_MESON_BUILD_VERBOSE" ] ; then
 		# for keeping the history of short cmds, pipe through cat
 		echo "$ninja_cmd -C $builddir | cat"
 		$ninja_cmd -C $builddir | cat
+		$ninja_cmd -C $builddir install | cat
 	else
 		echo "$ninja_cmd -C $builddir"
 		$ninja_cmd -C $builddir
+		$ninja_cmd -C $builddir install
 	fi
+	unset DESTDIR
 }
 
 build () # <directory> <target compiler> <meson options>
@@ -102,7 +109,8 @@ build () # <directory> <target compiler> <meson options>
 	command -v ${CC##* } >/dev/null 2>&1 || return 0
 	load_env $targetcc || return 0
 	config $srcdir $builds_dir/$targetdir $*
-	compile $builds_dir/$targetdir
+	compile $builds_dir/$targetdir \
+		$(readlink -f $builds_dir/$targetdir/install)
 }
 
 if [ "$1" = "-vv" ] ; then
@@ -134,7 +142,7 @@ ok=$(cc -march=$default_machine -E - < /dev/null > /dev/null 2>&1 || echo false)
 if [ "$ok" = "false" ] ; then
 	default_machine='corei7'
 fi
-build build-x86-default cc -Dlibdir=lib -Dmachine=$default_machine $use_shared
+build build-x86-default cc -Dmachine=$default_machine $use_shared
 
 c=aarch64-linux-gnu-gcc
 # generic armv8a with clang as host compiler
@@ -150,12 +158,9 @@ for f in $srcdir/config/arm/arm64_[bdo]*gcc ; do
 	unset CC
 done
 
-# Test installation of the x86-default target, to be used for checking
-# the sample apps build using the pkg-config file for cflags and libs
-build_path=$(readlink -f $builds_dir/build-x86-default)
-export DESTDIR=$build_path/install-root
-$ninja_cmd -C $build_path install
-
+# Use the x86-default target, to check the sample apps build using the
+# pkg-config file for cflags and libs
+export DESTDIR=$(readlink -f $builds_dir/build-x86-default/install)
 load_env cc
 pc_file=$(find $DESTDIR -name libdpdk.pc)
 export PKG_CONFIG_PATH=$(dirname $pc_file):$PKG_CONFIG_PATH
@@ -165,6 +170,6 @@ if pkg-config --define-prefix libdpdk >/dev/null 2>&1; then
 	export PKGCONF="pkg-config --define-prefix"
 	for example in cmdline helloworld l2fwd l3fwd skeleton timer; do
 		echo "## Building $example"
-		$MAKE -C $DESTDIR/usr/local/share/dpdk/examples/$example clean all
+		$MAKE -C $DESTDIR/usr/share/dpdk/examples/$example clean all
 	done
 fi

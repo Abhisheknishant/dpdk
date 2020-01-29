@@ -21,6 +21,7 @@ fi
 
 if ldd $testpmd | grep -q librte_ ; then
 	export LD_LIBRARY_PATH=$build/drivers:$build/lib:$LD_LIBRARY_PATH
+	ldd $testpmd
 	libs='-d librte_mempool_ring.so -d librte_pmd_null.so'
 else
 	libs=
