@@ -66,7 +66,7 @@ config () # <dir> <builddir> <meson options>
 	if [ -f "$builddir/build.ninja" ] ; then
 		return
 	fi
-	options="--werror -Dexamples=all"
+	options="--werror -Dexamples=all -Dlibdir=lib"
 	for option in $DPDK_MESON_OPTIONS ; do
 		options="$options -D$option"
 	done
@@ -75,7 +75,7 @@ config () # <dir> <builddir> <meson options>
 	$MESON $options $dir $builddir
 }
 
-compile () # <builddir>
+compile () # <builddir> <installdir>
 {
 	builddir=$1
 	if [ -n "$TEST_MESON_BUILD_VERY_VERBOSE" ] ; then
@@ -90,6 +90,9 @@ compile () # <builddir>
 		echo "$ninja_cmd -C $builddir"
 		$ninja_cmd -C $builddir
 	fi
+	rm -rf $2
+	echo "DESTDIR=$2 $ninja_cmd -C $builddir install"
+	DESTDIR=$2 $ninja_cmd -C $builddir install
 }
 
 build () # <directory> <target compiler> <meson options>
@@ -102,7 +105,8 @@ build () # <directory> <target compiler> <meson options>
 	command -v ${CC##* } >/dev/null 2>&1 || return 0
 	load_env $targetcc || return 0
 	config $srcdir $builds_dir/$targetdir $*
-	compile $builds_dir/$targetdir
+	compile $builds_dir/$targetdir \
+		$(readlink -f $builds_dir/$targetdir/install)
 }
 
 if [ "$1" = "-vv" ] ; then
@@ -134,7 +138,7 @@ ok=$(cc -march=$default_machine -E - < /dev/null > /dev/null 2>&1 || echo false)
 if [ "$ok" = "false" ] ; then
 	default_machine='corei7'
 fi
-build build-x86-default cc -Dlibdir=lib -Dmachine=$default_machine $use_shared
+build build-x86-default cc -Dmachine=$default_machine $use_shared
 
 c=aarch64-linux-gnu-gcc
 # generic armv8a with clang as host compiler
@@ -150,12 +154,9 @@ for f in $srcdir/config/arm/arm64_[bdo]*gcc ; do
 	unset CC
 done
 
-# Test installation of the x86-default target, to be used for checking
-# the sample apps build using the pkg-config file for cflags and libs
-build_path=$(readlink -f $builds_dir/build-x86-default)
-export DESTDIR=$build_path/install-root
-$ninja_cmd -C $build_path install
-
+# Use the x86-default target, to check the sample apps build using the
+# pkg-config file for cflags and libs
+export DESTDIR=$(readlink -f $builds_dir/build-x86-default/install)
 load_env cc
 pc_file=$(find $DESTDIR -name libdpdk.pc)
 export PKG_CONFIG_PATH=$(dirname $pc_file):$PKG_CONFIG_PATH
