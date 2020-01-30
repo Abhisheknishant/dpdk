@@ -38,6 +38,12 @@ Deprecation Notices
   remove it from the externally visible ABI and allow it to be updated in the
   future.
 
+* igb_uio: In the view of reducing the kernel dependency from the main tree,
+  as a first step, The technical board has been decided to move ``igb_uio``
+  kernel module to a new repository hosted by dpdk.org in v20.11 release.
+  Minutes of Technical Board Meeting of `2019-11-06
+  <http://mails.dpdk.org/archives/dev/2019-November/151763.html>`_.
+
 * dpaa2: removal of ``rte_dpaa2_memsegs`` structure which has been replaced
   by a pa-va search library. This structure was earlier being used for holding
   memory segments used by dpaa2 driver for faster pa->va translation. This
