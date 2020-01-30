@@ -18867,7 +18867,7 @@ cmd_config_dynf_specific_parsed(void *parsed_result,
 		return;
 	flag = rte_mbuf_dynflag_lookup(res->name, NULL);
 	if (flag <= 0) {
-		strcpy(desc_flag.name, res->name);
+		strncpy(desc_flag.name, res->name, sizeof(*desc_flag.name));
 		desc_flag.flags = 0;
 		flag = rte_mbuf_dynflag_register(&desc_flag);
 		if (flag < 0) {
