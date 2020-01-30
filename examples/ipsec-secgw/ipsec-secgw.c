@@ -72,7 +72,7 @@
 
 #define MAX_LCORE_PARAMS 1024
 
-#define UNPROTECTED_PORT(port) (unprotected_port_mask & (1 << portid))
+#define UNPROTECTED_PORT(port) (unprotected_port_mask & (1 << port))
 
 /*
  * Configurable number of RX/TX ring descriptors
@@ -968,20 +968,25 @@ route6_pkts(struct rt_ctx *rt_ctx, struct rte_mbuf *pkts[], uint8_t nb_pkts)
 }
 
 static inline void
-process_pkts(struct lcore_conf *qconf, struct rte_mbuf **pkts,
-		uint8_t nb_pkts, uint16_t portid)
+process_pkts(struct lcore_conf *qconf, struct lcore_rx_queue *rx_queue,
+		struct rte_mbuf **pkts, uint8_t nb_pkts)
 {
 	struct ipsec_traffic traffic;
 
 	prepare_traffic(pkts, &traffic, nb_pkts);
 
+	qconf->inbound.port_id = rx_queue->port_id;
+	qconf->inbound.queue_id = rx_queue->queue_id;
+	qconf->outbound.port_id = rx_queue->port_id;
+	qconf->outbound.queue_id = rx_queue->queue_id;
+
 	if (unlikely(single_sa)) {
-		if (UNPROTECTED_PORT(portid))
+		if (UNPROTECTED_PORT(rx_queue->port_id))
 			process_pkts_inbound_nosp(&qconf->inbound, &traffic);
 		else
 			process_pkts_outbound_nosp(&qconf->outbound, &traffic);
 	} else {
-		if (UNPROTECTED_PORT(portid))
+		if (UNPROTECTED_PORT(rx_queue->port_id))
 			process_pkts_inbound(&qconf->inbound, &traffic);
 		else
 			process_pkts_outbound(&qconf->outbound, &traffic);
@@ -1169,7 +1174,7 @@ main_loop(__attribute__((unused)) void *dummy)
 					pkts, MAX_PKT_BURST);
 
 			if (nb_rx > 0)
-				process_pkts(qconf, pkts, nb_rx, portid);
+				process_pkts(qconf, &rxql[i], pkts, nb_rx);
 
 			/* dequeue and process completed crypto-ops */
 			if (UNPROTECTED_PORT(portid))
@@ -1709,6 +1714,8 @@ add_mapping(struct rte_hash *map, const char *str, uint16_t cdev_id,
 	unsigned long i;
 	struct cdev_key key = { 0 };
 
+	key.port_id = params->port_id;
+	key.queue_id = params->queue_id;
 	key.lcore_id = params->lcore_id;
 	if (cipher)
 		key.cipher_algo = cipher->sym.cipher.algo;
@@ -1722,7 +1729,9 @@ add_mapping(struct rte_hash *map, const char *str, uint16_t cdev_id,
 		return 0;
 
 	for (i = 0; i < ipsec_ctx->nb_qps; i++)
-		if (ipsec_ctx->tbl[i].id == cdev_id)
+		if (ipsec_ctx->tbl[i].id == cdev_id &&
+		    ipsec_ctx->tbl[i].port_id == key.port_id &&
+		    ipsec_ctx->tbl[i].port_queue_id == key.queue_id)
 			break;
 
 	if (i == ipsec_ctx->nb_qps) {
@@ -1733,9 +1742,12 @@ add_mapping(struct rte_hash *map, const char *str, uint16_t cdev_id,
 		}
 		ipsec_ctx->tbl[i].id = cdev_id;
 		ipsec_ctx->tbl[i].qp = qp;
+		ipsec_ctx->tbl[i].port_id = key.port_id;
+		ipsec_ctx->tbl[i].port_queue_id = key.queue_id;
 		ipsec_ctx->nb_qps++;
-		printf("%s cdev mapping: lcore %u using cdev %u qp %u "
-				"(cdev_id_qp %lu)\n", str, key.lcore_id,
+		printf("%s cdev mapping: lcore %u, portid %u, queueid %u "
+				"using cdev %u qp %u (cdev_id_qp %lu)\n",
+				str, key.lcore_id, key.port_id, key.queue_id,
 				cdev_id, qp, i);
 	}
 
@@ -1849,7 +1861,7 @@ cryptodevs_init(void)
 		rte_panic("Failed to create cdev_map hash table, errno = %d\n",
 				rte_errno);
 
-	printf("lcore/cryptodev/qp mappings:\n");
+	printf("lcore/portid/queueid/cryptodev/qp mappings:\n");
 
 	idx = 0;
 	for (cdev_id = 0; cdev_id < rte_cryptodev_count(); cdev_id++) {

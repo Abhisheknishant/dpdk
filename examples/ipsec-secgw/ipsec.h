@@ -180,6 +180,8 @@ struct cdev_qp {
 	uint16_t qp;
 	uint16_t in_flight;
 	uint16_t len;
+	uint16_t port_id;
+	uint16_t port_queue_id;
 	struct rte_crypto_op *buf[MAX_PKT_BURST] __rte_aligned(sizeof(void *));
 };
 
@@ -197,10 +199,15 @@ struct ipsec_ctx {
 	uint16_t ol_pkts_cnt;
 	uint64_t ipv4_offloads;
 	uint64_t ipv6_offloads;
+	/* port_id and queue_id are used to select crypto qp */
+	uint16_t port_id;
+	uint16_t queue_id;
 };
 
 struct cdev_key {
-	uint16_t lcore_id;
+	uint16_t port_id;
+	uint8_t queue_id;
+	uint8_t lcore_id;
 	uint8_t cipher_algo;
 	uint8_t auth_algo;
 	uint8_t aead_algo;

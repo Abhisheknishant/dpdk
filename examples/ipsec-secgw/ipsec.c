@@ -63,6 +63,8 @@ create_lookaside_session(struct ipsec_ctx *ipsec_ctx, struct ipsec_sa *sa,
 	struct cdev_key key = { 0 };
 
 	key.lcore_id = (uint8_t)rte_lcore_id();
+	key.port_id = ipsec_ctx->port_id;
+	key.queue_id = ipsec_ctx->queue_id;
 
 	key.cipher_algo = (uint8_t)sa->cipher_algo;
 	key.auth_algo = (uint8_t)sa->auth_algo;
@@ -72,12 +74,11 @@ create_lookaside_session(struct ipsec_ctx *ipsec_ctx, struct ipsec_sa *sa,
 			(void **)&cdev_id_qp);
 	if (ret < 0) {
 		RTE_LOG(ERR, IPSEC,
-				"No cryptodev: core %u, cipher_algo %u, "
-				"auth_algo %u, aead_algo %u\n",
-				key.lcore_id,
-				key.cipher_algo,
-				key.auth_algo,
-				key.aead_algo);
+				"No cryptodev: core %u, port_id %u, "
+				"queue_id %u, cipher_algo %u, auth_algo %u, "
+				"aead_algo %u\n",
+				key.lcore_id, key.port_id, key.queue_id,
+				key.cipher_algo, key.auth_algo, key.aead_algo);
 		return -1;
 	}
 
