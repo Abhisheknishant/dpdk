@@ -16,7 +16,14 @@ srcdir=$(dirname $(readlink -f $0))/..
 
 MESON=${MESON:-meson}
 use_shared="--default-library=shared"
+refsrcdir=$(mktemp -d -t dpdk-${DPDK_ABI_REF_VERSION:-}.XXX)
 builds_dir=${DPDK_BUILD_TEST_DIR:-.}
+
+on_exit ()
+{
+	rm -rf $refsrcdir
+}
+trap on_exit EXIT
 
 if command -v gmake >/dev/null 2>&1 ; then
 	MAKE=gmake
@@ -64,9 +71,14 @@ config () # <dir> <builddir> <meson options>
 	builddir=$1
 	shift
 	if [ -f "$builddir/build.ninja" ] ; then
+		# for existing environments, force debugoptimized so that ABI
+		# checks can run
+		$MESON configure --buildtype=debugoptimized $builddir
 		return
 	fi
-	options="--werror -Dexamples=all -Dlibdir=lib"
+	options=
+	options="$options --werror -Dexamples=all -Dlibdir=lib"
+	options="$options --buildtype=debugoptimized"
 	for option in $DPDK_MESON_OPTIONS ; do
 		options="$options -D$option"
 	done
@@ -107,6 +119,29 @@ build () # <directory> <target compiler> <meson options>
 	config $srcdir $builds_dir/$targetdir $*
 	compile $builds_dir/$targetdir \
 		$(readlink -f $builds_dir/$targetdir/install)
+	if [ -n "$DPDK_ABI_REF_VERSION" ]; then
+		DPDK_ABI_REF_DIR=${DPDK_ABI_REF_DIR:-reference}
+		abirefdir=$DPDK_ABI_REF_DIR/$DPDK_ABI_REF_VERSION/$targetdir
+		if [ ! -d $abirefdir ]; then
+			# clone current sources
+			if [ ! -d $refsrcdir/.git ]; then
+				git clone --local --no-hardlinks \
+					--single-branch \
+					-b $DPDK_ABI_REF_VERSION \
+					$srcdir $refsrcdir
+			fi
+
+			rm -rf $refsrcdir/build
+			config $refsrcdir $refsrcdir/build $*
+			compile $refsrcdir/build $abirefdir
+			$srcdir/devtools/gen-abi.sh $abirefdir
+		fi
+
+		$srcdir/devtools/gen-abi.sh \
+			$(readlink -f $builds_dir/$targetdir/install)
+		$srcdir/devtools/check-abi.sh $abirefdir \
+			$(readlink -f $builds_dir/$targetdir/install)
+	fi
 }
 
 if [ "$1" = "-vv" ] ; then
