@@ -18865,6 +18865,10 @@ cmd_config_dynf_specific_parsed(void *parsed_result,
 
 	if (port_id_is_invalid(res->port_id, ENABLED_WARN))
 		return;
+	if (strlen(res->name) > sizeof(desc_flag.name)) {
+		printf("Flag name too long\n");
+		return;
+	}	
 	flag = rte_mbuf_dynflag_lookup(res->name, NULL);
 	if (flag <= 0) {
 		strcpy(desc_flag.name, res->name);
