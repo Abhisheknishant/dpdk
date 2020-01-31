@@ -14,6 +14,9 @@ extern "C" {
 
 #include <rte_byteorder.h>
 #include <rte_common.h>
+#if defined(__powerpc__) && defined(__GLIBC__)
+#include <sys/platform/ppc.h>
+#endif
 
 /**
  * Read the time base register.
@@ -24,6 +27,9 @@ extern "C" {
 static inline uint64_t
 rte_rdtsc(void)
 {
+#if defined(__powerpc__) && defined(__GLIBC__)
+	return __ppc_get_timebase();
+#else
 	union {
 		uint64_t tsc_64;
 		RTE_STD_C11
@@ -50,6 +56,7 @@ rte_rdtsc(void)
 			[tmp] "=r"(tmp)
 		    );
 	return tsc.tsc_64;
+#endif /* __powerpc__ && __GLIBC__ */
 }
 
 static inline uint64_t
