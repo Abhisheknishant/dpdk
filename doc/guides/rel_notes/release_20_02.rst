@@ -162,6 +162,15 @@ Removed Items
   the Technical Board decided to disable all the kernel modules
   by default from 20.02 version.
 
+* **Removed coalescing feature from Intel QuickAssist Technology (QAT) PMD.**
+
+  The internal tail write coalescing feature was removed as not compatible with
+  dual-thread feature. It was replaced with a threshold feature. At busy times
+  if only a small	number of packets can be enqueued, each enqueue causes
+  an expensive MMIO write. These MMIO write occurrences can be optimised by using
+  the new threshold parameter	on process start. Please see qat documentation for
+  more details.
+
 
 API Changes
 -----------
