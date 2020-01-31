@@ -2,9 +2,12 @@
  * Copyright(c) 2019 Intel Corporation
  */
 
+#include <pthread.h>
 #include <stdint.h>
 
 #include <rte_common.h>
+
+#include "eal_windows.h"
 
 /* global data structure that contains the CPU map */
 static struct _wcpu_map {

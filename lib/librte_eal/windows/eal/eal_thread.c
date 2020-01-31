@@ -13,6 +13,7 @@
 #include <eal_thread.h>
 
 #include "eal_private.h"
+#include "eal_windows.h"
 
 RTE_DEFINE_PER_LCORE(unsigned int, _lcore_id) = LCORE_ID_ANY;
 

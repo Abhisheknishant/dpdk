@@ -11,6 +11,8 @@
 #include <eal_thread.h>
 #include <eal_private.h>
 
+#include "eal_windows.h"
+
 /* Address of global and public configuration */
 static struct rte_config rte_config;
 
