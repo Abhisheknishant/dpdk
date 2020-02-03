@@ -958,6 +958,7 @@ static void axgbe_config_queue_mapping(struct axgbe_port *pdata)
 		if (i < qptc_extra)
 			AXGMAC_MTL_IOWRITE_BITS(pdata, queue, MTL_Q_TQOMR,
 						Q2TCMAP, i);
+		pdata->pfc_map[queue++] = i;
 	}
 
 	if (pdata->rss_enable) {
