@@ -824,7 +824,10 @@ port_init(uint16_t portid, struct rte_mempool *mbuf_pool, uint16_t nb_queues)
 	/* Init port */
 	printf("Initializing port %u... ", portid);
 	fflush(stdout);
-	rte_eth_dev_info_get(portid, &dev_info);
+	ret = rte_eth_dev_info_get(portid, &dev_info);
+	if (ret < 0)
+		rte_exit(EXIT_FAILURE, "Error during getting device info:"
+			" err=%d, port=%u\n", ret, portid);
 	local_port_conf.rx_adv_conf.rss_conf.rss_hf &=
 		dev_info.flow_type_rss_offloads;
 	if (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_MBUF_FAST_FREE)
