@@ -171,6 +171,7 @@ local_dev_probe(const char *devargs, struct rte_device **new_dev)
 	 * those devargs shouldn't be removed manually anymore.
 	 */
 
+	dev->devargs = da;
 	ret = dev->bus->plug(dev);
 	if (ret > 0)
 		ret = -ENOTSUP;
