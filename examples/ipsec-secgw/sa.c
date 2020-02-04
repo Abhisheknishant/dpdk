@@ -132,11 +132,11 @@ const struct supported_aead_algo aead_algos[] = {
 	}
 };
 
-static struct ipsec_sa sa_out[IPSEC_SA_MAX_ENTRIES];
-static uint32_t nb_sa_out;
+struct ipsec_sa sa_out[IPSEC_SA_MAX_ENTRIES];
+uint32_t nb_sa_out;
 
-static struct ipsec_sa sa_in[IPSEC_SA_MAX_ENTRIES];
-static uint32_t nb_sa_in;
+struct ipsec_sa sa_in[IPSEC_SA_MAX_ENTRIES];
+uint32_t nb_sa_in;
 
 static const struct supported_cipher_algo *
 find_match_cipher_algo(const char *cipher_keyword)
@@ -780,17 +780,6 @@ print_one_sa_rule(const struct ipsec_sa *sa, int inbound)
 	}
 	printf("\n");
 }
-
-struct sa_ctx {
-	void *satbl; /* pointer to array of rte_ipsec_sa objects*/
-	struct ipsec_sa sa[IPSEC_SA_MAX_ENTRIES];
-	union {
-		struct {
-			struct rte_crypto_sym_xform a;
-			struct rte_crypto_sym_xform b;
-		};
-	} xf[IPSEC_SA_MAX_ENTRIES];
-};
 
 static struct sa_ctx *
 sa_create(const char *name, int32_t socket_id)

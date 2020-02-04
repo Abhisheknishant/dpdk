@@ -153,6 +153,17 @@ struct ipsec_sa {
 	struct rte_security_session_conf sess_conf;
 } __rte_cache_aligned;
 
+struct sa_ctx {
+	void *satbl; /* pointer to array of rte_ipsec_sa objects*/
+	struct ipsec_sa sa[IPSEC_SA_MAX_ENTRIES];
+	union {
+		struct {
+			struct rte_crypto_sym_xform a;
+			struct rte_crypto_sym_xform b;
+		};
+	} xf[IPSEC_SA_MAX_ENTRIES];
+};
+
 struct ipsec_mbuf_metadata {
 	struct ipsec_sa *sa;
 	struct rte_crypto_op cop;
@@ -246,6 +257,12 @@ struct ipsec_traffic {
 	struct traffic_type ip4;
 	struct traffic_type ip6;
 };
+
+extern struct ipsec_sa sa_out[IPSEC_SA_MAX_ENTRIES];
+extern uint32_t nb_sa_out;
+
+extern struct ipsec_sa sa_in[IPSEC_SA_MAX_ENTRIES];
+extern uint32_t nb_sa_in;
 
 uint16_t
 ipsec_inbound(struct ipsec_ctx *ctx, struct rte_mbuf *pkts[],
