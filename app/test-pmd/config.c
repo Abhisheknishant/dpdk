@@ -2564,7 +2564,6 @@ set_fwd_ports_list(unsigned int *portlist, unsigned int nb_pt)
 	unsigned int i;
 	portid_t port_id;
 	int record_now;
-
 	record_now = 0;
  again:
 	for (i = 0; i < nb_pt; i++) {
@@ -2585,6 +2584,112 @@ set_fwd_ports_list(unsigned int *portlist, unsigned int nb_pt)
 		       (unsigned int) nb_fwd_ports, nb_pt);
 		nb_fwd_ports = (portid_t) nb_pt;
 	}
+}
+
+/**
+ * Parse and obtain the list of forwarding ports
+ * from the user input
+ *
+ * @param[in] list
+ *   String containing the user input. User can specify
+ *   in these formats 1,3,5 or 1-3 or 1-2,5 or 3,5-6.
+ *   For example, if the user wants to use all the available
+ *   4 ports in his system, then the input can be 0-3 or 0,1,2,3.
+ *   If the user wants to use only the ports 1,2 then the input
+ *   is 1,2.
+ *   valid characters are '-' and ','
+ *   invalid chars like '.' or '#' will result in
+ *   EAL: Error - exiting with code: 1
+ *     Cause: Invalid fwd port list
+ * @param[in] values
+ *   An array pointer, used by this function to set the
+ *   array contents to a positive value if they are listed
+ *   in the input else sets it to -1
+ * @param[in] maxsize
+ *   This is the maximum value the list string can contain
+ * @return
+ *   -On success, returns 0.
+ *   -On failure, returns -1.
+ */
+static int
+parse_port_list(const char *list, int *values, int maxsize)
+{
+	unsigned int count = 0;
+	char *end = NULL;
+	int min, max;
+	int idx;
+
+	if (list == NULL || values == NULL || maxsize < 0)
+		return -1;
+
+	for (idx = 0; idx < maxsize; idx++)
+		values[idx] = -1;
+	/* Remove all blank characters ahead */
+	while (isblank(*list))
+		list++;
+
+	min = maxsize;
+
+	do {
+		while (isblank(*list))
+			list++;
+		if (*list == '\0')
+			return -1;
+		errno = 0;
+		idx = strtol(list, &end, 10);
+		if (errno || end == NULL)
+			return -1;
+		if (idx < 0 || idx >= maxsize)
+			return -1;
+		while (isblank(*end))
+			end++;
+		if (*end == '-') {
+			min = idx;
+		} else if ((*end == ',') || (*end == '\0')) {
+			max = idx;
+			if (min == maxsize)
+				min = idx;
+			for (idx = min; idx <= max; idx++) {
+				if (values[count] == -1) {
+					values[count] = idx;
+					count++;
+				}
+			}
+			min = maxsize;
+		} else
+			return -1;
+		list = end + 1;
+	} while (*end != '\0');
+
+	if (count == 0)
+		return -1;
+	return 0;
+}
+
+void
+parse_fwd_portlist(const char *portlist)
+{
+	int portcount = 0;
+	int portindex[RTE_MAX_ETHPORTS];
+	unsigned int idx;
+
+	/*
+	 * parse_port_list() will mark the portindex array
+	 * with -1 if the port is not listed and with a positive value
+	 * for the listed ports. So, the parser is designed in
+	 * such a way that it will fill the portindex array with the
+	 * valid ports from the user,and the function set_fwd_ports_list()
+	 * will set those ports in the forwarding mode
+	 */
+
+	if (parse_port_list(portlist, portindex, RTE_MAX_ETHPORTS) < 0)
+		rte_exit(EXIT_FAILURE, "Invalid fwd port list\n");
+
+	RTE_ETH_FOREACH_DEV(idx) {
+		if (rte_eth_dev_is_valid_port(portindex[idx]))
+			portcount++;
+	}
+	set_fwd_ports_list((unsigned int *)portindex, portcount);
 }
 
 void
