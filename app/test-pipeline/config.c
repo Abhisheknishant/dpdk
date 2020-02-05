@@ -42,7 +42,7 @@
 
 #include "main.h"
 
-struct app_params app;
+extern struct app_params app;
 
 static const char usage[] = "\n";
 
