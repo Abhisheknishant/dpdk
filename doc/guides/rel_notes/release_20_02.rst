@@ -118,6 +118,12 @@ New Features
   Added a new Mellanox vDPA  (``mlx5_vdpa``) PMD.
   See the :doc:`../vdpadevs/mlx5` guide for more details on this driver.
 
+* **Updated Broadcom bnxt  driver**
+
+  Updated Broadcom bnxt driver with new features and improvements, including:
+
+  * Added support for MARK action.
+
 * **Updated testpmd application.**
 
   Added support for ESP and L2TPv3 over IP rte_flow patterns to the testpmd
