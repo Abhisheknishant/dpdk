@@ -15,8 +15,8 @@
 extern "C" {
 #endif
 
-#include <Windows.h>
-#include <BaseTsd.h>
+#include <windows.h>
+#include <basetsd.h>
 #include <pthread.h>
 
 #define strerror_r(a, b, c) strerror_s(b, c, a)
