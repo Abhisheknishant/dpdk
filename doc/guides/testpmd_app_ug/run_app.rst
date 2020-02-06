@@ -77,6 +77,12 @@ The command line options are:
 
     Set the hexadecimal bitmask of the ports used by the packet forwarding test.
 
+*   ``--portlist=X``
+
+      Set the forwarding ports based on the user input used by the packet forwarding test.
+      '-' is used for range, inclusive and ',' to provide multiple values.
+      Possible examples like --portlist=0,1 or --portlist=0-2 or --portlist=0,1-2 etc
+
 *   ``--numa``
 
     Enable NUMA-aware allocation of RX/TX rings and of RX memory buffers
