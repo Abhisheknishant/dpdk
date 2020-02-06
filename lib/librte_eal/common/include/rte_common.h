@@ -89,6 +89,21 @@ typedef uint16_t unaligned_uint16_t;
  */
 #define RTE_SET_USED(x) (void)(x)
 
+/**
+ * Check format string and its arguments at compile-time.
+ *
+ * GCC on Windows assumes MS-specific format string by default,
+ * even if the underlying stdio implementation is ANSI-compliant,
+ * so this must be overridden.
+ */
+#if defined(RTE_TOOLCHAIN_GCC)
+#define __rte_format(archetype, format_index, first_arg) \
+	__attribute__((format(gnu_##archetype, format_index, first_arg)))
+#else
+#define __rte_format(archetype, format_index, first_arg) \
+	__attribute__((format(archetype, format_index, first_arg)))
+#endif
+
 #define RTE_PRIORITY_LOG 101
 #define RTE_PRIORITY_BUS 110
 #define RTE_PRIORITY_CLASS 120
