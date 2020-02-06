@@ -265,6 +265,11 @@ static int hn_dev_info_get(struct rte_eth_dev *dev,
 	if (rc != 0)
 		return rc;
 
+	/* fill in link status and link speed */
+	rc = hn_dev_link_update(dev, 0);
+	if (rc != 0)
+		return rc;
+
 	/* merges the offload and queues of vf */
 	return hn_vf_info_get(hv, dev_info);
 }
