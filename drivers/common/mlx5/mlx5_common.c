@@ -16,6 +16,9 @@
 
 int mlx5_common_logtype;
 
+#ifdef MLX5_GLUE
+const struct mlx5_glue *mlx5_glue = NULL;
+#endif
 
 /**
  * Get PCI information by sysfs device path.
