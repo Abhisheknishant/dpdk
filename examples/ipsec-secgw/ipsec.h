@@ -231,7 +231,7 @@ struct cnt_blk {
 	uint32_t salt;
 	uint64_t iv;
 	uint32_t cnt;
-} __attribute__((packed));
+} __rte_packed;
 
 struct traffic_type {
 	const uint8_t *data[MAX_PKT_BURST * 2];
