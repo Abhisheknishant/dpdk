@@ -1099,7 +1099,7 @@ drain_outbound_crypto_queues(const struct lcore_conf *qconf,
 
 /* main processing loop */
 static int32_t
-main_loop(__attribute__((unused)) void *dummy)
+main_loop(__rte_unused void *dummy)
 {
 	struct rte_mbuf *pkts[MAX_PKT_BURST];
 	uint32_t lcore_id;
