@@ -72,7 +72,7 @@ void __rte_panic(const char *funcname , const char *format, ...)
 	__rte_cold
 #endif
 #endif
-	__attribute__((noreturn))
+	__rte_noreturn
 	__attribute__((format(printf, 2, 3)));
 
 #ifdef __cplusplus
