@@ -2587,6 +2587,120 @@ set_fwd_ports_list(unsigned int *portlist, unsigned int nb_pt)
 	}
 }
 
+/**
+ * Parse the user input and obtain the list of forwarding ports
+ *
+ * @param[in] list
+ *   String containing the user input. User can specify
+ *   in these formats 1,3,5 or 1-3 or 1-2,5 or 3,5-6.
+ *   For example, if the user wants to use all the available
+ *   4 ports in his system, then the input can be 0-3 or 0,1,2,3.
+ *   If the user wants to use only the ports 1,2 then the input
+ *   is 1,2.
+ *   valid characters are '-' and ','
+ *   invalid chars like '.' or '#' will result in
+ *   EAL: Error - exiting with code: 1
+ *     Cause: Invalid fwd port list
+ * @param[out] values
+ *   This array will be filled with a list of port IDs
+ *   based on the user input
+ *   Note that duplicate entries are discarded and only the first
+ *   count entries in this array are port IDs and all the rest
+ *   will contain default values
+ * @param[in] maxsize
+ *   This parameter denotes 2 things
+ *   1) Size of the values array
+ *   2) Maximum value of each element in the values array
+ * @return
+ *   -On success, returns total count of port IDs
+ *   -On failure, returns -1.
+ */
+static int
+parse_port_list(const char *list, unsigned int *values, int maxsize)
+{
+	int count = 0;
+	char *end = NULL;
+	int min, max;
+	int value, i;
+	unsigned int marked[maxsize];
+
+	for (i = 0; i < maxsize; i++)
+		marked[i] = 0;
+
+	if (list == NULL || values == NULL || maxsize < 0)
+		return -1;
+
+	/* Remove all blank characters ahead */
+	while (isblank(*list))
+		list++;
+
+	min = maxsize;
+
+	do {
+		while (isblank(*list))
+			list++;
+		if (*list == '\0')
+			return -1;
+		errno = 0;
+		value = strtol(list, &end, 10);
+		if (errno || end == NULL)
+			return -1;
+		if (value < 0 || value >= maxsize)
+			return -1;
+		while (isblank(*end))
+			end++;
+		if (*end == '-') {
+			min = value;
+		} else if ((*end == ',') || (*end == '\0')) {
+			max = value;
+			if (min == maxsize)
+				min = value;
+			for (i = min; i <= max; i++) {
+				if (count < maxsize) {
+					if (marked[i])
+						continue;
+					values[count] = i;
+					marked[i] = 1;
+					count++;
+				}
+			}
+			min = maxsize;
+		} else
+			return -1;
+		list = end + 1;
+	} while (*end != '\0');
+
+	if (count == 0)
+		return -1;
+	return count;
+}
+
+void
+parse_fwd_portlist(const char *portlist)
+{
+	int portcount;
+	unsigned int portindex[RTE_MAX_ETHPORTS];
+	int i, valid_port_count = 0;
+
+	portcount = parse_port_list(portlist, portindex, RTE_MAX_ETHPORTS);
+	if (portcount < 0)
+		rte_exit(EXIT_FAILURE, "Invalid fwd port list\n");
+
+	/*
+	 * Here we verify the validity of the ports
+	 * and thereby calculate the total number of
+	 * valid ports
+	 */
+	for (i = 0; i < portcount && valid_port_count < portcount; i++) {
+		if (rte_eth_dev_is_valid_port(portindex[i])) {
+			portindex[valid_port_count] = portindex[i];
+			valid_port_count++;
+		}
+	}
+
+	set_fwd_ports_list(portindex, valid_port_count);
+}
+
 void
 set_fwd_ports_mask(uint64_t portmask)
 {
