@@ -195,7 +195,9 @@ vxlan_port_init(uint16_t port, struct rte_mempool *mbuf_pool)
 
 	if (tso_segsz != 0) {
 		struct rte_eth_dev_info dev_info;
-		rte_eth_dev_info_get(port, &dev_info);
+		retval = rte_eth_dev_info_get(port, &dev_info);
+		if (retval != 0)
+			return retval;
 		if ((dev_info.tx_offload_capa & DEV_TX_OFFLOAD_TCP_TSO) == 0)
 			RTE_LOG(WARNING, PORT,
 				"hardware TSO offload is not supported\n");
