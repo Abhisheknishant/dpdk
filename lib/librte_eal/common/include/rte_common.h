@@ -94,6 +94,12 @@ typedef uint16_t unaligned_uint16_t;
  */
 #define RTE_SET_USED(x) (void)(x)
 
+/**
+ * Hint type checking for printf-style arguments.
+ */
+#define __rte_format_printf(fmt_idx, args_idx) \
+	__attribute__((format(printf, fmt_idx, args_idx)))
+
 #define RTE_PRIORITY_LOG 101
 #define RTE_PRIORITY_BUS 110
 #define RTE_PRIORITY_CLASS 120
@@ -803,7 +809,7 @@ rte_str_to_size(const char *str)
  */
 __rte_noreturn void
 rte_exit(int exit_code, const char *format, ...)
-	__attribute__((format(printf, 2, 3)));
+	__rte_format_printf(2, 3);
 
 #ifdef __cplusplus
 }
