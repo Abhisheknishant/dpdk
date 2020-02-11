@@ -1038,8 +1038,9 @@ i40e_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts, uint16_t nb_pkts)
 	txe = &sw_ring[tx_id];
 
 	/* Check if the descriptor ring needs to be cleaned. */
-	if (txq->nb_tx_free < txq->tx_free_thresh)
-		i40e_xmit_cleanup(txq);
+	if ((txq->nb_tx_free < txq->tx_free_thresh) &&
+	    (i40e_xmit_cleanup(txq) != 0))
+		return 0;
 
 	for (nb_tx = 0; nb_tx < nb_pkts; nb_tx++) {
 		td_cmd = 0;
