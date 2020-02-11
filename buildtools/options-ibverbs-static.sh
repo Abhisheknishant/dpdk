@@ -9,6 +9,12 @@
 #
 # PKG_CONFIG_PATH may be required to be set if libibverbs.pc is not installed.
 
-pkg-config --libs-only-l --static libibverbs |
+lib='libibverbs'
+deps='pthread|nl'
+
+pkg-config --libs --static $lib |
 	tr '[:space:]' '\n' |
-	sed -r '/^-l(pthread|nl)/! s,(^-l)(.*),\1:lib\2.a,'
+	sed -r "/^-l($deps)/! s,(^-l)(.*),\1:lib\2.a," |   # explicit .a
+	sed -n '/^-[Ll]/p' |   # extra link options may break with make
+	sed "/$lib/d"   # move main lib at the end
+echo -l:$lib.a
