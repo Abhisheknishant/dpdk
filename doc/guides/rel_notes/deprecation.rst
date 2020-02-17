@@ -72,6 +72,12 @@ Deprecation Notices
   In 19.11 PMDs will still update the field even when the offload is not
   enabled.
 
+* ethdev: Split the ``struct eth_dev_ops`` struct to hide it as much as possible.
+  Currently the ``struct eth_dev_ops`` struct is accessible by the application
+  because some inline functions, like ``rte_eth_tx_descriptor_status()``,
+  access the struct directly. The struct will be separate in two, the ops used
+  by inline functions still will be accessible to user but rest will be hidden.
+
 * cryptodev: support for using IV with all sizes is added, J0 still can
   be used but only when IV length in following structs ``rte_crypto_auth_xform``,
   ``rte_crypto_aead_xform`` is set to zero. When IV length is greater or equal
