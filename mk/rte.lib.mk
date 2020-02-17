@@ -15,8 +15,8 @@ LIBABIVER ?= $(shell cat $(RTE_SRCDIR)/ABI_VERSION)
 SOVER := $(basename $(LIBABIVER))
 ifeq ($(shell grep -s "^DPDK_" $(SRCDIR)/$(EXPORT_MAP)),)
 # EXPERIMENTAL ABI is versioned as 0.major+minor, e.g. 0.201 for 20.1 ABI
-LIBABIVER := 0.$(shell echo $(LIBABIVER) | tr -d '.')
-SOVER := 0.$(shell echo $(SOVER) | tr -d '.')
+LIBABIVER := 0.$(shell echo $(LIBABIVER) | cut -d '.' -f1,3 | tr -d '.')
+SOVER := 0.$(shell echo $(SOVER) | cut -d '.' -f1)
 endif
 
 ifeq ($(CONFIG_RTE_BUILD_SHARED_LIB),y)
