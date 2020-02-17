@@ -38,6 +38,28 @@ if [ "$AARCH64" != "1" ]; then
 fi
 
 if [ "$ABI_CHECKS" = "1" ]; then
+    LIBABIGAIL_REPO=${LIBABIGAIL_REPO:-https://sourceware.org/git/libabigail.git}
+    LIBABIGAIL_VERSION=${LIBABIGAIL_VERSION:-libabigail-1.6}
+
+    if [ "$(cat libabigail/VERSION 2>/dev/null)" != "$LIBABIGAIL_VERSION" ]; then
+        rm -rf libabigail
+        # if we change libabigail, invalidate existing abi cache
+        rm -rf reference
+    fi
+
+    if [ ! -d libabigail ]; then
+        git clone --single-branch -b $LIBABIGAIL_VERSION $LIBABIGAIL_REPO libabigail/src
+        cd libabigail/src && autoconf -vfi && cd -
+        mkdir libabigail/src/build
+        cd libabigail/src/build && ../configure --prefix=$(pwd)/libabigail && cd -
+        make -C libabigail/src/build all install
+
+        rm -rf libabigail/src
+        echo $LIBABIGAIL_VERSION > libabigail/VERSION
+    fi
+
+    export PATH=$(pwd)/libabigail/bin:$PATH
+
     REF_GIT_REPO=${REF_GIT_REPO:-https://dpdk.org/git/dpdk}
     REF_GIT_TAG=${REF_GIT_TAG:-v19.11}
 
