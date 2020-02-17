@@ -66,10 +66,12 @@ asprintf(char **buffer, const char *format, ...)
 	va_start(arg, format);
 	size = vsnprintf(NULL, 0, format, arg) + 1;
 	va_end(arg);
+	if (size < 0)
+		return -1;
 
 	*buffer = malloc(size);
-	if (buffer == NULL)
-		printf("Cannot allocate memory");
+	if (*buffer == NULL)
+		return -1;
 
 	va_start(arg, format);
 	ret = vsnprintf(*buffer, size, format, arg);
