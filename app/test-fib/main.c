@@ -363,6 +363,7 @@ static void
 gen_random_rt_6(struct rt_rule_6 *rt, int nh_sz)
 {
 	uint32_t i, j, k = 0;
+	int a;
 
 	if (config.nb_routes_per_depth[0] != 0) {
 		memset(rt[k].addr, 0, 16);
@@ -370,7 +371,7 @@ gen_random_rt_6(struct rt_rule_6 *rt, int nh_sz)
 		rt[k++].nh = rte_rand() & get_max_nh(nh_sz);
 	}
 
-	for (int a = 0; a < 4; a++) {
+	for (a = 0; a < 4; a++) {
 		for (i = 1; i <= 32; i++) {
 			uint32_t rnd;
 			double edge = 0;

@@ -27,6 +27,8 @@ static struct _wcpu_map {
 void
 eal_create_cpu_map()
 {
+	unsigned int socket, core, lcore;
+
 	wcpu_map.total_procs =
 		GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
 
@@ -53,10 +55,9 @@ eal_create_cpu_map()
 	 * across the logical cores. For now, split the cores
 	 * equally across the sockets.
 	 */
-	unsigned int lcore = 0;
-	for (unsigned int socket = 0; socket <
-			wcpu_map.proc_sockets; ++socket) {
-		for (unsigned int core = 0;
+	lcore = 0;
+	for (socket = 0; socket < wcpu_map.proc_sockets; ++socket) {
+		for (core = 0;
 			core < (wcpu_map.proc_cores / wcpu_map.proc_sockets);
 			++core) {
 			wcpu_map.wlcore_map[lcore]
