@@ -1062,8 +1062,15 @@ rte_eal_init(int argc, char **argv)
 
 	/* if no EAL option "--iova-mode=<pa|va>", use bus IOVA scheme */
 	if (internal_config.iova_mode == RTE_IOVA_DC) {
+
 		/* autodetect the IOVA mapping mode */
 		enum rte_iova_mode iova_mode = rte_bus_get_iommu_class();
+
+		if (iova_mode == RTE_IOVA_PA && !rte_eal_has_hugepages()) {
+			iova_mode = RTE_IOVA_VA;
+			RTE_LOG(WARNING, EAL, "Some buses want 'PA' but forcing 'VA' because --no-huge is requested.\n");
+			RTE_LOG(WARNING, EAL, "Not all buses may be able to initialize.\n");
+		}
 
 		if (iova_mode == RTE_IOVA_DC) {
 			RTE_LOG(DEBUG, EAL, "Buses did not request a specific IOVA mode.\n");
@@ -1109,6 +1116,13 @@ rte_eal_init(int argc, char **argv)
 	} else {
 		rte_eal_get_configuration()->iova_mode =
 			internal_config.iova_mode;
+	}
+
+	if (rte_eal_iova_mode() == RTE_IOVA_PA &&
+	    rte_eal_has_hugepages() == 0) {
+		rte_eal_init_alert("Cannot use IOVA as 'PA' with --no-huge");
+		rte_errno = EINVAL;
+		return -1;
 	}
 
 	if (rte_eal_iova_mode() == RTE_IOVA_PA && !phys_addrs) {
