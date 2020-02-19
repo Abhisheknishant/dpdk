@@ -328,6 +328,23 @@ enum mlx5_feature_name {
 #define MLX5_GENEVE_OPT_LEN_0 14
 #define MLX5_GENEVE_OPT_LEN_1 63
 
+/* Software header modify action numbers of a flow. */
+#define MLX5_ACT_NUM_MDF_IPV4		1
+#define MLX5_ACT_NUM_MDF_IPV6		4
+#define MLX5_ACT_NUM_MDF_MAC		2
+#define MLX5_ACT_NUM_MDF_VID		1
+#define MLX5_ACT_NUM_MDF_PORT		2
+#define MLX5_ACT_NUM_MDF_TTL		1
+#define MLX5_ACT_NUM_DEC_TTL		MLX5_ACT_NUM_MDF_TTL
+#define MLX5_ACT_NUM_MDF_TCPSEQ		1
+#define MLX5_ACT_NUM_MDF_TCPACK		1
+#define MLX5_ACT_NUM_SET_REG		1
+#define MLX5_ACT_NUM_SET_TAG		0
+#define MLX5_ACT_NUM_CPY_MREG		MLX5_ACT_NUM_SET_TAG
+#define MLX5_ACT_NUM_SET_MARK		1
+#define MLX5_ACT_NUM_SET_META		1
+#define MLX5_ACT_NUM_SET_DSCP		1
+
 enum mlx5_flow_drv_type {
 	MLX5_FLOW_TYPE_MIN,
 	MLX5_FLOW_TYPE_DV,
