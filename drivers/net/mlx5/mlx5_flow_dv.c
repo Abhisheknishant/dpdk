@@ -5212,19 +5212,27 @@ flow_dv_translate_item_eth(void *matcher, void *key,
 	/* The value must be in the range of the mask. */
 	for (i = 0; i < sizeof(eth_m->dst); ++i)
 		l24_v[i] = eth_m->src.addr_bytes[i] & eth_v->src.addr_bytes[i];
-	MLX5_SET(fte_match_set_lyr_2_4, headers_m, ethertype,
-		 rte_be_to_cpu_16(eth_m->type));
-	l24_v = MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v, ethertype);
-	*(uint16_t *)(l24_v) = eth_m->type & eth_v->type;
 	if (eth_v->type) {
 		/* When ethertype is present set mask for tagged VLAN. */
 		MLX5_SET(fte_match_set_lyr_2_4, headers_m, cvlan_tag, 1);
 		/* Set value for tagged VLAN if ethertype is 802.1Q. */
 		if (eth_v->type == RTE_BE16(RTE_ETHER_TYPE_VLAN) ||
-		    eth_v->type == RTE_BE16(RTE_ETHER_TYPE_QINQ))
+		    eth_v->type == RTE_BE16(RTE_ETHER_TYPE_QINQ)) {
 			MLX5_SET(fte_match_set_lyr_2_4, headers_v, cvlan_tag,
 				 1);
+			/* Return here to avoid setting match on ethertype. */
+			return;
+		}
 	}
+	/*
+	 * HW supports match on one Ethertype, the Ethertype following the last
+	 * VLAN tag of the packet (see PRM).
+	 * Set match on ethertype only if ETH header is not followed by VLAN.
+	 */
+	MLX5_SET(fte_match_set_lyr_2_4, headers_m, ethertype,
+		 rte_be_to_cpu_16(eth_m->type));
+	l24_v = MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v, ethertype);
+	*(uint16_t *)(l24_v) = eth_m->type & eth_v->type;
 }
 
 /**
