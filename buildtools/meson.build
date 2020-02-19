@@ -6,6 +6,7 @@ subdir('pmdinfogen')
 pkgconf = find_program('pkg-config', 'pkgconf', required: false)
 pmdinfo = find_program('gen-pmdinfo-cfile.sh')
 list_dir_globs = find_program('list-dir-globs.py')
+group_libs = find_program('group-libs.sh')
 check_experimental_syms = find_program('check-experimental-syms.sh')
 ldflags_ibverbs_static = find_program('options-ibverbs-static.sh')
 
