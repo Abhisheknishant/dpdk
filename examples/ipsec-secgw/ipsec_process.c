@@ -286,7 +286,7 @@ ipsec_process(struct ipsec_ctx *ctx, struct ipsec_traffic *trf)
 	struct ipsec_sa *sa;
 	struct rte_ipsec_group *pg;
 	struct rte_ipsec_session *ips;
-	struct rte_ipsec_group grp[RTE_DIM(trf->ipsec.pkts)];
+	struct rte_ipsec_group grp[RTE_DIM(trf->ipsec.pkts)] = {};
 
 	n = sa_group(trf->ipsec.saptr, trf->ipsec.pkts, grp, trf->ipsec.num);
 
