@@ -2642,7 +2642,7 @@ parse_port_list(const char *list, unsigned int *values, unsigned int maxsize)
 	unsigned int marked[maxsize];
 
 	if (list == NULL || values == NULL)
-		return -1;
+		return 0;
 
 	for (i = 0; i < (int)maxsize; i++)
 		marked[i] = 0;
