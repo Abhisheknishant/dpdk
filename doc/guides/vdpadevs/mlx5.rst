@@ -6,7 +6,7 @@ MLX5 vDPA driver
 
 The MLX5 vDPA (vhost data path acceleration) driver library
 (**librte_pmd_mlx5_vdpa**) provides support for **Mellanox ConnectX-6**,
-**Mellanox ConnectX-6DX** and **Mellanox BlueField** families of
+**Mellanox ConnectX-6 Dx** and **Mellanox BlueField** families of
 10/25/40/50/100/200 Gb/s adapters as well as their virtual functions (VF) in
 SR-IOV context.
 
@@ -49,8 +49,8 @@ Supported NICs
 --------------
 
 * Mellanox(R) ConnectX(R)-6 200G MCX654106A-HCAT (4x200G)
-* Mellanox(R) ConnectX(R)-6DX EN 100G MCX623106AN-CDAT (2*100G)
-* Mellanox(R) ConnectX(R)-6DX EN 200G MCX623105AN-VDAT (1*200G)
+* Mellanox(R) ConnectX(R)-6 Dx EN 100G MCX623106AN-CDAT (2*100G)
+* Mellanox(R) ConnectX(R)-6 Dx EN 200G MCX623105AN-VDAT (1*200G)
 * Mellanox(R) BlueField SmartNIC 25G MBF1M332A-ASCAT (2*25G)
 
 Prerequisites
