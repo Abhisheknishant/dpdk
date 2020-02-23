@@ -215,6 +215,17 @@ Limitations
   - Rx queue with LRO offload enabled, receiving a non-LRO packet, can forward
     it with size limited to max LRO size, not to max RX packet length.
 
+- Decap / raw_decap:
+
+ - The decap is always done up to the first HW detected tunnel.
+ - Decap buffer is not validated, only matters for deciding the decap type
+   l3/l2 decap using the buffer size.
+
+- Encap / raw_encap:
+
+ - No validation is done on the encap buffer, it's user responsibility to
+   provide valid buffer.
+
 Statistics
 ----------
 
