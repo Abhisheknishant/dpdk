@@ -83,57 +83,18 @@ bad=$(echo "$headlines" | grep --color=always \
 	| sed 's,^,\t,')
 [ -z "$bad" ] || printf "Wrong headline uppercase:\n$bad\n"
 
-# check headline uppercase (Rx/Tx, VF, L2, MAC, Linux, ARM...)
-bad=$(echo "$headlines" | grep -E --color=always \
-	-e ':.*\<(rx|tx|RX|TX)\>' \
-	-e ':.*\<[pv]f\>' \
-	-e ':.*\<[hsf]w\>' \
-	-e ':.*\<l[234]\>' \
-	-e ':.*\<api\>' \
-	-e ':.*\<ARM\>' \
-	-e ':.*\<(Aarch64|AArch64|AARCH64|Aarch32|AArch32|AARCH32)\>' \
-	-e ':.*\<(Armv7|ARMv7|ArmV7|armV7|ARMV7)\>' \
-	-e ':.*\<(Armv8|ARMv8|ArmV8|armV8|ARMV8)\>' \
-	-e ':.*\<crc\>' \
-	-e ':.*\<dcb\>' \
-	-e ':.*\<dma\>' \
-	-e ':.*\<eeprom\>' \
-	-e ':.*\<freebsd\>' \
-	-e ':.*\<iova\>' \
-	-e ':.*\<lacp\>' \
-	-e ':.*\<linux\>' \
-	-e ':.*\<lro\>' \
-	-e ':.*\<lsc\>' \
-	-e ':.*\<mac\>' \
-	-e ':.*\<mss\>' \
-	-e ':.*\<mtu\>' \
-	-e ':.*\<nic\>' \
-	-e ':.*\<nvm\>' \
-	-e ':.*\<numa\>' \
-	-e ':.*\<pci\>' \
-	-e ':.*\<phy\>' \
-	-e ':.*\<pmd\>' \
-	-e ':.*\<reta\>' \
-	-e ':.*\<rss\>' \
-	-e ':.*\<sctp\>' \
-	-e ':.*\<tos\>' \
-	-e ':.*\<tpid\>' \
-	-e ':.*\<tso\>' \
-	-e ':.*\<ttl\>' \
-	-e ':.*\<udp\>' \
-	-e ':.*\<[Vv]lan\>' \
-	-e ':.*\<vdpa\>' \
-	-e ':.*\<vsi\>' \
-	| grep \
-	-v ':.*\<OCTEON\ TX\>' \
-	| sed 's,^,\t,')
-[ -z "$bad" ] || printf "Wrong headline lowercase:\n$bad\n"
-
-# special case check for VMDq to give good error message
-bad=$(echo "$headlines" | grep -E --color=always \
-	-e '\<(vmdq|VMDQ)\>' \
-	| sed 's,^,\t,')
-[ -z "$bad" ] || printf "Wrong headline capitalization, use 'VMDq':\n$bad\n"
+# check headline case (Rx/Tx, VF, L2, MAC, Linux ...)
+words="$selfdir/words-case.txt"
+for word in $(cat $words); do
+	bad=$(echo "$headlines" | grep -iw $word | grep -v $word)
+	if [ "$word" = "Tx" ]; then
+		bad=$(echo $bad | grep -v 'OCTEON\ TX')
+	fi
+	if [ -n "$bad" ]; then
+		bad_word=$(echo $bad | grep -io $word)
+		printf "Wrong headline case:\n\"$bad\": $bad_word --> $word\n"
+	fi
+done
 
 # check headline length (60 max)
 bad=$(echo "$headlines" |
