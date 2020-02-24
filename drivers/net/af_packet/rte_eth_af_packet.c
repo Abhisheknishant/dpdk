@@ -6,6 +6,7 @@
  * All rights reserved.
  */
 
+#include <rte_config.h>
 #include <rte_string_fns.h>
 #include <rte_mbuf.h>
 #include <rte_ethdev_driver.h>
@@ -37,7 +38,9 @@
 #define DFLT_FRAME_SIZE		(1 << 11)
 #define DFLT_FRAME_COUNT	(1 << 9)
 
+#ifndef RTE_PMD_AF_PACKET_MAX_RINGS
 #define RTE_PMD_AF_PACKET_MAX_RINGS 16
+#endif
 
 struct pkt_rx_queue {
 	int sockfd;
