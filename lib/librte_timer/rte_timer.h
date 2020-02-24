@@ -101,7 +101,7 @@ struct rte_timer
 {
 	uint64_t expire;       /**< Time when timer expire. */
 	struct rte_timer *sl_next[MAX_SKIPLIST_DEPTH];
-	volatile union rte_timer_status status; /**< Status of timer. */
+	union rte_timer_status status; /**< Status of timer. */
 	uint64_t period;       /**< Period of timer (0 if not periodic). */
 	rte_timer_cb_t f;      /**< Callback function. */
 	void *arg;             /**< Argument to callback function. */
