@@ -235,6 +235,11 @@ New Features
   Added document describes how to enable DPDK on OpenWrt in both virtual and
   physical machine.
 
+* **Added DSCP rewrite action.**
+
+  New actions ``RTE_FLOW_ACTION_TYPE_SET_[IPV4/IPV6]_DSCP`` have been added
+  to support rewrite the DSCP field in the IP header.
+
 
 Removed Items
 -------------
