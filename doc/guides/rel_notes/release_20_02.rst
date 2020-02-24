@@ -65,6 +65,10 @@ New Features
 
   New APIs have been added to support rings with custom element size.
 
+* **Added rte_mbuf pool with Pinned External Memory.**
+
+  Added support for new type of pktsmbuf pool.
+
 * **Updated rte_flow api to support L2TPv3 over IP flows.**
 
   Added support for new flow item to handle L2TPv3 over IP rte_flow patterns.
@@ -132,6 +136,7 @@ New Features
 
   * Added support for RSS using L3/L4 source/destination only.
   * Added support for matching on GTP tunnel header item.
+  * Added support for the mbufs with external pinned buffers.
   * Removed limitation of matching on tagged/untagged packets (when using DV flow engine).
   * Added BlueField-2 integrated ConnectX-6 Dx device support.
 

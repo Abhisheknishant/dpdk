@@ -240,6 +240,40 @@ the memory pool for indirect buffers should be configured to indicate the reduce
 Examples of the initialization of a memory pool for indirect buffers (as well as use case examples for indirect buffers)
 can be found in several of the sample applications, for example, the IPv4 Multicast sample application.
 
+.. _external_pinned_buffer:
+
+External Pinned Buffers
+-----------------------
+
+The regular pktmbuf pools contain only mbufs with no external buffers.
+This means data buffer for the mbuf should be placed right after the
+mbuf structure (and the private data if any).
+
+On some cases, the application would want to have the buffers allocated
+from a different device in the platform. This is in order to do zero
+copy for the packet directly to the device memory. Examples for such
+devices can be GPU or storage device. For such cases the regular pktmbuf
+pool does not fit since each mbuf would need to point to external
+buffer.
+
+To support above, the new type of pktmbuf pool is introduced - the pktmbuf
+pool with pinned external memory. The pool of such type is populated with
+mbufs pointing to the device buffers using the mbuf external buffer feature.
+The PMD populates its receive queues with those buffers, so that
+every packet received will be scattered directly to the device memory.
+On the other direction, embedding the buffer pointer to the transmit
+queues of the NIC, will make the DMA to fetch device memory
+using peer to peer communication.
+
+Such mbuf with external buffer should be handled with care when mbuf is
+freed. Mainly the external buffer should not be detached, so that it can
+be reused for the next packet receive. To support this pool feature the PMDs
+should be aware that pool mbuf allocator might return the buffers with
+EXT_ATTACHED_MBUF flag set.
+
+To create the pktmbuf pool with the pinned external memory the dedicated
+routine rte_pktmbuf_pool_create_extbuf() is provided.
+
 Debug
 -----
 
