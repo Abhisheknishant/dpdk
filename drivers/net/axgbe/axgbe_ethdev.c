@@ -789,11 +789,17 @@ axgbe_dev_info_get(struct rte_eth_dev *dev, struct rte_eth_dev_info *dev_info)
 		DEV_RX_OFFLOAD_IPV4_CKSUM |
 		DEV_RX_OFFLOAD_UDP_CKSUM  |
 		DEV_RX_OFFLOAD_TCP_CKSUM  |
+		DEV_RX_OFFLOAD_JUMBO_FRAME	|
+		DEV_RX_OFFLOAD_SCATTER	  |
 		DEV_RX_OFFLOAD_KEEP_CRC;
 
 	dev_info->tx_offload_capa =
 		DEV_TX_OFFLOAD_IPV4_CKSUM  |
 		DEV_TX_OFFLOAD_UDP_CKSUM   |
+		DEV_TX_OFFLOAD_OUTER_IPV4_CKSUM |
+		DEV_TX_OFFLOAD_UDP_TSO		|
+		DEV_TX_OFFLOAD_SCTP_CKSUM	|
+		DEV_TX_OFFLOAD_MULTI_SEGS	|
 		DEV_TX_OFFLOAD_TCP_CKSUM;
 
 	if (pdata->hw_feat.rss) {
@@ -1018,9 +1024,19 @@ eth_axgbe_dev_init(struct rte_eth_dev *eth_dev)
 	struct rte_pci_device *pci_dev;
 	uint32_t reg, mac_lo, mac_hi;
 	int ret;
+	struct rte_eth_dev_info dev_info = { 0 };
 
 	eth_dev->dev_ops = &axgbe_eth_dev_ops;
-	eth_dev->rx_pkt_burst = &axgbe_recv_pkts;
+	eth_dev->dev_ops->dev_infos_get(eth_dev, &dev_info);
+
+	if (dev_info.rx_offload_capa & DEV_RX_OFFLOAD_SCATTER)
+		eth_dev->data->scattered_rx = 1;
+
+	/*  Scatter Rx handling */
+	if (eth_dev->data->scattered_rx)
+		eth_dev->rx_pkt_burst = &eth_axgbe_recv_scattered_pkts;
+	else
+		eth_dev->rx_pkt_burst = &axgbe_recv_pkts;
 
 	/*
 	 * For secondary processes, we don't initialise any further as primary
