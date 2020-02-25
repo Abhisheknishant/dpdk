@@ -237,6 +237,64 @@ fast_test_names = [
         'thash_autotest',
 ]
 
+nohuge_test_names = [
+        'alarm_autotest',
+        'byteorder_autotest',
+        'cmdline_autotest',
+        'common_autotest',
+        'cpuflags_autotest',
+        'cycles_autotest',
+        'debug_autotest',
+        'eal_flags_n_opt_autotest',
+        'eal_flags_no_huge_autotest',
+        'eal_flags_vdev_opt_autotest',
+        'eal_fs_autotest',
+        'errno_autotest',
+        'event_ring_autotest',
+        'fib_autotest',
+        'fib6_autotest',
+        'interrupt_autotest',
+        'logs_autotest',
+        'lpm_autotest',
+        'lpm6_autotest',
+        'mbuf_autotest',
+        'memcpy_autotest',
+        'memory_autotest',
+        'meter_autotest',
+        'multiprocess_autotest',
+        'per_lcore_autotest',
+        'prefetch_autotest',
+        'rcu_qsbr_autotest',
+        'red_autotest',
+        'rib_autotest',
+        'rib6_autotest',
+        'ring_autotest',
+        'rwlock_rda_autotest',
+        'rwlock_rds_wrm_autotest',
+        'rwlock_rde_wro_autotest',
+        'sched_autotest',
+        'spinlock_autotest',
+        'string_autotest',
+        'tailq_autotest',
+        'user_delay_us',
+        'version_autotest',
+        'crc_autotest',
+        'delay_us_sleep_autotest',
+        'eventdev_common_autotest',
+        'fbarray_autotest',
+        'ipsec_autotest',
+        'kni_autotest',
+        'kvargs_autotest',
+        'member_autotest',
+        'metrics_autotest',
+        'power_cpufreq_autotest',
+        'power_autotest',
+        'power_kvm_vm_autotest',
+        'reorder_autotest',
+        'service_autotest',
+        'thash_autotest',
+]
+
 perf_test_names = [
         'ring_perf_autotest',
         'mempool_perf_autotest',
@@ -341,6 +399,10 @@ if dpdk_conf.has('RTE_LIBRTE_RING_PMD')
 	fast_test_names += 'latencystats_autotest'
 	driver_test_names += 'link_bonding_mode4_autotest'
 	fast_test_names += 'pdump_autotest'
+	nohuge_test_names += 'ring_pmd_autotest'
+	nohuge_test_names += 'bitratestats_autotest'
+	nohuge_test_names += 'latencystats_autotest'
+	nohuge_test_names += 'pdump_autotest'
 endif
 
 if dpdk_conf.has('RTE_LIBRTE_POWER')
@@ -427,6 +489,19 @@ foreach arg : fast_test_names
 		timeout : timeout_seconds_fast,
 		is_parallel : false,
 		suite : 'fast-tests')
+	endif
+endforeach
+
+foreach arg : nohuge_test_names
+	if host_machine.system() == 'linux'
+		test(arg, dpdk_test,
+			  env : ['DPDK_TEST=' + arg],
+			  args : test_args +
+				 ['--no-huge'] + ['-m 1024'] +
+				 ['--file-prefix=@0@'.format(arg)],
+		timeout : timeout_seconds_fast,
+		is_parallel : false,
+		suite : 'nohuge-tests')
 	endif
 endforeach
 
