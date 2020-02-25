@@ -503,12 +503,10 @@ ice_hash_create(struct ice_adapter *ad,
 
 out:
 	flow->rule = filter_ptr;
-	rte_free(meta);
 	return 0;
 
 error:
 	rte_free(filter_ptr);
-	rte_free(meta);
 	return -rte_errno;
 }
 

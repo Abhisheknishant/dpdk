@@ -249,13 +249,10 @@ ice_switch_create(struct ice_adapter *ad,
 	}
 
 	rte_free(list);
-	rte_free(meta);
 	return 0;
 
 error:
 	rte_free(list);
-	rte_free(meta);
-
 	return -rte_errno;
 }
 
