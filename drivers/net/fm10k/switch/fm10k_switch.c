@@ -31,6 +31,10 @@ static struct fm10k_switch fm10k_sw;
 #define FM10K_LED_POLL_INTERVAL_MS		500
 #define FM10K_LED_BLINKS_PER_SECOND		2
 
+/* Max try times to acquire switch status */
+#define FM10K_QUERY_SWITCH_STATE_TIMES		10
+/* Wait interval to get switch status */
+#define FM10K_WAIT_SWITCH_MSG_US		100000
 
 /*
  * use epl as external port map, only support QUAD_ON
@@ -1914,6 +1918,19 @@ fm10k_switch_start(struct fm10k_switch *sw,
 		}
 	}
 
+	/* Make sure Switch Manager is ready before going forward. */
+	for (i = 0; i < FM10K_QUERY_SWITCH_STATE_TIMES; i++) {
+		if (master_hw->switch_ready)
+			break;
+		/* Delay some time to acquire async LPORT_MAP info. */
+		rte_delay_us(FM10K_WAIT_SWITCH_MSG_US);
+	}
+
+	if (!master_hw->switch_ready) {
+		PMD_INIT_LOG(ERR, "switch is not ready");
+		return -1;
+	}
+
 	/* do initialize all ports, after switch is ready */
 	for (i = 0; i < FM10K_SW_LOGICAL_PORTS_MAX; i++) {
 		uint32_t sglort;
@@ -1941,8 +1958,9 @@ fm10k_switch_start(struct fm10k_switch *sw,
 				return -1;
 			}
 			hw->mac.dglort_map = sglort | 0xffff0000;
+			hw->switch_ready = master_hw->switch_ready;
+			func(hw);
 		}
-		func(hw);
 	}
 	return 0;
 }
