@@ -1062,7 +1062,9 @@ i40e_flow_fdir_fill_eth_ip_head(struct i40e_pf *pf,
 		[I40E_FILTER_PCTYPE_NONF_IPV6_OTHER] = IPPROTO_NONE,
 	};
 
-	raw_pkt += 2 * sizeof(struct rte_ether_addr);
+	rte_memcpy(raw_pkt, &fdir_input->flow.l2_flow.dst,
+			sizeof(struct rte_ether_addr));
+	raw_pkt += sizeof(struct rte_ether_addr);
 	if (vlan && fdir_input->flow_ext.vlan_tci) {
 		rte_memcpy(raw_pkt, vlan_frame, sizeof(vlan_frame));
 		rte_memcpy(raw_pkt + sizeof(uint16_t),
@@ -1085,7 +1087,7 @@ i40e_flow_fdir_fill_eth_ip_head(struct i40e_pf *pf,
 	}
 
 	if (pctype == I40E_FILTER_PCTYPE_L2_PAYLOAD)
-		*ether_type = fdir_input->flow.l2_flow.ether_type;
+		*ether_type = fdir_input->flow.l2_flow.i40e_l2_flow.ether_type;
 	else if (pctype == I40E_FILTER_PCTYPE_NONF_IPV4_TCP ||
 		 pctype == I40E_FILTER_PCTYPE_NONF_IPV4_UDP ||
 		 pctype == I40E_FILTER_PCTYPE_NONF_IPV4_SCTP ||
@@ -1271,7 +1273,7 @@ i40e_flow_fdir_construct_pkt(struct i40e_pf *pf,
 		 * ARP packet is a special case on which the payload
 		 * starts after the whole ARP header
 		 */
-		if (fdir_input->flow.l2_flow.ether_type ==
+		if (fdir_input->flow.l2_flow.i40e_l2_flow.ether_type ==
 				rte_cpu_to_be_16(RTE_ETHER_TYPE_ARP))
 			payload += sizeof(struct rte_arp_hdr);
 		set_idx = I40E_FLXPLD_L2_IDX;

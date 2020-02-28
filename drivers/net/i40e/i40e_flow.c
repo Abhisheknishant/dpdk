@@ -2595,6 +2595,7 @@ i40e_flow_parse_fdir_pattern(struct rte_eth_dev *dev,
 	uint32_t vtc_flow_cpu;
 	bool outer_ip = true;
 	int ret;
+	uint16_t flow_type;
 
 	memset(off_arr, 0, sizeof(off_arr));
 	memset(len_arr, 0, sizeof(len_arr));
@@ -2626,8 +2627,16 @@ i40e_flow_parse_fdir_pattern(struct rte_eth_dev *dev,
 			}
 
 			if (eth_spec && eth_mask) {
-				if (!rte_is_zero_ether_addr(&eth_mask->src) ||
-				    !rte_is_zero_ether_addr(&eth_mask->dst)) {
+				if (next_type == RTE_FLOW_ITEM_TYPE_END &&
+				rte_is_broadcast_ether_addr(&eth_mask->dst) &&
+				rte_is_zero_ether_addr(&eth_mask->src) &&
+				rte_is_zero_ether_addr(&eth_spec->src)) {
+					cons_filter.fdir_filter.fdir_dst_mac_rule = true;
+					filter->input.flow.l2_flow.dst =
+						eth_spec->dst;
+					input_set |= I40E_INSET_DMAC;
+				} else if (!rte_is_zero_ether_addr(&eth_mask->src) ||
+				!rte_is_zero_ether_addr(&eth_mask->dst)) {
 					rte_flow_error_set(error, EINVAL,
 						      RTE_FLOW_ERROR_TYPE_ITEM,
 						      item,
@@ -2658,7 +2667,7 @@ i40e_flow_parse_fdir_pattern(struct rte_eth_dev *dev,
 					return -rte_errno;
 				}
 				input_set |= I40E_INSET_LAST_ETHER_TYPE;
-				filter->input.flow.l2_flow.ether_type =
+				filter->input.flow.l2_flow.i40e_l2_flow.ether_type =
 					eth_spec->type;
 			}
 
@@ -2703,7 +2712,7 @@ i40e_flow_parse_fdir_pattern(struct rte_eth_dev *dev,
 					return -rte_errno;
 				}
 				input_set |= I40E_INSET_LAST_ETHER_TYPE;
-				filter->input.flow.l2_flow.ether_type =
+				filter->input.flow.l2_flow.i40e_l2_flow.ether_type =
 					vlan_spec->inner_type;
 			}
 
@@ -3217,41 +3226,96 @@ i40e_flow_parse_fdir_pattern(struct rte_eth_dev *dev,
 
 	/* If customized pctype is not used, set fdir configuration.*/
 	if (!filter->input.flow_ext.customized_pctype) {
-		ret = i40e_flow_set_fdir_inset(pf, pctype, input_set);
-		if (ret == -1) {
-			rte_flow_error_set(error, EINVAL,
-					   RTE_FLOW_ERROR_TYPE_ITEM, item,
-					   "Conflict with the first rule's input set.");
-			return -rte_errno;
-		} else if (ret == -EINVAL) {
-			rte_flow_error_set(error, EINVAL,
-					   RTE_FLOW_ERROR_TYPE_ITEM, item,
-					   "Invalid pattern mask.");
-			return -rte_errno;
+		if (filter->fdir_dst_mac_rule) {
+			for (pctype = I40E_FILTER_PCTYPE_NONF_IPV4_UDP;
+				pctype <= I40E_FILTER_PCTYPE_L2_PAYLOAD; pctype++) {
+				flow_type = i40e_pctype_to_flowtype(pf->adapter, pctype);
+
+				if (flow_type == RTE_ETH_FLOW_UNKNOWN)
+					continue;
+
+				ret = i40e_flow_set_fdir_inset(pf,
+					pctype,
+					input_set);
+				if (ret == -1) {
+					rte_flow_error_set(error, EINVAL,
+						RTE_FLOW_ERROR_TYPE_ITEM, item,
+						"Conflict with the first rule's input set.");
+					return -rte_errno;
+				} else if (ret == -EINVAL) {
+					rte_flow_error_set(error, EINVAL,
+						RTE_FLOW_ERROR_TYPE_ITEM, item,
+						"Invalid pattern mask.");
+					return -rte_errno;
+				}
+
+				/* Store flex mask to SW */
+				ret = i40e_flow_store_flex_mask(pf,
+					pctype,
+					flex_mask);
+				if (ret == -1) {
+					rte_flow_error_set(error, EINVAL,
+						RTE_FLOW_ERROR_TYPE_ITEM,
+						item,
+						"Exceed maximal number of bitmasks");
+					return -rte_errno;
+				} else if (ret == -2) {
+					rte_flow_error_set(error, EINVAL,
+						RTE_FLOW_ERROR_TYPE_ITEM,
+						item,
+						"Conflict with the first flexible rule");
+					return -rte_errno;
+				} else if (ret > 0) {
+					cfg_flex_msk = false;
+				}
+
+				if (cfg_flex_pit)
+					i40e_flow_set_fdir_flex_pit(pf,
+						layer_idx, raw_id);
+
+				if (cfg_flex_msk)
+					i40e_flow_set_fdir_flex_msk(pf,
+					pctype);
+			}
+		} else {
+			ret = i40e_flow_set_fdir_inset(pf, pctype, input_set);
+			if (ret == -1) {
+				rte_flow_error_set(error, EINVAL,
+						RTE_FLOW_ERROR_TYPE_ITEM, item,
+						"Conflict with the first rule's input set.");
+				return -rte_errno;
+			} else if (ret == -EINVAL) {
+				rte_flow_error_set(error, EINVAL,
+						RTE_FLOW_ERROR_TYPE_ITEM, item,
+						"Invalid pattern mask.");
+				return -rte_errno;
+			}
+
+			/* Store flex mask to SW */
+			ret = i40e_flow_store_flex_mask(pf, pctype, flex_mask);
+			if (ret == -1) {
+				rte_flow_error_set(error, EINVAL,
+						RTE_FLOW_ERROR_TYPE_ITEM,
+						item,
+						"Exceed maximal number of bitmasks");
+				return -rte_errno;
+			} else if (ret == -2) {
+				rte_flow_error_set(error, EINVAL,
+						RTE_FLOW_ERROR_TYPE_ITEM,
+						item,
+						"Conflict with the first flexible rule");
+				return -rte_errno;
+			} else if (ret > 0) {
+				cfg_flex_msk = false;
+			}
+
+			if (cfg_flex_pit)
+				i40e_flow_set_fdir_flex_pit(pf,
+					layer_idx, raw_id);
+
+			if (cfg_flex_msk)
+				i40e_flow_set_fdir_flex_msk(pf, pctype);
 		}
-
-		/* Store flex mask to SW */
-		ret = i40e_flow_store_flex_mask(pf, pctype, flex_mask);
-		if (ret == -1) {
-			rte_flow_error_set(error, EINVAL,
-					   RTE_FLOW_ERROR_TYPE_ITEM,
-					   item,
-					   "Exceed maximal number of bitmasks");
-			return -rte_errno;
-		} else if (ret == -2) {
-			rte_flow_error_set(error, EINVAL,
-					   RTE_FLOW_ERROR_TYPE_ITEM,
-					   item,
-					   "Conflict with the first flexible rule");
-			return -rte_errno;
-		} else if (ret > 0)
-			cfg_flex_msk = false;
-
-		if (cfg_flex_pit)
-			i40e_flow_set_fdir_flex_pit(pf, layer_idx, raw_id);
-
-		if (cfg_flex_msk)
-			i40e_flow_set_fdir_flex_msk(pf, pctype);
 	}
 
 	filter->input.pctype = pctype;
@@ -4897,6 +4961,8 @@ i40e_flow_create(struct rte_eth_dev *dev,
 	struct i40e_pf *pf = I40E_DEV_PRIVATE_TO_PF(dev->data->dev_private);
 	struct rte_flow *flow;
 	int ret;
+	uint16_t flow_type;
+	enum i40e_filter_pctype pctype;
 
 	flow = rte_zmalloc("i40e_flow", sizeof(struct rte_flow), 0);
 	if (!flow) {
@@ -4920,10 +4986,32 @@ i40e_flow_create(struct rte_eth_dev *dev,
 					i40e_ethertype_filter_list);
 		break;
 	case RTE_ETH_FILTER_FDIR:
-		ret = i40e_flow_add_del_fdir_filter(dev,
-				       &cons_filter.fdir_filter, 1);
-		if (ret)
-			goto free_flow;
+		if (!cons_filter.fdir_filter.fdir_dst_mac_rule) {
+			ret = i40e_flow_add_del_fdir_filter(dev,
+						&cons_filter.fdir_filter, 1);
+			if (ret)
+				goto free_flow;
+
+			flow->rule = TAILQ_LAST(&pf->fdir.fdir_list,
+					i40e_fdir_filter_list);
+			break;
+		}
+
+		for (pctype = I40E_FILTER_PCTYPE_NONF_IPV4_UDP;
+			pctype <= I40E_FILTER_PCTYPE_L2_PAYLOAD; pctype++) {
+			flow_type = i40e_pctype_to_flowtype(pf->adapter, pctype);
+
+			if (flow_type == RTE_ETH_FLOW_UNKNOWN)
+				continue;
+
+			cons_filter.fdir_filter.input.pctype =
+					pctype;
+			ret = i40e_flow_add_del_fdir_filter(dev,
+						&cons_filter.fdir_filter, 1);
+			if (ret)
+				goto free_flow;
+		}
+
 		flow->rule = TAILQ_LAST(&pf->fdir.fdir_list,
 					i40e_fdir_filter_list);
 		break;
@@ -4965,7 +5053,10 @@ i40e_flow_destroy(struct rte_eth_dev *dev,
 {
 	struct i40e_pf *pf = I40E_DEV_PRIVATE_TO_PF(dev->data->dev_private);
 	enum rte_filter_type filter_type = flow->filter_type;
+	struct i40e_fdir_filter *fdir_rule = NULL;
 	int ret = 0;
+	uint16_t flow_type;
+	enum i40e_filter_pctype pctype;
 
 	switch (filter_type) {
 	case RTE_ETH_FILTER_ETHERTYPE:
@@ -4977,15 +5068,39 @@ i40e_flow_destroy(struct rte_eth_dev *dev,
 			      (struct i40e_tunnel_filter *)flow->rule);
 		break;
 	case RTE_ETH_FILTER_FDIR:
-		ret = i40e_flow_add_del_fdir_filter(dev,
-		       &((struct i40e_fdir_filter *)flow->rule)->fdir, 0);
+		fdir_rule = (struct i40e_fdir_filter *)flow->rule;
+		if (!fdir_rule->fdir.fdir_dst_mac_rule) {
+			ret = i40e_flow_add_del_fdir_filter(dev,
+			&fdir_rule->fdir, 0);
 
-		/* If the last flow is destroyed, disable fdir. */
-		if (!ret && TAILQ_EMPTY(&pf->fdir.fdir_list)) {
-			i40e_fdir_teardown(pf);
-			dev->data->dev_conf.fdir_conf.mode =
-				   RTE_FDIR_MODE_NONE;
-			i40e_fdir_rx_proc_enable(dev, 0);
+			/* If the last flow is destroyed, disable fdir. */
+			if (!ret && TAILQ_EMPTY(&pf->fdir.fdir_list)) {
+				i40e_fdir_teardown(pf);
+				dev->data->dev_conf.fdir_conf.mode =
+					RTE_FDIR_MODE_NONE;
+				i40e_fdir_rx_proc_enable(dev, 0);
+			}
+			break;
+		}
+
+		for (pctype = I40E_FILTER_PCTYPE_NONF_IPV4_UDP;
+			pctype <= I40E_FILTER_PCTYPE_L2_PAYLOAD; pctype++) {
+			flow_type = i40e_pctype_to_flowtype(pf->adapter, pctype);
+
+			if (flow_type == RTE_ETH_FLOW_UNKNOWN)
+				continue;
+
+			fdir_rule->fdir.input.pctype = pctype;
+			ret = i40e_flow_add_del_fdir_filter(dev,
+				&fdir_rule->fdir, 0);
+
+			/* Last flow is destroyed, disable fdir. */
+			if (!ret && TAILQ_EMPTY(&pf->fdir.fdir_list)) {
+				i40e_fdir_teardown(pf);
+				dev->data->dev_conf.fdir_conf.mode =
+					RTE_FDIR_MODE_NONE;
+				i40e_fdir_rx_proc_enable(dev, 0);
+			}
 		}
 		break;
 	case RTE_ETH_FILTER_HASH:
