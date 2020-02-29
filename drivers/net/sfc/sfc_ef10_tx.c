@@ -406,7 +406,7 @@ sfc_ef10_xmit_tso_pkt(struct sfc_ef10_txq * const txq, struct rte_mbuf *m_seg,
 		if (txq->completed != pkt_start)
 			return ENOSPC;
 		/*
-		 * Do not allow to send packet if the maximum DMA
+		 * Do not allow one to send packet if the maximum DMA
 		 * descriptor space is not sufficient to hold TSO
 		 * descriptors, header descriptor and at least 1
 		 * segment descriptor.

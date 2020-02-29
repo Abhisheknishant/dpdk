@@ -2051,7 +2051,7 @@ i40e_vsi_queues_bind_intr(struct i40e_vsi *vsi, uint16_t itr_idx)
 	for (i = 0; i < vsi->nb_used_qps; i++) {
 		if (nb_msix <= 1) {
 			if (!rte_intr_allow_others(intr_handle))
-				/* allow to share MISC_VEC_ID */
+				/* allow one to share MISC_VEC_ID */
 				msix_vect = I40E_MISC_VEC_ID;
 
 			/* no enough msix_vect, map all to one */

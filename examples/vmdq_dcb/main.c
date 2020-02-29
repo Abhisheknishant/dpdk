@@ -212,7 +212,7 @@ port_init(uint16_t port, struct rte_mempool *mbuf_pool)
 
 	max_nb_pools = (uint32_t)dev_info.max_vmdq_pools;
 	/*
-	 * We allow to process part of VMDQ pools specified by num_pools in
+	 * We allow one to process part of VMDQ pools specified by num_pools in
 	 * command line.
 	 */
 	if (num_pools > max_nb_pools) {

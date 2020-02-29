@@ -198,7 +198,7 @@ bond_ethdev_8023ad_flow_verify(struct rte_eth_dev *bond_dev,
 	if (slave_info.max_rx_queues < bond_dev->data->nb_rx_queues ||
 			slave_info.max_tx_queues < bond_dev->data->nb_tx_queues) {
 		RTE_BOND_LOG(ERR,
-			"%s: Slave %d capabilities doesn't allow to allocate additional queues",
+			"%s: Slave %d capabilities doesn't allow one to allocate additional queues",
 			__func__, slave_port);
 		return -1;
 	}
@@ -3230,7 +3230,7 @@ bond_alloc(struct rte_vdev_device *dev, uint8_t mode)
 	internals->candidate_max_rx_pktlen = 0;
 	internals->max_rx_pktlen = 0;
 
-	/* Initially allow to choose any offload type */
+	/* Initially allow one to choose any offload type */
 	internals->flow_type_rss_offloads = ETH_RSS_PROTO_MASK;
 
 	memset(&internals->default_rxconf, 0,

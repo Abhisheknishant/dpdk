@@ -25,7 +25,7 @@ Design
 
 For security reasons and robustness, this driver only deals with virtual
 memory addresses. The way resources allocations are handled by the kernel,
-combined with hardware specifications that allow to handle virtual memory
+combined with hardware specifications that allow one to handle virtual memory
 addresses directly, ensure that DPDK applications cannot access random
 physical memory (or memory that does not belong to the current process).
 

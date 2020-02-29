@@ -465,7 +465,7 @@ STATIC enum i40e_status_code i40e_read_nvm_buffer_aq(struct i40e_hw *hw, u16 off
 
 	do {
 		/* Calculate number of bytes we should read in this step.
-		 * FVL AQ do not allow to read more than one page at a time or
+		 * FVL AQ do not allow one to read more than one page at a time or
 		 * to cross page boundaries.
 		 */
 		if (offset % I40E_SR_SECTOR_SIZE_IN_WORDS)
