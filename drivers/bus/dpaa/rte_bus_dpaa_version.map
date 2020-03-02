@@ -103,4 +103,5 @@ EXPERIMENTAL {
 	rte_dpaa_get_link_status;
 	rte_dpaa_intr_disable;
 	rte_dpaa_intr_enable;
+	rte_dpaa_update_link_status;
 };
