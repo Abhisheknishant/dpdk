@@ -100,4 +100,7 @@ EXPERIMENTAL {
 
 	qman_ern_poll_free;
 	qman_ern_register_cb;
+	rte_dpaa_get_link_status;
+	rte_dpaa_intr_disable;
+	rte_dpaa_intr_enable;
 };
