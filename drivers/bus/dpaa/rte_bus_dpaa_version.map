@@ -94,3 +94,10 @@ DPDK_20.0 {
 
 	local: *;
 };
+
+EXPERIMENTAL {
+	global:
+
+	qman_ern_poll_free;
+	qman_ern_register_cb;
+};
