@@ -10,7 +10,11 @@ sources = [
 depends = ['ethdev', 'mempool_octeontx']
 static_objs = []
 foreach d: depends
-	static_objs += [get_variable('static_rte_' + d)]
+	test_dep_obj = '@0@'.format(get_variable('static_rte_' + d, ''))
+	if test_dep_obj == ''
+		subdir_done()
+	endif
+	static_objs += get_variable('static_rte_' + d)
 endforeach
 
 c_args = cflags
