@@ -209,8 +209,6 @@ error:
  */
 RTE_INIT_PRIO(mlx5_glue_init, CLASS)
 {
-	void *handle = NULL;
-
 	/* Initialize common log type. */
 	mlx5_common_logtype = rte_log_register("pmd.common.mlx5");
 	if (mlx5_common_logtype >= 0)
@@ -249,6 +247,7 @@ RTE_INIT_PRIO(mlx5_glue_init, CLASS)
 		 mlx5_glue_path(glue_path, sizeof(glue_path)) : ""),
 	};
 	unsigned int i = 0;
+	void *handle = NULL;
 	void **sym;
 	const char *dlmsg;
 
@@ -320,8 +319,10 @@ RTE_INIT_PRIO(mlx5_glue_init, CLASS)
 	mlx5_glue->fork_init();
 	return;
 glue_error:
+#ifdef RTE_IBVERBS_LINK_DLOPEN
 	if (handle)
 		dlclose(handle);
+#endif
 	DRV_LOG(WARNING, "Cannot initialize MLX5 common due to missing"
 		" run-time dependency on rdma-core libraries (libibverbs,"
 		" libmlx5)");
