@@ -22,7 +22,7 @@ int
 rte_mempool_register_ops(const struct rte_mempool_ops *h)
 {
 	struct rte_mempool_ops *ops;
-	int16_t ops_index;
+	unsigned ops_index, i;
 
 	rte_spinlock_lock(&rte_mempool_ops_table.sl);
 
@@ -50,7 +50,19 @@ rte_mempool_register_ops(const struct rte_mempool_ops *h)
 		return -EEXIST;
 	}
 
-	ops_index = rte_mempool_ops_table.num_ops++;
+	/* sort the rte_mempool_ops by name. the order of the mempool
+	 * lib initiation will not affect rte_mempool_ops index. */
+	ops_index = rte_mempool_ops_table.num_ops;
+	for (i = 0; i < rte_mempool_ops_table.num_ops; i++) {
+		if (strcmp(h->name, rte_mempool_ops_table.ops[i].name) < 0) {
+			do {
+				rte_mempool_ops_table.ops[ops_index] =
+					rte_mempool_ops_table.ops[ops_index -1];
+			} while (--ops_index > i);
+			break;
+		}
+	}
+
 	ops = &rte_mempool_ops_table.ops[ops_index];
 	strlcpy(ops->name, h->name, sizeof(ops->name));
 	ops->alloc = h->alloc;
@@ -62,6 +74,8 @@ rte_mempool_register_ops(const struct rte_mempool_ops *h)
 	ops->populate = h->populate;
 	ops->get_info = h->get_info;
 	ops->dequeue_contig_blocks = h->dequeue_contig_blocks;
+
+	rte_mempool_ops_table.num_ops++;
 
 	rte_spinlock_unlock(&rte_mempool_ops_table.sl);
 
