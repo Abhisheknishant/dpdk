@@ -651,8 +651,15 @@ static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 	bp->first_vf_id = rte_le_to_cpu_16(resp->first_vf_id);
 	bp->max_rx_em_flows = rte_le_to_cpu_16(resp->max_rx_em_flows);
 	bp->max_l2_ctx = rte_le_to_cpu_16(resp->max_l2_ctxs);
-	if (!BNXT_CHIP_THOR(bp))
-		bp->max_l2_ctx += bp->max_rx_em_flows;
+	if (!BNXT_CHIP_THOR(bp)) {
+		uint16_t max_l2_ctx;
+
+		if (rte_add_overflow(bp->max_l2_ctx, bp->max_rx_em_flows,
+				     &max_l2_ctx))
+			return -EINVAL;
+		bp->max_l2_ctx = max_l2_ctx;
+	}
+
 	/* TODO: For now, do not support VMDq/RFS on VFs. */
 	if (BNXT_PF(bp)) {
 		if (bp->pf.max_vfs)
