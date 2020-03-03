@@ -3859,6 +3859,9 @@ int bnxt_get_nvram_directory(struct bnxt *bp, uint32_t len, uint8_t *data)
 
 	*data++ = dir_entries;
 	*data++ = entry_length;
+	if (len <= 2)
+		return -EINVAL;
+
 	len -= 2;
 	memset(data, 0xff, len);
 
