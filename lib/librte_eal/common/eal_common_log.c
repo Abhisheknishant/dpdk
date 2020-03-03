@@ -112,6 +112,24 @@ rte_log_get_level(uint32_t type)
 	return rte_logs.dynamic_types[type].loglevel;
 }
 
+bool
+rte_log_can_log(uint32_t logtype, uint32_t level)
+{
+	int log_level;
+
+	if (level > rte_log_get_global_level())
+		return false;
+
+	log_level = rte_log_get_level(logtype);
+	if (log_level < 0)
+		return false;
+
+	if (level > (uint32_t)log_level)
+		return false;
+
+	return true;
+}
+
 int
 rte_log_set_level(uint32_t type, uint32_t level)
 {
