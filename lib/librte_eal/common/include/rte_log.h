@@ -144,6 +144,19 @@ uint32_t rte_log_get_global_level(void);
 int rte_log_get_level(uint32_t logtype);
 
 /**
+ * Check if a given `level` can be printed by a given `logtype`
+ *
+ * @param logtype
+ *   The log type identifier
+ * @param level
+ *   Log level. A value between RTE_LOG_EMERG (1) and RTE_LOG_DEBUG (8).
+ * @return
+ * Returns '1' if log can be printed and '0' if it can't.
+ */
+__rte_experimental
+int rte_log_can_log(uint32_t logtype, uint32_t level);
+
+/**
  * Set the log level for a given type based on shell pattern.
  *
  * @param pattern
