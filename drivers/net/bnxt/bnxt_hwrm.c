@@ -11,6 +11,7 @@
 #include <rte_malloc.h>
 #include <rte_memzone.h>
 #include <rte_version.h>
+#include <rte_overflow.h>
 #include <rte_io.h>
 
 #include "bnxt.h"
@@ -3861,7 +3862,9 @@ int bnxt_get_nvram_directory(struct bnxt *bp, uint32_t len, uint8_t *data)
 	len -= 2;
 	memset(data, 0xff, len);
 
-	buflen = dir_entries * entry_length;
+	if (rte_mul_overflow(dir_entries, entry_length, &buflen))
+		return -EINVAL;
+
 	buf = rte_malloc("nvm_dir", buflen, 0);
 	if (buf == NULL)
 		return -ENOMEM;
