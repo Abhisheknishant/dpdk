@@ -3746,6 +3746,7 @@ int bnxt_hwrm_port_led_qcaps(struct bnxt *bp)
 {
 	struct hwrm_port_led_qcaps_output *resp = bp->hwrm_cmd_resp_addr;
 	struct hwrm_port_led_qcaps_input req = {0};
+	uint8_t num_leds;
 	int rc;
 
 	if (BNXT_VF(bp))
@@ -3757,10 +3758,11 @@ int bnxt_hwrm_port_led_qcaps(struct bnxt *bp)
 
 	HWRM_CHECK_RESULT();
 
-	if (resp->num_leds > 0 && resp->num_leds < BNXT_MAX_LED) {
+	num_leds = resp->num_leds;
+	if (num_leds > 0 && num_leds < BNXT_MAX_LED) {
 		unsigned int i;
 
-		bp->num_leds = resp->num_leds;
+		bp->num_leds = num_leds;
 		memcpy(bp->leds, &resp->led0_id,
 			sizeof(bp->leds[0]) * bp->num_leds);
 		for (i = 0; i < bp->num_leds; i++) {
