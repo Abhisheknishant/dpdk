@@ -4029,6 +4029,12 @@ static int bnxt_hwrm_func_vf_vnic_query(struct bnxt *bp, uint16_t vf,
 
 	HWRM_UNLOCK();
 
+	if (rc > bp->pf.total_vnics) {
+		PMD_DRV_LOG(ERR,
+			    "Vnic id %d is out of range\n", rc);
+		return -EINVAL;
+	}
+
 	return rc;
 }
 
