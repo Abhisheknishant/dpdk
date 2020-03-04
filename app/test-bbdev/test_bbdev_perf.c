@@ -4538,7 +4538,7 @@ static int
 offload_latency_empty_q_test_dec(uint16_t dev_id, uint16_t queue_id,
 		const uint16_t num_to_process, uint16_t burst_sz,
 		uint64_t *deq_total_time, uint64_t *deq_min_time,
-		uint64_t *deq_max_time)
+		uint64_t *deq_max_time, const enum rte_bbdev_op_type op_type)
 {
 	int i, deq_total;
 	struct rte_bbdev_dec_op *ops[MAX_BURST];
@@ -4552,7 +4552,12 @@ offload_latency_empty_q_test_dec(uint16_t dev_id, uint16_t queue_id,
 
 		if (unlikely(num_to_process - deq_total < burst_sz))
 			burst_sz = num_to_process - deq_total;
-		rte_bbdev_dequeue_dec_ops(dev_id, queue_id, ops, burst_sz);
+		if (op_type == RTE_BBDEV_OP_TURBO_DEC)
+			rte_bbdev_dequeue_dec_ops(dev_id, queue_id, ops,
+					burst_sz);
+		else
+			rte_bbdev_dequeue_ldpc_dec_ops(dev_id, queue_id, ops,
+								burst_sz);
 
 		deq_last_time = rte_rdtsc_precise() - deq_start_time;
 		*deq_max_time = RTE_MAX(*deq_max_time, deq_last_time);
@@ -4567,7 +4572,7 @@ static int
 offload_latency_empty_q_test_enc(uint16_t dev_id, uint16_t queue_id,
 		const uint16_t num_to_process, uint16_t burst_sz,
 		uint64_t *deq_total_time, uint64_t *deq_min_time,
-		uint64_t *deq_max_time)
+		uint64_t *deq_max_time, const enum rte_bbdev_op_type op_type)
 {
 	int i, deq_total;
 	struct rte_bbdev_enc_op *ops[MAX_BURST];
@@ -4580,7 +4585,12 @@ offload_latency_empty_q_test_enc(uint16_t dev_id, uint16_t queue_id,
 
 		if (unlikely(num_to_process - deq_total < burst_sz))
 			burst_sz = num_to_process - deq_total;
-		rte_bbdev_dequeue_enc_ops(dev_id, queue_id, ops, burst_sz);
+		if (op_type == RTE_BBDEV_OP_LDPC_ENC)
+			rte_bbdev_dequeue_ldpc_enc_ops(dev_id, queue_id, ops,
+					burst_sz);
+		else
+			rte_bbdev_dequeue_enc_ops(dev_id, queue_id, ops,
+								burst_sz);
 
 		deq_last_time = rte_rdtsc_precise() - deq_start_time;
 		*deq_max_time = RTE_MAX(*deq_max_time, deq_last_time);
@@ -4590,6 +4600,7 @@ offload_latency_empty_q_test_enc(uint16_t dev_id, uint16_t queue_id,
 
 	return i;
 }
+
 #endif
 
 static int
@@ -4627,14 +4638,15 @@ offload_latency_empty_q_test(struct active_device *ad,
 	printf("== test: offload latency empty dequeue\ndev: %s, burst size: %u, num ops: %u, op type: %s\n",
 			info.dev_name, burst_sz, num_to_process, op_type_str);
 
-	if (op_type == RTE_BBDEV_OP_TURBO_DEC)
+	if (op_type == RTE_BBDEV_OP_TURBO_DEC ||
+			op_type == RTE_BBDEV_OP_LDPC_DEC)
 		iter = offload_latency_empty_q_test_dec(ad->dev_id, queue_id,
 				num_to_process, burst_sz, &deq_total_time,
-				&deq_min_time, &deq_max_time);
+				&deq_min_time, &deq_max_time, op_type);
 	else
 		iter = offload_latency_empty_q_test_enc(ad->dev_id, queue_id,
 				num_to_process, burst_sz, &deq_total_time,
-				&deq_min_time, &deq_max_time);
+				&deq_min_time, &deq_max_time, op_type);
 
 	if (iter <= 0)
 		return TEST_FAILED;
