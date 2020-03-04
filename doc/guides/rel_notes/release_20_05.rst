@@ -56,6 +56,12 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Updated the TURBO_SW bbdev PMD.**
+
+  Updated the ``turbo_sw`` bbdev driver with changes including:
+
+  * Support for large size code block not fitting in one mbuf segment.
+  * Exposes the accurate LLR decimal assumption.
 
 Removed Items
 -------------
