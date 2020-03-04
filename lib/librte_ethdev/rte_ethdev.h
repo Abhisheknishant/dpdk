@@ -4388,10 +4388,8 @@ rte_eth_rx_burst(uint16_t port_id, uint16_t queue_id,
 				     rx_pkts, nb_pkts);
 
 #ifdef RTE_ETHDEV_RXTX_CALLBACKS
-	if (unlikely(dev->post_rx_burst_cbs[queue_id] != NULL)) {
-		struct rte_eth_rxtx_callback *cb =
-				dev->post_rx_burst_cbs[queue_id];
-
+	struct rte_eth_rxtx_callback *cb = dev->post_rx_burst_cbs[queue_id];
+	if (unlikely(cb != NULL)) {
 		do {
 			nb_rx = cb->fn.rx(port_id, queue_id, rx_pkts, nb_rx,
 						nb_pkts, cb->param);
