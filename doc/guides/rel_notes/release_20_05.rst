@@ -56,6 +56,18 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Added a FPGA_5GNR_FEC bbdev PMD.**
+
+  Added a new ``fpga_5gnr_fec`` bbdev driver for the Intel\ |reg| FPGA PAC
+  (Programmable  Acceleration Card) N3000.  See the
+  :doc:`../bbdevs/fpga_5gnr_fec` BBDEV guide for more details on this new driver.
+
+* **Updated the TURBO_SW bbdev PMD.**
+
+  Updated the ``turbo_sw`` bbdev driver with changes including:
+
+  * Support for large size code block not fitting in one mbuf segment.
+  * Exposes the accurate LLR decimal assumption.
 
 Removed Items
 -------------
