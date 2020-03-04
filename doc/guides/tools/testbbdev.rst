@@ -6,9 +6,9 @@ dpdk-test-bbdev Application
 
 The ``dpdk-test-bbdev`` tool is a Data Plane Development Kit (DPDK) utility that
 allows measuring performance parameters of PMDs available in the bbdev framework.
-Available tests available for execution are: latency, throughput, validation and
-sanity tests. Execution of tests can be customized using various parameters
-passed to a python running script.
+Available tests available for execution are: latency, throughput, validation,
+bler and sanity tests. Execution of tests can be customized using various
+parameters passed to a python running script.
 
 Compiling the Application
 -------------------------
@@ -47,6 +47,8 @@ The tool application has a number of command line options:
                        [-c TEST_CASE [TEST_CASE ...]]
                        [-v TEST_VECTOR [TEST_VECTOR...]] [-n NUM_OPS]
                        [-b BURST_SIZE [BURST_SIZE ...]] [-l NUM_LCORES]
+                       [-t MAX_ITERS [MAX_ITERS ...]]
+                       [-s SNR [SNR ...]]
 
 command-line Options
 ~~~~~~~~~~~~~~~~~~~~
@@ -106,10 +108,18 @@ The following are the command-line options:
  Specifies operations enqueue/dequeue burst size. If not specified burst_size is
  set to 32. Maximum is 512.
 
+``-t MAX_ITERS [MAX_ITERS ...], --iter_max MAX_ITERS [MAX_ITERS ...]``
+ Specifies LDPC decoder operations maximum number of iterations for throughput
+ and bler tests. If not specified iter_max is set to 6.
+
+``-s SNR [SNR ...], --snr SNR [SNR ...]``
+ Specifies for LDPC decoder operations the SNR in dB used when generating LLRs
+ for bler tests. If not specified snr is set to 0 dB.
+
 Test Cases
 ~~~~~~~~~~
 
-There are 6 main test cases that can be executed using testbbdev tool:
+There are 7 main test cases that can be executed using testbbdev tool:
 
 * Sanity checks [-c unittest]
     - Performs sanity checks on BBDEV interface, validating basic functionality
@@ -149,6 +159,11 @@ There are 6 main test cases that can be executed using testbbdev tool:
     - Results are printed in million operations per second and million bits
       per second
 
+* BLER measurement [-c bler]
+    - Performs full operation of enqueue and dequeue
+    - Measures the achieved throughput on a subset or all available CPU cores
+    - Computed BLER in % based on the total number of operations.
+
 * Interrupt-mode Throughput [-c interrupt]
     - Similar to Throughput test case, but using interrupts. No polling.
 
@@ -159,7 +174,7 @@ Parameter Globbing
 Thanks to the globbing functionality in python test-bbdev.py script allows to
 run tests with different set of vector files without giving all of them explicitly.
 
-**Example usage:**
+**Example usage for 4G:**
 
 .. code-block:: console
 
@@ -221,6 +236,11 @@ It runs all tests with "default" vectors.
 * ``turbo_enc_default.data`` is a soft link to
   ``turbo_enc_c1_k6144_r0_e32256_crc24b_rm.data``
 
+* ``ldpc_dec_default.data`` is a soft link to
+  ``ldpc_dec_v6563.data``
+
+* ``ldpc_enc_default.data`` is a soft link to
+  ``ldpc_enc_c1_k8148_r0_e9372_rm.data``
 
 Running Tests
 -------------
@@ -254,6 +274,38 @@ x86_64-native-linux-icc target:
              |-- turbo_dec_c1_k6144_r0_e34560_posllr.data
              |-- turbo_enc_c1_k40_r0_e1194_rm.data
              |-- turbo_enc_c1_k6144_r0_e32256_crc24b_rm.data
+             |-- ldpc_enc_v9503.data
+             |-- ldpc_enc_v8568.data
+             |-- ldpc_enc_v7813.data
+             |-- ldpc_enc_v2342.data
+             |-- ldpc_enc_v11835.data
+             |-- ldpc_dec_v8568.data
+             |-- ldpc_dec_v8480.data
+             |-- ldpc_dec_v7813.data
+             |-- ldpc_dec_v2342_drop.data
+             |-- ldpc_dec_v11835.data
+             |-- ldpc_dec_HARQ_1_2.data
+             |-- ldpc_dec_HARQ_1_1.data
+             |-- ldpc_dec_HARQ_1_0.data
+             |-- ldpc_enc_v8568_crc24a.data
+             |-- ldpc_enc_v3964_rv1.data
+             |-- ldpc_enc_c1_k8148_r0_e9372_rm.data
+             |-- ldpc_enc_c1_k720_r0_e864_rm_crc24b.data
+             |-- ldpc_enc_c1_k720_r0_e832_rm.data
+             |-- ldpc_enc_c1_k330_r0_e360_rm.data
+             |-- ldpc_enc_c1_k1144_r0_e1380_rm_crc24b.data
+             |-- ldpc_enc_c1_k1144_r0_e1380_rm.data
+             |-- ldpc_dec_vcrc_fail.data
+             |-- ldpc_dec_v8568_low.data
+             |-- ldpc_dec_v14298.data
+             |-- ldpc_dec_HARQ_26449_1.loopback_w
+             |-- ldpc_dec_HARQ_1_3.data
+             |-- ldpc_enc_v2570_lbrm.data
+             |-- ldpc_dec_v9503.data
+             |-- ldpc_dec_v6563.data
+             |-- ldpc_dec_HARQ_3_1_harq_comp.data
+             |-- ldpc_dec_HARQ_2_1_llr_comp.data
+             |-- ldpc_dec_HARQ_26449_1.loopback_r
 
  |-- x86_64-native-linux-icc
      |-- app
@@ -280,7 +332,7 @@ baseband turbo_sw device
 
   ./test-bbdev.py -p ../../x86_64-native-linux-icc/app/testbbdev
   -e="--vdev=baseband_turbo_sw" -t 120 -c validation
-  -v ./test_vectors/turbo_* -n 64 -b 8 32
+  -v ./test_vectors/* -n 64 -b 8 32
 
 It runs **validation** test for each vector file that matches the given pattern.
 Number of operations to process on device is set to 64 and operations timeout is
@@ -342,8 +394,8 @@ Length of chain variable is calculated by parser. Can not be defined
 explicitly.
 
 Variable op_type has to be defined as a first variable in file. It specifies
-what type of operations will be executed. For decoder op_type has to be set to
-``RTE_BBDEV_OP_TURBO_DEC`` and for encoder to ``RTE_BBDEV_OP_TURBO_ENC``.
+what type of operations will be executed. For 4G decoder op_type has to be set to
+``RTE_BBDEV_OP_TURBO_DEC`` and for 4G encoder to ``RTE_BBDEV_OP_TURBO_ENC``.
 
 Full details of the meaning and valid values for the below fields are
 documented in *rte_bbdev_op.h*
@@ -469,35 +521,7 @@ uint8_t value
     num_maps =
     0
 
-Chain of flags for turbo decoder operation. Following flags can be used:
-
-- ``RTE_BBDEV_TURBO_SUBBLOCK_DEINTERLEAVE``
-
-- ``RTE_BBDEV_TURBO_CRC_TYPE_24B``
-
-- ``RTE_BBDEV_TURBO_EQUALIZER``
-
-- ``RTE_BBDEV_TURBO_SOFT_OUT_SATURATE``
-
-- ``RTE_BBDEV_TURBO_HALF_ITERATION_EVEN``
-
-- ``RTE_BBDEV_TURBO_CONTINUE_CRC_MATCH``
-
-- ``RTE_BBDEV_TURBO_SOFT_OUTPUT``
-
-- ``RTE_BBDEV_TURBO_EARLY_TERMINATION``
-
-- ``RTE_BBDEV_TURBO_DEC_INTERRUPTS``
-
-- ``RTE_BBDEV_TURBO_POS_LLR_1_BIT_IN``
-
-- ``RTE_BBDEV_TURBO_NEG_LLR_1_BIT_IN``
-
-- ``RTE_BBDEV_TURBO_POS_LLR_1_BIT_SOFT_OUT``
-
-- ``RTE_BBDEV_TURBO_NEG_LLR_1_BIT_SOFT_OUT``
-
-- ``RTE_BBDEV_TURBO_MAP_DEC``
+Chain of flags for LDPC decoder operation based on the rte_bbdev_op_td_flag_bitmasks:
 
 Example:
 
@@ -579,17 +603,7 @@ uint8_t value
     rv_index =
     0
 
-Chain of flags for turbo encoder operation. Following flags can be used:
-
-- ``RTE_BBDEV_TURBO_RV_INDEX_BYPASS``
-
-- ``RTE_BBDEV_TURBO_RATE_MATCH``
-
-- ``RTE_BBDEV_TURBO_CRC_24B_ATTACH``
-
-- ``RTE_BBDEV_TURBO_CRC_24A_ATTACH``
-
-- ``RTE_BBDEV_TURBO_ENC_SCATTER_GATHER``
+Chain of flags for LDPC decoder operation based on the rte_bbdev_op_te_flag_bitmasks:
 
 ``RTE_BBDEV_TURBO_ENC_SCATTER_GATHER`` is used to indicate the parser to
 force the input data to be memory split and formed as a segmented mbuf.
@@ -599,6 +613,237 @@ force the input data to be memory split and formed as a segmented mbuf.
 
     op_flags =
     RTE_BBDEV_TURBO_RATE_MATCH
+
+Chain of operation statuses that are expected after operation is performed.
+Following statuses can be used:
+
+- ``DMA``
+
+- ``FCW``
+
+- ``OK``
+
+``OK`` means no errors are expected. Cannot be used with other values.
+
+.. parsed-literal::
+
+    expected_status =
+    OK
+
+LDPC decoder test vectors template
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For LDPC decoder it has to be always set to ``RTE_BBDEV_OP_LDPC_DEC``
+
+.. parsed-literal::
+
+    op_type =
+    RTE_BBDEV_OP_LDPC_DEC
+
+Chain of uint32_t values. Note that it is possible to define more than one
+input/output entries which will result in chaining two or more data structures
+for *segmented Transport Blocks*
+
+.. parsed-literal::
+
+    input0 =
+    0x00000000, 0x7f817f00, 0x7f7f8100, 0x817f8100, 0x81008100, 0x7f818100, 0x81817f00, 0x7f818100,
+    0x81007f00, 0x7f818100, 0x817f8100, 0x81817f00, 0x81008100, 0x817f7f00, 0x7f7f8100, 0x81817f00
+
+.. parsed-literal::
+
+    output0 =
+    0xa7d6732e
+
+uint8_t value
+
+.. parsed-literal::
+
+    basegraph=
+    1
+
+uint16_t value
+
+.. parsed-literal::
+
+    z_c=
+    224
+
+uint16_t value
+
+.. parsed-literal::
+
+    n_cb=
+    14784
+
+uint8_t value
+
+.. parsed-literal::
+
+    q_m=
+    1
+
+uint16_t value
+
+.. parsed-literal::
+
+    n_filler=
+    40
+
+uint32_t value
+
+.. parsed-literal::
+
+    e=
+    13072
+
+uint8_t value
+
+.. parsed-literal::
+
+    rv_index=
+    2
+
+uint8_t value
+
+.. parsed-literal::
+    code_block_mode=
+    1
+
+uint8_t value
+
+.. parsed-literal::
+
+    iter_max=
+    20
+
+uint8_t value
+
+.. parsed-literal::
+
+    expected_iter_count=
+    8
+
+
+Chain of flags for LDPC decoder operation based on the rte_bbdev_op_ldpcdec_flag_bitmasks:
+
+Example:
+
+    .. parsed-literal::
+
+        op_flags =
+        RTE_BBDEV_LDPC_ITERATION_STOP_ENABLE, RTE_BBDEV_LDPC_HQ_COMBINE_OUT_ENABLE,
+        RTE_BBDEV_LDPC_HQ_COMBINE_IN_ENABLE, RTE_BBDEV_LDPC_HARQ_6BIT_COMPRESSION
+
+Chain of operation statuses that are expected after operation is performed.
+Following statuses can be used:
+
+- ``SYNCRC``
+
+- ``SYN``
+
+- ``CRC``
+
+- ``OK``
+
+``OK`` means no errors are expected. Cannot be used with other values.
+
+.. parsed-literal::
+
+    expected_status =
+    CRC
+
+
+LDPC encoder test vectors template
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For turbo encoder it has to be always set to ``RTE_BBDEV_OP_LDPC_ENC``
+
+.. parsed-literal::
+
+    op_type =
+    RTE_BBDEV_OP_LDPC_ENC
+
+Chain of uint32_t values
+
+.. parsed-literal::
+
+    input0 =
+    0x11d2bcac, 0x4d
+
+Chain of uint32_t values
+
+.. parsed-literal::
+
+    output0 =
+    0xd2399179, 0x640eb999, 0x2cbaf577, 0xaf224ae2, 0x9d139927, 0xe6909b29,
+    0xa25b7f47, 0x2aa224ce, 0x79f2
+
+
+uint8_t value
+
+.. parsed-literal::
+
+    basegraph=
+    1
+
+uint16_t value
+
+.. parsed-literal::
+
+    z_c=
+    52
+
+uint16_t value
+
+.. parsed-literal::
+
+    n_cb=
+    3432
+
+uint8_t value
+
+.. parsed-literal::
+
+    q_m=
+    6
+
+uint16_t value
+
+.. parsed-literal::
+
+    n_filler=
+    0
+
+uint32_t value
+
+.. parsed-literal::
+
+    e =
+    1380
+
+uint8_t value
+
+.. parsed-literal::
+
+    rv_index =
+    1
+
+uint8_t value
+
+.. parsed-literal::
+
+    code_block_mode =
+    1
+
+
+Chain of flags for LDPC encoder operation based on the
+rte_bbdev_op_ldpcenc_flag_bitmasks:
+
+.. parsed-literal::
+
+    op_flags =
+    RTE_BBDEV_LDPC_RATE_MATCH
 
 Chain of operation statuses that are expected after operation is performed.
 Following statuses can be used:
