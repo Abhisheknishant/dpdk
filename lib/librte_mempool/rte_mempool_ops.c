@@ -17,6 +17,15 @@ struct rte_mempool_ops_table rte_mempool_ops_table = {
 	.num_ops = 0
 };
 
+static int
+compare_mempool_ops(const void *a, const void *b)
+{
+	const struct rte_mempool_ops *m_a = a;
+	const struct rte_mempool_ops *m_b = b;
+
+	return strcmp(m_a->name, m_b->name);
+}
+
 /* add a new ops struct in rte_mempool_ops_table, return its index. */
 int
 rte_mempool_register_ops(const struct rte_mempool_ops *h)
@@ -62,6 +71,11 @@ rte_mempool_register_ops(const struct rte_mempool_ops *h)
 	ops->populate = h->populate;
 	ops->get_info = h->get_info;
 	ops->dequeue_contig_blocks = h->dequeue_contig_blocks;
+
+	/* sort the rte_mempool_ops by name. the order of the mempool
+	 * lib initiation will not affect rte_mempool_ops index. */
+	qsort(rte_mempool_ops_table.ops, rte_mempool_ops_table.num_ops,
+	      sizeof(rte_mempool_ops_table.ops[0]), compare_mempool_ops);
 
 	rte_spinlock_unlock(&rte_mempool_ops_table.sl);
 
