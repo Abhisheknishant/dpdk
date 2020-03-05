@@ -18,6 +18,9 @@
 #include "hsi_struct_def_dpdk.h"
 #ifdef RTE_LIBRTE_IEEE1588
 #include "bnxt_hwrm.h"
+#ifdef RTE_BNXT_INC_VECTOR
+#error "bnxt: IEEE1588 is incompatiable with vector mode"
+#endif
 #endif
 
 /*
