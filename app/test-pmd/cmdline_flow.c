@@ -220,6 +220,9 @@ enum index {
 	ITEM_L2TPV3OIP_SESSION_ID,
 	ITEM_ESP,
 	ITEM_ESP_SPI,
+	ITEM_PFCP,
+	ITEM_PFCP_S_FIELD,
+	ITEM_PFCP_SEID,
 
 	/* Validate/create actions. */
 	ACTIONS,
@@ -768,6 +771,7 @@ static const enum index next_item[] = {
 	ITEM_TAG,
 	ITEM_L2TPV3OIP,
 	ITEM_ESP,
+	ITEM_PFCP,
 	END_SET,
 	ZERO,
 };
@@ -1042,6 +1046,13 @@ static const enum index item_higig2[] = {
 
 static const enum index item_esp[] = {
 	ITEM_ESP_SPI,
+	ITEM_NEXT,
+	ZERO,
+};
+
+static const enum index item_pfcp[] = {
+	ITEM_PFCP_S_FIELD,
+	ITEM_PFCP_SEID,
 	ITEM_NEXT,
 	ZERO,
 };
@@ -2698,6 +2709,26 @@ static const struct token token_list[] = {
 		.next = NEXT(item_esp, NEXT_ENTRY(UNSIGNED), item_param),
 		.args = ARGS(ARGS_ENTRY_HTON(struct rte_flow_item_esp,
 				hdr.spi)),
+	},
+	[ITEM_PFCP] = {
+		.name = "pfcp",
+		.help = "match pfcp header",
+		.priv = PRIV_ITEM(PFCP, sizeof(struct rte_flow_item_pfcp)),
+		.next = NEXT(item_pfcp),
+		.call = parse_vc,
+	},
+	[ITEM_PFCP_S_FIELD] = {
+		.name = "s_field",
+		.help = "S field",
+		.next = NEXT(item_pfcp, NEXT_ENTRY(UNSIGNED), item_param),
+		.args = ARGS(ARGS_ENTRY_HTON(struct rte_flow_item_pfcp,
+				s_field)),
+	},
+	[ITEM_PFCP_SEID] = {
+		.name = "seid",
+		.help = "session endpoint identifier",
+		.next = NEXT(item_pfcp, NEXT_ENTRY(UNSIGNED), item_param),
+		.args = ARGS(ARGS_ENTRY_HTON(struct rte_flow_item_pfcp, seid)),
 	},
 	/* Validate/create actions. */
 	[ACTIONS] = {
@@ -6444,6 +6475,9 @@ flow_item_default_mask(const struct rte_flow_item *item)
 	case RTE_FLOW_ITEM_TYPE_ESP:
 		mask = &rte_flow_item_esp_mask;
 		break;
+	case RTE_FLOW_ITEM_TYPE_PFCP:
+		mask = &rte_flow_item_pfcp_mask;
+		break;
 	default:
 		break;
 	}
@@ -6540,6 +6574,9 @@ cmd_set_raw_parsed(const struct buffer *in)
 		case RTE_FLOW_ITEM_TYPE_ESP:
 			size = sizeof(struct rte_flow_item_esp);
 			proto = 0x32;
+			break;
+		case RTE_FLOW_ITEM_TYPE_PFCP:
+			size = sizeof(struct rte_flow_item_pfcp);
 			break;
 		default:
 			printf("Error - Not supported item\n");
