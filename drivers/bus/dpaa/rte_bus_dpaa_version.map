@@ -96,3 +96,11 @@ DPDK_20.0 {
 
 	local: *;
 };
+
+EXPERIMENTAL {
+	global:
+
+	rte_dpaa_get_link_status;
+	rte_dpaa_intr_disable;
+	rte_dpaa_intr_enable;
+};
