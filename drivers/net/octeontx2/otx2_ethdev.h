@@ -287,6 +287,8 @@ struct otx2_eth_dev {
 	uint16_t scalar_ena;
 	uint16_t rss_tag_as_xor;
 	uint16_t max_sqb_count;
+	uint16_t lock_rx_ctx;
+	uint16_t lock_tx_ctx;
 	uint16_t rx_offload_flags; /* Selected Rx offload flags(NIX_RX_*_F) */
 	uint64_t rx_offloads;
 	uint16_t tx_offload_flags; /* Selected Tx offload flags(NIX_TX_*_F) */
