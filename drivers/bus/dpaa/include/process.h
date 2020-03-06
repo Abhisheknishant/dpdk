@@ -94,4 +94,7 @@ struct usdpaa_ioctl_link_status_args {
 __rte_experimental
 int rte_dpaa_get_link_status(char *if_name);
 
+__rte_experimental
+int rte_dpaa_update_link_status(char *if_name, int link_status);
+
 #endif	/*  __PROCESS_H */
