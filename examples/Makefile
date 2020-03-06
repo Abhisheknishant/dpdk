@@ -81,6 +81,7 @@ else
 $(info vm_power_manager requires libvirt >= 0.9.3)
 endif
 endif
+DIRS-$(CONFIG_RTE_LIBRTE_IF_PROXY) += l3fwd-ifpx
 
 DIRS-y += eventdev_pipeline
 
