@@ -161,6 +161,7 @@ otx2_ethdev_parse_devargs(struct rte_devargs *devargs, struct otx2_eth_dev *dev)
 			   &parse_switch_header_type, &switch_header_type);
 	rte_kvargs_process(kvlist, OTX2_RSS_TAG_AS_XOR,
 			   &parse_flag, &rss_tag_as_xor);
+	otx2_parse_common_devargs(kvlist);
 	rte_kvargs_free(kvlist);
 
 null_devargs:

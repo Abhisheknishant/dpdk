@@ -1659,7 +1659,7 @@ sso_parse_devargs(struct otx2_sso_evdev *dev, struct rte_devargs *devargs)
 			   &single_ws);
 	rte_kvargs_process(kvlist, OTX2_SSO_GGRP_QOS, &parse_sso_kvargs_dict,
 			   dev);
-
+	otx2_parse_common_devargs(kvlist);
 	dev->dual_ws = !single_ws;
 	rte_kvargs_free(kvlist);
 }

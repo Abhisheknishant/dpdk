@@ -191,6 +191,7 @@ otx2_parse_aura_size(struct rte_devargs *devargs)
 		goto exit;
 
 	rte_kvargs_process(kvlist, OTX2_MAX_POOLS, &parse_max_pools, &aura_sz);
+	otx2_parse_common_devargs(kvlist);
 	rte_kvargs_free(kvlist);
 exit:
 	return aura_sz;
