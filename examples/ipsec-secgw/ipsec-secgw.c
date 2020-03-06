@@ -198,7 +198,10 @@ struct app_sa_prm app_sa_prm = {
 			.cache_sz = SA_CACHE_SZ
 		};
 static const char *cfgfile;
-
+static const char *ddp_file;
+static const char *ddp_bkp_file;
+static uint16_t fdir_portid;
+static int16_t ddp_unload_flag;
 struct lcore_rx_queue {
 	uint16_t port_id;
 	uint8_t queue_id;
@@ -1286,6 +1289,8 @@ print_usage(const char *prgname)
 		" [-e]"
 		" [-a]"
 		" [-c]"
+		" [-L (portid,ddp_file_path,ddp_backup_file_path)]"
+		" [-U (portid,ddp_backup_file_path)]"
 		" -f CONFIG_FILE"
 		" --config (port,queue,lcore)[,(port,queue,lcore)]"
 		" [--single-sa SAIDX]"
@@ -1307,6 +1312,8 @@ print_usage(const char *prgname)
 		"  -a enables SA SQN atomic behaviour\n"
 		"  -c specifies inbound SAD cache size,\n"
 		"     zero value disables the cache (default value: 128)\n"
+		"  -L To load ddp profile on NIC\n"
+		"  -U To unload ddp profile from NIC\n"
 		"  -f CONFIG_FILE: Configuration file\n"
 		"  --config (port,queue,lcore): Rx queue configuration\n"
 		"  --single-sa SAIDX: Use single SA index for outbound traffic,\n"
@@ -1377,6 +1384,33 @@ parse_decimal(const char *str)
 		return -1;
 
 	return num;
+}
+
+static int32_t
+parse_ddp_load_args(char *str)
+{
+	int16_t num_args = 0;
+	char *file_fld[3];
+	num_args = rte_strsplit(str, strlen(str), file_fld, 3, ',');
+	if (num_args != 3)
+		return -1;
+	fdir_portid = atoi(file_fld[0]);
+	ddp_file = file_fld[1];
+	ddp_bkp_file = file_fld[2];
+	return 0;
+}
+
+static int32_t
+parse_ddp_unload_args(char *str)
+{
+	int16_t num_args = 0;
+	char *file_fld[2];
+	num_args = rte_strsplit(str, strlen(str), file_fld, 2, ',');
+	if (num_args != 2)
+		return -1;
+	fdir_portid = atoi(file_fld[0]);
+	ddp_bkp_file = file_fld[1];
+	return 0;
 }
 
 static int32_t
@@ -1459,7 +1493,7 @@ parse_args(int32_t argc, char **argv)
 
 	argvopt = argv;
 
-	while ((opt = getopt_long(argc, argvopt, "aelp:Pu:f:j:w:c:",
+	while ((opt = getopt_long(argc, argvopt, "aelp:Pu:L:U:f:j:w:c:",
 				lgopts, &option_index)) != EOF) {
 
 		switch (opt) {
@@ -1482,6 +1516,25 @@ parse_args(int32_t argc, char **argv)
 				print_usage(prgname);
 				return -1;
 			}
+			break;
+		case 'L':
+			printf("Loading ddp package selected\n");
+			ret = parse_ddp_load_args(optarg);
+			if (ret < 0) {
+				printf("Invalid ddp load args: %s\n", optarg);
+				print_usage(prgname);
+				return -1;
+			}
+			break;
+		case 'U':
+			printf("Unloading ddp package selected\n");
+			ret = parse_ddp_unload_args(optarg);
+			if (ret < 0) {
+				printf("Invalid ddp unload args: %s\n", optarg);
+				print_usage(prgname);
+				return -1;
+			}
+			ddp_unload_flag = 1;
 			break;
 		case 'f':
 			if (f_present == 1) {
@@ -2504,6 +2557,16 @@ main(int32_t argc, char **argv)
 
 		sa_check_offloads(portid, &req_rx_offloads, &req_tx_offloads);
 		port_init(portid, req_rx_offloads, req_tx_offloads);
+	}
+	if (ddp_file != NULL && ddp_bkp_file != NULL) {
+		ret = load_ddp_esp_package(fdir_portid, ddp_file, ddp_bkp_file);
+		if (ret < 0)
+			printf("loading ddp package failed\n");
+	}
+	if (ddp_unload_flag && ddp_bkp_file != NULL) {
+		ret = unload_ddp_esp_package(fdir_portid, ddp_bkp_file);
+		if (ret < 0)
+			printf("unloading ddp package failed\n");
 	}
 
 	cryptodevs_init();

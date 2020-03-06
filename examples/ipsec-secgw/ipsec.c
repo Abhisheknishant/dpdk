@@ -4,6 +4,9 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include <rte_branch_prediction.h>
 #include <rte_log.h>
@@ -14,6 +17,9 @@
 #include <rte_ethdev.h>
 #include <rte_mbuf.h>
 #include <rte_hash.h>
+#ifdef RTE_LIBRTE_I40E_PMD
+#include <rte_pmd_i40e.h>
+#endif
 
 #include "ipsec.h"
 #include "esp.h"
@@ -152,6 +158,158 @@ create_lookaside_session(struct ipsec_ctx *ipsec_ctx, struct ipsec_sa *sa,
 
 	sa->cdev_id_qp = cdev_id_qp;
 
+	return 0;
+}
+
+static int
+close_file(uint8_t *buf)
+{
+	if (buf) {
+		free((void *)buf);
+		return 0;
+	}
+
+	return -1;
+}
+
+static uint8_t *
+open_file(const char *file_path, uint32_t *size)
+{
+	int fd = open(file_path, O_RDONLY);
+	off_t pkg_size;
+	uint8_t *buf = NULL;
+	int ret = 0;
+	struct stat st_buf;
+
+	if (size)
+		*size = 0;
+
+	if (fd == -1) {
+		printf("%s: Failed to open %s\n", __func__, file_path);
+		return buf;
+	}
+
+	if ((fstat(fd, &st_buf) != 0) || (!S_ISREG(st_buf.st_mode))) {
+		close(fd);
+		printf("%s: File operations failed\n", __func__);
+		return buf;
+	}
+
+	pkg_size = st_buf.st_size;
+	if (pkg_size < 0) {
+		close(fd);
+		printf("%s: File operations failed\n", __func__);
+		return buf;
+	}
+
+	buf = (uint8_t *)malloc(pkg_size);
+	if (!buf) {
+		close(fd);
+		printf("%s: Failed to malloc memory\n",	__func__);
+		return buf;
+	}
+
+	ret = read(fd, buf, pkg_size);
+	if (ret < 0) {
+		close(fd);
+		printf("%s: File read operation failed\n", __func__);
+		close_file(buf);
+		return NULL;
+	}
+
+	if (size)
+		*size = pkg_size;
+
+	close(fd);
+
+	return buf;
+}
+
+static int
+save_file(const char *file_path, uint8_t *buf, uint32_t size)
+{
+	FILE *fh = fopen(file_path, "wb");
+
+	if (fh == NULL) {
+		printf("%s: Failed to open %s\n", __func__, file_path);
+		return -1;
+	}
+
+	if (fwrite(buf, 1, size, fh) != size) {
+		fclose(fh);
+		printf("%s: File write operation failed\n", __func__);
+		return -1;
+	}
+
+	fclose(fh);
+
+	return 0;
+}
+
+/* Load dynamic device personalization profile */
+int
+load_ddp_esp_package(uint16_t fdir_portid, const char *ddp_file,
+		const char *ddp_bkp_file)
+{
+	uint8_t *buff;
+	uint32_t size;
+	int ret = -ENOTSUP;
+
+	buff = open_file(ddp_file, &size);
+	if (!buff)
+		return -1;
+
+#ifdef RTE_LIBRTE_I40E_PMD
+	ret = rte_pmd_i40e_process_ddp_package(fdir_portid,
+					       buff, size,
+					       RTE_PMD_I40E_PKG_OP_WR_ADD);
+#endif
+
+	if (ret == -EEXIST)
+		printf("Profile has already existed.\n");
+	else if (ret < 0) {
+		printf("Failed to load profile.\n");
+		close_file(buff);
+		return -1;
+	} else
+		printf("loading ddp profile success\n");
+	if (ddp_bkp_file != NULL)
+		save_file(ddp_bkp_file, buff, size);
+
+	close_file(buff);
+	return 0;
+}
+
+/* Unload dynamic device personalization profile */
+int
+unload_ddp_esp_package(uint16_t fdir_portid, const char *ddp_bkp_file)
+{
+
+	uint8_t *buff;
+	uint32_t size;
+	int ret = -ENOTSUP;
+
+	buff = open_file(ddp_bkp_file, &size);
+	if (!buff)
+		return -1;
+
+#ifdef RTE_LIBRTE_I40E_PMD
+	ret = rte_pmd_i40e_process_ddp_package(fdir_portid,
+					       buff, size,
+					       RTE_PMD_I40E_PKG_OP_WR_DEL);
+#endif
+
+	if (ret == -EACCES) {
+		printf("Profile does not exist.\n");
+		close_file(buff);
+		return -1;
+	} else if (ret < 0) {
+		printf("Failed to delete profile.\n");
+		close_file(buff);
+		return -1;
+	} else
+		printf("ddp profile deleted successfully\n");
+	close_file(buff);
 	return 0;
 }
 

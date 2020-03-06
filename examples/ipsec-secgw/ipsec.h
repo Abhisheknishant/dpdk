@@ -383,5 +383,9 @@ create_lookaside_session(struct ipsec_ctx *ipsec_ctx, struct ipsec_sa *sa,
 int
 create_inline_session(struct socket_ctx *skt_ctx, struct ipsec_sa *sa,
 		struct rte_ipsec_session *ips);
-
+int
+load_ddp_esp_package(uint16_t fdir_portid, const char *ddp_file,
+		const char *ddp_bkp_file);
+int
+unload_ddp_esp_package(uint16_t fdir_portid, const char *ddp_bkp_file);
 #endif /* __IPSEC_H__ */
