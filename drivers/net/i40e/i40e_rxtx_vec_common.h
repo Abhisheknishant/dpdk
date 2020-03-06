@@ -98,6 +98,11 @@ i40e_tx_free_bufs(struct i40e_tx_queue *txq)
 	if (likely(m != NULL)) {
 		free[0] = m;
 		nb_free = 1;
+#if defined(__clang__)
+#pragma clang loop vectorize(assume_safety)
+#elif defined(__GNUC__)
+#pragma GCC ivdep
+#endif
 		for (i = 1; i < n; i++) {
 			m = rte_pktmbuf_prefree_seg(txep[i].mbuf);
 			if (likely(m != NULL)) {
