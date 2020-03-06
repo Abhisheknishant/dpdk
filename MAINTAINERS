@@ -1468,6 +1468,9 @@ F: examples/bpf/
 F: app/test/test_bpf.c
 F: doc/guides/prog_guide/bpf_lib.rst
 
+IF Proxy - EXPERIMENTAL
+M: Andrzej Ostruszka <aostruszka@marvell.com>
+F: lib/librte_if_proxy/
 
 Test Applications
 -----------------

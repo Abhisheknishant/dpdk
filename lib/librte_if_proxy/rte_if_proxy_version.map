@@ -1,0 +1,19 @@
+EXPERIMENTAL {
+	global:
+
+	 rte_ifpx_proxy_create;
+	 rte_ifpx_proxy_create_by_devarg;
+	 rte_ifpx_proxy_destroy;
+	 rte_ifpx_events_available;
+	 rte_ifpx_callbacks_register;
+	 rte_ifpx_callbacks_unregister;
+	 rte_ifpx_port_bind;
+	 rte_ifpx_port_unbind;
+	 rte_ifpx_listen;
+	 rte_ifpx_close;
+	 rte_ifpx_proxy_get;
+	 rte_ifpx_port_get;
+	 rte_ifpx_info_get;
+
+	local: *;
+};
