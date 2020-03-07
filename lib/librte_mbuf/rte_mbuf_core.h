@@ -480,31 +480,41 @@ struct rte_mbuf {
 		rte_iova_t buf_physaddr; /**< deprecated */
 	} __rte_aligned(sizeof(rte_iova_t));
 
-	/* next 8 bytes are initialised on RX descriptor rearm */
-	RTE_MARKER64 rearm_data;
-	uint16_t data_off;
-
-	/**
-	 * Reference counter. Its size should at least equal to the size
-	 * of port field (16 bits), to support zero-copy broadcast.
-	 * It should only be accessed using the following functions:
-	 * rte_mbuf_refcnt_update(), rte_mbuf_refcnt_read(), and
-	 * rte_mbuf_refcnt_set(). The functionality of these functions (atomic,
-	 * or non-atomic) is controlled by the CONFIG_RTE_MBUF_REFCNT_ATOMIC
-	 * config option.
-	 */
 	RTE_STD_C11
 	union {
-		rte_atomic16_t refcnt_atomic; /**< Atomically accessed refcnt */
-		/** Non-atomically accessed refcnt */
-		uint16_t refcnt;
-	};
-	uint16_t nb_segs;         /**< Number of segments. */
+		/* next 8 bytes are initialised on RX descriptor rearm */
+		uint64_t rearm_data[1];
+		RTE_STD_C11
+		struct {
+			uint16_t data_off;
 
-	/** Input port (16 bits to support more than 256 virtual ports).
-	 * The event eth Tx adapter uses this field to specify the output port.
-	 */
-	uint16_t port;
+			/**
+			 * Reference counter. Its size should at least equal to
+			 * the size of port field (16 bits), to support
+			 * zero-copy broadcast.  It should only be accessed
+			 * using the following functions:
+			 * rte_mbuf_refcnt_update(), rte_mbuf_refcnt_read(),
+			 * and rte_mbuf_refcnt_set(). The functionality of
+			 * these functions (atomic, or non-atomic) is
+			 * controlled by the CONFIG_RTE_MBUF_REFCNT_ATOMIC
+			 * config option.
+			 */
+			RTE_STD_C11
+				union {
+					/**< Atomically accessed refcnt */
+					rte_atomic16_t refcnt_atomic;
+					/** Non-atomically accessed refcnt */
+					uint16_t refcnt;
+				};
+			uint16_t nb_segs;         /**< Number of segments. */
+
+			/** Input port (16 bits to support more than 256
+			 * virtual ports).  The event eth Tx adapter uses this
+			 * field to specify the output port.
+			 */
+			uint16_t port;
+		};
+	};
 
 	uint64_t ol_flags;        /**< Offload features. */
 
