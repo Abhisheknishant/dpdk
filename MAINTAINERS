@@ -246,6 +246,7 @@ F: app/test/test_bitmap.c
 PMD Bitops
 M: Joyce Kong <joyce.kong@arm.com>
 F: lib/librte_eal/common/include/rte_pmd_bitops.h
+F: app/test/test_pmd_bitops.c
 
 MCSlock - EXPERIMENTAL
 M: Phil Yang <phil.yang@arm.com>

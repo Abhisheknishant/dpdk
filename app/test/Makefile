@@ -78,6 +78,7 @@ SRCS-y += test_rand_perf.c
 
 SRCS-y += test_ring.c
 SRCS-y += test_ring_perf.c
+SRCS-y += test_pmd_bitops.c
 SRCS-y += test_pmd_perf.c
 
 ifeq ($(CONFIG_RTE_LIBRTE_TABLE),y)

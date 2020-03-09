@@ -285,6 +285,12 @@ parallel_test_list = [
         "Report":  None,
     },
     {
+        "Name":    "PMD bitops autotest",
+        "Command": "pmd_bitops_autotest",
+        "Func":    default_autotest,
+        "Report":  None,
+    }
+    {
         "Name":    "PMD ring autotest",
         "Command": "ring_pmd_autotest",
         "Func":    default_autotest,
