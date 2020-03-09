@@ -11,9 +11,11 @@ LIB = librte_pmd_ice.a
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -DALLOW_EXPERIMENTAL_API
+CFLAGS += -I$(RTE_SDK)/drivers/common/iavf
 
 LDLIBS += -lrte_eal -lrte_mbuf -lrte_ethdev -lrte_kvargs
 LDLIBS += -lrte_bus_pci -lrte_mempool -lrte_hash
+LDLIBS += -lrte_net -lrte_common_iavf
 
 EXPORT_MAP := rte_pmd_ice_version.map
 
@@ -81,6 +83,10 @@ ifeq ($(CC_AVX2_SUPPORT), 1)
 	SRCS-$(CONFIG_RTE_LIBRTE_ICE_PMD) += ice_rxtx_vec_avx2.c
 endif
 SRCS-$(CONFIG_RTE_LIBRTE_ICE_PMD) += ice_generic_flow.c
+
+SRCS-$(CONFIG_RTE_LIBRTE_ICE_PMD) += ice_dcf.c
+SRCS-$(CONFIG_RTE_LIBRTE_ICE_PMD) += ice_dcf_parent.c
+SRCS-$(CONFIG_RTE_LIBRTE_ICE_PMD) += ice_dcf_ethdev.c
 
 # install this header file
 SYMLINK-$(CONFIG_RTE_LIBRTE_ICE_PMD)-include := rte_pmd_ice.h
