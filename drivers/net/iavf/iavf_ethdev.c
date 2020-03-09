@@ -1416,9 +1416,49 @@ iavf_dev_uninit(struct rte_eth_dev *dev)
 	return 0;
 }
 
+static int
+handle_dcf_arg(__rte_unused const char *key, const char *value,
+	       __rte_unused void *arg)
+{
+	bool *dcf = arg;
+
+	if (arg == NULL || value == NULL)
+		return -EINVAL;
+
+	if (strcmp(value, "dcf") == 0)
+		*dcf = true;
+	else
+		*dcf = false;
+
+	return 0;
+}
+
+static bool
+check_cap_dcf_enable(struct rte_devargs *devargs)
+{
+	struct rte_kvargs *kvlist;
+	bool enable = false;
+
+	if (devargs == NULL)
+		return false;
+
+	kvlist = rte_kvargs_parse(devargs->args, NULL);
+	if (kvlist == NULL)
+		return false;
+
+	rte_kvargs_process(kvlist, "cap", handle_dcf_arg, &enable);
+
+	rte_kvargs_free(kvlist);
+
+	return enable;
+}
+
 static int eth_iavf_pci_probe(struct rte_pci_driver *pci_drv __rte_unused,
 			     struct rte_pci_device *pci_dev)
 {
+	if (check_cap_dcf_enable(pci_dev->device.devargs))
+		return 1; /* continue to probe */
+
 	return rte_eth_dev_pci_generic_probe(pci_dev,
 		sizeof(struct iavf_adapter), iavf_dev_init);
 }
@@ -1439,6 +1479,7 @@ static struct rte_pci_driver rte_iavf_pmd = {
 RTE_PMD_REGISTER_PCI(net_iavf, rte_iavf_pmd);
 RTE_PMD_REGISTER_PCI_TABLE(net_iavf, pci_id_iavf_map);
 RTE_PMD_REGISTER_KMOD_DEP(net_iavf, "* igb_uio | vfio-pci");
+RTE_PMD_REGISTER_PARAM_STRING(net_iavf, "cap=dcf");
 RTE_INIT(iavf_init_log)
 {
 	iavf_logtype_init = rte_log_register("pmd.net.iavf.init");
