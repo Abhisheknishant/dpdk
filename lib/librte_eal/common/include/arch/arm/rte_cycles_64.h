@@ -18,6 +18,7 @@ extern "C" {
  *   The time base for this lcore.
  */
 #ifndef RTE_ARM_EAL_RDTSC_USE_PMU
+
 /**
  * This call is portable to any ARMv8 architecture, however, typically
  * cntvct_el0 runs at <= 100MHz and it may be imprecise for some tasks.
@@ -27,6 +28,7 @@ rte_rdtsc(void)
 {
 	uint64_t tsc;
 
+	rte_isb();
 	asm volatile("mrs %0, cntvct_el0" : "=r" (tsc));
 	return tsc;
 }

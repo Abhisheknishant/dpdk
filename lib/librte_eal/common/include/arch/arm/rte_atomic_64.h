@@ -21,6 +21,7 @@ extern "C" {
 
 #define dsb(opt) asm volatile("dsb " #opt : : : "memory")
 #define dmb(opt) asm volatile("dmb " #opt : : : "memory")
+#define isb()    asm volatile("isb" : : : "memory")
 
 #define rte_mb() dsb(sy)
 
@@ -185,6 +186,8 @@ rte_atomic128_cmp_exchange(rte_int128_t *dst, rte_int128_t *exp,
 
 	return (old.int128 == expected.int128);
 }
+
+#define rte_isb() isb()
 
 #ifdef __cplusplus
 }
