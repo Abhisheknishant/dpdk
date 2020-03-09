@@ -15,6 +15,7 @@
 #define ECORE_SP_H
 
 #include <rte_byteorder.h>
+#include <rte_pmd_bitops.h>
 
 #if RTE_BYTE_ORDER == RTE_LITTLE_ENDIAN
 #ifndef __LITTLE_ENDIAN
@@ -73,10 +74,11 @@ typedef rte_spinlock_t ECORE_MUTEX_SPIN;
 #define ECORE_SET_BIT_NA(bit, var)         (*var |= (1 << bit))
 #define ECORE_CLEAR_BIT_NA(bit, var)       (*var &= ~(1 << bit))
 
-#define ECORE_TEST_BIT(bit, var)           bnx2x_test_bit(bit, var)
-#define ECORE_SET_BIT(bit, var)            bnx2x_set_bit(bit, var)
-#define ECORE_CLEAR_BIT(bit, var)          bnx2x_clear_bit(bit, var)
-#define ECORE_TEST_AND_CLEAR_BIT(bit, var) bnx2x_test_and_clear_bit(bit, var)
+#define ECORE_TEST_BIT(bit, var)           rte_get_bit32_relaxed(bit, var)
+#define ECORE_SET_BIT(bit, var)            rte_set_bit32_relaxed(bit, var)
+#define ECORE_CLEAR_BIT(bit, var)          rte_clear_bit32_relaxed(bit, var)
+#define ECORE_TEST_AND_CLEAR_BIT(bit, var) \
+	rte_test_and_clear_bit32_relaxed(bit, var)
 
 #define atomic_load_acq_int                (int)*
 #define atomic_store_rel_int(a, v)         (*a = v)
@@ -538,7 +540,7 @@ struct ecore_vlan_mac_data {
 	/* used to contain the data related vlan_mac_flags bits from
 	 * ramrod parameters.
 	 */
-	unsigned long vlan_mac_flags;
+	uint32_t vlan_mac_flags;
 
 	/* Needed for MOVE command */
 	struct ecore_vlan_mac_obj *target_obj;
@@ -688,7 +690,7 @@ struct ecore_vlan_mac_ramrod_params {
 	struct ecore_vlan_mac_obj *vlan_mac_obj;
 
 	/* General command flags: COMP_WAIT, etc. */
-	unsigned long ramrod_flags;
+	uint32_t ramrod_flags;
 
 	/* Command specific configuration request */
 	struct ecore_vlan_mac_data user_req;
@@ -928,7 +930,7 @@ struct ecore_mcast_ramrod_params {
 	struct ecore_mcast_obj *mcast_obj;
 
 	/* Relevant options are RAMROD_COMP_WAIT and RAMROD_DRV_CLR_ONLY */
-	unsigned long ramrod_flags;
+	uint32_t ramrod_flags;
 
 	ecore_list_t mcast_list; /* list of struct ecore_mcast_list_elem */
 	/** TODO:
@@ -1144,22 +1146,22 @@ struct ecore_config_rss_params {
 	struct ecore_rss_config_obj *rss_obj;
 
 	/* may have RAMROD_COMP_WAIT set only */
-	unsigned long	ramrod_flags;
+	uint32_t ramrod_flags;
 
 	/* ECORE_RSS_X bits */
-	unsigned long	rss_flags;
+	uint32_t rss_flags;
 
 	/* Number hash bits to take into an account */
-	uint8_t		rss_result_mask;
+	uint8_t	 rss_result_mask;
 
 	/* Indirection table */
-	uint8_t		ind_table[T_ETH_INDIRECTION_TABLE_SIZE];
+	uint8_t	 ind_table[T_ETH_INDIRECTION_TABLE_SIZE];
 
 	/* RSS hash values */
-	uint32_t		rss_key[10];
+	uint32_t rss_key[10];
 
 	/* valid only if ECORE_RSS_UPDATE_TOE is set */
-	uint16_t		toe_rss_bitmap;
+	uint16_t toe_rss_bitmap;
 };
 
 struct ecore_rss_config_obj {
@@ -1290,17 +1292,17 @@ enum ecore_q_type {
 
 struct ecore_queue_init_params {
 	struct {
-		unsigned long	flags;
-		uint16_t		hc_rate;
-		uint8_t		fw_sb_id;
-		uint8_t		sb_cq_index;
+		uint32_t flags;
+		uint16_t hc_rate;
+		uint8_t	 fw_sb_id;
+		uint8_t	 sb_cq_index;
 	} tx;
 
 	struct {
-		unsigned long	flags;
-		uint16_t		hc_rate;
-		uint8_t		fw_sb_id;
-		uint8_t		sb_cq_index;
+		uint32_t flags;
+		uint16_t hc_rate;
+		uint8_t	 fw_sb_id;
+		uint8_t	 sb_cq_index;
 	} rx;
 
 	/* CID context in the host memory */
@@ -1440,7 +1442,7 @@ struct ecore_queue_state_params {
 	enum ecore_queue_cmd cmd;
 
 	/* may have RAMROD_COMP_WAIT set only */
-	unsigned long ramrod_flags;
+	uint32_t ramrod_flags;
 
 	/* Params according to the current command */
 	union {
@@ -1704,7 +1706,7 @@ struct ecore_func_state_params {
 	enum ecore_func_cmd cmd;
 
 	/* may have RAMROD_COMP_WAIT set only */
-	unsigned long	ramrod_flags;
+	uint32_t ramrod_flags;
 
 	/* Params according to the current command */
 	union {
