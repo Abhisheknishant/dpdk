@@ -45,7 +45,6 @@ typedef uint32_t __le32;
 typedef uint64_t __le64;
 
 #ifndef __cplusplus
-typedef uint8_t bool;
 #define false   0
 #define true    1
 #endif
