@@ -18,6 +18,7 @@
 #include <rte_debug.h>
 #include <rte_ether.h>
 #include <rte_io.h>
+#include <rte_pmd_bitops.h>
 
 /* Forward declaration */
 struct ecore_dev;
@@ -308,23 +309,20 @@ typedef struct osal_list_t {
 #define OSAL_BITS_PER_UL_MASK		(OSAL_BITS_PER_UL - 1)
 
 /* Bitops */
-void qede_set_bit(u32, unsigned long *);
 #define OSAL_SET_BIT(bit, bitmap) \
-	qede_set_bit(bit, bitmap)
+	rte_set_bit32_relaxed(bit, bitmap)
 
-void qede_clr_bit(u32, unsigned long *);
 #define OSAL_CLEAR_BIT(bit, bitmap) \
-	qede_clr_bit(bit, bitmap)
+	rte_clear_bit32_relaxed(bit, bitmap)
 
-bool qede_test_bit(u32, unsigned long *);
-#define OSAL_TEST_BIT(bit, bitmap) \
-	qede_test_bit(bit, bitmap)
+#define OSAL_GET_BIT(bit, bitmap) \
+	rte_get_bit32_relaxed(bit, bitmap)
 
 u32 qede_find_first_bit(unsigned long *, u32);
 #define OSAL_FIND_FIRST_BIT(bitmap, length) \
 	qede_find_first_bit(bitmap, length)
 
-u32 qede_find_first_zero_bit(unsigned long *, u32);
+u32 qede_find_first_zero_bit(u32 *bitmap, u32 length);
 #define OSAL_FIND_FIRST_ZERO_BIT(bitmap, length) \
 	qede_find_first_zero_bit(bitmap, length)
 
