@@ -45,13 +45,6 @@ struct dir24_8_tbl {
 
 #define ROUNDUP(x, y)	 RTE_ALIGN_CEIL(x, (1 << (32 - y)))
 
-enum lookup_type {
-	MACRO,
-	INLINE,
-	UNI
-};
-enum lookup_type test_lookup = MACRO;
-
 static inline void *
 get_tbl24_p(struct dir24_8_tbl *dp, uint32_t ip, uint8_t nh_sz)
 {
@@ -253,11 +246,18 @@ dir24_8_lookup_bulk_uni(void *p, const uint32_t *ips,
 }
 
 rte_fib_lookup_fn_t
-dir24_8_get_lookup_fn(struct rte_fib_conf *fib_conf)
+dir24_8_get_lookup_fn(void *p, enum rte_fib_dir24_8_lookup_type type)
 {
-	enum rte_fib_dir24_8_nh_sz nh_sz = fib_conf->dir24_8.nh_sz;
+	enum rte_fib_dir24_8_nh_sz nh_sz;
+	struct dir24_8_tbl *dp = p;
 
-	if (test_lookup == MACRO) {
+	if (dp == NULL)
+		return NULL;
+
+	nh_sz = dp->nh_sz;
+
+	switch (type) {
+	case RTE_FIB_DIR24_8_SCALAR_MACRO:
 		switch (nh_sz) {
 		case RTE_FIB_DIR24_8_1B:
 			return dir24_8_lookup_bulk_1b;
@@ -267,8 +267,10 @@ dir24_8_get_lookup_fn(struct rte_fib_conf *fib_conf)
 			return dir24_8_lookup_bulk_4b;
 		case RTE_FIB_DIR24_8_8B:
 			return dir24_8_lookup_bulk_8b;
+		default:
+			return NULL;
 		}
-	} else if (test_lookup == INLINE) {
+	case RTE_FIB_DIR24_8_SCALAR_INLINE:
 		switch (nh_sz) {
 		case RTE_FIB_DIR24_8_1B:
 			return dir24_8_lookup_bulk_0;
@@ -278,9 +280,15 @@ dir24_8_get_lookup_fn(struct rte_fib_conf *fib_conf)
 			return dir24_8_lookup_bulk_2;
 		case RTE_FIB_DIR24_8_8B:
 			return dir24_8_lookup_bulk_3;
+		default:
+			return NULL;
 		}
-	} else
+	case RTE_FIB_DIR24_8_SCALAR_UNI:
 		return dir24_8_lookup_bulk_uni;
+	default:
+		return NULL;
+	}
+
 	return NULL;
 }
 
