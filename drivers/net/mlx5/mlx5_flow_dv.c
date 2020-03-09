@@ -2160,6 +2160,10 @@ flow_dv_validate_action_set_tag(struct rte_eth_dev *dev,
 		return rte_flow_error_set(error, EINVAL,
 					  RTE_FLOW_ERROR_TYPE_ACTION, action,
 					  "zero mask doesn't have any effect");
+	if (!(conf->data & conf->mask))
+		return rte_flow_error_set(error, EINVAL,
+					RTE_FLOW_ERROR_TYPE_ACTION, action,
+					"zero value has no effect");
 	ret = mlx5_flow_get_reg_id(dev, MLX5_APP_TAG, conf->index, error);
 	if (ret < 0)
 		return ret;
