@@ -2,10 +2,12 @@
  * Copyright(c) 2019 Intel Corporation
  */
 
+#include <string.h>
+
 #include <rte_eal_memconfig.h>
 #include <rte_errno.h>
 #include <rte_hash.h>
-#include <rte_jhash.h>
+#include <rte_hash_crc.h>
 #include <rte_malloc.h>
 #include <rte_random.h>
 #include <rte_rwlock.h>
@@ -24,7 +26,7 @@
 /* "SAD_<name>" */
 #define SAD_FORMAT		SAD_PREFIX "%s"
 
-#define DEFAULT_HASH_FUNC	rte_jhash
+#define DEFAULT_HASH_FUNC	rte_hash_crc
 #define MIN_HASH_ENTRIES	8U /* From rte_cuckoo_hash.h */
 
 struct hash_cnt {
@@ -35,6 +37,9 @@ struct hash_cnt {
 struct rte_ipsec_sad {
 	char name[RTE_IPSEC_SAD_NAMESIZE];
 	struct rte_hash	*hash[RTE_IPSEC_SAD_KEY_TYPE_MASK];
+	uint32_t spi_dip_keysize;
+	uint32_t spi_dip_sip_keysize;
+	uint32_t init_val;
 	/* Array to track number of more specific rules
 	 * (spi_dip or spi_dip_sip). Used only in add/delete
 	 * as a helper struct.
@@ -272,6 +277,7 @@ rte_ipsec_sad_create(const char *name, const struct rte_ipsec_sad_conf *conf)
 
 	hash_params.hash_func = DEFAULT_HASH_FUNC;
 	hash_params.hash_func_init_val = rte_rand();
+	sad->init_val = hash_params.hash_func_init_val;
 	hash_params.socket_id = conf->socket_id;
 	hash_params.name = hash_name;
 	if (conf->flags & RTE_IPSEC_SAD_FLAG_RW_CONCURRENCY)
@@ -295,6 +301,7 @@ rte_ipsec_sad_create(const char *name, const struct rte_ipsec_sad_conf *conf)
 	else
 		hash_params.key_len +=
 			sizeof(((struct rte_ipsec_sadv4_key *)0)->dip);
+	sad->spi_dip_keysize = hash_params.key_len;
 	hash_params.entries = RTE_MAX(MIN_HASH_ENTRIES,
 			conf->max_sa[RTE_IPSEC_SAD_SPI_DIP]);
 	sad->hash[RTE_IPSEC_SAD_SPI_DIP] = rte_hash_create(&hash_params);
@@ -311,6 +318,7 @@ rte_ipsec_sad_create(const char *name, const struct rte_ipsec_sad_conf *conf)
 	else
 		hash_params.key_len +=
 			sizeof(((struct rte_ipsec_sadv4_key *)0)->sip);
+	sad->spi_dip_sip_keysize = hash_params.key_len;
 	hash_params.entries = RTE_MAX(MIN_HASH_ENTRIES,
 			conf->max_sa[RTE_IPSEC_SAD_SPI_DIP_SIP]);
 	sad->hash[RTE_IPSEC_SAD_SPI_DIP_SIP] = rte_hash_create(&hash_params);
@@ -440,15 +448,21 @@ __ipsec_sad_lookup(const struct rte_ipsec_sad *sad,
 	uint32_t n_3 = 0;
 	uint32_t i;
 	int found = 0;
+	hash_sig_t hash_sig[RTE_HASH_LOOKUP_BULK_MAX];
+	hash_sig_t hash_sig_2[RTE_HASH_LOOKUP_BULK_MAX];
+	hash_sig_t hash_sig_3[RTE_HASH_LOOKUP_BULK_MAX];
 
-	for (i = 0; i < n; i++)
+	for (i = 0; i < n; i++) {
 		sa[i] = NULL;
+		hash_sig[i] = rte_hash_crc_4byte(keys[i]->v4.spi,
+			sad->init_val);
+	}
 
 	/*
 	 * Lookup keys in SPI only hash table first.
 	 */
-	rte_hash_lookup_bulk_data(sad->hash[RTE_IPSEC_SAD_SPI_ONLY],
-		(const void **)keys, n, &mask_1, sa);
+	rte_hash_lookup_with_hash_bulk_data(sad->hash[RTE_IPSEC_SAD_SPI_ONLY],
+		(const void **)keys, hash_sig, n, &mask_1, sa);
 	for (map = mask_1; map; map &= (map - 1)) {
 		i = rte_bsf64(map);
 		/*
@@ -457,10 +471,14 @@ __ipsec_sad_lookup(const struct rte_ipsec_sad *sad,
 		 */
 		if ((uintptr_t)sa[i] & RTE_IPSEC_SAD_SPI_DIP_SIP) {
 			idx_3[n_3] = i;
+			hash_sig_3[n_3] = rte_hash_crc(keys[i],
+				sad->spi_dip_sip_keysize, sad->init_val);
 			keys_3[n_3++] = keys[i];
 		}
 		if ((uintptr_t)sa[i] & RTE_IPSEC_SAD_SPI_DIP) {
 			idx_2[n_2] = i;
+			hash_sig_2[n_2] = rte_hash_crc(keys[i],
+				sad->spi_dip_keysize, sad->init_val);
 			keys_2[n_2++] = keys[i];
 		}
 		/* clear 2 LSB's which indicate the presence
@@ -471,8 +489,9 @@ __ipsec_sad_lookup(const struct rte_ipsec_sad *sad,
 
 	/* Lookup for more specific rules in SPI_DIP table */
 	if (n_2 != 0) {
-		rte_hash_lookup_bulk_data(sad->hash[RTE_IPSEC_SAD_SPI_DIP],
-			keys_2, n_2, &mask_2, vals_2);
+		rte_hash_lookup_with_hash_bulk_data(
+			sad->hash[RTE_IPSEC_SAD_SPI_DIP],
+			keys_2, hash_sig_2, n_2, &mask_2, vals_2);
 		for (map_spec = mask_2; map_spec; map_spec &= (map_spec - 1)) {
 			i = rte_bsf64(map_spec);
 			sa[idx_2[i]] = vals_2[i];
@@ -480,8 +499,9 @@ __ipsec_sad_lookup(const struct rte_ipsec_sad *sad,
 	}
 	/* Lookup for more specific rules in SPI_DIP_SIP table */
 	if (n_3 != 0) {
-		rte_hash_lookup_bulk_data(sad->hash[RTE_IPSEC_SAD_SPI_DIP_SIP],
-			keys_3, n_3, &mask_3, vals_3);
+		rte_hash_lookup_with_hash_bulk_data(
+			sad->hash[RTE_IPSEC_SAD_SPI_DIP_SIP],
+			keys_3, hash_sig_3, n_3, &mask_3, vals_3);
 		for (map_spec = mask_3; map_spec; map_spec &= (map_spec - 1)) {
 			i = rte_bsf64(map_spec);
 			sa[idx_3[i]] = vals_3[i];
