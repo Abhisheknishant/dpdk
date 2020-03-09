@@ -2583,9 +2583,11 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 		goto out;
 	}
 
+	ice_copy_phy_caps_to_cfg(pcaps, &cfg);
+
 	/* clear the old pause settings */
-	cfg.caps = pcaps->caps & ~(ICE_AQC_PHY_EN_TX_LINK_PAUSE |
-				   ICE_AQC_PHY_EN_RX_LINK_PAUSE);
+	cfg.caps &= ~(ICE_AQC_PHY_EN_TX_LINK_PAUSE |
+		      ICE_AQC_PHY_EN_RX_LINK_PAUSE);
 
 	/* set the new capabilities */
 	if (pi->fc.req_mode == ICE_FC_AUTO &&
@@ -2608,13 +2610,6 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 		/* Auto restart link so settings take effect */
 		if (ena_auto_link_update)
 			cfg.caps |= ICE_AQ_PHY_ENA_AUTO_LINK_UPDT;
-		/* Copy over all the old settings */
-		cfg.phy_type_high = pcaps->phy_type_high;
-		cfg.phy_type_low = pcaps->phy_type_low;
-		cfg.low_power_ctrl_an = pcaps->low_power_ctrl_an;
-		cfg.eee_cap = pcaps->eee_cap;
-		cfg.eeer_value = pcaps->eeer_value;
-		cfg.link_fec_opt = pcaps->link_fec_options;
 
 		status = ice_aq_set_phy_cfg(hw, pi, &cfg, NULL);
 		if (status) {
