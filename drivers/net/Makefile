@@ -3,6 +3,7 @@
 
 include $(RTE_SDK)/mk/rte.vars.mk
 
+INC := rte_pmd_bitops.h
 # set in mk/toolchain/xxx/rte.toolchain-compat.mk
 ifeq ($(CONFIG_RTE_LIBRTE_THUNDERX_NICVF_PMD),d)
         $(warning thunderx pmd is not supported by old compilers)

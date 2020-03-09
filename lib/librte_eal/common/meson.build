@@ -50,9 +50,9 @@ common_objs += eal_common_arch_objs
 
 common_headers = files(
 	'include/rte_alarm.h',
+	'include/rte_bitmap.h',
 	'include/rte_branch_prediction.h',
 	'include/rte_bus.h',
-	'include/rte_bitmap.h',
 	'include/rte_class.h',
 	'include/rte_common.h',
 	'include/rte_compat.h',
@@ -78,6 +78,7 @@ common_headers = files(
 	'include/rte_pci_dev_feature_defs.h',
 	'include/rte_pci_dev_features.h',
 	'include/rte_per_lcore.h',
+	'include/rte_pmd_bitops.h',
 	'include/rte_random.h',
 	'include/rte_reciprocal.h',
 	'include/rte_service.h',
