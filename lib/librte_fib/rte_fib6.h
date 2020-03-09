@@ -48,6 +48,10 @@ enum rte_fib_trie_nh_sz {
 	RTE_FIB6_TRIE_8B
 };
 
+enum rte_fib_trie_lookup_type {
+	RTE_FIB6_TRIE_SCALAR
+};
+
 /** FIB configuration structure */
 struct rte_fib6_conf {
 	enum rte_fib6_type type; /**< Type of FIB struct */
@@ -189,5 +193,21 @@ rte_fib6_get_dp(struct rte_fib6 *fib);
 __rte_experimental
 struct rte_rib6 *
 rte_fib6_get_rib(struct rte_fib6 *fib);
+
+/**
+ * Set lookup function based on type
+ *
+ * @param fib
+ *   FIB object handle
+ * @param type
+ *   type of lookup function
+ *
+ * @return
+ *    -EINVAL on failure
+ *    0 on success
+ */
+__rte_experimental
+int
+rte_fib6_set_lookup_fn(struct rte_fib6 *fib, int type);
 
 #endif /* _RTE_FIB6_H_ */
