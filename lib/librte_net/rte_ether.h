@@ -30,7 +30,7 @@ extern "C" {
 	(RTE_ETHER_ADDR_LEN * 2 + \
 		RTE_ETHER_TYPE_LEN) /**< Length of Ethernet header. */
 #define RTE_ETHER_MIN_LEN   64    /**< Minimum frame len, including CRC. */
-#define RTE_ETHER_MAX_LEN   1518  /**< Maximum frame len, including CRC. */
+#define RTE_ETHER_MAX_LEN   1526  /**< Maximum frame len, including CRC. */
 #define RTE_ETHER_MTU       \
 	(RTE_ETHER_MAX_LEN - RTE_ETHER_HDR_LEN - \
 		RTE_ETHER_CRC_LEN) /**< Ethernet MTU. */
