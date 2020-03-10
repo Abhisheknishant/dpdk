@@ -6,6 +6,7 @@
 #include <numaif.h>
 #endif
 
+#include <rte_jhash.h>
 #include <rte_tailq.h>
 
 #include "iotlb.h"
@@ -288,6 +289,7 @@ vhost_user_iotlb_init(struct virtio_net *dev, int vq_index)
 	char pool_name[RTE_MEMPOOL_NAMESIZE];
 	struct vhost_virtqueue *vq = dev->virtqueue[vq_index];
 	int socket = 0;
+	uint32_t val;
 
 	if (vq->iotlb_pool) {
 		/*
@@ -308,8 +310,10 @@ vhost_user_iotlb_init(struct virtio_net *dev, int vq_index)
 	TAILQ_INIT(&vq->iotlb_list);
 	TAILQ_INIT(&vq->iotlb_pending_list);
 
-	snprintf(pool_name, sizeof(pool_name), "iotlb_cache_%d_%d",
-			dev->vid, vq_index);
+	val = rte_jhash(dev->ifname, strlen(dev->ifname), 0);
+	snprintf(pool_name, sizeof(pool_name), "iotlb_cache_%08x_%d",
+			val, vq_index);
+	VHOST_LOG_CONFIG(DEBUG, "IOTLB cache name: %s\n", pool_name);
 
 	/* If already created, free it and recreate */
 	vq->iotlb_pool = rte_mempool_lookup(pool_name);
