@@ -483,6 +483,38 @@ rte_bitmap_scan(struct rte_bitmap *bmp, uint32_t *pos, uint64_t *slab)
 	return 0;
 }
 
+/**
+ * Bitmap initialization with all bits set
+ *
+ * @param n_bits
+ *   Number of pre-allocated bits in array2.
+ * @param mem
+ *   Base address of array1 and array2.
+ * @param mem_size
+ *   Minimum expected size of bitmap.
+ * @return
+ *   Handle to bitmap instance.
+ */
+static inline struct rte_bitmap *
+rte_bitmap_init_with_all_set(uint32_t n_bits, uint8_t *mem, uint32_t mem_size)
+{
+	uint32_t i;
+	uint32_t slabs = n_bits / RTE_BITMAP_SLAB_BIT_SIZE;
+	struct rte_bitmap *bmp = rte_bitmap_init(n_bits, mem, mem_size);
+
+	if (!bmp)
+		return NULL;
+	/* Fill the arry2 byte aligned bits. */
+	memset(bmp->array2, 0xff, slabs * sizeof(bmp->array2[0]));
+	/* Fill the arry1 bits. */
+	for (i = 0; i < n_bits; i += RTE_BITMAP_CL_BIT_SIZE)
+		rte_bitmap_set(bmp, i);
+	/* Fill the arry2 left not byte aligned bits. */
+	for (i = slabs * RTE_BITMAP_SLAB_BIT_SIZE; i < n_bits; i++)
+		rte_bitmap_set(bmp, i);
+	return bmp;
+}
+
 #ifdef __cplusplus
 }
 #endif
