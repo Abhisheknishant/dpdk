@@ -19,7 +19,7 @@ libraries = [
 	'acl', 'bbdev', 'bitratestats', 'cfgfile',
 	'compressdev', 'cryptodev',
 	'distributor', 'efd', 'eventdev',
-	'gro', 'gso', 'ip_frag', 'jobstats',
+	'gro', 'gso', 'if_proxy', 'ip_frag', 'jobstats',
 	'kni', 'latencystats', 'lpm', 'member',
 	'power', 'pdump', 'rawdev',
 	'rcu', 'rib', 'reorder', 'sched', 'security', 'stack', 'vhost',

@@ -680,6 +680,9 @@ rte_intr_enable(const struct rte_intr_handle *intr_handle)
 		break;
 	/* not used at this moment */
 	case RTE_INTR_HANDLE_ALARM:
+#if RTE_LIBRTE_IF_PROXY
+	case RTE_INTR_HANDLE_NETLINK:
+#endif
 		return -1;
 #ifdef VFIO_PRESENT
 	case RTE_INTR_HANDLE_VFIO_MSIX:
@@ -796,6 +799,9 @@ rte_intr_disable(const struct rte_intr_handle *intr_handle)
 		break;
 	/* not used at this moment */
 	case RTE_INTR_HANDLE_ALARM:
+#if RTE_LIBRTE_IF_PROXY
+	case RTE_INTR_HANDLE_NETLINK:
+#endif
 		return -1;
 #ifdef VFIO_PRESENT
 	case RTE_INTR_HANDLE_VFIO_MSIX:
@@ -889,12 +895,12 @@ eal_intr_process_interrupts(struct epoll_event *events, int nfds)
 			break;
 #endif
 #endif
-		case RTE_INTR_HANDLE_VDEV:
 		case RTE_INTR_HANDLE_EXT:
-			bytes_read = 0;
-			call = true;
-			break;
+		case RTE_INTR_HANDLE_VDEV:
 		case RTE_INTR_HANDLE_DEV_EVENT:
+#if RTE_LIBRTE_IF_PROXY
+		case RTE_INTR_HANDLE_NETLINK:
+#endif
 			bytes_read = 0;
 			call = true;
 			break;
