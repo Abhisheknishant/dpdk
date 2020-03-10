@@ -1471,6 +1471,7 @@ F: doc/guides/prog_guide/bpf_lib.rst
 IF Proxy - EXPERIMENTAL
 M: Andrzej Ostruszka <aostruszka@marvell.com>
 F: lib/librte_if_proxy/
+F: examples/l3fwd-ifpx/
 F: app/test/test_if_proxy.c
 F: doc/guides/prog_guide/if_proxy_lib.rst
 
