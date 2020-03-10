@@ -87,7 +87,7 @@ rte_atomic128_cmp_exchange(rte_int128_t *dst, rte_int128_t *exp,
 		const rte_int128_t *src, unsigned int weak, int success,
 		int failure)
 {
-	/* Always do strong CAS */
+	/* Always do strong CASE */
 	RTE_SET_USED(weak);
 	/* Ignore memory ordering for failure, memory order for
 	 * success must be stronger or equal
