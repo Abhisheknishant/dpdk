@@ -2605,6 +2605,25 @@ Otherwise, RTE_FLOW_ERROR_TYPE_ACTION error will be returned.
    | ``dscp``  | DSCP in low 6 bits, rest ignore |
    +-----------+---------------------------------+
 
+Action: ``DBDF``
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Set DBDF value.
+
+Send traffic to specified PCI DBDF device.
+
+.. _table_rte_flow_action_dbdf:
+
+.. table:: DBDF
+
+   +-----------------+----------------------------+
+   | Field           | Value                      |
+   +=================+============================+
+   | ``length``      | DBDF length                |
+   +-----------------+----------------------------+
+   | ``dbdf_value``  | DBDF value                 |
+   +-----------------+----------------------------+
+
 Negative types
 ~~~~~~~~~~~~~~
 

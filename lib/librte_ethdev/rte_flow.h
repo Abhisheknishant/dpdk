@@ -2051,6 +2051,22 @@ enum rte_flow_action_type {
 	 * See struct rte_flow_action_set_dscp.
 	 */
 	RTE_FLOW_ACTION_TYPE_SET_IPV6_DSCP,
+
+	/**
+	 * Send packet to specified PCIe device
+	 */
+	RTE_FLOW_ACTION_TYPE_DBDF,
+};
+
+
+/**
+ * RTE_FLOW_ACTION_TYPE_DBDF
+ *
+ * Send the packet to specified PCI DBDF device
+ */
+struct rte_flow_action_dbdf {
+	uint8_t length;
+	const uint8_t *dbdf_value;
 };
 
 /**

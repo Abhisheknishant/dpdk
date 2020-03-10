@@ -337,7 +337,16 @@ enum index {
 	ACTION_SET_IPV4_DSCP_VALUE,
 	ACTION_SET_IPV6_DSCP,
 	ACTION_SET_IPV6_DSCP_VALUE,
+	ACTION_DBDF,
 };
+
+#define DBDF_KEY_LENGTH 20
+
+struct action_dbdf_data {
+	struct rte_flow_action_dbdf conf;
+	uint8_t dbdf_value[DBDF_KEY_LENGTH];
+};
+
 
 /** Maximum size for pattern in struct rte_flow_item_raw. */
 #define ITEM_RAW_PATTERN_SIZE 40
@@ -1124,6 +1133,7 @@ static const enum index next_action[] = {
 	ACTION_SET_META,
 	ACTION_SET_IPV4_DSCP,
 	ACTION_SET_IPV6_DSCP,
+	ACTION_DBDF,
 	ZERO,
 };
 
@@ -1349,6 +1359,11 @@ static const enum index action_set_ipv6_dscp[] = {
 	ZERO,
 };
 
+static const enum index action_dbdf[] = {
+	ACTION_NEXT,
+	ZERO,
+};
+
 static int parse_set_raw_encap_decap(struct context *, const struct token *,
 				     const char *, unsigned int,
 				     void *, unsigned int);
@@ -1401,6 +1416,9 @@ static int parse_vc_action_mplsoudp_encap(struct context *,
 static int parse_vc_action_mplsoudp_decap(struct context *,
 					  const struct token *, const char *,
 					  unsigned int, void *, unsigned int);
+static int parse_vc_action_dbdf_value(struct context *,
+				     const struct token *, const char *,
+				     unsigned int, void *, unsigned int);
 static int parse_vc_action_raw_encap(struct context *,
 				     const struct token *, const char *,
 				     unsigned int, void *, unsigned int);
@@ -3631,6 +3649,18 @@ static const struct token token_list[] = {
 			     (struct rte_flow_action_set_dscp, dscp)),
 		.call = parse_vc_conf,
 	},
+	[ACTION_DBDF] = {
+		.name = "dbdf",
+		.help = "set DBDF value",
+		.next = NEXT(action_dbdf, NEXT_ENTRY(STRING)),
+		.priv = PRIV_ACTION(DBDF, sizeof(struct action_dbdf_data)),
+		.args = ARGS(ARGS_ENTRY_ARB(0, 0),
+			     ARGS_ENTRY_ARB(0, sizeof(uint8_t)),
+			     ARGS_ENTRY_ARB(
+			    offsetof(struct action_dbdf_data, dbdf_value),
+					    DBDF_KEY_LENGTH)),
+		.call = parse_vc_action_dbdf_value,
+	},
 };
 
 /** Remove and return last entry from argument stack. */
@@ -5009,6 +5039,40 @@ parse_vc_action_raw_encap_index(struct context *ctx, const struct token *token,
 	action_raw_encap_data->conf.preserve = NULL;
 	action->conf = &action_raw_encap_data->conf;
 	return len;
+}
+
+static int
+parse_vc_action_dbdf_value(struct context *ctx, const struct token *token,
+			  const char *str, unsigned int len, void *buf,
+			  unsigned int size)
+{
+	struct buffer *out = buf;
+	struct rte_flow_action *action;
+	struct action_dbdf_data *action_dbdf_data = NULL;
+	int ret;
+
+	ret = parse_vc(ctx, token, str, len, buf, size);
+	if (ret < 0)
+		return ret;
+	/* Nothing else to do if there is no buffer. */
+	if (!out)
+		return ret;
+	if (!out->args.vc.actions_n)
+		return -1;
+	action = &out->args.vc.actions[out->args.vc.actions_n - 1];
+	/* Point to selected object. */
+	ctx->object = out->args.vc.data;
+	ctx->objmask = NULL;
+	/* Copy the headers to the buffer. */
+	action_dbdf_data = ctx->object;
+	*action_dbdf_data = (struct action_dbdf_data) {
+		.conf = (struct rte_flow_action_dbdf){
+			.dbdf_value = action_dbdf_data->dbdf_value,
+		},
+		.dbdf_value = {},
+	};
+	action->conf = &action_dbdf_data->conf;
+	return ret;
 }
 
 static int
