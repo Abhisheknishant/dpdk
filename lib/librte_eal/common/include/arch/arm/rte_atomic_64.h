@@ -21,6 +21,7 @@ extern "C" {
 
 #define dsb(opt) asm volatile("dsb " #opt : : : "memory")
 #define dmb(opt) asm volatile("dmb " #opt : : : "memory")
+#define isb()    (asm volatile("isb" : : : "memory"))
 
 #define rte_mb() dsb(sy)
 
@@ -43,6 +44,8 @@ extern "C" {
 #define rte_cio_wmb() dmb(oshst)
 
 #define rte_cio_rmb() dmb(oshld)
+
+#define rte_isb() isb()
 
 /*------------------------ 128 bit atomic operations -------------------------*/
 

@@ -18,6 +18,7 @@ extern "C" {
  *   The time base for this lcore.
  */
 #ifndef RTE_ARM_EAL_RDTSC_USE_PMU
+
 /**
  * This call is portable to any ARMv8 architecture, however, typically
  * cntvct_el0 runs at <= 100MHz and it may be imprecise for some tasks.
@@ -59,11 +60,26 @@ rte_rdtsc(void)
 }
 #endif
 
+#define arch_counter_enforce_ordering(val) do {						\
+	uint64_t tmp, _val = (val);										\
+																	\
+	asm volatile(													\
+	"	eor  %0, %1, %1\n"											\
+	"	add  %0, sp, %0\n"											\
+	"	ldr  xzr, [%0]"												\
+	: "=r" (tmp) : "r" (_val));										\
+} while (0)
+
+
 static inline uint64_t
 rte_rdtsc_precise(void)
 {
-	rte_mb();
-	return rte_rdtsc();
+	uint64_t tsc;
+
+	rte_isb();
+	tsc = rte_rdtsc();
+	arch_counter_enforce_ordering(tsc);
+	return tsc;
 }
 
 static inline uint64_t
