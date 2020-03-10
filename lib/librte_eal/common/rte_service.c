@@ -122,6 +122,8 @@ rte_service_finalize(void)
 	if (!rte_service_library_initialized)
 		return;
 
+	rte_service_lcore_reset_all();
+
 	rte_free(rte_services);
 	rte_free(lcore_states);
 
