@@ -59,11 +59,33 @@ rte_rdtsc(void)
 }
 #endif
 
+static inline void
+isb(void)
+{
+	asm volatile("isb" : : : "memory");
+}
+
+static inline void
+__rte_arm64_cntvct_el0_enforce_ordering(uint64_t val)
+{
+	uint64_t tmp;
+
+	asm volatile(
+	"	eor	%0, %1, %1\n"
+	"	add	%0, sp, %0\n"
+	"	ldr	xzr, [%0]"
+	: "=r" (tmp) : "r" (val));
+}
+
 static inline uint64_t
 rte_rdtsc_precise(void)
 {
-	rte_mb();
-	return rte_rdtsc();
+	uint64_t tsc;
+
+	isb();
+	tsc = rte_rdtsc();
+	__rte_arm64_cntvct_el0_enforce_ordering(tsc);
+	return tsc;
 }
 
 static inline uint64_t
