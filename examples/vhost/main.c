@@ -24,6 +24,9 @@
 #include <rte_ip.h>
 #include <rte_tcp.h>
 #include <rte_pause.h>
+#ifdef RTE_LIBRTE_PMD_VHOST
+#include <rte_eth_vhost.h>
+#endif
 
 #include "main.h"
 
@@ -95,6 +98,9 @@ static int client_mode;
 static int dequeue_zero_copy;
 
 static int builtin_net_driver;
+
+/* Use vHost PMD instead of vHost library (Default) */
+static int vhost_pmd;
 
 /* Specify timeout (in useconds) between retries on RX. */
 static uint32_t burst_rx_delay_time = BURST_RX_WAIT_US;
@@ -182,6 +188,12 @@ struct mbuf_table lcore_tx_queue[RTE_MAX_LCORE];
 				 / US_PER_S * BURST_TX_DRAIN_US)
 #define VLAN_HLEN       4
 
+static int
+vhost_device_event_callback(uint16_t port_id,
+				  enum rte_eth_event_type type,
+				  void *param __rte_unused,
+				  void *ret_param __rte_unused);
+
 /*
  * Builds up the correct configuration for VMDQ VLAN pool map
  * according to the pool & queue limits.
@@ -208,6 +220,151 @@ get_eth_conf(struct rte_eth_conf *eth_conf, uint32_t num_devices)
 	(void)(rte_memcpy(eth_conf, &vmdq_conf_default, sizeof(*eth_conf)));
 	(void)(rte_memcpy(&eth_conf->rx_adv_conf.vmdq_rx_conf, &conf,
 		   sizeof(eth_conf->rx_adv_conf.vmdq_rx_conf)));
+	return 0;
+}
+
+/*
+ * Device removal before application exit
+ * for the device to be re-used
+ */
+static void
+unregister_device(int socket_num)
+{
+	int ret;
+
+	if (vhost_pmd) {
+		char drv_name[RTE_ETH_NAME_MAX_LEN];
+		struct vhost_dev *vdev = NULL;
+		uint16_t port_id;
+
+		snprintf(drv_name, RTE_ETH_NAME_MAX_LEN,
+						"net_vhost%d", socket_num);
+		ret = rte_eth_dev_get_port_by_name(drv_name, &port_id);
+		if (ret != 0)
+			rte_exit(EXIT_FAILURE,
+				"vhost device port id get failed.\n");
+
+		TAILQ_FOREACH(vdev, &vhost_dev_list, global_vdev_entry) {
+			if (vdev->eth_dev_id == port_id) {
+				vdev->remove = 1;
+				break;
+			}
+		}
+
+		/* Close the Ethernet device */
+		rte_eth_dev_close(port_id);
+	} else {
+		ret = rte_vhost_driver_unregister(socket_files +
+					socket_num * PATH_MAX);
+		if (ret != 0)
+			RTE_LOG(ERR, VHOST_CONFIG,
+				"Fail to unregister vhost driver for %s.\n",
+				socket_files + socket_num * PATH_MAX);
+	}
+}
+
+/*
+ * Initialises a given port using global settings and with the rx buffers
+ * coming from the mbuf_pool passed as parameter
+ */
+static inline int
+port_init_v2(uint16_t portid)
+{
+	struct rte_eth_rxconf rxq_conf;
+	struct rte_eth_txconf txq_conf;
+	struct rte_eth_dev_info dev_info;
+	struct rte_eth_conf port_conf = {
+		.rxmode = {
+			.split_hdr_size = 0,
+		},
+		.txmode = {
+			.mq_mode = ETH_MQ_TX_NONE,
+		},
+	};
+	uint16_t nb_rxd, nb_txd;
+	int ret = 0;
+
+	/* init port */
+	printf("Initializing port %u... ", portid);
+	fflush(stdout);
+
+	ret = rte_eth_dev_info_get(portid, &dev_info);
+	if (ret != 0)
+		rte_exit(EXIT_FAILURE,
+			"Error during getting device (port %u) info: %s\n",
+			portid, strerror(-ret));
+
+	if (strncmp(dev_info.driver_name, "net_vhost",
+				sizeof("net_vhost")) == 0)
+		rte_eth_dev_callback_register(portid,
+			RTE_ETH_EVENT_INTR_LSC,
+			vhost_device_event_callback, NULL);
+
+	ret = rte_eth_dev_configure(portid, 1, 1, &port_conf);
+	if (ret < 0)
+		rte_exit(EXIT_FAILURE, "Cannot configure device: err=%d, port=%u\n",
+			  ret, portid);
+
+	nb_rxd = RTE_TEST_RX_DESC_DEFAULT;
+	nb_txd = RTE_TEST_TX_DESC_DEFAULT;
+
+	ret = rte_eth_dev_adjust_nb_rx_tx_desc(portid, &nb_rxd,
+						   &nb_txd);
+	if (ret < 0)
+		rte_exit(EXIT_FAILURE,
+			 "Cannot adjust number of descriptors: err=%d, port=%u\n",
+			 ret, portid);
+
+	ret = rte_eth_macaddr_get(portid,
+				  &vmdq_ports_eth_addr[portid]);
+	if (ret < 0)
+		rte_exit(EXIT_FAILURE,
+			 "Cannot get MAC address: err=%d, port=%u\n",
+			 ret, portid);
+
+	/* init RX queue */
+	fflush(stdout);
+	rxq_conf = dev_info.default_rxconf;
+	rxq_conf.offloads = port_conf.rxmode.offloads;
+	ret = rte_eth_rx_queue_setup(portid, 0, nb_rxd,
+					 rte_eth_dev_socket_id(portid),
+					 &rxq_conf,
+					 mbuf_pool);
+	if (ret < 0)
+		rte_exit(EXIT_FAILURE, "rte_eth_rx_queue_setup:err=%d, port=%u\n",
+			  ret, portid);
+
+	/* init TX queue */
+	fflush(stdout);
+	txq_conf = dev_info.default_txconf;
+	txq_conf.offloads = port_conf.txmode.offloads;
+	ret = rte_eth_tx_queue_setup(portid, 0, nb_txd,
+			rte_eth_dev_socket_id(portid),
+			&txq_conf);
+	if (ret < 0)
+		rte_exit(EXIT_FAILURE, "rte_eth_tx_queue_setup:err=%d, port=%u\n",
+			ret, portid);
+
+	/* Start device */
+	ret = rte_eth_dev_start(portid);
+	if (ret < 0)
+		rte_exit(EXIT_FAILURE, "rte_eth_dev_start:err=%d, port=%u\n",
+				ret, portid);
+
+	if (promiscuous) {
+		ret = rte_eth_promiscuous_enable(portid);
+		if ((ret != 0) && (ret != -ENOTSUP)) {
+			uint8_t i;
+
+			for (i = 0; i < nb_sockets; i++)
+				unregister_device(i);
+
+			rte_exit(EXIT_FAILURE,
+				 "rte_eth_promiscuous_enable:err=%s, port=%u\n",
+				 rte_strerror(-ret), portid);
+		}
+	}
+
 	return 0;
 }
 
@@ -461,7 +618,8 @@ us_vhost_usage(const char *prgname)
 	"		--tx-csum [0|1] disable/enable TX checksum offload.\n"
 	"		--tso [0|1] disable/enable TCP segment offload.\n"
 	"		--client register a vhost-user socket as client mode.\n"
-	"		--dequeue-zero-copy enables dequeue zero copy\n",
+	"		--dequeue-zero-copy enables dequeue zero copy.\n"
+	"		--use-vhost-pmd enables vHost PMD instead of vHost library\n",
 	       prgname);
 }
 
@@ -488,6 +646,7 @@ us_vhost_parse_args(int argc, char **argv)
 		{"client", no_argument, &client_mode, 1},
 		{"dequeue-zero-copy", no_argument, &dequeue_zero_copy, 1},
 		{"builtin-net-driver", no_argument, &builtin_net_driver, 1},
+		{"use-vhost-pmd", no_argument, &vhost_pmd, 1},
 		{NULL, 0, 0, 0},
 	};
 
@@ -1047,37 +1206,61 @@ drain_eth_rx(struct vhost_dev *vdev)
 	if (!rx_count)
 		return;
 
-	/*
-	 * When "enable_retry" is set, here we wait and retry when there
-	 * is no enough free slots in the queue to hold @rx_count packets,
-	 * to diminish packet loss.
-	 */
-	if (enable_retry &&
-	    unlikely(rx_count > rte_vhost_avail_entries(vdev->vid,
-			VIRTIO_RXQ))) {
-		uint32_t retry;
+	if (vhost_pmd) {
+		enqueue_count = rte_eth_tx_burst(vdev->eth_dev_id, 0,
+			pkts, rx_count);
+		if (unlikely(enqueue_count < rx_count)) {
+			uint32_t retry, pending = rx_count - enqueue_count;
+			for (retry = 0; retry < burst_rx_retry_num; retry++) {
+				rte_delay_us(burst_rx_delay_time);
+				enqueue_count += rte_eth_tx_burst(
+					vdev->eth_dev_id, 0,
+					(pkts + enqueue_count), pending);
+				pending = rx_count - enqueue_count;
 
-		for (retry = 0; retry < burst_rx_retry_num; retry++) {
-			rte_delay_us(burst_rx_delay_time);
-			if (rx_count <= rte_vhost_avail_entries(vdev->vid,
-					VIRTIO_RXQ))
-				break;
+				if (enqueue_count == rx_count)
+					break;
+			}
+			/* Drop the remaining packets */
+			uint32_t idx;
+			for (idx = enqueue_count; idx < rx_count; idx++)
+				rte_pktmbuf_free(pkts[idx]);
 		}
+	} else {
+		/*
+		 * When "enable_retry" is set, here we wait and retry
+		 * when there is no enough free slots in the queue to
+		 * hold @rx_count packets, to diminish packet loss.
+		 */
+		if (enable_retry &&
+			unlikely(rx_count > rte_vhost_avail_entries(
+				vdev->vid, VIRTIO_RXQ))) {
+			uint32_t retry;
+
+			for (retry = 0; retry <
+				burst_rx_retry_num; retry++) {
+				rte_delay_us(burst_rx_delay_time);
+				if (rx_count <= rte_vhost_avail_entries(
+					vdev->vid, VIRTIO_RXQ))
+					break;
+			}
+		}
+
+		if (builtin_net_driver) {
+			enqueue_count = vs_enqueue_pkts(vdev, VIRTIO_RXQ,
+							pkts, rx_count);
+		} else {
+			enqueue_count = rte_vhost_enqueue_burst(vdev->vid,
+				VIRTIO_RXQ,	pkts, rx_count);
+		}
+
+		free_pkts(pkts, rx_count);
 	}
 
-	if (builtin_net_driver) {
-		enqueue_count = vs_enqueue_pkts(vdev, VIRTIO_RXQ,
-						pkts, rx_count);
-	} else {
-		enqueue_count = rte_vhost_enqueue_burst(vdev->vid, VIRTIO_RXQ,
-						pkts, rx_count);
-	}
 	if (enable_stats) {
 		rte_atomic64_add(&vdev->stats.rx_total_atomic, rx_count);
 		rte_atomic64_add(&vdev->stats.rx_atomic, enqueue_count);
 	}
-
-	free_pkts(pkts, rx_count);
 }
 
 static __rte_always_inline void
@@ -1087,12 +1270,20 @@ drain_virtio_tx(struct vhost_dev *vdev)
 	uint16_t count;
 	uint16_t i;
 
-	if (builtin_net_driver) {
-		count = vs_dequeue_pkts(vdev, VIRTIO_TXQ, mbuf_pool,
-					pkts, MAX_PKT_BURST);
+	if (vhost_pmd) {
+		count = rte_eth_rx_burst(vdev->eth_dev_id,
+					0, pkts, MAX_PKT_BURST);
+		if (!count)
+			return;
+
 	} else {
-		count = rte_vhost_dequeue_burst(vdev->vid, VIRTIO_TXQ,
-					mbuf_pool, pkts, MAX_PKT_BURST);
+		if (builtin_net_driver) {
+			count = vs_dequeue_pkts(vdev, VIRTIO_TXQ, mbuf_pool,
+						pkts, MAX_PKT_BURST);
+		} else {
+			count = rte_vhost_dequeue_burst(vdev->vid, VIRTIO_TXQ,
+						mbuf_pool, pkts, MAX_PKT_BURST);
+		}
 	}
 
 	/* setup VMDq for the first packet */
@@ -1291,6 +1482,91 @@ static const struct vhost_device_ops virtio_net_device_ops =
 	.destroy_device = destroy_device,
 };
 
+static int
+vhost_device_attach_callback(uint16_t port_id)
+{
+	int lcore, core_add = 0, vid = -1;
+	uint32_t device_num_min = num_devices;
+	struct vhost_dev *vdev;
+
+#ifdef RTE_LIBRTE_PMD_VHOST
+	vid = rte_eth_vhost_get_vid_from_port_id(port_id);
+#endif
+
+	vdev = rte_zmalloc("vhost device", sizeof(*vdev), RTE_CACHE_LINE_SIZE);
+	if (vdev == NULL) {
+		RTE_LOG(INFO, VHOST_DATA,
+			"(%d) couldn't allocate memory for vhost dev\n",
+			vid);
+		return -1;
+	}
+
+	if (builtin_net_driver)
+		vs_vhost_net_setup(vdev);
+
+	TAILQ_INSERT_TAIL(&vhost_dev_list, vdev, global_vdev_entry);
+	vdev->vmdq_rx_q = vid * queues_per_pool + vmdq_queue_base;
+
+	/*reset ready flag*/
+	vdev->ready = DEVICE_MAC_LEARNING;
+	vdev->remove = 0;
+
+	vdev->vid = vid;
+	vdev->eth_dev_id = port_id;
+
+	/* Find a suitable lcore to add the device. */
+	RTE_LCORE_FOREACH_SLAVE(lcore) {
+		if (lcore_info[lcore].device_num < device_num_min) {
+			device_num_min = lcore_info[lcore].device_num;
+			core_add = lcore;
+		}
+	}
+	vdev->coreid = core_add;
+
+	TAILQ_INSERT_TAIL(&lcore_info[vdev->coreid].vdev_list, vdev,
+			  lcore_vdev_entry);
+	lcore_info[vdev->coreid].device_num++;
+
+	return 0;
+}
+
+int
+vhost_device_event_callback(uint16_t port_id,
+				enum rte_eth_event_type type,
+				void *param __rte_unused,
+				void *ret_param __rte_unused)
+{
+	struct rte_eth_link link;
+	int vid = -1;
+
+	if (type == RTE_ETH_EVENT_INTR_LSC) {
+		rte_eth_link_get_nowait(port_id, &link);
+
+		if (link.link_status) {
+			RTE_LOG(INFO, VHOST_DATA,
+				"Port %d Link Up - speed %u Mbps - %s\n",
+				port_id, (unsigned int) link.link_speed,
+				(link.link_duplex == ETH_LINK_FULL_DUPLEX)
+				? "full-duplex" : "half-duplex");
+			if (vhost_device_attach_callback(port_id) != 0) {
+				RTE_LOG(ERR, VHOST_DATA,
+					"vhost dev (%d) attach callback failed\n",
+					port_id);
+				return -1;
+			}
+		} else {
+			RTE_LOG(INFO, VHOST_DATA, "Port %d Link Down\n",
+					port_id);
+#ifdef RTE_LIBRTE_PMD_VHOST
+			vid = rte_eth_vhost_get_vid_from_port_id(port_id);
+#endif
+			destroy_device(vid);
+		}
+	}
+
+	return 0;
+}
+
 /*
  * This is a thread will wake up after a period to print stats if the user has
  * enabled them.
@@ -1339,26 +1615,15 @@ print_stats(__rte_unused void *arg)
 	return NULL;
 }
 
-static void
-unregister_drivers(int socket_num)
-{
-	int i, ret;
-
-	for (i = 0; i < socket_num; i++) {
-		ret = rte_vhost_driver_unregister(socket_files + i * PATH_MAX);
-		if (ret != 0)
-			RTE_LOG(ERR, VHOST_CONFIG,
-				"Fail to unregister vhost driver for %s.\n",
-				socket_files + i * PATH_MAX);
-	}
-}
-
 /* When we receive a INT signal, unregister vhost driver */
 static void
 sigint_handler(__rte_unused int signum)
 {
 	/* Unregister vhost driver. */
-	unregister_drivers(nb_sockets);
+	uint8_t i;
+
+	for (i = 0; i < nb_sockets; i++)
+		unregister_device(i);
 
 	exit(0);
 }
@@ -1441,6 +1706,14 @@ main(int argc, char *argv[])
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "Invalid argument\n");
 
+#ifndef RTE_LIBRTE_PMD_VHOST
+	if (vhost_pmd == 1) {
+		RTE_LOG(ERR, VHOST_CONFIG, "Use vHost PMD is not supported\n");
+		rte_exit(EXIT_FAILURE, "vHost PMD should be enabled in"
+			" config file\n");
+	}
+#endif
+
 	for (lcore_id = 0; lcore_id < RTE_MAX_LCORE; lcore_id++) {
 		TAILQ_INIT(&lcore_info[lcore_id].vdev_list);
 
@@ -1517,52 +1790,86 @@ main(int argc, char *argv[])
 	/* Register vhost user driver to handle vhost messages. */
 	for (i = 0; i < nb_sockets; i++) {
 		char *file = socket_files + i * PATH_MAX;
-		ret = rte_vhost_driver_register(file, flags);
-		if (ret != 0) {
-			unregister_drivers(i);
-			rte_exit(EXIT_FAILURE,
-				"vhost driver register failure.\n");
-		}
 
-		if (builtin_net_driver)
-			rte_vhost_driver_set_features(file, VIRTIO_NET_FEATURES);
+		if (vhost_pmd) {
+			char dev_name[PATH_MAX];
+			char drv_name[RTE_ETH_NAME_MAX_LEN];
+			uint16_t port;
 
-		if (mergeable == 0) {
-			rte_vhost_driver_disable_features(file,
-				1ULL << VIRTIO_NET_F_MRG_RXBUF);
-		}
+			snprintf(drv_name, RTE_ETH_NAME_MAX_LEN,
+				"net_vhost%d", i);
+			snprintf(dev_name, PATH_MAX, "%s,"
+				"iface=%s,client=%d,tso=%d,"
+				"dequeue-zero-copy=%d",
+				drv_name, file, client_mode,
+				enable_tso, dequeue_zero_copy);
 
-		if (enable_tx_csum == 0) {
-			rte_vhost_driver_disable_features(file,
-				1ULL << VIRTIO_NET_F_CSUM);
-		}
+			ret = rte_dev_probe(dev_name);
+			if (ret != 0) {
+				rte_exit(EXIT_FAILURE,
+					"vhost user device probe failed\n");
+			}
+			ret = rte_eth_dev_get_port_by_name(drv_name, &port);
+			if (ret != 0) {
+				unregister_device(i);
+				rte_exit(EXIT_FAILURE,
+					"vhost device port id get failed.\n");
+			}
+			ret = port_init_v2(port);
+			if (ret != 0) {
+				unregister_device(i);
+				rte_exit(EXIT_FAILURE,
+					"vhost device port initialization failed.\n");
+			}
+		} else {
+			ret = rte_vhost_driver_register(file, flags);
+			if (ret != 0) {
+				unregister_device(i);
+				rte_exit(EXIT_FAILURE,
+					"vhost driver register failure.\n");
+			}
 
-		if (enable_tso == 0) {
-			rte_vhost_driver_disable_features(file,
-				1ULL << VIRTIO_NET_F_HOST_TSO4);
-			rte_vhost_driver_disable_features(file,
-				1ULL << VIRTIO_NET_F_HOST_TSO6);
-			rte_vhost_driver_disable_features(file,
-				1ULL << VIRTIO_NET_F_GUEST_TSO4);
-			rte_vhost_driver_disable_features(file,
-				1ULL << VIRTIO_NET_F_GUEST_TSO6);
-		}
+			if (builtin_net_driver)
+				rte_vhost_driver_set_features(file,
+					VIRTIO_NET_FEATURES);
 
-		if (promiscuous) {
-			rte_vhost_driver_enable_features(file,
-				1ULL << VIRTIO_NET_F_CTRL_RX);
-		}
+			if (mergeable == 0) {
+				rte_vhost_driver_disable_features(file,
+					1ULL << VIRTIO_NET_F_MRG_RXBUF);
+			}
 
-		ret = rte_vhost_driver_callback_register(file,
-			&virtio_net_device_ops);
-		if (ret != 0) {
-			rte_exit(EXIT_FAILURE,
-				"failed to register vhost driver callbacks.\n");
-		}
+			if (enable_tx_csum == 0) {
+				rte_vhost_driver_disable_features(file,
+					1ULL << VIRTIO_NET_F_CSUM);
+			}
 
-		if (rte_vhost_driver_start(file) < 0) {
-			rte_exit(EXIT_FAILURE,
-				"failed to start vhost driver.\n");
+			if (enable_tso == 0) {
+				rte_vhost_driver_disable_features(file,
+					1ULL << VIRTIO_NET_F_HOST_TSO4);
+				rte_vhost_driver_disable_features(file,
+					1ULL << VIRTIO_NET_F_HOST_TSO6);
+				rte_vhost_driver_disable_features(file,
+					1ULL << VIRTIO_NET_F_GUEST_TSO4);
+				rte_vhost_driver_disable_features(file,
+					1ULL << VIRTIO_NET_F_GUEST_TSO6);
+			}
+
+			if (promiscuous) {
+				rte_vhost_driver_enable_features(file,
+					1ULL << VIRTIO_NET_F_CTRL_RX);
+			}
+
+			ret = rte_vhost_driver_callback_register(file,
+				&virtio_net_device_ops);
+			if (ret != 0) {
+				rte_exit(EXIT_FAILURE,
+					"failed to register vhost driver callbacks.\n");
+			}
+
+			if (rte_vhost_driver_start(file) < 0) {
+				rte_exit(EXIT_FAILURE,
+					"failed to start vhost driver.\n");
+			}
 		}
 	}
 

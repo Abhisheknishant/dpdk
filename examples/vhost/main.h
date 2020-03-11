@@ -48,6 +48,7 @@ struct vhost_dev {
 	volatile uint8_t remove;
 
 	int vid;
+	uint16_t eth_dev_id;
 	uint64_t features;
 	size_t hdr_len;
 	uint16_t nr_vrings;

@@ -152,6 +152,10 @@ note that if NIC is bound to driver with iommu enabled, dequeue zero copy
 cannot work at VM2NIC mode (vm2vm=0) due to currently we don't setup iommu
 dma mapping for guest memory.
 
+**--use-vhost-pmd**
+vHost DPDK PMD will be enabled when this option is given. By default, vHost
+direct library calls are used to configure devices.
+
 **--vlan-strip 0|1**
 VLAN strip option is removed, because different NICs have different behaviors
 when disabling VLAN strip. Such feature, which heavily depends on hardware,
