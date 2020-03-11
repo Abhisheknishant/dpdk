@@ -166,7 +166,6 @@ static const struct option lgopts[] = {
 	{CMD_LINE_OPT_FRAG_TTL, 1, 0, CMD_LINE_OPT_FRAG_TTL_NUM},
 	{NULL, 0, 0, 0}
 };
-
 /* mask of enabled ports */
 static uint32_t enabled_port_mask;
 static uint64_t enabled_cryptodev_mask = UINT64_MAX;
@@ -259,6 +258,30 @@ static struct rte_eth_conf port_conf = {
 	.txmode = {
 		.mq_mode = ETH_MQ_TX_NONE,
 	},
+	.fdir_conf = {
+	.mode = RTE_FDIR_MODE_NONE,
+	.pballoc = RTE_FDIR_PBALLOC_64K,
+	.status = RTE_FDIR_REPORT_STATUS,
+	.mask = {
+		.vlan_tci_mask = 0xFFEF,
+		.ipv4_mask     = {
+			.src_ip = 0xFFFFFFFF,
+			.dst_ip = 0xFFFFFFFF,
+		},
+		.ipv6_mask     = {
+			.src_ip = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+						0xFFFFFFFF},
+			.dst_ip = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+						0xFFFFFFFF},
+		},
+		.src_port_mask = 0xFFFF,
+		.dst_port_mask = 0xFFFF,
+		.mac_addr_byte_mask = 0xFF,
+		.tunnel_type_mask = 1,
+		.tunnel_id_mask = 0xFFFFFFFF,
+	},
+	.drop_queue = 127,
+	}
 };
 
 static struct socket_ctx socket_ctx[NB_SOCKETS];
@@ -1184,7 +1207,6 @@ main_loop(__attribute__((unused)) void *dummy)
 
 			if (nb_rx > 0)
 				process_pkts(qconf, pkts, nb_rx, portid);
-
 			/* dequeue and process completed crypto-ops */
 			if (UNPROTECTED_PORT(portid))
 				drain_inbound_crypto_queues(qconf,
@@ -1194,6 +1216,27 @@ main_loop(__attribute__((unused)) void *dummy)
 					&qconf->outbound);
 		}
 	}
+}
+
+int check_flow_params(uint16_t fdir_portid, uint8_t fdir_qid)
+{
+	uint16_t i;
+	uint16_t portid;
+	uint8_t queueid;
+
+	for (i = 0; i < nb_lcore_params; ++i) {
+		portid = lcore_params_array[i].port_id;
+		if (portid == fdir_portid) {
+			queueid = lcore_params_array[i].queue_id;
+			if (queueid == fdir_qid)
+				break;
+		}
+
+		if (i == nb_lcore_params - 1)
+			return -1;
+	}
+
+	return 1;
 }
 
 static int32_t
@@ -2503,6 +2546,15 @@ main(int32_t argc, char **argv)
 			continue;
 
 		sa_check_offloads(portid, &req_rx_offloads, &req_tx_offloads);
+		/* check if FDIR is configured on the port */
+		if (check_fdir_configured(portid)) {
+			/* Enable FDIR */
+			port_conf.fdir_conf.mode = RTE_FDIR_MODE_PERFECT;
+			/* Disable RSS */
+			port_conf.rxmode.mq_mode = ETH_MQ_RX_NONE;
+			port_conf.rx_adv_conf.rss_conf.rss_hf = 0;
+			port_conf.rx_adv_conf.rss_conf.rss_key = NULL;
+		}
 		port_init(portid, req_rx_offloads, req_tx_offloads);
 	}
 
