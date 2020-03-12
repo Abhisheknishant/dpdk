@@ -61,6 +61,15 @@ check_forbidden_additions() { # <patch>
 		-f $(dirname $(readlink -f $0))/check-forbidden-tokens.awk \
 		"$1" || res=1
 
+	# refrain from new additions of 16/32/64 bits rte_atomic_xxx()
+	# multiple folders and expressions are separated by spaces
+	awk -v FOLDERS="lib drivers app examples" \
+		-v EXPRESSIONS="rte_atomic[0-9][0-9]_.*\\\(" \
+		-v RET_ON_FAIL=1 \
+		-v MESSAGE='Using c11 atomic built-ins instead of rte_atomic' \
+		-f $(dirname $(readlink -f $0))/check-forbidden-tokens.awk \
+		"$1" || res=1
+
 	# svg figures must be included with wildcard extension
 	# because of png conversion for pdf docs
 	awk -v FOLDERS='doc' \
