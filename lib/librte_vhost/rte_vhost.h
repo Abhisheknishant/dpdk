@@ -389,7 +389,9 @@ int rte_vhost_enable_guest_notification(int vid, uint16_t queue_id, int enable);
  */
 int rte_vhost_driver_register(const char *path, uint64_t flags);
 
-/* Unregister vhost driver. This is only meaningful to vhost user. */
+/* Unregister vhost driver. This is only meaningful to vhost user.
+ * Return -EAGAIN if device is busy, and leave it to be handled by application.
+ */
 int rte_vhost_driver_unregister(const char *path);
 
 /**

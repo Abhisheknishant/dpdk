@@ -1027,7 +1027,8 @@ vhost_user_remove_reconnect(struct vhost_user_socket *vsocket)
 }
 
 /**
- * Unregister the specified vhost socket
+ * Unregister the specified vhost socket.
+ * Return -EAGAIN if device is busy, and leave it to be handled by application.
  */
 int
 rte_vhost_driver_unregister(const char *path)
@@ -1039,7 +1040,6 @@ rte_vhost_driver_unregister(const char *path)
 	if (path == NULL)
 		return -1;
 
-again:
 	pthread_mutex_lock(&vhost_user.mutex);
 
 	for (i = 0; i < vhost_user.vsocket_cnt; i++) {
@@ -1063,7 +1063,7 @@ again:
 					pthread_mutex_unlock(
 							&vsocket->conn_mutex);
 					pthread_mutex_unlock(&vhost_user.mutex);
-					goto again;
+					return -EAGAIN;
 				}
 
 				VHOST_LOG_CONFIG(INFO,
@@ -1085,7 +1085,7 @@ again:
 				if (fdset_try_del(&vhost_user.fdset,
 						vsocket->socket_fd) == -1) {
 					pthread_mutex_unlock(&vhost_user.mutex);
-					goto again;
+					return -EAGAIN;
 				}
 
 				close(vsocket->socket_fd);
