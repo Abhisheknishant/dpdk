@@ -56,6 +56,13 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Added handling of mixed crypto algorithms in QAT PMD for GEN2.**
+
+  Enabled handling of mixed algorithms in encrypted digest hash-cipher
+  (generation) and cipher-hash (verification) requests in QAT PMD
+  when running on GEN2 QAT hardware with particular firmware versions
+  (GEN3 support was added in DPDK 20.02).
+
 
 Removed Items
 -------------
