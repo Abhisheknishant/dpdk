@@ -167,7 +167,13 @@ but with the added cost of lower throughput.
 Locks and Atomic Operations
 ---------------------------
 
-Atomic operations imply a lock prefix before the instruction,
+This section describes some key considerations when using locks and atomic
+operations in the DPDK environment.
+
+Locks
+~~~~~
+
+On x86, atomic operations imply a lock prefix before the instruction,
 causing the processor's LOCK# signal to be asserted during execution of the following instruction.
 This has a big impact on performance in a multicore environment.
 
@@ -175,6 +181,58 @@ Performance can be improved by avoiding lock mechanisms in the data plane.
 It can often be replaced by other solutions like per-lcore variables.
 Also, some locking techniques are more efficient than others.
 For instance, the Read-Copy-Update (RCU) algorithm can frequently replace simple rwlocks.
+
+Atomic Operations: Use C11 Atomic Built-ins
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+DPDK `generic rte_atomic <https://github.com/DPDK/dpdk/blob/v20.02/lib/librte_eal/common/include/generic/rte_atomic.h>`_ operations are
+implemented by `__sync built-ins <https://gcc.gnu.org/onlinedocs/gcc/_005f_005fsync-Builtins.html>`_.
+These __sync built-ins result in full barriers on aarch64, which are unnecessary
+in many use cases. They can be replaced by `__atomic built-ins <https://gcc.gnu.org/onlinedocs/gcc/_005f_005fatomic-Builtins.html>`_ that
+conform to the C11 memory model and provide finer memory order control.
+
+So replacing the rte_atomic operations with __atomic built-ins might improve
+performance for aarch64 machines. `More details <https://www.dpdk.org/wp-content/uploads/sites/35/2019/10/StateofC11Code.pdf>`_.
+
+Some typical optimization cases are listed below:
+
+Atomicity
+^^^^^^^^^
+
+Some use cases require atomicity alone, the ordering of the memory operations
+does not matter. For example the packets statistics in the `vhost <https://github.com/DPDK/dpdk/blob/v20.02/examples/vhost/main.c#L796>`_ example application.
+
+It just updates the number of transmitted packets, no subsequent logic depends
+on these counters. So the RELAXED memory ordering is sufficient:
+
+.. code-block:: c
+
+    static __rte_always_inline void
+    virtio_xmit(struct vhost_dev *dst_vdev, struct vhost_dev *src_vdev,
+            struct rte_mbuf *m)
+    {
+        ...
+        ...
+        if (enable_stats) {
+            __atomic_add_fetch(&dst_vdev->stats.rx_total_atomic, 1, __ATOMIC_RELAXED);
+            __atomic_add_fetch(&dst_vdev->stats.rx_atomic, ret, __ATOMIC_RELAXED);
+            ...
+        }
+    }
+
+One-way Barrier
+^^^^^^^^^^^^^^^
+
+Some use cases allow for memory reordering in one way while requiring memory
+ordering in the other direction.
+
+For example, the memory operations before the `lock <https://github.com/DPDK/dpdk/blob/v20.02/lib/librte_eal/common/include/generic/rte_spinlock.h#L66>`_ can move to the
+critical section, but the memory operations in the critical section cannot move
+above the lock. In this case, the full memory barrier in the CAS operation can
+be replaced to ACQUIRE. On the other hand, the memory operations after the
+`unlock <https://github.com/DPDK/dpdk/blob/v20.02/lib/librte_eal/common/include/generic/rte_spinlock.h#L88>`_ can move to the critical section, but the memory operations in the
+critical section cannot move below the unlock. So the full barrier in the STORE
+operation can be replaced with RELEASE.
 
 Coding Considerations
 ---------------------
