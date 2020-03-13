@@ -1245,7 +1245,6 @@ virtio_rx_offload(struct rte_mbuf *m, struct virtio_net_hdr *hdr)
 	return 0;
 }
 
-#define VIRTIO_MBUF_BURST_SZ 64
 #define DESC_PER_CACHELINE (RTE_CACHE_LINE_SIZE / sizeof(struct vring_desc))
 uint16_t
 virtio_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts, uint16_t nb_pkts)
@@ -2327,4 +2326,12 @@ virtio_xmit_pkts_inorder(void *tx_queue,
 	VIRTQUEUE_DUMP(vq);
 
 	return nb_tx;
+}
+
+__rte_weak uint16_t
+virtio_recv_pkts_packed_vec(void __rte_unused *rx_queue,
+			    struct rte_mbuf __rte_unused **rx_pkts,
+			    uint16_t __rte_unused nb_pkts)
+{
+	return 0;
 }

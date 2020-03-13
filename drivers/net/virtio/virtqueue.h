@@ -19,6 +19,8 @@
 struct rte_mbuf;
 
 #define DEFAULT_RX_FREE_THRESH 32
+
+#define VIRTIO_MBUF_BURST_SZ 64
 /*
  * Per virtio_ring.h in Linux.
  *     For virtio_pci on SMP, we don't need to order with respect to MMIO
@@ -235,7 +237,8 @@ struct vq_desc_extra {
 	void *cookie;
 	uint16_t ndescs;
 	uint16_t next;
-};
+	uint8_t padding[4];
+} __rte_packed __rte_aligned(16);
 
 struct virtqueue {
 	struct virtio_hw  *hw; /**< virtio_hw structure pointer. */
