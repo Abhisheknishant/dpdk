@@ -2174,3 +2174,11 @@ virtio_recv_pkts_packed_vec(void __rte_unused *rx_queue,
 {
 	return 0;
 }
+
+__rte_weak uint16_t
+virtio_xmit_pkts_packed_vec(void __rte_unused *tx_queue,
+			    struct rte_mbuf __rte_unused **tx_pkts,
+			    uint16_t __rte_unused nb_pkts)
+{
+	return 0;
+}
