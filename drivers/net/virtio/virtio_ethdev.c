@@ -1518,9 +1518,12 @@ set_rxtx_funcs(struct rte_eth_dev *eth_dev)
 	if (vtpci_packed_queue(hw)) {
 		PMD_INIT_LOG(INFO,
 			"virtio: using packed ring %s Tx path on port %u",
-			hw->use_inorder_tx ? "inorder" : "standard",
+			hw->packed_vec_tx ? "vectorized" : "standard",
 			eth_dev->data->port_id);
-		eth_dev->tx_pkt_burst = virtio_xmit_pkts_packed;
+		if (hw->packed_vec_tx)
+			eth_dev->tx_pkt_burst = virtio_xmit_pkts_packed_vec;
+		else
+			eth_dev->tx_pkt_burst = virtio_xmit_pkts_packed;
 	} else {
 		if (hw->use_inorder_tx) {
 			PMD_INIT_LOG(INFO, "virtio: using inorder Tx path on port %u",
@@ -1534,7 +1537,13 @@ set_rxtx_funcs(struct rte_eth_dev *eth_dev)
 	}
 
 	if (vtpci_packed_queue(hw)) {
-		if (vtpci_with_feature(hw, VIRTIO_NET_F_MRG_RXBUF)) {
+		if (hw->packed_vec_rx) {
+			PMD_INIT_LOG(INFO,
+				"virtio: using packed ring vectorized Rx path on port %u",
+				eth_dev->data->port_id);
+			eth_dev->rx_pkt_burst =
+				&virtio_recv_pkts_packed_vec;
+		} else if (vtpci_with_feature(hw, VIRTIO_NET_F_MRG_RXBUF)) {
 			PMD_INIT_LOG(INFO,
 				"virtio: using packed ring mergeable buffer Rx path on port %u",
 				eth_dev->data->port_id);
@@ -2158,6 +2167,26 @@ virtio_dev_configure(struct rte_eth_dev *dev)
 		}
 
 	hw->use_simple_rx = 1;
+
+	if (vtpci_packed_queue(hw)) {
+#if defined(RTE_ARCH_X86) && defined(CC_AVX512_SUPPORT)
+		unsigned int vq_size;
+		vq_size = VTPCI_OPS(hw)->get_queue_num(hw, 0);
+		if (rte_cpu_get_flag_enabled(RTE_CPUFLAG_AVX512F) &&
+		    rte_is_power_of_2(vq_size) &&
+		    vtpci_with_feature(hw, VIRTIO_F_IN_ORDER) &&
+		    vtpci_with_feature(hw, VIRTIO_F_VERSION_1)) {
+			hw->packed_vec_rx = 1;
+			hw->packed_vec_tx = 1;
+		}
+
+		if (vtpci_with_feature(hw, VIRTIO_NET_F_MRG_RXBUF))
+			hw->packed_vec_rx = 0;
+
+		if (rx_offloads & DEV_RX_OFFLOAD_TCP_LRO)
+			hw->packed_vec_rx = 0;
+#endif
+	}
 
 	if (vtpci_with_feature(hw, VIRTIO_F_IN_ORDER)) {
 		hw->use_inorder_tx = 1;
