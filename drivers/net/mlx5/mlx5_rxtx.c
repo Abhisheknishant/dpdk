@@ -500,7 +500,7 @@ rx_queue_count(struct mlx5_rxq_data *rxq)
 		used += n;
 		cqe = &(*rxq->cqes)[cq_ci & cqe_cnt];
 	}
-	used = RTE_MIN(used, (1U << rxq->elts_n) - 1);
+	used = RTE_MIN(used * (1 << rxq->sges_n), 1U << rxq->elts_n);
 	return used;
 }
 
