@@ -422,7 +422,8 @@ virtio_user_dev_setup(struct virtio_user_dev *dev)
 int
 virtio_user_dev_init(struct virtio_user_dev *dev, char *path, int queues,
 		     int cq, int queue_size, const char *mac, char **ifname,
-		     int server, int mrg_rxbuf, int in_order, int packed_vq)
+		     int server, int mrg_rxbuf, int in_order, int packed_vq,
+		     int lro)
 {
 	pthread_mutex_init(&dev->mutex, NULL);
 	strlcpy(dev->path, path, PATH_MAX);
@@ -477,6 +478,11 @@ virtio_user_dev_init(struct virtio_user_dev *dev, char *path, int queues,
 
 	if (!packed_vq)
 		dev->unsupported_features |= (1ull << VIRTIO_F_RING_PACKED);
+
+	if (!lro) {
+		dev->unsupported_features |= (1ull << VIRTIO_NET_F_GUEST_TSO4);
+		dev->unsupported_features |= (1ull << VIRTIO_NET_F_GUEST_TSO6);
+	}
 
 	if (dev->mac_specified)
 		dev->frontend_features |= (1ull << VIRTIO_NET_F_MAC);
