@@ -461,9 +461,12 @@ struct ice_vsi *
 ice_setup_vsi(struct ice_pf *pf, enum ice_vsi_type type);
 int
 ice_release_vsi(struct ice_vsi *vsi);
-void ice_vsi_enable_queues_intr(struct ice_vsi *vsi);
-void ice_vsi_disable_queues_intr(struct ice_vsi *vsi);
-void ice_vsi_queues_bind_intr(struct ice_vsi *vsi);
+void ice_vsi_enable_queues_intr(struct ice_vsi *vsi, bool use_misc);
+void ice_vsi_disable_queues_intr(struct ice_vsi *vsi, bool use_misc);
+void ice_vsi_queues_bind_intr(struct ice_vsi *vsi,
+			      bool use_misc,
+			      int intr_num_max,
+			      int *intr_vec);
 
 static inline int
 ice_align_floor(int n)
