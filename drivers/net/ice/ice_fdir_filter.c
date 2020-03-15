@@ -433,6 +433,8 @@ ice_fdir_setup(struct ice_pf *pf)
 {
 	struct rte_eth_dev *eth_dev = pf->adapter->eth_dev;
 	struct ice_hw *hw = ICE_PF_TO_HW(pf);
+	struct rte_pci_device *pci_dev = ICE_DEV_TO_PCI(eth_dev);
+	struct rte_intr_handle *intr_handle = &pci_dev->intr_handle;
 	const struct rte_memzone *mz = NULL;
 	char z_name[RTE_MEMZONE_NAMESIZE];
 	struct ice_vsi *vsi;
@@ -501,7 +503,8 @@ ice_fdir_setup(struct ice_pf *pf)
 
 	/* Enable FDIR MSIX interrupt */
 	vsi->nb_used_qps = 1;
-	ice_vsi_queues_bind_intr(vsi);
+	ice_vsi_queues_bind_intr(vsi, !rte_intr_allow_others(intr_handle),
+				 1, NULL);
 	ice_vsi_enable_queues_intr(vsi);
 
 	/* reserve memory for the fdir programming packet */
