@@ -2318,11 +2318,8 @@ ice_release_vsi(struct ice_vsi *vsi)
 }
 
 void
-ice_vsi_disable_queues_intr(struct ice_vsi *vsi)
+ice_vsi_disable_queues_intr(struct ice_vsi *vsi, bool use_misc)
 {
-	struct rte_eth_dev *dev = vsi->adapter->eth_dev;
-	struct rte_pci_device *pci_dev = ICE_DEV_TO_PCI(dev);
-	struct rte_intr_handle *intr_handle = &pci_dev->intr_handle;
 	struct ice_hw *hw = ICE_VSI_TO_HW(vsi);
 	uint16_t msix_intr, i;
 
@@ -2333,7 +2330,7 @@ ice_vsi_disable_queues_intr(struct ice_vsi *vsi)
 		rte_wmb();
 	}
 
-	if (rte_intr_allow_others(intr_handle))
+	if (use_misc)
 		/* vfio-pci */
 		for (i = 0; i < vsi->nb_msix; i++) {
 			msix_intr = vsi->msix_intr + i;
@@ -2368,7 +2365,8 @@ ice_dev_stop(struct rte_eth_dev *dev)
 		ice_tx_queue_stop(dev, i);
 
 	/* disable all queue interrupts */
-	ice_vsi_disable_queues_intr(main_vsi);
+	ice_vsi_disable_queues_intr(main_vsi,
+				    !rte_intr_allow_others(intr_handle));
 
 	/* Clear all queues and release mbufs */
 	ice_clear_queues(dev);
@@ -2619,16 +2617,15 @@ __vsi_queues_bind_intr(struct ice_vsi *vsi, uint16_t msix_vect,
 }
 
 void
-ice_vsi_queues_bind_intr(struct ice_vsi *vsi)
+ice_vsi_queues_bind_intr(struct ice_vsi *vsi,
+			 bool use_misc,
+			 int intr_num_max,
+			 int *intr_vec)
 {
-	struct rte_eth_dev *dev = vsi->adapter->eth_dev;
-	struct rte_pci_device *pci_dev = ICE_DEV_TO_PCI(dev);
-	struct rte_intr_handle *intr_handle = &pci_dev->intr_handle;
 	struct ice_hw *hw = ICE_VSI_TO_HW(vsi);
 	uint16_t msix_vect = vsi->msix_intr;
-	uint16_t nb_msix = RTE_MIN(vsi->nb_msix, intr_handle->nb_efd);
+	uint16_t nb_msix = RTE_MIN(vsi->nb_msix, intr_num_max);
 	uint16_t queue_idx = 0;
-	int record = 0;
 	int i;
 
 	/* clear Rx/Tx queue interrupt */
@@ -2637,15 +2634,9 @@ ice_vsi_queues_bind_intr(struct ice_vsi *vsi)
 		ICE_WRITE_REG(hw, QINT_RQCTL(vsi->base_queue + i), 0);
 	}
 
-	/* PF bind interrupt */
-	if (rte_intr_dp_is_en(intr_handle)) {
-		queue_idx = 0;
-		record = 1;
-	}
-
 	for (i = 0; i < vsi->nb_used_qps; i++) {
 		if (nb_msix <= 1) {
-			if (!rte_intr_allow_others(intr_handle))
+			if (use_misc)
 				msix_vect = ICE_MISC_VEC_ID;
 
 			/* uio mapping all queue to one msix_vect */
@@ -2653,9 +2644,8 @@ ice_vsi_queues_bind_intr(struct ice_vsi *vsi)
 					       vsi->base_queue + i,
 					       vsi->nb_used_qps - i);
 
-			for (; !!record && i < vsi->nb_used_qps; i++)
-				intr_handle->intr_vec[queue_idx + i] =
-					msix_vect;
+			for (; intr_vec && i < vsi->nb_used_qps; i++)
+				intr_vec[queue_idx + i] = msix_vect;
 			break;
 		}
 
@@ -2663,8 +2653,8 @@ ice_vsi_queues_bind_intr(struct ice_vsi *vsi)
 		__vsi_queues_bind_intr(vsi, msix_vect,
 				       vsi->base_queue + i, 1);
 
-		if (!!record)
-			intr_handle->intr_vec[queue_idx + i] = msix_vect;
+		if (intr_vec)
+			intr_vec[queue_idx + i] = msix_vect;
 
 		msix_vect++;
 		nb_msix--;
@@ -2672,15 +2662,12 @@ ice_vsi_queues_bind_intr(struct ice_vsi *vsi)
 }
 
 void
-ice_vsi_enable_queues_intr(struct ice_vsi *vsi)
+ice_vsi_enable_queues_intr(struct ice_vsi *vsi, bool use_misc)
 {
-	struct rte_eth_dev *dev = vsi->adapter->eth_dev;
-	struct rte_pci_device *pci_dev = ICE_DEV_TO_PCI(dev);
-	struct rte_intr_handle *intr_handle = &pci_dev->intr_handle;
 	struct ice_hw *hw = ICE_VSI_TO_HW(vsi);
 	uint16_t msix_intr, i;
 
-	if (rte_intr_allow_others(intr_handle))
+	if (use_misc)
 		for (i = 0; i < vsi->nb_used_qps; i++) {
 			msix_intr = vsi->msix_intr + i;
 			ICE_WRITE_REG(hw, GLINT_DYN_CTL(msix_intr),
@@ -2736,10 +2723,13 @@ ice_rxq_intr_setup(struct rte_eth_dev *dev)
 
 	/* Map queues with MSIX interrupt */
 	vsi->nb_used_qps = dev->data->nb_rx_queues;
-	ice_vsi_queues_bind_intr(vsi);
+	ice_vsi_queues_bind_intr(vsi,
+				 !rte_intr_allow_others(intr_handle),
+				 intr_handle->nb_efd,
+				 intr_handle->intr_vec);
 
 	/* Enable interrupts for all the queues */
-	ice_vsi_enable_queues_intr(vsi);
+	ice_vsi_enable_queues_intr(vsi, !rte_intr_allow_others(intr_handle));
 
 	rte_intr_enable(intr_handle);
 
