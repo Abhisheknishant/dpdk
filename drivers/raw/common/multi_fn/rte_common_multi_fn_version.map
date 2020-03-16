@@ -1,0 +1,8 @@
+EXPERIMENTAL {
+        global:
+
+	rte_multi_fn_session_create;
+	rte_multi_fn_session_destroy;
+
+        local: *;
+};
