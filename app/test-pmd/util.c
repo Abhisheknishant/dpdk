@@ -375,3 +375,17 @@ eth_macaddr_get_print_err(uint16_t port_id, struct rte_ether_addr *mac_addr)
 
 	return ret;
 }
+
+int
+eth_dev_fw_version_get_err(uint16_t port_id, char *fw_version, size_t fw_size)
+{
+	int ret;
+
+	ret = rte_eth_dev_fw_version_get(port_id, fw_version, fw_size);
+	if (ret < 0)
+		printf("firmware version get error: (%s)\n", strerror(-ret));
+	else if (ret > 0)
+		printf("Insufficient fw version buffer size, "
+		       "the minimum size should be %d\n", ret);
+	return ret;
+}

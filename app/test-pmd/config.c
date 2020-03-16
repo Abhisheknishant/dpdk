@@ -52,6 +52,8 @@
 
 #include "testpmd.h"
 
+#define ETHTOOL_FWVERS_LEN 32
+
 static char *flowtype_to_str(uint16_t flow_type);
 
 static const struct {
@@ -523,6 +525,7 @@ port_infos_display(portid_t port_id)
 	uint16_t mtu;
 	char name[RTE_ETH_NAME_MAX_LEN];
 	int ret;
+	char   fw_version[ETHTOOL_FWVERS_LEN];
 
 	if (port_id_is_invalid(port_id, ENABLED_WARN)) {
 		print_valid_ports();
@@ -544,6 +547,9 @@ port_infos_display(portid_t port_id)
 	rte_eth_dev_get_name_by_port(port_id, name);
 	printf("\nDevice name: %s", name);
 	printf("\nDriver name: %s", dev_info.driver_name);
+	if (eth_dev_fw_version_get_err(port_id, fw_version,
+						 ETHTOOL_FWVERS_LEN) == 0)
+		printf("\nfirmware-version: %s", fw_version);
 	if (dev_info.device->devargs && dev_info.device->devargs->args)
 		printf("\nDevargs: %s", dev_info.device->devargs->args);
 	printf("\nConnect to socket: %u", port->socket_id);
