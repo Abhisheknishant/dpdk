@@ -1041,7 +1041,8 @@ static inline int
 i40e_flow_fdir_fill_eth_ip_head(struct i40e_pf *pf,
 				const struct i40e_fdir_input *fdir_input,
 				unsigned char *raw_pkt,
-				bool vlan)
+				bool vlan,
+				bool fdir_dst_mac_input)
 {
 	struct i40e_customized_pctype *cus_pctype = NULL;
 	static uint8_t vlan_frame[] = {0x81, 0, 0, 0};
@@ -1062,7 +1063,13 @@ i40e_flow_fdir_fill_eth_ip_head(struct i40e_pf *pf,
 		[I40E_FILTER_PCTYPE_NONF_IPV6_OTHER] = IPPROTO_NONE,
 	};
 
-	raw_pkt += 2 * sizeof(struct rte_ether_addr);
+	if (fdir_dst_mac_input) {
+		rte_memcpy(raw_pkt, &fdir_input->flow.l2_flow.dst,
+			sizeof(struct rte_ether_addr));
+		raw_pkt += sizeof(struct rte_ether_addr);
+	} else {
+		raw_pkt += 2 * sizeof(struct rte_ether_addr);
+	}
 	if (vlan && fdir_input->flow_ext.vlan_tci) {
 		rte_memcpy(raw_pkt, vlan_frame, sizeof(vlan_frame));
 		rte_memcpy(raw_pkt + sizeof(uint16_t),
@@ -1156,7 +1163,8 @@ i40e_flow_fdir_fill_eth_ip_head(struct i40e_pf *pf,
 static int
 i40e_flow_fdir_construct_pkt(struct i40e_pf *pf,
 			     const struct i40e_fdir_input *fdir_input,
-			     unsigned char *raw_pkt)
+			     unsigned char *raw_pkt,
+			     bool fdir_dst_mac_input)
 {
 	unsigned char *payload = NULL;
 	unsigned char *ptr;
@@ -1186,7 +1194,7 @@ i40e_flow_fdir_construct_pkt(struct i40e_pf *pf,
 
 	/* fill the ethernet and IP head */
 	len = i40e_flow_fdir_fill_eth_ip_head(pf, fdir_input, raw_pkt,
-					      !!fdir_input->flow_ext.vlan_tci);
+			!!fdir_input->flow_ext.vlan_tci, fdir_dst_mac_input);
 	if (len < 0)
 		return -EINVAL;
 
@@ -1733,7 +1741,8 @@ i40e_flow_add_del_fdir_filter(struct rte_eth_dev *dev,
 
 	memset(pkt, 0, I40E_FDIR_PKT_LEN);
 
-	ret = i40e_flow_fdir_construct_pkt(pf, &filter->input, pkt);
+	ret = i40e_flow_fdir_construct_pkt(pf, &filter->input, pkt,
+			filter->fdir_dst_mac_rule);
 	if (ret < 0) {
 		PMD_DRV_LOG(ERR, "construct packet for fdir fails.");
 		return ret;

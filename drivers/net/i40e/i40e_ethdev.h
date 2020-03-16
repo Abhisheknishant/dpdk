@@ -544,12 +544,19 @@ struct i40e_ipv6_l2tpv3oip_flow {
 	uint32_t session_id; /* Session ID in big endian. */
 };
 
+/* A structure used to define the input for l2 dst type flow */
+struct i40e_eth_l2_flow {
+	struct rte_ether_addr src;
+	struct rte_ether_addr dst;
+	uint16_t ether_type;          /**< Ether type in big endian */
+};
+
 /*
  * A union contains the inputs for all types of flow
  * items in flows need to be in big endian
  */
 union i40e_fdir_flow {
-	struct rte_eth_l2_flow          l2_flow;
+	struct i40e_eth_l2_flow		l2_flow;
 	struct rte_eth_udpv4_flow       udp4_flow;
 	struct rte_eth_tcpv4_flow       tcp4_flow;
 	struct rte_eth_sctpv4_flow      sctp4_flow;
@@ -637,6 +644,7 @@ struct i40e_fdir_filter_conf {
 	/* ID, an unique value is required when deal with FDIR entry */
 	struct i40e_fdir_input input;    /* Input set */
 	struct i40e_fdir_action action;  /* Action taken when match */
+	bool fdir_dst_mac_rule;	/* rule which only includes dst mac pattern */
 };
 
 /*
