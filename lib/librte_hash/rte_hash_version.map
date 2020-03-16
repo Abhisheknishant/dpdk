@@ -35,4 +35,9 @@ EXPERIMENTAL {
 	rte_hash_free_key_with_position;
 	rte_hash_max_key_id;
 
+	rte_dwk_hash_create;
+	rte_dwk_hash_find_existing;
+	rte_dwk_hash_free;
+	rte_dwk_hash_add;
+	rte_dwk_hash_delete;
 };

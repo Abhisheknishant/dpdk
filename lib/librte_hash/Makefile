@@ -8,13 +8,14 @@ LIB = librte_hash.a
 
 CFLAGS += -O3 -DALLOW_EXPERIMENTAL_API
 CFLAGS += $(WERROR_FLAGS) -I$(SRCDIR)
-LDLIBS += -lrte_eal -lrte_ring
+LDLIBS += -lrte_eal -lrte_ring -lrte_mempool
 
 EXPORT_MAP := rte_hash_version.map
 
 # all source are stored in SRCS-y
 SRCS-$(CONFIG_RTE_LIBRTE_HASH) := rte_cuckoo_hash.c
 SRCS-$(CONFIG_RTE_LIBRTE_HASH) += rte_fbk_hash.c
+SRCS-$(CONFIG_RTE_LIBRTE_HASH) += rte_dwk_hash.c
 
 # install this header file
 SYMLINK-$(CONFIG_RTE_LIBRTE_HASH)-include := rte_hash.h
@@ -27,5 +28,6 @@ endif
 SYMLINK-$(CONFIG_RTE_LIBRTE_HASH)-include += rte_jhash.h
 SYMLINK-$(CONFIG_RTE_LIBRTE_HASH)-include += rte_thash.h
 SYMLINK-$(CONFIG_RTE_LIBRTE_HASH)-include += rte_fbk_hash.h
+SYMLINK-$(CONFIG_RTE_LIBRTE_HASH)-include += rte_dwk_hash.h
 
 include $(RTE_SDK)/mk/rte.lib.mk
