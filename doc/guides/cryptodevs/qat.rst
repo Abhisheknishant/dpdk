@@ -82,18 +82,17 @@ All the usual chains are supported and also some mixed chains:
    +------------------+-----------+-------------+----------+----------+
    | Cipher algorithm | NULL AUTH | SNOW3G UIA2 | ZUC EIA3 | AES CMAC |
    +==================+===========+=============+==========+==========+
-   | NULL CIPHER      | Y         | 3           | 3        | Y        |
+   | NULL CIPHER      | Y         | 2&3         | 2&3      | Y        |
    +------------------+-----------+-------------+----------+----------+
-   | SNOW3G UEA2      | 3         | Y           | 3        | 3        |
+   | SNOW3G UEA2      | 2&3       | Y           | 2&3      | 2&3      |
    +------------------+-----------+-------------+----------+----------+
-   | ZUC EEA3         | 3         | 3           | 2&3      | 3        |
+   | ZUC EEA3         | 2&3       | 2&3         | 2&3      | 2&3      |
    +------------------+-----------+-------------+----------+----------+
-   | AES CTR          | Y         | 3           | 3        | Y        |
+   | AES CTR          | Y         | 2&3         | 2&3      | Y        |
    +------------------+-----------+-------------+----------+----------+
 
 * The combinations marked as "Y" are supported on all QAT hardware versions.
 * The combinations marked as "2&3" are supported on GEN2/GEN3 QAT hardware only.
-* The combinations marked as "3" are supported on GEN3 QAT hardware only.
 
 
 Limitations
