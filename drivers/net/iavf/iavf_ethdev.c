@@ -1236,6 +1236,13 @@ iavf_init_vf(struct rte_eth_dev *dev)
 			goto err_rss;
 		}
 	}
+
+	if (vf->vf_res->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_QUERY_DDP) {
+		if (iavf_query_package_info(adapter) != 0) {
+			PMD_INIT_LOG(ERR, "iavf_query_package_info failed");
+			goto err_rss;
+		}
+	}
 	return 0;
 err_rss:
 	rte_free(vf->rss_key);

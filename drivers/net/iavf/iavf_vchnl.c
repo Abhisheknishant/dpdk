@@ -88,6 +88,7 @@ iavf_execute_vf_cmd(struct iavf_adapter *adapter, struct iavf_cmd_info *args)
 		break;
 	case VIRTCHNL_OP_VERSION:
 	case VIRTCHNL_OP_GET_VF_RESOURCES:
+	case VIRTCHNL_OP_PACKAGE_INFO:
 		/* for init virtchnl ops, need to poll the response */
 		do {
 			ret = iavf_read_msg_from_pf(adapter, args->out_size,
@@ -338,7 +339,8 @@ iavf_get_vf_resource(struct iavf_adapter *adapter)
 	 * add advanced/optional offload capabilities
 	 */
 
-	caps = IAVF_BASIC_OFFLOAD_CAPS | VIRTCHNL_VF_CAP_ADV_LINK_SPEED;
+	caps = IAVF_BASIC_OFFLOAD_CAPS | VIRTCHNL_VF_CAP_ADV_LINK_SPEED |
+		VIRTCHNL_VF_OFFLOAD_QUERY_DDP;
 
 	args.in_args = (uint8_t *)&caps;
 	args.in_args_size = sizeof(caps);
@@ -584,6 +586,43 @@ iavf_configure_queues(struct iavf_adapter *adapter)
 
 	rte_free(vc_config);
 	return err;
+}
+
+int
+iavf_query_package_info(struct iavf_adapter *adapter)
+{
+	struct iavf_info *vf = IAVF_DEV_PRIVATE_TO_VF(adapter);
+	struct iavf_cmd_info args;
+	int ret;
+
+	args.ops = VIRTCHNL_OP_PACKAGE_INFO;
+	args.in_args = NULL;
+	args.in_args_size = 0;
+	args.out_buffer = vf->aq_resp;
+	args.out_size = IAVF_AQ_BUF_SZ;
+
+	ret = iavf_execute_vf_cmd(adapter, &args);
+	if (ret) {
+		PMD_DRV_LOG(ERR,
+			    "Failed to execute command of OP_PACKAGE_INFO");
+		return ret;
+	}
+
+	rte_memcpy(&vf->pkg_info, args.out_buffer,
+		   sizeof(struct virtchnl_pkg_info));
+	PMD_DRV_LOG(NOTICE, "pkg version is %d.%d.%d.%d, pkg name is %s,"
+		    " track id is %x, serial number is %02x%02x%02x%02x"
+		    "%02x%02x%02x%02x, proto_metadata is 0x%016lx\n",
+		    vf->pkg_info.p_ver.major, vf->pkg_info.p_ver.minor,
+		    vf->pkg_info.p_ver.update, vf->pkg_info.p_ver.draft,
+		    vf->pkg_info.pkg_name, vf->pkg_info.track_id,
+		    vf->pkg_info.dsn[7], vf->pkg_info.dsn[6],
+		    vf->pkg_info.dsn[5], vf->pkg_info.dsn[4],
+		    vf->pkg_info.dsn[3], vf->pkg_info.dsn[2],
+		    vf->pkg_info.dsn[1], vf->pkg_info.dsn[0],
+		    vf->pkg_info.proto_metadata);
+
+	return 0;
 }
 
 int

@@ -67,6 +67,13 @@
 #define IAVF_48_BIT_WIDTH (CHAR_BIT * 6)
 #define IAVF_48_BIT_MASK  RTE_LEN2MASK(IAVF_48_BIT_WIDTH, uint64_t)
 
+/* VF supported comms protocols 64-bits bitmap */
+#define IAVF_COMMS_PROTO_GTP            0x0000000000000001
+#define IAVF_COMMS_PROTO_PPPOE          0x0000000000000002
+#define IAVF_COMMS_PROTO_PFCP           0x0000000000000004
+#define IAVF_COMMS_PROTO_L2TPV3         0x0000000000000008
+#define IAVF_COMMS_PROTO_ESP            0x0000000000000010
+
 struct iavf_adapter;
 struct iavf_rx_queue;
 struct iavf_tx_queue;
@@ -97,6 +104,7 @@ struct iavf_info {
 	struct virtchnl_version_info virtchnl_version;
 	struct virtchnl_vf_resource *vf_res; /* VF resource */
 	struct virtchnl_vsi_resource *vsi_res; /* LAN VSI */
+	struct virtchnl_pkg_info pkg_info; /* package info */
 
 	volatile enum virtchnl_ops pend_cmd; /* pending command not finished */
 	uint32_t cmd_retval; /* return value of the cmd response from PF */
@@ -224,6 +232,7 @@ int iavf_disable_queues(struct iavf_adapter *adapter);
 int iavf_configure_rss_lut(struct iavf_adapter *adapter);
 int iavf_configure_rss_key(struct iavf_adapter *adapter);
 int iavf_configure_queues(struct iavf_adapter *adapter);
+int iavf_query_package_info(struct iavf_adapter *adapter);
 int iavf_config_irq_map(struct iavf_adapter *adapter);
 void iavf_add_del_all_mac_addr(struct iavf_adapter *adapter, bool add);
 int iavf_dev_link_update(struct rte_eth_dev *dev,
