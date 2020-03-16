@@ -243,6 +243,7 @@ CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
 
 LDLIBS += -lm
+LDLIBS += -lrte_multi_fn
 
 ifeq ($(CONFIG_RTE_LIBRTE_PDUMP),y)
 LDLIBS += -lpthread
@@ -284,6 +285,10 @@ endif
 
 ifeq ($(CONFIG_RTE_APP_TEST_RESOURCE_TAR),y)
 LDLIBS += -larchive
+endif
+
+ifeq ($(CONFIG_RTE_LIBRTE_PMD_AESNI_MB_RAWDEV),y)
+LDLIBS += -lrte_pmd_aesni_mb_rawdev
 endif
 
 include $(RTE_SDK)/mk/rte.app.mk
