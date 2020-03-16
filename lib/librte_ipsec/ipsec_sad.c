@@ -10,6 +10,8 @@
 #include <rte_random.h>
 #include <rte_rwlock.h>
 #include <rte_tailq.h>
+#include <rte_dwk_hash.h>
+#include <rte_hash_crc.h>
 
 #include "rte_ipsec_sad.h"
 
@@ -34,7 +36,9 @@ struct hash_cnt {
 
 struct rte_ipsec_sad {
 	char name[RTE_IPSEC_SAD_NAMESIZE];
+	struct rte_dwk_hash_table	*dwk_hash;
 	struct rte_hash	*hash[RTE_IPSEC_SAD_KEY_TYPE_MASK];
+	uint32_t	hash_init_val;
 	/* Array to track number of more specific rules
 	 * (spi_dip or spi_dip_sip). Used only in add/delete
 	 * as a helper struct.
@@ -66,6 +70,7 @@ add_specific(struct rte_ipsec_sad *sad, const void *key,
 {
 	void *tmp_val;
 	int ret, notexist;
+	uint32_t spi = ((const union rte_ipsec_sad_key *)key)->v4.spi;
 
 	/* Check if the key is present in the table.
 	 * Need for further accaunting in cnt_arr
@@ -86,6 +91,11 @@ add_specific(struct rte_ipsec_sad *sad, const void *key,
 	tmp_val = SET_BIT(tmp_val, key_type);
 
 	/* Add an entry into SPI only table */
+	ret = rte_dwk_hash_add(sad->dwk_hash, spi,
+		rte_hash_crc_4byte(spi, sad->hash_init_val),
+		(uint64_t)(uintptr_t)tmp_val);
+	if (ret != 0)
+		return ret;
 	ret = rte_hash_add_key_data(sad->hash[RTE_IPSEC_SAD_SPI_ONLY],
 		key, tmp_val);
 	if (ret != 0)
@@ -108,11 +118,14 @@ rte_ipsec_sad_add(struct rte_ipsec_sad *sad,
 {
 	void *tmp_val;
 	int ret;
+	uint32_t spi;
 
 	if ((sad == NULL) || (key == NULL) || (sa == NULL) ||
 			/* sa must be 4 byte aligned */
 			(GET_BIT(sa, RTE_IPSEC_SAD_KEY_TYPE_MASK) != 0))
 		return -EINVAL;
+
+	spi = ((const union rte_ipsec_sad_key *)key)->v4.spi;
 
 	/*
 	 * Rules are stored in three hash tables depending on key_type.
@@ -129,6 +142,11 @@ rte_ipsec_sad_add(struct rte_ipsec_sad *sad,
 				RTE_IPSEC_SAD_KEY_TYPE_MASK));
 		else
 			tmp_val = sa;
+		ret = rte_dwk_hash_add(sad->dwk_hash, spi,
+			rte_hash_crc_4byte(spi, sad->hash_init_val),
+			(uint64_t)(uintptr_t)tmp_val);
+		if (ret != 0)
+			return ret;
 		ret = rte_hash_add_key_data(sad->hash[key_type],
 			key, tmp_val);
 		return ret;
@@ -156,6 +174,7 @@ del_specific(struct rte_ipsec_sad *sad, const void *key, int key_type)
 	void *tmp_val;
 	int ret;
 	uint32_t *cnt;
+	uint32_t spi = ((const union rte_ipsec_sad_key *)key)->v4.spi;
 
 	/* Remove an SA from the corresponding table.*/
 	ret = rte_hash_del_key(sad->hash[key_type], key);
@@ -181,11 +200,23 @@ del_specific(struct rte_ipsec_sad *sad, const void *key, int key_type)
 	/* if there are no rules left with same SPI,
 	 * remove an entry from SPI_only table
 	 */
-	if (tmp_val == NULL)
+	if (tmp_val == NULL) {
+		ret = rte_dwk_hash_delete(sad->dwk_hash, spi,
+			rte_hash_crc_4byte(spi,
+			sad->hash_init_val));
+		if (ret == -ENOENT)
+			return ret;
 		ret = rte_hash_del_key(sad->hash[RTE_IPSEC_SAD_SPI_ONLY], key);
-	else
+	} else {
+		ret = rte_dwk_hash_add(sad->dwk_hash, spi,
+			rte_hash_crc_4byte(spi, sad->hash_init_val),
+			(uint64_t)(uintptr_t)tmp_val);
+		if (ret != 0)
+			return ret;
 		ret = rte_hash_add_key_data(sad->hash[RTE_IPSEC_SAD_SPI_ONLY],
 			key, tmp_val);
+	}
+
 	if (ret < 0)
 		return ret;
 	return 0;
@@ -198,9 +229,13 @@ rte_ipsec_sad_del(struct rte_ipsec_sad *sad,
 {
 	void *tmp_val;
 	int ret;
+	uint32_t spi;
 
 	if ((sad == NULL) || (key == NULL))
 		return -EINVAL;
+
+	spi = ((const union rte_ipsec_sad_key *)key)->v4.spi;
+
 	switch (key_type) {
 	case(RTE_IPSEC_SAD_SPI_ONLY):
 		ret = rte_hash_lookup_data(sad->hash[key_type],
@@ -208,12 +243,21 @@ rte_ipsec_sad_del(struct rte_ipsec_sad *sad,
 		if (ret < 0)
 			return ret;
 		if (GET_BIT(tmp_val, RTE_IPSEC_SAD_KEY_TYPE_MASK) == 0) {
+			ret = rte_dwk_hash_delete(sad->dwk_hash, spi,
+				rte_hash_crc_4byte(spi,	sad->hash_init_val));
+			if (ret == -ENOENT)
+				return ret;
 			ret = rte_hash_del_key(sad->hash[key_type],
 				key);
 			ret = ret < 0 ? ret : 0;
 		} else {
 			tmp_val = GET_BIT(tmp_val,
 				RTE_IPSEC_SAD_KEY_TYPE_MASK);
+			ret = rte_dwk_hash_add(sad->dwk_hash, spi,
+				rte_hash_crc_4byte(spi, sad->hash_init_val),
+				(uint64_t)(uintptr_t)tmp_val);
+			if (ret != 0)
+				return ret;
 			ret = rte_hash_add_key_data(sad->hash[key_type],
 				key, tmp_val);
 		}
@@ -235,6 +279,7 @@ rte_ipsec_sad_create(const char *name, const struct rte_ipsec_sad_conf *conf)
 	struct rte_ipsec_sad_list *sad_list;
 	struct rte_ipsec_sad *sad, *tmp_sad = NULL;
 	struct rte_hash_parameters hash_params = {0};
+	struct rte_dwk_hash_params dwk_params = {0};
 	int ret;
 	uint32_t sa_sum;
 
@@ -270,8 +315,21 @@ rte_ipsec_sad_create(const char *name, const struct rte_ipsec_sad_conf *conf)
 	}
 	memcpy(sad->name, sad_name, sizeof(sad_name));
 
+	/** Init dwk hash for SPI */
+	snprintf(hash_name, sizeof(hash_name), "sad_%p", sad);
+	dwk_params.name = hash_name;
+	dwk_params.entries = sa_sum;
+	dwk_params.socket_id = conf->socket_id;
+
+	sad->dwk_hash = rte_dwk_hash_create(&dwk_params);
+	if (sad->dwk_hash == NULL) {
+		rte_ipsec_sad_destroy(sad);
+		return NULL;
+	}
+
 	hash_params.hash_func = DEFAULT_HASH_FUNC;
 	hash_params.hash_func_init_val = rte_rand();
+	sad->hash_init_val = hash_params.hash_func_init_val;
 	hash_params.socket_id = conf->socket_id;
 	hash_params.name = hash_name;
 	if (conf->flags & RTE_IPSEC_SAD_FLAG_RW_CONCURRENCY)
@@ -406,6 +464,7 @@ rte_ipsec_sad_destroy(struct rte_ipsec_sad *sad)
 
 	rte_mcfg_tailq_write_unlock();
 
+	rte_dwk_hash_free(sad->dwk_hash);
 	rte_hash_free(sad->hash[RTE_IPSEC_SAD_SPI_ONLY]);
 	rte_hash_free(sad->hash[RTE_IPSEC_SAD_SPI_DIP]);
 	rte_hash_free(sad->hash[RTE_IPSEC_SAD_SPI_DIP_SIP]);
@@ -434,39 +493,43 @@ __ipsec_sad_lookup(const struct rte_ipsec_sad *sad,
 	void *vals_3[RTE_HASH_LOOKUP_BULK_MAX] = {NULL};
 	uint32_t idx_2[RTE_HASH_LOOKUP_BULK_MAX];
 	uint32_t idx_3[RTE_HASH_LOOKUP_BULK_MAX];
-	uint64_t mask_1, mask_2, mask_3;
-	uint64_t map, map_spec;
+	uint64_t mask_2, mask_3;
+	uint64_t map_spec;
 	uint32_t n_2 = 0;
 	uint32_t n_3 = 0;
 	uint32_t i;
-	int found = 0;
-
-	for (i = 0; i < n; i++)
-		sa[i] = NULL;
+	int ret, found = 0;
 
 	/*
 	 * Lookup keys in SPI only hash table first.
 	 */
-	rte_hash_lookup_bulk_data(sad->hash[RTE_IPSEC_SAD_SPI_ONLY],
-		(const void **)keys, n, &mask_1, sa);
-	for (map = mask_1; map; map &= (map - 1)) {
-		i = rte_bsf64(map);
-		/*
-		 * if returned value indicates presence of a rule in other
-		 * tables save a key for further lookup.
-		 */
-		if ((uintptr_t)sa[i] & RTE_IPSEC_SAD_SPI_DIP_SIP) {
-			idx_3[n_3] = i;
-			keys_3[n_3++] = keys[i];
-		}
-		if ((uintptr_t)sa[i] & RTE_IPSEC_SAD_SPI_DIP) {
-			idx_2[n_2] = i;
-			keys_2[n_2++] = keys[i];
-		}
-		/* clear 2 LSB's which indicate the presence
-		 * of more specific rules
-		 */
-		sa[i] = CLEAR_BIT(sa[i], RTE_IPSEC_SAD_KEY_TYPE_MASK);
+	for (i = 0; i < n; i++) {
+		uint64_t tmp_val;
+		uint32_t spi = keys[i]->v4.spi;
+		ret = rte_dwk_hash_lookup(sad->dwk_hash,
+			spi, rte_hash_crc_4byte(spi, sad->hash_init_val),
+			&tmp_val);
+		if (ret == 0) {
+			/*
+			 * if returned value indicates presence of a rule in
+			 * other tables save a key for further lookup.
+			 */
+			if (tmp_val & RTE_IPSEC_SAD_SPI_DIP_SIP) {
+				idx_3[n_3] = i;
+				keys_3[n_3++] = keys[i];
+			}
+			if (tmp_val & RTE_IPSEC_SAD_SPI_DIP) {
+				idx_2[n_2] = i;
+				keys_2[n_2++] = keys[i];
+			}
+			/* clear 2 LSB's which indicate the presence
+			 * of more specific rules
+			 */
+			sa[i] = CLEAR_BIT(tmp_val,
+				RTE_IPSEC_SAD_KEY_TYPE_MASK);
+
+		} else
+			sa[i] = NULL;
 	}
 
 	/* Lookup for more specific rules in SPI_DIP table */
