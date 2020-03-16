@@ -12,8 +12,10 @@
 #include <rte_hash_crc.h>
 #include <rte_jhash.h>
 #include <rte_fbk_hash.h>
+#include <rte_dwk_hash.h>
 #include <rte_random.h>
 #include <rte_string_fns.h>
+#include <rte_hash_crc.h>
 
 #include "test.h"
 
@@ -28,6 +30,8 @@
 #define NUM_KEYSIZES 10
 #define NUM_SHUFFLES 10
 #define BURST_SIZE 16
+
+#define CRC_INIT_VAL	0xdeadbeef
 
 enum operations {
 	ADD = 0,
@@ -669,6 +673,80 @@ fbk_hash_perf_test(void)
 }
 
 static int
+dwk_hash_perf_test(void)
+{
+	struct rte_dwk_hash_params params = {
+		.name = "dwk_hash_test",
+		.entries = ENTRIES,
+		.socket_id = rte_socket_id(),
+	};
+	struct rte_dwk_hash_table *handle = NULL;
+	uint32_t *keys = NULL;
+	unsigned indexes[TEST_SIZE];
+	uint64_t tmp_val;
+	uint64_t lookup_time = 0;
+	unsigned added = 0;
+	uint32_t key;
+	uint16_t val;
+	unsigned i, j;
+	int ret = 0;
+
+	handle = rte_dwk_hash_create(&params);
+	if (handle == NULL) {
+		printf("Error creating table\n");
+		return -1;
+	}
+
+	keys = rte_zmalloc(NULL, ENTRIES * sizeof(*keys), 0);
+	if (keys == NULL) {
+		printf("fbk hash: memory allocation for key store failed\n");
+		return -1;
+	}
+
+	/* Generate random keys and values. */
+	for (i = 0; i < ENTRIES; i++) {
+		key = (uint32_t)rte_rand();
+		val = rte_rand();
+
+		if (rte_dwk_hash_add(handle, key, rte_hash_crc_4byte(key,
+				CRC_INIT_VAL), val) == 0) {
+			keys[added] = key;
+			added++;
+		}
+	}
+
+	for (i = 0; i < TEST_ITERATIONS; i++) {
+		uint64_t begin;
+		uint64_t end;
+
+		/* Generate random indexes into keys[] array. */
+		for (j = 0; j < TEST_SIZE; j++)
+			indexes[j] = rte_rand() % added;
+
+		begin = rte_rdtsc();
+		/* Do lookups */
+		for (j = 0; j < TEST_SIZE; j++)
+			ret += rte_dwk_hash_lookup(handle,
+				keys[indexes[j]],
+				rte_hash_crc_4byte(keys[indexes[j]],
+				CRC_INIT_VAL), &tmp_val);
+
+		end = rte_rdtsc();
+		lookup_time += (double)(end - begin);
+	}
+
+	printf("\n\n *** DWK Hash function performance test results ***\n");
+	if (ret == 0)
+		printf("Number of ticks per lookup = %g\n",
+			(double)lookup_time /
+			((double)TEST_ITERATIONS * (double)TEST_SIZE));
+
+	rte_dwk_hash_free(handle);
+
+	return 0;
+}
+
+static int
 test_hash_perf(void)
 {
 	unsigned int with_pushes, with_locks;
@@ -693,6 +771,9 @@ test_hash_perf(void)
 		return -1;
 
 	if (fbk_hash_perf_test() < 0)
+		return -1;
+
+	if (dwk_hash_perf_test() < 0)
 		return -1;
 
 	return 0;
