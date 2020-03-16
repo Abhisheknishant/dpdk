@@ -368,7 +368,9 @@ struct virtio_net {
 	struct vhost_device_ops const *notify_ops;
 
 	uint32_t		nr_guest_pages;
+	uint32_t		nr_cached;
 	uint32_t		max_guest_pages;
+	struct guest_page       *cached_guest_pages;
 	struct guest_page       *guest_pages;
 
 	int			slave_req_fd;
@@ -554,11 +556,23 @@ gpa_to_hpa(struct virtio_net *dev, uint64_t gpa, uint64_t size)
 	uint32_t i;
 	struct guest_page *page;
 
+	for (i = 0; i < dev->nr_cached; i++) {
+		page = &dev->cached_guest_pages[i];
+		if (gpa >= page->guest_phys_addr &&
+			gpa + size < page->guest_phys_addr + page->size) {
+			return gpa - page->guest_phys_addr +
+				page->host_phys_addr;
+		}
+	}
+
 	for (i = 0; i < dev->nr_guest_pages; i++) {
 		page = &dev->guest_pages[i];
 
 		if (gpa >= page->guest_phys_addr &&
 		    gpa + size < page->guest_phys_addr + page->size) {
+			rte_memcpy(&dev->cached_guest_pages[dev->nr_cached],
+				   page, sizeof(struct guest_page));
+			dev->nr_cached++;
 			return gpa - page->guest_phys_addr +
 			       page->host_phys_addr;
 		}

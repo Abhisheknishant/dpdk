@@ -192,7 +192,9 @@ vhost_backend_cleanup(struct virtio_net *dev)
 	}
 
 	free(dev->guest_pages);
+	free(dev->cached_guest_pages);
 	dev->guest_pages = NULL;
+	dev->cached_guest_pages = NULL;
 
 	if (dev->log_addr) {
 		munmap((void *)(uintptr_t)dev->log_addr, dev->log_size);
@@ -905,7 +907,10 @@ add_one_guest_page(struct virtio_net *dev, uint64_t guest_phys_addr,
 		old_pages = dev->guest_pages;
 		dev->guest_pages = realloc(dev->guest_pages,
 					dev->max_guest_pages * sizeof(*page));
-		if (!dev->guest_pages) {
+		dev->cached_guest_pages = realloc(dev->cached_guest_pages,
+					dev->max_guest_pages * sizeof(*page));
+		dev->nr_cached = 0;
+		if (!dev->guest_pages || !dev->cached_guest_pages) {
 			VHOST_LOG_CONFIG(ERR, "cannot realloc guest_pages\n");
 			free(old_pages);
 			return -1;
@@ -1070,6 +1075,18 @@ vhost_user_set_mem_table(struct virtio_net **pdev, struct VhostUserMsg *msg,
 			VHOST_LOG_CONFIG(ERR,
 				"(%d) failed to allocate memory "
 				"for dev->guest_pages\n",
+				dev->vid);
+			return RTE_VHOST_MSG_RESULT_ERR;
+		}
+	}
+
+	if (!dev->cached_guest_pages) {
+		dev->cached_guest_pages = malloc(dev->max_guest_pages *
+						sizeof(struct guest_page));
+		if (dev->cached_guest_pages == NULL) {
+			VHOST_LOG_CONFIG(ERR,
+				"(%d) failed to allocate memory "
+				"for dev->cached_guest_pages\n",
 				dev->vid);
 			return RTE_VHOST_MSG_RESULT_ERR;
 		}
