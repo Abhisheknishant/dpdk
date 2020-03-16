@@ -738,6 +738,18 @@ rte_eth_dev_owner_get(const uint16_t port_id, struct rte_eth_dev_owner *owner)
 }
 
 int
+rte_eth_dev_is_owned(uint16_t port_id)
+{
+	struct rte_eth_dev_owner owner;
+	int ret;
+
+	ret = rte_eth_dev_owner_get(port_id, &owner);
+	if (ret == 0)
+		ret = (owner.id != RTE_ETH_DEV_NO_OWNER);
+	return ret;
+}
+
+int
 rte_eth_dev_socket_id(uint16_t port_id)
 {
 	RTE_ETH_VALID_PORTID_OR_ERR_RET(port_id, -1);

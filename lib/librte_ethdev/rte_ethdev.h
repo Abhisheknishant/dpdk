@@ -1694,6 +1694,19 @@ int rte_eth_dev_owner_get(const uint16_t port_id,
 		struct rte_eth_dev_owner *owner);
 
 /**
+ * Check if port_id is part of a sub-device
+ *
+ * @param port_id
+ *   The port identifier of the Ethernet device
+ * @return
+ *   - 1 if device is associated with an owner
+ *   - 0 if port is not owned
+ *   - negative errno value on error.
+ */
+__rte_experimental
+int rte_eth_dev_is_owned(uint16_t port_id);
+
+/**
  * Get the number of ports which are usable for the application.
  *
  * These devices must be iterated by using the macro
