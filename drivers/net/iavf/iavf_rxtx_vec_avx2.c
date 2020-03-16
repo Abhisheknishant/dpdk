@@ -40,7 +40,6 @@ iavf_rxq_rearm(struct iavf_rx_queue *rxq)
 		return;
 	}
 
-#ifndef RTE_LIBRTE_IAVF_16BYTE_RX_DESC
 	struct rte_mbuf *mb0, *mb1;
 	__m128i dma_addr0, dma_addr1;
 	__m128i hdr_room = _mm_set_epi64x(RTE_PKTMBUF_HEADROOM,
@@ -70,54 +69,6 @@ iavf_rxq_rearm(struct iavf_rx_queue *rxq)
 		_mm_store_si128((__m128i *)&rxdp++->read, dma_addr0);
 		_mm_store_si128((__m128i *)&rxdp++->read, dma_addr1);
 	}
-#else
-	struct rte_mbuf *mb0, *mb1, *mb2, *mb3;
-	__m256i dma_addr0_1, dma_addr2_3;
-	__m256i hdr_room = _mm256_set1_epi64x(RTE_PKTMBUF_HEADROOM);
-	/* Initialize the mbufs in vector, process 4 mbufs in one loop */
-	for (i = 0; i < IAVF_RXQ_REARM_THRESH;
-			i += 4, rxp += 4, rxdp += 4) {
-		__m128i vaddr0, vaddr1, vaddr2, vaddr3;
-		__m256i vaddr0_1, vaddr2_3;
-
-		mb0 = rxp[0];
-		mb1 = rxp[1];
-		mb2 = rxp[2];
-		mb3 = rxp[3];
-
-		/* load buf_addr(lo 64bit) and buf_physaddr(hi 64bit) */
-		RTE_BUILD_BUG_ON(offsetof(struct rte_mbuf, buf_physaddr) !=
-				offsetof(struct rte_mbuf, buf_addr) + 8);
-		vaddr0 = _mm_loadu_si128((__m128i *)&mb0->buf_addr);
-		vaddr1 = _mm_loadu_si128((__m128i *)&mb1->buf_addr);
-		vaddr2 = _mm_loadu_si128((__m128i *)&mb2->buf_addr);
-		vaddr3 = _mm_loadu_si128((__m128i *)&mb3->buf_addr);
-
-		/**
-		 * merge 0 & 1, by casting 0 to 256-bit and inserting 1
-		 * into the high lanes. Similarly for 2 & 3
-		 */
-		vaddr0_1 =
-			_mm256_inserti128_si256(_mm256_castsi128_si256(vaddr0),
-						vaddr1, 1);
-		vaddr2_3 =
-			_mm256_inserti128_si256(_mm256_castsi128_si256(vaddr2),
-						vaddr3, 1);
-
-		/* convert pa to dma_addr hdr/data */
-		dma_addr0_1 = _mm256_unpackhi_epi64(vaddr0_1, vaddr0_1);
-		dma_addr2_3 = _mm256_unpackhi_epi64(vaddr2_3, vaddr2_3);
-
-		/* add headroom to pa values */
-		dma_addr0_1 = _mm256_add_epi64(dma_addr0_1, hdr_room);
-		dma_addr2_3 = _mm256_add_epi64(dma_addr2_3, hdr_room);
-
-		/* flush desc with pa dma_addr */
-		_mm256_store_si256((__m256i *)&rxdp->read, dma_addr0_1);
-		_mm256_store_si256((__m256i *)&(rxdp + 2)->read, dma_addr2_3);
-	}
-
-#endif
 
 	rxq->rxrearm_start += IAVF_RXQ_REARM_THRESH;
 	if (rxq->rxrearm_start >= rxq->nb_rx_desc)
@@ -166,7 +117,6 @@ _iavf_recv_raw_pkts_vec_avx2(struct iavf_rx_queue *rxq,
 	/* struct iavf_rx_entry *sw_ring = &rxq->sw_ring[rxq->rx_tail]; */
 	struct rte_mbuf **sw_ring = &rxq->sw_ring[rxq->rx_tail];
 	volatile union iavf_rx_desc *rxdp = rxq->rx_ring + rxq->rx_tail;
-	const int avx_aligned = ((rxq->rx_tail & 1) == 0);
 
 	rte_prefetch0(rxdp);
 
@@ -309,8 +259,6 @@ _iavf_recv_raw_pkts_vec_avx2(struct iavf_rx_queue *rxq,
 				   PKT_RX_L4_CKSUM_GOOD | PKT_RX_L4_CKSUM_BAD |
 				   PKT_RX_EIP_CKSUM_BAD);
 
-	RTE_SET_USED(avx_aligned); /* for 32B descriptors we don't use this */
-
 	uint16_t i, received;
 
 	for (i = 0, received = 0; i < nb_pkts;
@@ -326,61 +274,47 @@ _iavf_recv_raw_pkts_vec_avx2(struct iavf_rx_queue *rxq,
 #endif
 
 		__m256i raw_desc0_1, raw_desc2_3, raw_desc4_5, raw_desc6_7;
-#ifdef RTE_LIBRTE_IAVF_16BYTE_RX_DESC
-		/* for AVX we need alignment otherwise loads are not atomic */
-		if (avx_aligned) {
-			/* load in descriptors, 2 at a time, in reverse order */
-			raw_desc6_7 = _mm256_load_si256((void *)(rxdp + 6));
-			rte_compiler_barrier();
-			raw_desc4_5 = _mm256_load_si256((void *)(rxdp + 4));
-			rte_compiler_barrier();
-			raw_desc2_3 = _mm256_load_si256((void *)(rxdp + 2));
-			rte_compiler_barrier();
-			raw_desc0_1 = _mm256_load_si256((void *)(rxdp + 0));
-		} else
-#endif
-		{
-			const __m128i raw_desc7 =
-				_mm_load_si128((void *)(rxdp + 7));
-			rte_compiler_barrier();
-			const __m128i raw_desc6 =
-				_mm_load_si128((void *)(rxdp + 6));
-			rte_compiler_barrier();
-			const __m128i raw_desc5 =
-				_mm_load_si128((void *)(rxdp + 5));
-			rte_compiler_barrier();
-			const __m128i raw_desc4 =
-				_mm_load_si128((void *)(rxdp + 4));
-			rte_compiler_barrier();
-			const __m128i raw_desc3 =
-				_mm_load_si128((void *)(rxdp + 3));
-			rte_compiler_barrier();
-			const __m128i raw_desc2 =
-				_mm_load_si128((void *)(rxdp + 2));
-			rte_compiler_barrier();
-			const __m128i raw_desc1 =
-				_mm_load_si128((void *)(rxdp + 1));
-			rte_compiler_barrier();
-			const __m128i raw_desc0 =
-				_mm_load_si128((void *)(rxdp + 0));
 
-			raw_desc6_7 =
-				_mm256_inserti128_si256
-					(_mm256_castsi128_si256(raw_desc6),
-					 raw_desc7, 1);
-			raw_desc4_5 =
-				_mm256_inserti128_si256
-					(_mm256_castsi128_si256(raw_desc4),
-					 raw_desc5, 1);
-			raw_desc2_3 =
-				_mm256_inserti128_si256
-					(_mm256_castsi128_si256(raw_desc2),
-					 raw_desc3, 1);
-			raw_desc0_1 =
-				_mm256_inserti128_si256
-					(_mm256_castsi128_si256(raw_desc0),
-					 raw_desc1, 1);
-		}
+		const __m128i raw_desc7 =
+			_mm_load_si128((void *)(rxdp + 7));
+		rte_compiler_barrier();
+		const __m128i raw_desc6 =
+			_mm_load_si128((void *)(rxdp + 6));
+		rte_compiler_barrier();
+		const __m128i raw_desc5 =
+			_mm_load_si128((void *)(rxdp + 5));
+		rte_compiler_barrier();
+		const __m128i raw_desc4 =
+			_mm_load_si128((void *)(rxdp + 4));
+		rte_compiler_barrier();
+		const __m128i raw_desc3 =
+			_mm_load_si128((void *)(rxdp + 3));
+		rte_compiler_barrier();
+		const __m128i raw_desc2 =
+			_mm_load_si128((void *)(rxdp + 2));
+		rte_compiler_barrier();
+		const __m128i raw_desc1 =
+			_mm_load_si128((void *)(rxdp + 1));
+		rte_compiler_barrier();
+		const __m128i raw_desc0 =
+			_mm_load_si128((void *)(rxdp + 0));
+
+		raw_desc6_7 =
+			_mm256_inserti128_si256
+				(_mm256_castsi128_si256(raw_desc6),
+				 raw_desc7, 1);
+		raw_desc4_5 =
+			_mm256_inserti128_si256
+				(_mm256_castsi128_si256(raw_desc4),
+				 raw_desc5, 1);
+		raw_desc2_3 =
+			_mm256_inserti128_si256
+				(_mm256_castsi128_si256(raw_desc2),
+				 raw_desc3, 1);
+		raw_desc0_1 =
+			_mm256_inserti128_si256
+				(_mm256_castsi128_si256(raw_desc0),
+				 raw_desc1, 1);
 
 		if (split_packet) {
 			int j;

@@ -57,12 +57,8 @@
 #define IAVF_TX_OFFLOAD_NOTSUP_MASK \
 		(PKT_TX_OFFLOAD_MASK ^ IAVF_TX_OFFLOAD_MASK)
 
-/* HW desc structure, both 16-byte and 32-byte types are supported */
-#ifdef RTE_LIBRTE_IAVF_16BYTE_RX_DESC
-#define iavf_rx_desc iavf_16byte_rx_desc
-#else
+/* HW desc structure, only 32-byte type is supported */
 #define iavf_rx_desc iavf_32byte_rx_desc
-#endif
 
 struct iavf_rxq_ops {
 	void (*release_mbufs)(struct iavf_rx_queue *rxq);
@@ -221,20 +217,12 @@ void iavf_dump_rx_descriptor(struct iavf_rx_queue *rxq,
 			    const volatile void *desc,
 			    uint16_t rx_id)
 {
-#ifdef RTE_LIBRTE_IAVF_16BYTE_RX_DESC
-	const volatile union iavf_16byte_rx_desc *rx_desc = desc;
-
-	printf("Queue %d Rx_desc %d: QW0: 0x%016"PRIx64" QW1: 0x%016"PRIx64"\n",
-	       rxq->queue_id, rx_id, rx_desc->read.pkt_addr,
-	       rx_desc->read.hdr_addr);
-#else
 	const volatile union iavf_32byte_rx_desc *rx_desc = desc;
 
 	printf("Queue %d Rx_desc %d: QW0: 0x%016"PRIx64" QW1: 0x%016"PRIx64
 	       " QW2: 0x%016"PRIx64" QW3: 0x%016"PRIx64"\n", rxq->queue_id,
 	       rx_id, rx_desc->read.pkt_addr, rx_desc->read.hdr_addr,
 	       rx_desc->read.rsvd1, rx_desc->read.rsvd2);
-#endif
 }
 
 /* All the descriptors are 16 bytes, so just use one of them
