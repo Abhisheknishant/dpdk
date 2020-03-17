@@ -757,6 +757,7 @@ bnxt_receive_function(struct rte_eth_dev *eth_dev)
 {
 	struct bnxt *bp = eth_dev->data->dev_private;
 
+#ifndef RTE_LIBRTE_BNXT_TRUFLOW
 #ifdef RTE_ARCH_X86
 #ifndef RTE_LIBRTE_IEEE1588
 	/*
@@ -787,6 +788,7 @@ bnxt_receive_function(struct rte_eth_dev *eth_dev)
 		    eth_dev->data->port_id,
 		    eth_dev->data->scattered_rx,
 		    eth_dev->data->dev_conf.rxmode.offloads);
+#endif
 #endif
 #endif
 	bp->flags &= ~BNXT_FLAG_RX_VECTOR_PKT_MODE;
