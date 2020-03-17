@@ -15,13 +15,15 @@ LDLIBS += -lrte_bus_vdev
 
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -fno-strict-aliasing
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 
 EXPORT_MAP := rte_pmd_vhost_version.map
 
 #
 # all source are stored in SRCS-y
 #
-SRCS-$(CONFIG_RTE_LIBRTE_PMD_VHOST) += rte_eth_vhost.c
+SRCS-$(CONFIG_RTE_LIBRTE_PMD_VHOST) += rte_eth_vhost.c virtio_net.c
 
 #
 # Export include files

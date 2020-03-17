@@ -16,12 +16,10 @@
 #include <rte_vhost.h>
 #include <rte_spinlock.h>
 
+#include "internal.h"
 #include "rte_eth_vhost.h"
 
-static int vhost_logtype;
-
-#define VHOST_LOG(level, ...) \
-	rte_log(RTE_LOG_ ## level, vhost_logtype, __VA_ARGS__)
+int vhost_logtype;
 
 enum {VIRTIO_RXQ, VIRTIO_TXQ, VIRTIO_QNUM};
 
@@ -54,54 +52,6 @@ static struct rte_ether_addr base_eth_addr = {
 		0x54 /* T */,
 		0x00
 	}
-};
-
-enum vhost_xstats_pkts {
-	VHOST_UNDERSIZE_PKT = 0,
-	VHOST_64_PKT,
-	VHOST_65_TO_127_PKT,
-	VHOST_128_TO_255_PKT,
-	VHOST_256_TO_511_PKT,
-	VHOST_512_TO_1023_PKT,
-	VHOST_1024_TO_1522_PKT,
-	VHOST_1523_TO_MAX_PKT,
-	VHOST_BROADCAST_PKT,
-	VHOST_MULTICAST_PKT,
-	VHOST_UNICAST_PKT,
-	VHOST_ERRORS_PKT,
-	VHOST_ERRORS_FRAGMENTED,
-	VHOST_ERRORS_JABBER,
-	VHOST_UNKNOWN_PROTOCOL,
-	VHOST_XSTATS_MAX,
-};
-
-struct vhost_stats {
-	uint64_t pkts;
-	uint64_t bytes;
-	uint64_t missed_pkts;
-	uint64_t xstats[VHOST_XSTATS_MAX];
-};
-
-struct vhost_queue {
-	int vid;
-	rte_atomic32_t allow_queuing;
-	rte_atomic32_t while_queuing;
-	struct pmd_internal *internal;
-	struct rte_mempool *mb_pool;
-	uint16_t port;
-	uint16_t virtqueue_id;
-	struct vhost_stats stats;
-};
-
-struct pmd_internal {
-	rte_atomic32_t dev_attached;
-	char *iface_name;
-	uint64_t flags;
-	uint64_t disable_flags;
-	uint16_t max_queues;
-	int vid;
-	rte_atomic32_t started;
-	uint8_t vlan_strip;
 };
 
 struct internal_list {
@@ -698,6 +648,7 @@ queue_setup(struct rte_eth_dev *eth_dev, struct pmd_internal *internal)
 		vq->vid = internal->vid;
 		vq->internal = internal;
 		vq->port = eth_dev->data->port_id;
+		vq->dma_vring = &internal->dma_vrings[vq->virtqueue_id];
 	}
 	for (i = 0; i < eth_dev->data->nb_tx_queues; i++) {
 		vq = eth_dev->data->tx_queues[i];
@@ -706,6 +657,7 @@ queue_setup(struct rte_eth_dev *eth_dev, struct pmd_internal *internal)
 		vq->vid = internal->vid;
 		vq->internal = internal;
 		vq->port = eth_dev->data->port_id;
+		vq->dma_vring = &internal->dma_vrings[vq->virtqueue_id];
 	}
 }
 
