@@ -25,6 +25,15 @@ Currently, the vhost PMD provides the basic functionality of packet reception, t
 
 *   Don't need to stop RX/TX, when the user wants to stop a guest or a virtio-net driver on guest.
 
+*   It supports to offload large data movement in Tx operations from the
+    CPU to the I/OAT device for every queue. Note that I/OAT acceleration
+    is just enabled for split rings. In addition, a queue can only use one
+    I/OAT device, and I/OAT devices cannot be shared among vhost ports and
+    queues. That is, an I/OAT device can only be used by one queue at a
+    time. Moreover, users cannot enable I/OAT acceleration, if iommu or
+    postcopy live-migration is enabled; when enabling I/OAT acceleration
+    for a queue, Rx interrupt is not supported.
+
 Vhost PMD arguments
 -------------------
 
@@ -53,6 +62,11 @@ The user can specify below arguments in `--vdev` option.
 
     It is used to enable tso support in vhost library.
     (Default: 0 (disabled))
+
+#.  ``dmas``:
+
+    It is used to specify DMA engines used to accelerate data movement
+    in Tx operations for queues.
 
 Vhost PMD event handling
 ------------------------
