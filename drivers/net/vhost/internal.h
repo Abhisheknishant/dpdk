@@ -20,6 +20,8 @@ extern int vhost_logtype;
 #define VHOST_LOG(level, ...) \
 	rte_log(RTE_LOG_ ## level, vhost_logtype, __VA_ARGS__)
 
+typedef int (*process_dma_done_fn)(void *dev, void *dma_vr);
+
 enum vhost_xstats_pkts {
 	VHOST_UNDERSIZE_PKT = 0,
 	VHOST_64_PKT,
@@ -96,6 +98,11 @@ struct dma_vring {
 	 * used by the DMA.
 	 */
 	phys_addr_t used_idx_hpa;
+
+	struct ring_index *indices;
+	uint16_t max_indices;
+
+	process_dma_done_fn dma_done_fn;
 };
 
 struct vhost_queue {
@@ -108,6 +115,13 @@ struct vhost_queue {
 	uint16_t virtqueue_id;
 	struct vhost_stats stats;
 	struct dma_vring *dma_vring;
+};
+
+struct dma_info {
+	process_dma_done_fn dma_done_fn;
+	struct rte_pci_addr addr;
+	uint16_t dev_id;
+	bool is_valid;
 };
 
 struct pmd_internal {
@@ -132,6 +146,11 @@ struct pmd_internal {
 	/* negotiated features */
 	uint64_t features;
 	size_t hdr_len;
+	bool vring_setup_done;
+	bool guest_mem_populated;
+
+	/* User-assigned DMA information */
+	struct dma_info dmas[RTE_MAX_QUEUES_PER_PORT * 2];
 };
 
 #ifdef __cplusplus

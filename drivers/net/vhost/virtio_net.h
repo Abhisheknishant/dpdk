@@ -14,6 +14,89 @@ extern "C" {
 
 #include "internal.h"
 
+#ifndef VIRTIO_F_RING_PACKED
+#define VIRTIO_F_RING_PACKED 34
+#endif
+
+/* batching size before invoking the DMA to perform transfers */
+#define DMA_BATCHING_SIZE 8
+/**
+ * copy length threshold for the DMA engine. We offload copy jobs whose
+ * lengths are greater than DMA_COPY_LENGTH_THRESHOLD to the DMA; for
+ * small copies, we still use the CPU to perform copies, due to startup
+ * overheads associated with the DMA.
+ *
+ * As DMA copying is asynchronous with CPU computations, we can
+ * dynamically increase or decrease the value if the DMA is busier or
+ * idler than the CPU.
+ */
+#define DMA_COPY_LENGTH_THRESHOLD 1024
+
+#define vhost_used_event(vr) \
+	(*(volatile uint16_t*)&(vr)->avail->ring[(vr)->size])
+
+struct ring_index {
+	/* physical address of 'data' */
+	uintptr_t pa;
+	uintptr_t idx;
+	uint16_t data;
+	bool in_use;
+} __rte_cache_aligned;
+
+static __rte_always_inline int
+setup_ring_index(struct ring_index **indices, uint16_t num)
+{
+	struct ring_index *array;
+	uint16_t i;
+
+	array = rte_zmalloc(NULL, sizeof(struct ring_index) * num, 0);
+	if (!array) {
+		*indices = NULL;
+		return -1;
+	}
+
+	for (i = 0; i < num; i++) {
+		array[i].pa = rte_mem_virt2iova(&array[i].data);
+		array[i].idx = i;
+	}
+
+	*indices = array;
+	return 0;
+}
+
+static __rte_always_inline void
+destroy_ring_index(struct ring_index **indices)
+{
+	if (!indices)
+		return;
+	rte_free(*indices);
+	*indices = NULL;
+}
+
+static __rte_always_inline struct ring_index *
+get_empty_index(struct ring_index *indices, uint16_t num)
+{
+	uint16_t i;
+
+	for (i = 0; i < num; i++)
+		if (!indices[i].in_use)
+			break;
+
+	if (unlikely(i == num))
+		return NULL;
+
+	indices[i].in_use = true;
+	return &indices[i];
+}
+
+static __rte_always_inline void
+put_used_index(struct ring_index *indices, uint16_t num, uint16_t idx)
+{
+	if (unlikely(idx >= num))
+		return;
+	indices[idx].in_use = false;
+}
+
 static uint64_t
 get_blk_size(int fd)
 {
@@ -149,6 +232,15 @@ gpa_to_hpa(struct pmd_internal *dev, uint64_t gpa, uint64_t size)
 }
 
 /**
+ * This function checks if packed rings are enabled.
+ */
+static __rte_always_inline bool
+vhost_dma_vring_is_packed(struct pmd_internal *dev)
+{
+	return dev->features & (1ULL << VIRTIO_F_RING_PACKED);
+}
+
+/**
  * This function gets front end's memory and vrings information.
  * In addition, it sets up necessary data structures for enqueue
  * and dequeue operations.
@@ -160,6 +252,34 @@ int vhost_dma_setup(struct pmd_internal *dev);
  * structures for enqueue and dequeue operations.
  */
 void vhost_dma_remove(struct pmd_internal *dev);
+
+/**
+ * This function frees DMA copy-done pktmbufs for the enqueue operation.
+ *
+ * @return
+ *  the number of packets that are completed by the DMA engine
+ */
+int free_dma_done(void *dev, void *dma_vr);
+
+/**
+ * This function sends packet buffers to front end's RX vring.
+ * It will free the mbufs of successfully transmitted packets.
+ *
+ * @param dev
+ *  vhost-dma device
+ * @param dma_vr
+ *  a front end's RX vring
+ * @param pkts
+ *  packets to send
+ * @param count
+ *  the number of packets to send
+ *
+ * @return
+ *  the number of packets successfully sent
+ */
+uint16_t vhost_dma_enqueue_burst(struct pmd_internal *dev,
+				  struct dma_vring *dma_vr,
+				  struct rte_mbuf **pkts, uint32_t count);
 
 #ifdef __cplusplus
 }

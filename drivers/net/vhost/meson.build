@@ -6,4 +6,4 @@ reason = 'missing dependency, DPDK vhost library'
 sources = files('rte_eth_vhost.c',
 		'virtio_net.c')
 install_headers('rte_eth_vhost.h')
-deps += 'vhost'
+deps += ['vhost', 'rawdev']

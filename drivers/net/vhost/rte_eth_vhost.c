@@ -15,8 +15,12 @@
 #include <rte_kvargs.h>
 #include <rte_vhost.h>
 #include <rte_spinlock.h>
+#include <rte_string_fns.h>
+#include <rte_rawdev.h>
+#include <rte_ioat_rawdev.h>
 
 #include "internal.h"
+#include "virtio_net.h"
 #include "rte_eth_vhost.h"
 
 int vhost_logtype;
@@ -30,7 +34,11 @@ enum {VIRTIO_RXQ, VIRTIO_TXQ, VIRTIO_QNUM};
 #define ETH_VHOST_IOMMU_SUPPORT		"iommu-support"
 #define ETH_VHOST_POSTCOPY_SUPPORT	"postcopy-support"
 #define ETH_VHOST_VIRTIO_NET_F_HOST_TSO "tso"
+#define ETH_VHOST_DMA_ARG		"dmas"
 #define VHOST_MAX_PKT_BURST 32
+
+/* ring size of I/OAT */
+#define IOAT_RING_SIZE 1024
 
 static const char *valid_arguments[] = {
 	ETH_VHOST_IFACE_ARG,
@@ -40,6 +48,7 @@ static const char *valid_arguments[] = {
 	ETH_VHOST_IOMMU_SUPPORT,
 	ETH_VHOST_POSTCOPY_SUPPORT,
 	ETH_VHOST_VIRTIO_NET_F_HOST_TSO,
+	ETH_VHOST_DMA_ARG,
 	NULL
 };
 
@@ -377,6 +386,7 @@ static uint16_t
 eth_vhost_tx(void *q, struct rte_mbuf **bufs, uint16_t nb_bufs)
 {
 	struct vhost_queue *r = q;
+	struct pmd_internal *dev = r->internal;
 	uint16_t i, nb_tx = 0;
 	uint16_t nb_send = 0;
 
@@ -405,18 +415,33 @@ eth_vhost_tx(void *q, struct rte_mbuf **bufs, uint16_t nb_bufs)
 	}
 
 	/* Enqueue packets to guest RX queue */
-	while (nb_send) {
-		uint16_t nb_pkts;
-		uint16_t num = (uint16_t)RTE_MIN(nb_send,
-						 VHOST_MAX_PKT_BURST);
+	if (!r->dma_vring->dma_enabled) {
+		while (nb_send) {
+			uint16_t nb_pkts;
+			uint16_t num = (uint16_t)RTE_MIN(nb_send,
+					VHOST_MAX_PKT_BURST);
 
-		nb_pkts = rte_vhost_enqueue_burst(r->vid, r->virtqueue_id,
-						  &bufs[nb_tx], num);
+			nb_pkts = rte_vhost_enqueue_burst(r->vid,
+							  r->virtqueue_id,
+							  &bufs[nb_tx], num);
+			nb_tx += nb_pkts;
+			nb_send -= nb_pkts;
+			if (nb_pkts < num)
+				break;
+		}
+	} else {
+		while (nb_send) {
+			uint16_t nb_pkts;
+			uint16_t num = (uint16_t)RTE_MIN(nb_send,
+							 VHOST_MAX_PKT_BURST);
 
-		nb_tx += nb_pkts;
-		nb_send -= nb_pkts;
-		if (nb_pkts < num)
-			break;
+			nb_pkts = vhost_dma_enqueue_burst(dev, r->dma_vring,
+							  &bufs[nb_tx], num);
+			nb_tx += nb_pkts;
+			nb_send -= nb_pkts;
+			if (nb_pkts < num)
+				break;
+		}
 	}
 
 	r->stats.pkts += nb_tx;
@@ -434,6 +459,7 @@ eth_vhost_tx(void *q, struct rte_mbuf **bufs, uint16_t nb_bufs)
 	for (i = nb_tx; i < nb_bufs; i++)
 		vhost_count_multicast_broadcast(r, bufs[i]);
 
+	/* Only DMA non-occupied mbuf segments will be freed */
 	for (i = 0; likely(i < nb_tx); i++)
 		rte_pktmbuf_free(bufs[i]);
 out:
@@ -483,6 +509,12 @@ eth_rxq_intr_enable(struct rte_eth_dev *dev, uint16_t qid)
 		return -1;
 	}
 
+	if (vq->dma_vring->dma_enabled) {
+		VHOST_LOG(INFO, "Don't support interrupt when DMA "
+			  "acceleration is enabled\n");
+		return -1;
+	}
+
 	ret = rte_vhost_get_vhost_vring(vq->vid, (qid << 1) + 1, &vring);
 	if (ret < 0) {
 		VHOST_LOG(ERR, "Failed to get rxq%d's vring\n", qid);
@@ -505,6 +537,12 @@ eth_rxq_intr_disable(struct rte_eth_dev *dev, uint16_t qid)
 	vq = dev->data->rx_queues[qid];
 	if (!vq) {
 		VHOST_LOG(ERR, "rxq%d is not setup yet\n", qid);
+		return -1;
+	}
+
+	if (vq->dma_vring->dma_enabled) {
+		VHOST_LOG(INFO, "Don't support interrupt when DMA "
+			  "acceleration is enabled\n");
 		return -1;
 	}
 
@@ -692,6 +730,13 @@ new_device(int vid)
 #endif
 
 	internal->vid = vid;
+	if (internal->guest_mem_populated && vhost_dma_setup(internal) >= 0)
+		internal->vring_setup_done = true;
+	else {
+		VHOST_LOG(INFO, "Not setup vrings for DMA acceleration.\n");
+		internal->vring_setup_done = false;
+	}
+
 	if (rte_atomic32_read(&internal->started) == 1) {
 		queue_setup(eth_dev, internal);
 
@@ -747,6 +792,11 @@ destroy_device(int vid)
 	update_queuing_status(eth_dev);
 
 	eth_dev->data->dev_link.link_status = ETH_LINK_DOWN;
+	/**
+	 * before destroy guest's vrings, I/O threads have
+	 * to stop accessing queues.
+	 */
+	vhost_dma_remove(internal);
 
 	if (eth_dev->data->rx_queues && eth_dev->data->tx_queues) {
 		for (i = 0; i < eth_dev->data->nb_rx_queues; i++) {
@@ -785,6 +835,11 @@ vring_state_changed(int vid, uint16_t vring, int enable)
 	struct rte_eth_dev *eth_dev;
 	struct internal_list *list;
 	char ifname[PATH_MAX];
+	struct pmd_internal *dev;
+	struct dma_vring *dma_vr;
+	struct rte_ioat_rawdev_config config;
+	struct rte_rawdev_info info = { .dev_private = &config };
+	char name[32];
 
 	rte_vhost_get_ifname(vid, ifname, sizeof(ifname));
 	list = find_internal_resource(ifname);
@@ -794,6 +849,53 @@ vring_state_changed(int vid, uint16_t vring, int enable)
 	}
 
 	eth_dev = list->eth_dev;
+	dev = eth_dev->data->dev_private;
+
+	/* if fail to set up vrings, return. */
+	if (!dev->vring_setup_done)
+		goto out;
+
+	/* DMA acceleration just supports split rings. */
+	if (vhost_dma_vring_is_packed(dev)) {
+		VHOST_LOG(INFO, "DMA acceleration just supports split "
+			  "rings.\n");
+		goto out;
+	}
+
+	/* if the vring was not given a DMA device, return. */
+	if (!dev->dmas[vring].is_valid)
+		goto out;
+
+	/**
+	 * a vring can only use one DMA device. If it has been
+	 * assigned one, return.
+	 */
+	dma_vr = &dev->dma_vrings[vring];
+	if (dma_vr->dma_enabled)
+		goto out;
+
+	rte_pci_device_name(&dev->dmas[vring].addr, name, sizeof(name));
+	rte_rawdev_info_get(dev->dmas[vring].dev_id, &info);
+	config.ring_size = IOAT_RING_SIZE;
+	if (rte_rawdev_configure(dev->dmas[vring].dev_id, &info) < 0) {
+		VHOST_LOG(ERR, "Config the DMA device %s failed\n", name);
+		goto out;
+	}
+
+	rte_rawdev_start(dev->dmas[vring].dev_id);
+
+	memcpy(&dma_vr->dma_addr, &dev->dmas[vring].addr,
+	       sizeof(struct rte_pci_addr));
+	dma_vr->dev_id = dev->dmas[vring].dev_id;
+	dma_vr->dma_enabled = true;
+	dma_vr->nr_inflight = 0;
+	dma_vr->nr_batching = 0;
+	dma_vr->dma_done_fn = dev->dmas[vring].dma_done_fn;
+
+	VHOST_LOG(INFO, "Attach the DMA %s to vring %u of port %u\n",
+		  name, vring, eth_dev->data->port_id);
+
+out:
 	/* won't be NULL */
 	state = vring_states[eth_dev->data->port_id];
 	rte_spinlock_lock(&state->lock);
@@ -1239,7 +1341,7 @@ static const struct eth_dev_ops ops = {
 static int
 eth_dev_vhost_create(struct rte_vdev_device *dev, char *iface_name,
 	int16_t queues, const unsigned int numa_node, uint64_t flags,
-	uint64_t disable_flags)
+	uint64_t disable_flags, struct dma_info *dmas)
 {
 	const char *name = rte_vdev_device_name(dev);
 	struct rte_eth_dev_data *data;
@@ -1290,6 +1392,13 @@ eth_dev_vhost_create(struct rte_vdev_device *dev, char *iface_name,
 	eth_dev->rx_pkt_burst = eth_vhost_rx;
 	eth_dev->tx_pkt_burst = eth_vhost_tx;
 
+	memcpy(internal->dmas, dmas, sizeof(struct dma_info) * 2 *
+	       RTE_MAX_QUEUES_PER_PORT);
+	if (flags & RTE_VHOST_USER_DMA_COPY)
+		internal->guest_mem_populated = true;
+	else
+		internal->guest_mem_populated = false;
+
 	rte_eth_dev_probing_finish(eth_dev);
 	return 0;
 
@@ -1329,6 +1438,100 @@ open_int(const char *key __rte_unused, const char *value, void *extra_args)
 	return 0;
 }
 
+struct dma_info_input {
+	struct dma_info dmas[RTE_MAX_QUEUES_PER_PORT * 2];
+	uint16_t nr;
+};
+
+static inline int
+open_dma(const char *key __rte_unused, const char *value, void *extra_args)
+{
+	struct dma_info_input *dma_info = extra_args;
+	char *input = strndup(value, strlen(value) + 1);
+	char *addrs = input;
+	char *ptrs[2];
+	char *start, *end, *substr;
+	int64_t qid, vring_id;
+	struct rte_ioat_rawdev_config config;
+	struct rte_rawdev_info info = { .dev_private = &config };
+	char name[32];
+	int dev_id;
+	int ret = 0;
+
+	while (isblank(*addrs))
+		addrs++;
+	if (addrs == '\0') {
+		VHOST_LOG(ERR, "No input DMA addresses\n");
+		ret = -1;
+		goto out;
+	}
+
+	/* process DMA devices within bracket. */
+	addrs++;
+	substr = strtok(addrs, ";]");
+	if (!substr) {
+		VHOST_LOG(ERR, "No input DMA addresse\n");
+		ret = -1;
+		goto out;
+	}
+
+	do {
+		rte_strsplit(substr, strlen(substr), ptrs, 2, '@');
+
+		start = strstr(ptrs[0], "txq");
+		if (start == NULL) {
+			VHOST_LOG(ERR, "Illegal queue\n");
+			ret = -1;
+			goto out;
+		}
+
+		start += 3;
+		qid = strtol(start, &end, 0);
+		if (end == start) {
+			VHOST_LOG(ERR, "No input queue ID\n");
+			ret = -1;
+			goto out;
+		}
+
+		vring_id = qid * 2 + VIRTIO_RXQ;
+		if (rte_pci_addr_parse(ptrs[1],
+				       &dma_info->dmas[vring_id].addr) < 0) {
+			VHOST_LOG(ERR, "Invalid DMA address %s\n", ptrs[1]);
+			ret = -1;
+			goto out;
+		}
+
+		rte_pci_device_name(&dma_info->dmas[vring_id].addr,
+				    name, sizeof(name));
+		dev_id = rte_rawdev_get_dev_id(name);
+		if (dev_id == (uint16_t)(-ENODEV) ||
+		    dev_id == (uint16_t)(-EINVAL)) {
+			VHOST_LOG(ERR, "Cannot find device %s.\n", name);
+			ret = -1;
+			goto out;
+		}
+
+		if (rte_rawdev_info_get(dev_id, &info) < 0 ||
+		    strstr(info.driver_name, "ioat") == NULL) {
+			VHOST_LOG(ERR, "The input device %s is invalid or "
+				  "it is not an I/OAT device\n", name);
+			ret = -1;
+			goto out;
+		}
+
+		dma_info->dmas[vring_id].dev_id = dev_id;
+		dma_info->dmas[vring_id].is_valid = true;
+		dma_info->dmas[vring_id].dma_done_fn = free_dma_done;
+		dma_info->nr++;
+
+		substr = strtok(NULL, ";]");
+	} while (substr);
+
+out:
+	free(input);
+	return ret;
+}
+
 static int
 rte_pmd_vhost_probe(struct rte_vdev_device *dev)
 {
@@ -1345,6 +1548,7 @@ rte_pmd_vhost_probe(struct rte_vdev_device *dev)
 	int tso = 0;
 	struct rte_eth_dev *eth_dev;
 	const char *name = rte_vdev_device_name(dev);
+	struct dma_info_input dma_info = {0};
 
 	VHOST_LOG(INFO, "Initializing pmd_vhost for %s\n", name);
 
@@ -1440,11 +1644,28 @@ rte_pmd_vhost_probe(struct rte_vdev_device *dev)
 		}
 	}
 
+	if (rte_kvargs_count(kvlist, ETH_VHOST_DMA_ARG) == 1) {
+		ret = rte_kvargs_process(kvlist, ETH_VHOST_DMA_ARG,
+					 &open_dma, &dma_info);
+		if (ret < 0)
+			goto out_free;
+
+		if (dma_info.nr > 0) {
+			flags |= RTE_VHOST_USER_DMA_COPY;
+			/**
+			 * don't support live migration when enable
+			 * DMA acceleration.
+			 */
+			disable_flags |= (1ULL << VHOST_F_LOG_ALL);
+		}
+	}
+
 	if (dev->device.numa_node == SOCKET_ID_ANY)
 		dev->device.numa_node = rte_socket_id();
 
 	ret = eth_dev_vhost_create(dev, iface_name, queues,
-				   dev->device.numa_node, flags, disable_flags);
+				   dev->device.numa_node, flags,
+				   disable_flags, dma_info.dmas);
 	if (ret == -1)
 		VHOST_LOG(ERR, "Failed to create %s\n", name);
 
@@ -1491,7 +1712,8 @@ RTE_PMD_REGISTER_PARAM_STRING(net_vhost,
 	"dequeue-zero-copy=<0|1> "
 	"iommu-support=<0|1> "
 	"postcopy-support=<0|1> "
-	"tso=<0|1>");
+	"tso=<0|1> "
+	"dmas=[txq0@addr0;txq1@addr1]");
 
 RTE_INIT(vhost_init_log)
 {
