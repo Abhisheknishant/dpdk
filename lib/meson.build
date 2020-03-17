@@ -33,7 +33,7 @@ libraries = [
 	'flow_classify', 'bpf', 'telemetry']
 
 if is_windows
-	libraries = ['kvargs','eal'] # only supported libraries for windows
+	libraries = ['kvargs','eal','pci'] # only supported libraries for windows
 endif
 
 default_cflags = machine_args
