@@ -14,8 +14,10 @@ if dep.found()
 			     'qat_sym.c',
 			     'qat_sym_session.c',
 			     'qat_asym_pmd.c',
-			     'qat_asym.c')
+			     'qat_asym.c',
+			     'qat.c')
 	qat_ext_deps += dep
 	qat_cflags += '-DBUILD_QAT_SYM'
 	qat_cflags += '-DBUILD_QAT_ASYM'
+	qat_cflags += '-DBUILD_QAT_RAW'
 endif

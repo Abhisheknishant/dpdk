@@ -10,6 +10,7 @@
 #include "adf_transport_access_macros.h"
 #include "qat_sym_pmd.h"
 #include "qat_comp_pmd.h"
+#include "qat_raw_pmd.h"
 
 /* Hardware device information per generation */
 __extension__
@@ -363,6 +364,19 @@ qat_asym_dev_destroy(struct qat_pci_device *qat_pci_dev __rte_unused)
 
 __rte_weak int
 qat_comp_dev_create(struct qat_pci_device *qat_pci_dev __rte_unused,
+		struct qat_dev_cmd_param *qat_dev_cmd_param __rte_unused)
+{
+	return 0;
+}
+
+__rte_weak int
+qat_comp_dev_destroy(struct qat_pci_device *qat_pci_dev __rte_unused)
+{
+	return 0;
+}
+
+__rte_weak int
+qat_raw_dev_create(struct qat_pci_device *qat_pci_dev __rte_unused,
 		struct qat_dev_cmd_param *qat_dev_cmd_param __rte_unused)
 {
 	return 0;

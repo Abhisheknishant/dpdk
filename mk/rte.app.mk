@@ -276,6 +276,9 @@ _LDLIBS-$(CONFIG_RTE_LIBRTE_PMD_NULL_CRYPTO) += -lrte_pmd_null_crypto
 ifeq ($(CONFIG_RTE_LIBRTE_PMD_QAT),y)
 _LDLIBS-$(CONFIG_RTE_LIBRTE_PMD_QAT_SYM)     += -lrte_pmd_qat -lcrypto
 _LDLIBS-$(CONFIG_RTE_LIBRTE_PMD_QAT_ASYM)    += -lrte_pmd_qat -lcrypto
+ifeq ($(CONFIG_RTE_LIBRTE_RAWDEV),y)
+_LDLIBS-$(CONFIG_RTE_LIBRTE_PMD_QAT_RAWDEV)     += -lrte_pmd_qat -lcrypto
+endif # CONFIG_RTE_LIBRTE_RAWDEV
 endif # CONFIG_RTE_LIBRTE_PMD_QAT
 _LDLIBS-$(CONFIG_RTE_LIBRTE_PMD_SNOW3G)      += -lrte_pmd_snow3g
 _LDLIBS-$(CONFIG_RTE_LIBRTE_PMD_SNOW3G)      += -lIPSec_MB

@@ -6,13 +6,15 @@ include $(RTE_SDK)/mk/rte.vars.mk
 # build directories
 QAT_CRYPTO_DIR := $(RTE_SDK)/drivers/crypto/qat
 QAT_COMPRESS_DIR := $(RTE_SDK)/drivers/compress/qat
-VPATH=$(QAT_CRYPTO_DIR):$(QAT_COMPRESS_DIR)
+QAT_RAW_DIR := $(RTE_SDK)/drivers/raw/qat
+VPATH=$(QAT_CRYPTO_DIR):$(QAT_COMPRESS_DIR):$(QAT_RAW_DIR)
 
 # external library include paths
 CFLAGS += -I$(SRCDIR)/qat_adf
 CFLAGS += -I$(SRCDIR)
 CFLAGS += -I$(QAT_CRYPTO_DIR)
 CFLAGS += -I$(QAT_COMPRESS_DIR)
+CFLAGS += -I$(QAT_RAW_DIR)
 
 
 ifeq ($(CONFIG_RTE_LIBRTE_COMPRESSDEV),y)
@@ -42,6 +44,16 @@ ifeq ($(CONFIG_RTE_LIBRTE_PMD_QAT_SYM),y)
 	SRCS-y += qat_sym_pmd.c
 	build_qat = yes
 endif
+endif
+
+ifeq ($(CONFIG_RTE_LIBRTE_PMD_QAT_RAWDEV),y)
+	LDLIBS += -lrte_cryptodev
+	LDLIBS += -lcrypto
+	LDLIBS += -lrte_multi_fn
+	LDLIBS += -lrte_rawdev
+	CFLAGS += -DBUILD_QAT_SYM
+	SRCS-y += qat.c
+	build_qat = yes
 endif
 
 ifdef build_qat
