@@ -3287,7 +3287,11 @@ bnxt_filter_ctrl_op(struct rte_eth_dev *dev,
 	case RTE_ETH_FILTER_GENERIC:
 		if (filter_op != RTE_ETH_FILTER_GET)
 			return -EINVAL;
+#ifdef RTE_LIBRTE_BNXT_TRUFLOW
+		*(const void **)arg = &bnxt_ulp_rte_flow_ops;
+#else
 		*(const void **)arg = &bnxt_flow_ops;
+#endif
 		break;
 	default:
 		PMD_DRV_LOG(ERR,
