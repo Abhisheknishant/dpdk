@@ -20,6 +20,12 @@ endif
 if cc.has_function('getentropy', prefix : '#include <unistd.h>')
 	cflags += '-DRTE_LIBEAL_USE_GETENTROPY'
 endif
+
+# for clang 32-bit compiles we need libatomic for 64-bit atomic ops
+if cc.get_id() == 'clang' and dpdk_conf.get('RTE_ARCH_64') == false
+    ext_deps += cc.find_library('atomic')
+endif
+
 sources = common_sources + env_sources
 objs = common_objs + env_objs
 headers = common_headers + env_headers
