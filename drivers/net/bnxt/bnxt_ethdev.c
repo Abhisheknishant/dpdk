@@ -4683,6 +4683,18 @@ static void bnxt_config_vf_req_fwd(struct bnxt *bp)
 	ALLOW_FUNC(HWRM_VNIC_TPA_CFG);
 }
 
+uint16_t
+bnxt_get_svif(uint16_t port_id, bool func_svif)
+{
+	struct rte_eth_dev *eth_dev;
+	struct bnxt *bp;
+
+	eth_dev = &rte_eth_devices[port_id];
+	bp = eth_dev->data->dev_private;
+
+	return func_svif ? bp->func_svif : bp->port_svif;
+}
+
 static int bnxt_init_fw(struct bnxt *bp)
 {
 	uint16_t mtu;
@@ -4717,6 +4729,8 @@ static int bnxt_init_fw(struct bnxt *bp)
 	rc = bnxt_hwrm_func_qcfg(bp, &mtu);
 	if (rc)
 		return rc;
+
+	bnxt_hwrm_port_mac_qcfg(bp);
 
 	rc = bnxt_hwrm_cfa_adv_flow_mgmt_qcaps(bp);
 	if (rc)
