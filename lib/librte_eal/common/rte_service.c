@@ -179,9 +179,11 @@ rte_service_set_stats_enable(uint32_t id, int32_t enabled)
 	SERVICE_VALID_GET_OR_ERR_RET(id, s, 0);
 
 	if (enabled)
-		s->internal_flags |= SERVICE_F_STATS_ENABLED;
+		__atomic_or_fetch(&s->internal_flags, SERVICE_F_STATS_ENABLED,
+			__ATOMIC_RELEASE);
 	else
-		s->internal_flags &= ~(SERVICE_F_STATS_ENABLED);
+		__atomic_and_fetch(&s->internal_flags,
+			~(SERVICE_F_STATS_ENABLED), __ATOMIC_RELEASE);
 
 	return 0;
 }
@@ -193,9 +195,11 @@ rte_service_set_runstate_mapped_check(uint32_t id, int32_t enabled)
 	SERVICE_VALID_GET_OR_ERR_RET(id, s, 0);
 
 	if (enabled)
-		s->internal_flags |= SERVICE_F_START_CHECK;
+		__atomic_or_fetch(&s->internal_flags, SERVICE_F_START_CHECK,
+			__ATOMIC_RELEASE);
 	else
-		s->internal_flags &= ~(SERVICE_F_START_CHECK);
+		__atomic_and_fetch(&s->internal_flags, ~(SERVICE_F_START_CHECK),
+			__ATOMIC_RELEASE);
 
 	return 0;
 }
@@ -264,8 +268,8 @@ rte_service_component_register(const struct rte_service_spec *spec,
 	s->spec = *spec;
 	s->internal_flags |= SERVICE_F_REGISTERED | SERVICE_F_START_CHECK;
 
-	rte_smp_wmb();
-	rte_service_count++;
+	/* make sure the counter update after the state change. */
+	__atomic_add_fetch(&rte_service_count, 1, __ATOMIC_RELEASE);
 
 	if (id_ptr)
 		*id_ptr = free_slot;
@@ -281,9 +285,10 @@ rte_service_component_unregister(uint32_t id)
 	SERVICE_VALID_GET_OR_ERR_RET(id, s, -EINVAL);
 
 	rte_service_count--;
-	rte_smp_wmb();
 
-	s->internal_flags &= ~(SERVICE_F_REGISTERED);
+	/* make sure the counter update before the state change. */
+	__atomic_and_fetch(&s->internal_flags, ~(SERVICE_F_REGISTERED),
+			   __ATOMIC_RELEASE);
 
 	/* clear the run-bit in all cores */
 	for (i = 0; i < RTE_MAX_LCORE; i++)
@@ -301,11 +306,12 @@ rte_service_component_runstate_set(uint32_t id, uint32_t runstate)
 	SERVICE_VALID_GET_OR_ERR_RET(id, s, -EINVAL);
 
 	if (runstate)
-		s->comp_runstate = RUNSTATE_RUNNING;
+		__atomic_store_n(&s->comp_runstate, RUNSTATE_RUNNING,
+				__ATOMIC_RELEASE);
 	else
-		s->comp_runstate = RUNSTATE_STOPPED;
+		__atomic_store_n(&s->comp_runstate, RUNSTATE_STOPPED,
+				__ATOMIC_RELEASE);
 
-	rte_smp_wmb();
 	return 0;
 }
 
@@ -316,11 +322,12 @@ rte_service_runstate_set(uint32_t id, uint32_t runstate)
 	SERVICE_VALID_GET_OR_ERR_RET(id, s, -EINVAL);
 
 	if (runstate)
-		s->app_runstate = RUNSTATE_RUNNING;
+		__atomic_store_n(&s->app_runstate, RUNSTATE_RUNNING,
+				__ATOMIC_RELEASE);
 	else
-		s->app_runstate = RUNSTATE_STOPPED;
+		__atomic_store_n(&s->app_runstate, RUNSTATE_STOPPED,
+				__ATOMIC_RELEASE);
 
-	rte_smp_wmb();
 	return 0;
 }
 
@@ -442,7 +449,8 @@ service_runner_func(void *arg)
 	const int lcore = rte_lcore_id();
 	struct core_state *cs = &lcore_states[lcore];
 
-	while (lcore_states[lcore].runstate == RUNSTATE_RUNNING) {
+	while (__atomic_load_n(&cs->runstate,
+		    __ATOMIC_ACQUIRE) == RUNSTATE_RUNNING) {
 		const uint64_t service_mask = cs->service_mask;
 
 		for (i = 0; i < RTE_SERVICE_NUM_MAX; i++) {
@@ -453,8 +461,6 @@ service_runner_func(void *arg)
 		}
 
 		cs->loops++;
-
-		rte_smp_rmb();
 	}
 
 	lcore_config[lcore].state = WAIT;
@@ -663,9 +669,8 @@ rte_service_lcore_add(uint32_t lcore)
 
 	/* ensure that after adding a core the mask and state are defaults */
 	lcore_states[lcore].service_mask = 0;
-	lcore_states[lcore].runstate = RUNSTATE_STOPPED;
-
-	rte_smp_wmb();
+	__atomic_store_n(&lcore_states[lcore].runstate, RUNSTATE_STOPPED,
+			__ATOMIC_RELEASE);
 
 	return rte_eal_wait_lcore(lcore);
 }
