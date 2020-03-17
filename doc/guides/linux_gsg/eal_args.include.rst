@@ -132,7 +132,7 @@ Debugging options
 
     Specify log level for a specific component. For example::
 
-        --log-level eal:8
+        --log-level lib.eal:8
 
     Can be specified multiple times.
 
