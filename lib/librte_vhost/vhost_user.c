@@ -1138,7 +1138,8 @@ vhost_user_set_mem_table(struct virtio_net **pdev, struct VhostUserMsg *msg,
 			goto err_mmap;
 		}
 
-		populate = (dev->dequeue_zero_copy) ? MAP_POPULATE : 0;
+		populate = (dev->dequeue_zero_copy || dev->dma_enabled) ?
+			MAP_POPULATE : 0;
 		mmap_addr = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE,
 				 MAP_SHARED | populate, fd, 0);
 

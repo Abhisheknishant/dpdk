@@ -62,6 +62,8 @@ struct vhost_user_socket {
 	 */
 	int vdpa_dev_id;
 
+	bool dma_enabled;
+
 	struct vhost_device_ops const *notify_ops;
 };
 
@@ -240,6 +242,13 @@ vhost_user_add_connection(int fd, struct vhost_user_socket *vsocket)
 
 	if (vsocket->linearbuf)
 		vhost_enable_linearbuf(vid);
+
+	if (vsocket->dma_enabled) {
+		struct virtio_net *dev;
+
+		dev = get_device(vid);
+		dev->dma_enabled = true;
+	}
 
 	VHOST_LOG_CONFIG(INFO, "new device, handle is %d\n", vid);
 
@@ -888,6 +897,17 @@ rte_vhost_driver_register(const char *path, uint64_t flags)
 		VHOST_LOG_CONFIG(ERR,
 			"error: enabling dequeue zero copy and IOMMU features "
 			"simultaneously is not supported\n");
+		goto out_mutex;
+	}
+
+	vsocket->dma_enabled = flags & RTE_VHOST_USER_DMA_COPY;
+
+	if (vsocket->dma_enabled &&
+	    (flags & (RTE_VHOST_USER_IOMMU_SUPPORT |
+		      RTE_VHOST_USER_POSTCOPY_SUPPORT))) {
+		VHOST_LOG_CONFIG(ERR, "error: enabling DMA copy and IOMMU "
+				 "or post-copy feature simultaneously is not "
+				 "supported\n");
 		goto out_mutex;
 	}
 

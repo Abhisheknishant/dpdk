@@ -383,6 +383,8 @@ struct virtio_net {
 	 */
 	int			vdpa_dev_id;
 
+	bool			dma_enabled;
+
 	/* context data for the external message handlers */
 	void			*extern_data;
 	/* pre and post vhost user message handlers for the device */

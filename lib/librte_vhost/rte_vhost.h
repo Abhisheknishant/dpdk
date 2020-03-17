@@ -35,6 +35,7 @@ extern "C" {
 #define RTE_VHOST_USER_EXTBUF_SUPPORT	(1ULL << 5)
 /* support only linear buffers (no chained mbufs) */
 #define RTE_VHOST_USER_LINEARBUF_SUPPORT	(1ULL << 6)
+#define RTE_VHOST_USER_DMA_COPY		(1ULL << 7)
 
 /** Protocol features. */
 #ifndef VHOST_USER_PROTOCOL_F_MQ
