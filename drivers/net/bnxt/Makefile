@@ -61,6 +61,7 @@ SRCS-$(CONFIG_RTE_LIBRTE_BNXT_TRUFLOW) += tf_ulp/bnxt_ulp.c
 SRCS-$(CONFIG_RTE_LIBRTE_BNXT_TRUFLOW) += tf_ulp/ulp_mark_mgr.c
 SRCS-$(CONFIG_RTE_LIBRTE_BNXT_TRUFLOW) += tf_ulp/ulp_flow_db.c
 SRCS-$(CONFIG_RTE_LIBRTE_BNXT_TRUFLOW) += tf_ulp/ulp_template_db.c
+SRCS-$(CONFIG_RTE_LIBRTE_BNXT_TRUFLOW) += tf_ulp/ulp_utils.c
 #
 # Export include files
 #
