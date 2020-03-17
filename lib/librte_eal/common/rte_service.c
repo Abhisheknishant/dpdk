@@ -42,7 +42,7 @@ struct rte_service_spec_impl {
 	 * running this service callback. When not set, a core may take the
 	 * lock and then run the service callback.
 	 */
-	rte_atomic32_t execute_lock;
+	uint32_t execute_lock;
 
 	/* API set/get-able variables */
 	int8_t app_runstate;
@@ -54,7 +54,7 @@ struct rte_service_spec_impl {
 	 * It does not indicate the number of cores the service is running
 	 * on currently.
 	 */
-	rte_atomic32_t num_mapped_cores;
+	int32_t num_mapped_cores;
 	uint64_t calls;
 	uint64_t cycles_spent;
 } __rte_cache_aligned;
@@ -332,7 +332,8 @@ rte_service_runstate_get(uint32_t id)
 	rte_smp_rmb();
 
 	int check_disabled = !(s->internal_flags & SERVICE_F_START_CHECK);
-	int lcore_mapped = (rte_atomic32_read(&s->num_mapped_cores) > 0);
+	int lcore_mapped = (__atomic_load_n(&s->num_mapped_cores,
+					    __ATOMIC_RELAXED) > 0);
 
 	return (s->app_runstate == RUNSTATE_RUNNING) &&
 		(s->comp_runstate == RUNSTATE_RUNNING) &&
@@ -375,11 +376,20 @@ service_run(uint32_t i, struct core_state *cs, uint64_t service_mask,
 	cs->service_active_on_lcore[i] = 1;
 
 	if ((service_mt_safe(s) == 0) && (serialize_mt_unsafe == 1)) {
-		if (!rte_atomic32_cmpset((uint32_t *)&s->execute_lock, 0, 1))
+		uint32_t expected = 0;
+		/* ACQUIRE ordering here is to prevent the callback
+		 * function from hoisting up before the execute_lock
+		 * setting.
+		 */
+		if (!__atomic_compare_exchange_n(&s->execute_lock, &expected, 1,
+			    0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
 			return -EBUSY;
 
 		service_runner_do_callback(s, cs, i);
-		rte_atomic32_clear(&s->execute_lock);
+		/* RELEASE ordering here is used to pair with ACQUIRE
+		 * above to achieve lock semantic.
+		 */
+		__atomic_store_n(&s->execute_lock, 0, __ATOMIC_RELEASE);
 	} else
 		service_runner_do_callback(s, cs, i);
 
@@ -415,11 +425,11 @@ rte_service_run_iter_on_app_lcore(uint32_t id, uint32_t serialize_mt_unsafe)
 	/* Increment num_mapped_cores to indicate that the service
 	 * is running on a core.
 	 */
-	rte_atomic32_inc(&s->num_mapped_cores);
+	__atomic_add_fetch(&s->num_mapped_cores, 1, __ATOMIC_ACQUIRE);
 
 	int ret = service_run(id, cs, UINT64_MAX, s, serialize_mt_unsafe);
 
-	rte_atomic32_dec(&s->num_mapped_cores);
+	__atomic_sub_fetch(&s->num_mapped_cores, 1, __ATOMIC_RELEASE);
 
 	return ret;
 }
@@ -552,23 +562,31 @@ service_update(uint32_t sid, uint32_t lcore,
 
 	uint64_t sid_mask = UINT64_C(1) << sid;
 	if (set) {
-		uint64_t lcore_mapped = lcore_states[lcore].service_mask &
-			sid_mask;
+		/* When multiple threads try to update the same lcore
+		 * service concurrently, e.g. set lcore map followed
+		 * by clear lcore map, the unsynchronized service_mask
+		 * values have issues on the num_mapped_cores value
+		 * consistency. So we use ACQUIRE ordering to pair with
+		 * the RELEASE ordering to synchronize the service_mask.
+		 */
+		uint64_t lcore_mapped = __atomic_load_n(
+					&lcore_states[lcore].service_mask,
+					__ATOMIC_ACQUIRE) & sid_mask;
 
 		if (*set && !lcore_mapped) {
 			lcore_states[lcore].service_mask |= sid_mask;
-			rte_atomic32_inc(&rte_services[sid].num_mapped_cores);
+			__atomic_add_fetch(&rte_services[sid].num_mapped_cores,
+					    1, __ATOMIC_RELEASE);
 		}
 		if (!*set && lcore_mapped) {
 			lcore_states[lcore].service_mask &= ~(sid_mask);
-			rte_atomic32_dec(&rte_services[sid].num_mapped_cores);
+			__atomic_sub_fetch(&rte_services[sid].num_mapped_cores,
+					    1, __ATOMIC_RELEASE);
 		}
 	}
 
 	if (enabled)
 		*enabled = !!(lcore_states[lcore].service_mask & (sid_mask));
-
-	rte_smp_wmb();
 
 	return 0;
 }
@@ -625,7 +643,8 @@ rte_service_lcore_reset_all(void)
 		}
 	}
 	for (i = 0; i < RTE_SERVICE_NUM_MAX; i++)
-		rte_atomic32_set(&rte_services[i].num_mapped_cores, 0);
+		__atomic_store_n(&rte_services[i].num_mapped_cores, 0,
+				    __ATOMIC_RELAXED);
 
 	rte_smp_wmb();
 
@@ -708,7 +727,8 @@ rte_service_lcore_stop(uint32_t lcore)
 		int32_t enabled = service_mask & (UINT64_C(1) << i);
 		int32_t service_running = rte_service_runstate_get(i);
 		int32_t only_core = (1 ==
-			rte_atomic32_read(&rte_services[i].num_mapped_cores));
+			__atomic_load_n(&rte_services[i].num_mapped_cores,
+					__ATOMIC_RELAXED));
 
 		/* if the core is mapped, and the service is running, and this
 		 * is the only core that is mapped, the service would cease to
