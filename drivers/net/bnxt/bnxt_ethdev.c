@@ -890,6 +890,11 @@ static int bnxt_dev_start_op(struct rte_eth_dev *eth_dev)
 	pthread_mutex_lock(&bp->def_cp_lock);
 	bnxt_schedule_fw_health_check(bp);
 	pthread_mutex_unlock(&bp->def_cp_lock);
+
+#ifdef RTE_LIBRTE_BNXT_TRUFLOW
+	bnxt_ulp_init(bp);
+#endif
+
 	return 0;
 
 error:

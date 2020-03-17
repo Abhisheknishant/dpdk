@@ -23,6 +23,7 @@
 
 #ifdef RTE_LIBRTE_BNXT_TRUFLOW
 #include "tf_core.h"
+#include "bnxt_ulp.h"
 #endif
 
 /* Vendor ID */
@@ -689,7 +690,8 @@ struct bnxt {
 	uint16_t		func_svif;
 	uint16_t		port_svif;
 #ifdef RTE_LIBRTE_BNXT_TRUFLOW
-	struct tf               tfp;
+	struct tf		tfp;
+	struct bnxt_ulp_context	ulp_ctx;
 #endif
 };
 
@@ -731,6 +733,10 @@ extern int bnxt_logtype_driver;
 
 #define PMD_DRV_LOG(level, fmt, args...) \
 	  PMD_DRV_LOG_RAW(level, fmt, ## args)
+#ifdef RTE_LIBRTE_BNXT_TRUFLOW
+int32_t bnxt_ulp_init(struct bnxt *bp);
+void bnxt_ulp_deinit(struct bnxt *bp);
+#endif
 
 uint16_t bnxt_get_vnic_id(uint16_t port);
 uint16_t bnxt_get_svif(uint16_t port_id, bool func_svif);
