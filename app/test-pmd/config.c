@@ -52,6 +52,8 @@
 
 #include "testpmd.h"
 
+#define ETHDEV_FWVERS_LEN 32
+
 static char *flowtype_to_str(uint16_t flow_type);
 
 static const struct {
@@ -523,6 +525,7 @@ port_infos_display(portid_t port_id)
 	uint16_t mtu;
 	char name[RTE_ETH_NAME_MAX_LEN];
 	int ret;
+	char   fw_version[ETHDEV_FWVERS_LEN];
 
 	if (port_id_is_invalid(port_id, ENABLED_WARN)) {
 		print_valid_ports();
@@ -544,6 +547,16 @@ port_infos_display(portid_t port_id)
 	rte_eth_dev_get_name_by_port(port_id, name);
 	printf("\nDevice name: %s", name);
 	printf("\nDriver name: %s", dev_info.driver_name);
+
+	ret = rte_eth_dev_fw_version_get(port_id, fw_version, ETHDEV_FWVERS_LEN);
+	if (ret < 0)
+		printf("\nFirmware version get error: (%s)", strerror(-ret));
+	else if (ret > 0)
+		printf("\nInsufficient fw version buffer size, "
+				"the minimum size should be %d", ret);
+	else
+		printf("\nFirmware-version: %s", fw_version);
+
 	if (dev_info.device->devargs && dev_info.device->devargs->args)
 		printf("\nDevargs: %s", dev_info.device->devargs->args);
 	printf("\nConnect to socket: %u", port->socket_id);
