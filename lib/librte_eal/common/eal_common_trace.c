@@ -493,6 +493,25 @@ trace_mem_per_thread_free(void)
 	rte_spinlock_unlock(&trace->lock);
 }
 
+void
+__rte_trace_emit_ctf_field(size_t sz, const char *in, const char *datatype)
+{
+	char *field = RTE_PER_LCORE(ctf_field);
+	int count = RTE_PER_LCORE(ctf_count);
+	int rc;
+
+	RTE_PER_LCORE(trace_point_sz) += sz;
+	rc = snprintf(RTE_PTR_ADD(field, count),
+		      RTE_MAX(0, TRACE_CTF_FIELD_SIZE - 1 - count),
+		      "%s %s;", datatype, in);
+	if (rc <= 0) {
+		RTE_PER_LCORE(trace_point_sz) = 0;
+		trace_crit("CTF field is too long");
+		return;
+	}
+	RTE_PER_LCORE(ctf_count) += rc;
+}
+
 int
 __rte_trace_point_register(rte_trace_t handle, const char *name, uint32_t level,
 			 void (*fn)(void))
