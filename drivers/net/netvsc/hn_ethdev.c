@@ -597,11 +597,14 @@ static int hn_dev_configure(struct rte_eth_dev *dev)
 			return err;
 		}
 
-		err = hn_rndis_conf_rss(hv, 0);
-		if (err) {
-			PMD_DRV_LOG(NOTICE,
-				    "initial RSS config failed");
-			return err;
+		if ((dev_conf->rxmode.offloads & DEV_RX_OFFLOAD_RSS_HASH) &&
+		    dev->data->nb_rx_queues > 1) {
+			err = hn_rndis_conf_rss(hv, 0);
+			if (err) {
+				PMD_DRV_LOG(NOTICE,
+					    "initial RSS config failed");
+				return err;
+			}
 		}
 	}
 
