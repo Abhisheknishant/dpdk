@@ -4461,6 +4461,12 @@ i40e_flow_parse_rss_pattern(__rte_unused struct rte_eth_dev *dev,
 		case RTE_FLOW_ITEM_TYPE_ETH:
 			*action_flag = 1;
 			break;
+		case RTE_FLOW_ITEM_TYPE_IPV4:
+			break;
+		case RTE_FLOW_ITEM_TYPE_IPV6:
+			break;
+		case RTE_FLOW_ITEM_TYPE_UDP:
+			break;
 		case RTE_FLOW_ITEM_TYPE_VLAN:
 			vlan_spec = item->spec;
 			vlan_mask = item->mask;
@@ -4516,12 +4522,14 @@ i40e_flow_parse_rss_action(struct rte_eth_dev *dev,
 	struct i40e_rte_flow_rss_conf *rss_config =
 			&filter->rss_conf;
 	struct i40e_rte_flow_rss_conf *rss_info = &pf->rss_info;
+	struct rte_eth_rss_conf eth_rss_conf;
+	int ret;
 	uint16_t i, j, n, tmp;
 	uint32_t index = 0;
 	uint64_t hf_bit = 1;
+	uint64_t rss_hf;
 
 	NEXT_ITEM_OF_ACTION(act, actions, index);
-	rss = act->conf;
 
 	/**
 	 * rss only supports forwarding,
@@ -4533,6 +4541,23 @@ i40e_flow_parse_rss_action(struct rte_eth_dev *dev,
 			RTE_FLOW_ERROR_TYPE_ACTION,
 			act, "Not supported action.");
 		return -rte_errno;
+	}
+
+	rss = act->conf;
+	rss_hf = rss->types;
+
+	if (rss->queue_num == 0) {
+		memset(&eth_rss_conf, 0, sizeof(eth_rss_conf));
+		ret = rte_eth_dev_rss_hash_conf_get(dev->data->port_id,
+				&eth_rss_conf);
+		if (ret != 0)
+			return ret;
+
+		eth_rss_conf.rss_hf |= rss_hf;
+		ret = rte_eth_dev_rss_hash_update(dev->data->port_id,
+				&eth_rss_conf);
+		if (ret != 0)
+			return ret;
 	}
 
 	if (action_flag) {
@@ -4552,7 +4577,7 @@ i40e_flow_parse_rss_action(struct rte_eth_dev *dev,
 	 * continuous sequence and also to be part of RSS
 	 * queue index for this port.
 	 */
-	if (conf_info->queue_region_number) {
+	if (conf_info->queue_region_number && rss->queue_num > 0) {
 		for (i = 0; i < rss->queue_num; i++) {
 			for (j = 0; j < rss_info->conf.queue_num; j++) {
 				if (rss->queue[i] == rss_info->conf.queue[j])
@@ -4579,7 +4604,8 @@ i40e_flow_parse_rss_action(struct rte_eth_dev *dev,
 	}
 
 	/* Parse queue region related parameters from configuration */
-	for (n = 0; n < conf_info->queue_region_number; n++) {
+	for (n = 0; n < conf_info->queue_region_number &&
+		rss->queue_num > 0; n++) {
 		if (conf_info->region[n].user_priority_num ||
 				conf_info->region[n].flowtype_num) {
 			if (!((rte_is_power_of_2(rss->queue_num)) &&
@@ -4674,14 +4700,6 @@ i40e_flow_parse_rss_action(struct rte_eth_dev *dev,
 	if (rss_config->queue_region_conf)
 		return 0;
 
-	if (!rss || !rss->queue_num) {
-		rte_flow_error_set(error, EINVAL,
-				RTE_FLOW_ERROR_TYPE_ACTION,
-				act,
-				"no valid queues");
-		return -rte_errno;
-	}
-
 	for (n = 0; n < rss->queue_num; n++) {
 		if (rss->queue[n] >= dev->data->nb_rx_queues) {
 			rte_flow_error_set(error, EINVAL,
@@ -4692,7 +4710,7 @@ i40e_flow_parse_rss_action(struct rte_eth_dev *dev,
 		}
 	}
 
-	if (rss_info->conf.queue_num) {
+	if (rss_info->conf.queue_num && rss->queue_num) {
 		rte_flow_error_set(error, EINVAL,
 				RTE_FLOW_ERROR_TYPE_ACTION,
 				act,
@@ -4709,6 +4727,10 @@ i40e_flow_parse_rss_action(struct rte_eth_dev *dev,
 		return rte_flow_error_set
 			(error, ENOTSUP, RTE_FLOW_ERROR_TYPE_ACTION, act,
 			 "a nonzero RSS encapsulation level is not supported");
+	if (rss->types > ETH_RSS_ESP)
+		return rte_flow_error_set
+			(error, ENOTSUP, RTE_FLOW_ERROR_TYPE_ACTION, act,
+			 "pctype greater than max allowed");
 	if (rss->key_len && rss->key_len > RTE_DIM(rss_config->key))
 		return rte_flow_error_set
 			(error, ENOTSUP, RTE_FLOW_ERROR_TYPE_ACTION, act,
