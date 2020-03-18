@@ -524,7 +524,17 @@ struct rte_eth_rss_conf {
 #define ETH_RSS_L3_SRC_ONLY        (1ULL << 63)
 #define ETH_RSS_L3_DST_ONLY        (1ULL << 62)
 #define ETH_RSS_L4_SRC_ONLY        (1ULL << 61)
-#define ETH_RSS_L4_DST_ONLY        (1ULL << 60)
+#define ETH_RSS_L4_DST_ONLY	   (1ULL << 60)
+#define ETH_RSS_ETH_SRC_ONLY	   (1ULL << 59)
+#define ETH_RSS_ETH_DST_ONLY	   (1ULL << 58)
+#define ETH_RSS_S_VLAN		   (1ULL << 57)
+#define ETH_RSS_C_VLAN		   (1ULL << 56)
+#define ETH_RSS_ESP_SPI		   (1ULL << 55)
+#define ETH_RSS_AH_SPI		   (1ULL << 54)
+#define ETH_RSS_L2TPV3_SESS_ID     (1ULL << 53)
+#define ETH_RSS_GTPU_UP		   (1ULL << 52)
+#define ETH_RSS_GTPU_DWN	   (1ULL << 51)
+#define ETH_RSS_PFCP_SEID	   (1ULL << 50)
 
 /**
  * For input set change of hash filter, if SRC_ONLY and DST_ONLY of
