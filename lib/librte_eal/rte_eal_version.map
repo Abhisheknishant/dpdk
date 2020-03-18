@@ -387,4 +387,7 @@ EXPERIMENTAL {
 	__rte_trace_lib_eal_mem_malloc;
 	__rte_trace_lib_eal_mem_realloc;
 	__rte_trace_lib_eal_mem_free;
+	__rte_trace_lib_eal_memzone_reserve;
+	__rte_trace_lib_eal_memzone_lookup;
+	__rte_trace_lib_eal_memzone_free;
 };
