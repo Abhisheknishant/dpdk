@@ -9,6 +9,10 @@
 #ifndef _RTE_TRACE_PROVIDER_H_
 #define _RTE_TRACE_PROVIDER_H_
 
+#include <rte_per_lcore.h>
+#include <rte_string_fns.h>
+#include <rte_uuid.h>
+
 #define __RTE_TRACE_EVENT_HEADER_ID_SHIFT (48)
 
 #define __RTE_TRACE_FIELD_ENABLE_MASK (1ULL << 63)
@@ -20,5 +24,20 @@
 #define __RTE_TRACE_FIELD_LEVEL_SHIFT (32)
 #define __RTE_TRACE_FIELD_LEVEL_MASK (0xffULL << __RTE_TRACE_FIELD_LEVEL_SHIFT)
 
+struct __rte_trace_stream_header {
+	uint32_t magic;
+	rte_uuid_t uuid;
+	uint32_t lcore_id;
+	char thread_name[__RTE_TRACE_EMIT_STRING_LEN_MAX];
+} __rte_packed;
+
+struct __rte_trace_header {
+	uint32_t offset;
+	uint32_t len;
+	struct __rte_trace_stream_header stream_header;
+	uint8_t mem[];
+};
+
+RTE_DECLARE_PER_LCORE(void *, trace_mem);
 
 #endif /* _RTE_TRACE_PROVIDER_H_ */
