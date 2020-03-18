@@ -18,6 +18,7 @@ endif
 
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 
 EXPORT_MAP := rte_port_version.map
 

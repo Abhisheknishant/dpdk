@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright(c) 2019 Intel Corporation
 
+allow_experimental_apis = true
 sources = files('rte_eth_af_xdp.c')
 
 bpf_dep = dependency('libbpf', required: false)

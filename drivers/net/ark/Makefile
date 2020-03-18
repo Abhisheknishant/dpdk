@@ -10,6 +10,7 @@ LIB = librte_pmd_ark.a
 
 CFLAGS += -O3 -I./
 CFLAGS += $(WERROR_FLAGS) -Werror
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 
 EXPORT_MAP := rte_pmd_ark_version.map
 

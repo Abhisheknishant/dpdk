@@ -15,6 +15,7 @@ LDLIBS += -lrte_bus_vdev
 
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 
 EXPORT_MAP := rte_pmd_vhost_version.map
 

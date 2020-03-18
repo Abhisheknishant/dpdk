@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright(c) 2018 Intel Corporation
 
+allow_experimental_apis = true
 sources = files('ark_ddm.c',
 	'ark_ethdev.c',
 	'ark_ethdev_rx.c',
