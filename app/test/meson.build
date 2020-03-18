@@ -51,6 +51,7 @@ test_sources = files('commands.c',
 	'test_fib6_perf.c',
 	'test_func_reentrancy.c',
 	'test_flow_classify.c',
+	'test_graph.c',
 	'test_hash.c',
 	'test_hash_functions.c',
 	'test_hash_multiwriter.c',
@@ -151,7 +152,9 @@ test_deps = ['acl',
 	'rib',
 	'ring',
 	'stack',
-	'timer'
+	'timer',
+	'graph',
+	'node'
 ]
 
 fast_test_names = [
@@ -183,6 +186,7 @@ fast_test_names = [
         'fib6_autotest',
         'func_reentrancy_autotest',
         'flow_classify_autotest',
+	'graph_autotest',
         'hash_autotest',
         'interrupt_autotest',
         'logs_autotest',
@@ -383,13 +387,15 @@ endforeach
 test_dep_objs += cc.find_library('execinfo', required: false)
 
 link_libs = []
+link_nodes = []
 if get_option('default_library') == 'static'
 	link_libs = dpdk_drivers
+	link_nodes = dpdk_graph_nodes
 endif
 
 dpdk_test = executable('dpdk-test',
 	test_sources,
-	link_whole: link_libs,
+	link_whole: link_libs + link_nodes,
 	dependencies: test_dep_objs,
 	c_args: [cflags, '-DALLOW_EXPERIMENTAL_API'],
 	install_rpath: driver_install_path,
