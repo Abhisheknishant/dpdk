@@ -10,6 +10,7 @@ LIB = librte_pmd_null_crypto.a
 # build flags
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 LDLIBS += -lrte_eal -lrte_mbuf -lrte_mempool -lrte_ring
 LDLIBS += -lrte_cryptodev
 LDLIBS += -lrte_bus_vdev

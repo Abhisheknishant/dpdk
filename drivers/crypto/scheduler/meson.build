@@ -3,6 +3,7 @@
 
 deps += ['bus_vdev', 'reorder']
 name = 'crypto_scheduler'
+allow_experimental_apis = true
 sources = files(
 	'rte_cryptodev_scheduler.c',
 	'scheduler_failover.c',

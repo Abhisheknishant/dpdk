@@ -10,6 +10,7 @@ LIB = librte_pmd_ccp.a
 CFLAGS += -O3
 CFLAGS += -I$(SRCDIR)
 CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 
 # external library include paths
 LDLIBS += -lcrypto
