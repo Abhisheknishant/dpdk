@@ -9,7 +9,7 @@ LIB = librte_node.a
 
 CFLAGS += -O3 -DALLOW_EXPERIMENTAL_API
 CFLAGS += $(WERROR_FLAGS)
-LDLIBS += -lrte_eal -lrte_graph -lrte_ethdev
+LDLIBS += -lrte_eal -lrte_graph -lrte_mbuf -lrte_ethdev
 
 EXPORT_MAP := rte_node_version.map
 
@@ -17,5 +17,6 @@ EXPORT_MAP := rte_node_version.map
 SRCS-$(CONFIG_RTE_LIBRTE_NODE) += null.c
 SRCS-$(CONFIG_RTE_LIBRTE_NODE) += log.c
 SRCS-$(CONFIG_RTE_LIBRTE_NODE) += ethdev_rx.c
+SRCS-$(CONFIG_RTE_LIBRTE_NODE) += ethdev_tx.c
 
 include $(RTE_SDK)/mk/rte.lib.mk
