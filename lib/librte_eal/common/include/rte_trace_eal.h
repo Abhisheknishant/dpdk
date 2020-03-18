@@ -191,6 +191,20 @@ RTE_TRACE_POINT(
 	rte_trace_ctf_int(rc);
 )
 
+/* Thread */
+RTE_TRACE_POINT(
+	rte_trace_lib_eal_thread_remote_launch,
+	RTE_TRACE_POINT_ARGS(int (*f)(void *), void *arg,
+			     unsigned int slave_id, int rc),
+	rte_trace_ctf_ptr(f); rte_trace_ctf_ptr(arg);
+	rte_trace_ctf_u32(slave_id); rte_trace_ctf_int(rc);
+)
+RTE_TRACE_POINT(
+	rte_trace_lib_eal_thread_lcore_ready,
+	RTE_TRACE_POINT_ARGS(unsigned int lcore_id, const char *cpuset),
+	rte_trace_ctf_u32(lcore_id); rte_trace_ctf_string(cpuset);
+)
+
 
 #ifdef __cplusplus
 }
