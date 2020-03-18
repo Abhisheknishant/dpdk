@@ -123,6 +123,7 @@ test_sources = files('commands.c',
 	'test_ticketlock.c',
 	'test_trace.c',
 	'test_trace_register.c',
+	'test_trace_perf.c',
 	'test_version.c',
 	'virtual_pmd.c'
 )
