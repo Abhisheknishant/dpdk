@@ -1256,8 +1256,6 @@ int i40e_select_filter_input_set(struct i40e_hw *hw,
 void i40e_fdir_filter_restore(struct i40e_pf *pf);
 int i40e_hash_filter_inset_select(struct i40e_hw *hw,
 			     struct rte_eth_input_set_conf *conf);
-int i40e_fdir_filter_inset_select(struct i40e_pf *pf,
-			     struct rte_eth_input_set_conf *conf);
 int i40e_pf_host_send_msg_to_vf(struct i40e_pf_vf *vf, uint32_t opcode,
 				uint32_t retval, uint8_t *msg,
 				uint16_t msglen);
@@ -1285,15 +1283,9 @@ uint64_t i40e_get_default_input_set(uint16_t pctype);
 int i40e_ethertype_filter_set(struct i40e_pf *pf,
 			      struct rte_eth_ethertype_filter *filter,
 			      bool add);
-int i40e_add_del_fdir_filter(struct rte_eth_dev *dev,
-			     const struct rte_eth_fdir_filter *filter,
-			     bool add);
 int i40e_flow_add_del_fdir_filter(struct rte_eth_dev *dev,
 				  const struct i40e_fdir_filter_conf *filter,
 				  bool add);
-int i40e_dev_tunnel_filter_set(struct i40e_pf *pf,
-			       struct rte_eth_tunnel_filter_conf *tunnel_filter,
-			       uint8_t add);
 int i40e_dev_consistent_tunnel_filter_set(struct i40e_pf *pf,
 				  struct i40e_tunnel_filter_conf *tunnel_filter,
 				  uint8_t add);

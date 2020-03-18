@@ -317,9 +317,6 @@ static int i40e_dev_udp_tunnel_port_add(struct rte_eth_dev *dev,
 static int i40e_dev_udp_tunnel_port_del(struct rte_eth_dev *dev,
 					struct rte_eth_udp_tunnel *udp_tunnel);
 static void i40e_filter_input_set_init(struct i40e_pf *pf);
-static int i40e_ethertype_filter_handle(struct rte_eth_dev *dev,
-				enum rte_filter_op filter_op,
-				void *arg);
 static int i40e_dev_filter_ctrl(struct rte_eth_dev *dev,
 				enum rte_filter_type filter_type,
 				enum rte_filter_op filter_op,
@@ -4204,119 +4201,6 @@ i40e_macaddr_remove(struct rte_eth_dev *dev, uint32_t index)
 	}
 }
 
-/* Set perfect match or hash match of MAC and VLAN for a VF */
-static int
-i40e_vf_mac_filter_set(struct i40e_pf *pf,
-		 struct rte_eth_mac_filter *filter,
-		 bool add)
-{
-	struct i40e_hw *hw;
-	struct i40e_mac_filter_info mac_filter;
-	struct rte_ether_addr old_mac;
-	struct rte_ether_addr *new_mac;
-	struct i40e_pf_vf *vf = NULL;
-	uint16_t vf_id;
-	int ret;
-
-	if (pf == NULL) {
-		PMD_DRV_LOG(ERR, "Invalid PF argument.");
-		return -EINVAL;
-	}
-	hw = I40E_PF_TO_HW(pf);
-
-	if (filter == NULL) {
-		PMD_DRV_LOG(ERR, "Invalid mac filter argument.");
-		return -EINVAL;
-	}
-
-	new_mac = &filter->mac_addr;
-
-	if (rte_is_zero_ether_addr(new_mac)) {
-		PMD_DRV_LOG(ERR, "Invalid ethernet address.");
-		return -EINVAL;
-	}
-
-	vf_id = filter->dst_id;
-
-	if (vf_id > pf->vf_num - 1 || !pf->vfs) {
-		PMD_DRV_LOG(ERR, "Invalid argument.");
-		return -EINVAL;
-	}
-	vf = &pf->vfs[vf_id];
-
-	if (add && rte_is_same_ether_addr(new_mac, &pf->dev_addr)) {
-		PMD_DRV_LOG(INFO, "Ignore adding permanent MAC address.");
-		return -EINVAL;
-	}
-
-	if (add) {
-		rte_memcpy(&old_mac, hw->mac.addr, RTE_ETHER_ADDR_LEN);
-		rte_memcpy(hw->mac.addr, new_mac->addr_bytes,
-				RTE_ETHER_ADDR_LEN);
-		rte_memcpy(&mac_filter.mac_addr, &filter->mac_addr,
-				 RTE_ETHER_ADDR_LEN);
-
-		mac_filter.filter_type = filter->filter_type;
-		ret = i40e_vsi_add_mac(vf->vsi, &mac_filter);
-		if (ret != I40E_SUCCESS) {
-			PMD_DRV_LOG(ERR, "Failed to add MAC filter.");
-			return -1;
-		}
-		rte_ether_addr_copy(new_mac, &pf->dev_addr);
-	} else {
-		rte_memcpy(hw->mac.addr, hw->mac.perm_addr,
-				RTE_ETHER_ADDR_LEN);
-		ret = i40e_vsi_delete_mac(vf->vsi, &filter->mac_addr);
-		if (ret != I40E_SUCCESS) {
-			PMD_DRV_LOG(ERR, "Failed to delete MAC filter.");
-			return -1;
-		}
-
-		/* Clear device address as it has been removed */
-		if (rte_is_same_ether_addr(&pf->dev_addr, new_mac))
-			memset(&pf->dev_addr, 0, sizeof(struct rte_ether_addr));
-	}
-
-	return 0;
-}
-
-/* MAC filter handle */
-static int
-i40e_mac_filter_handle(struct rte_eth_dev *dev, enum rte_filter_op filter_op,
-		void *arg)
-{
-	struct i40e_pf *pf = I40E_DEV_PRIVATE_TO_PF(dev->data->dev_private);
-	struct rte_eth_mac_filter *filter;
-	struct i40e_hw *hw = I40E_PF_TO_HW(pf);
-	int ret = I40E_NOT_SUPPORTED;
-
-	filter = (struct rte_eth_mac_filter *)(arg);
-
-	switch (filter_op) {
-	case RTE_ETH_FILTER_NOP:
-		ret = I40E_SUCCESS;
-		break;
-	case RTE_ETH_FILTER_ADD:
-		i40e_pf_disable_irq0(hw);
-		if (filter->is_vf)
-			ret = i40e_vf_mac_filter_set(pf, filter, 1);
-		i40e_pf_enable_irq0(hw);
-		break;
-	case RTE_ETH_FILTER_DELETE:
-		i40e_pf_disable_irq0(hw);
-		if (filter->is_vf)
-			ret = i40e_vf_mac_filter_set(pf, filter, 0);
-		i40e_pf_enable_irq0(hw);
-		break;
-	default:
-		PMD_DRV_LOG(ERR, "unknown operation %u", filter_op);
-		ret = I40E_ERR_PARAM;
-		break;
-	}
-
-	return ret;
-}
-
 static int
 i40e_get_rss_lut(struct i40e_vsi *vsi, uint8_t *lut, uint16_t lut_size)
 {
@@ -7868,145 +7752,6 @@ i40e_sw_tunnel_filter_del(struct i40e_pf *pf,
 	return 0;
 }
 
-int
-i40e_dev_tunnel_filter_set(struct i40e_pf *pf,
-			struct rte_eth_tunnel_filter_conf *tunnel_filter,
-			uint8_t add)
-{
-	uint16_t ip_type;
-	uint32_t ipv4_addr, ipv4_addr_le;
-	uint8_t i, tun_type = 0;
-	/* internal varialbe to convert ipv6 byte order */
-	uint32_t convert_ipv6[4];
-	int val, ret = 0;
-	struct i40e_hw *hw = I40E_PF_TO_HW(pf);
-	struct i40e_vsi *vsi = pf->main_vsi;
-	struct i40e_aqc_cloud_filters_element_bb *cld_filter;
-	struct i40e_aqc_cloud_filters_element_bb *pfilter;
-	struct i40e_tunnel_rule *tunnel_rule = &pf->tunnel;
-	struct i40e_tunnel_filter *tunnel, *node;
-	struct i40e_tunnel_filter check_filter; /* Check if filter exists */
-
-	cld_filter = rte_zmalloc("tunnel_filter",
-			 sizeof(struct i40e_aqc_add_rm_cloud_filt_elem_ext),
-	0);
-
-	if (NULL == cld_filter) {
-		PMD_DRV_LOG(ERR, "Failed to alloc memory.");
-		return -ENOMEM;
-	}
-	pfilter = cld_filter;
-
-	rte_ether_addr_copy(&tunnel_filter->outer_mac,
-			(struct rte_ether_addr *)&pfilter->element.outer_mac);
-	rte_ether_addr_copy(&tunnel_filter->inner_mac,
-			(struct rte_ether_addr *)&pfilter->element.inner_mac);
-
-	pfilter->element.inner_vlan =
-		rte_cpu_to_le_16(tunnel_filter->inner_vlan);
-	if (tunnel_filter->ip_type == RTE_TUNNEL_IPTYPE_IPV4) {
-		ip_type = I40E_AQC_ADD_CLOUD_FLAGS_IPV4;
-		ipv4_addr = rte_be_to_cpu_32(tunnel_filter->ip_addr.ipv4_addr);
-		ipv4_addr_le = rte_cpu_to_le_32(ipv4_addr);
-		rte_memcpy(&pfilter->element.ipaddr.v4.data,
-				&ipv4_addr_le,
-				sizeof(pfilter->element.ipaddr.v4.data));
-	} else {
-		ip_type = I40E_AQC_ADD_CLOUD_FLAGS_IPV6;
-		for (i = 0; i < 4; i++) {
-			convert_ipv6[i] =
-			rte_cpu_to_le_32(rte_be_to_cpu_32(tunnel_filter->ip_addr.ipv6_addr[i]));
-		}
-		rte_memcpy(&pfilter->element.ipaddr.v6.data,
-			   &convert_ipv6,
-			   sizeof(pfilter->element.ipaddr.v6.data));
-	}
-
-	/* check tunneled type */
-	switch (tunnel_filter->tunnel_type) {
-	case RTE_TUNNEL_TYPE_VXLAN:
-		tun_type = I40E_AQC_ADD_CLOUD_TNL_TYPE_VXLAN;
-		break;
-	case RTE_TUNNEL_TYPE_NVGRE:
-		tun_type = I40E_AQC_ADD_CLOUD_TNL_TYPE_NVGRE_OMAC;
-		break;
-	case RTE_TUNNEL_TYPE_IP_IN_GRE:
-		tun_type = I40E_AQC_ADD_CLOUD_TNL_TYPE_IP;
-		break;
-	case RTE_TUNNEL_TYPE_VXLAN_GPE:
-		tun_type = I40E_AQC_ADD_CLOUD_TNL_TYPE_VXLAN_GPE;
-		break;
-	default:
-		/* Other tunnel types is not supported. */
-		PMD_DRV_LOG(ERR, "tunnel type is not supported.");
-		rte_free(cld_filter);
-		return -EINVAL;
-	}
-
-	val = i40e_dev_get_filter_type(tunnel_filter->filter_type,
-				       &pfilter->element.flags);
-	if (val < 0) {
-		rte_free(cld_filter);
-		return -EINVAL;
-	}
-
-	pfilter->element.flags |= rte_cpu_to_le_16(
-		I40E_AQC_ADD_CLOUD_FLAGS_TO_QUEUE |
-		ip_type | (tun_type << I40E_AQC_ADD_CLOUD_TNL_TYPE_SHIFT));
-	pfilter->element.tenant_id = rte_cpu_to_le_32(tunnel_filter->tenant_id);
-	pfilter->element.queue_number =
-		rte_cpu_to_le_16(tunnel_filter->queue_id);
-
-	/* Check if there is the filter in SW list */
-	memset(&check_filter, 0, sizeof(check_filter));
-	i40e_tunnel_filter_convert(cld_filter, &check_filter);
-	node = i40e_sw_tunnel_filter_lookup(tunnel_rule, &check_filter.input);
-	if (add && node) {
-		PMD_DRV_LOG(ERR, "Conflict with existing tunnel rules!");
-		rte_free(cld_filter);
-		return -EINVAL;
-	}
-
-	if (!add && !node) {
-		PMD_DRV_LOG(ERR, "There's no corresponding tunnel filter!");
-		rte_free(cld_filter);
-		return -EINVAL;
-	}
-
-	if (add) {
-		ret = i40e_aq_add_cloud_filters(hw,
-					vsi->seid, &cld_filter->element, 1);
-		if (ret < 0) {
-			PMD_DRV_LOG(ERR, "Failed to add a tunnel filter.");
-			rte_free(cld_filter);
-			return -ENOTSUP;
-		}
-		tunnel = rte_zmalloc("tunnel_filter", sizeof(*tunnel), 0);
-		if (tunnel == NULL) {
-			PMD_DRV_LOG(ERR, "Failed to alloc memory.");
-			rte_free(cld_filter);
-			return -ENOMEM;
-		}
-
-		rte_memcpy(tunnel, &check_filter, sizeof(check_filter));
-		ret = i40e_sw_tunnel_filter_insert(pf, tunnel);
-		if (ret < 0)
-			rte_free(tunnel);
-	} else {
-		ret = i40e_aq_rem_cloud_filters(hw, vsi->seid,
-						   &cld_filter->element, 1);
-		if (ret < 0) {
-			PMD_DRV_LOG(ERR, "Failed to delete a tunnel filter.");
-			rte_free(cld_filter);
-			return -ENOTSUP;
-		}
-		ret = i40e_sw_tunnel_filter_del(pf, &node->input);
-	}
-
-	rte_free(cld_filter);
-	return ret;
-}
-
 #define I40E_AQC_REPLACE_CLOUD_CMD_INPUT_TR_WORD0 0x48
 #define I40E_TR_VXLAN_GRE_KEY_MASK		0x4
 #define I40E_TR_GENEVE_KEY_MASK			0x8
@@ -8809,40 +8554,6 @@ i40e_pf_config_rss(struct i40e_pf *pf)
 	return i40e_hw_rss_hash_set(pf, &rss_conf);
 }
 
-static int
-i40e_tunnel_filter_param_check(struct i40e_pf *pf,
-			       struct rte_eth_tunnel_filter_conf *filter)
-{
-	if (pf == NULL || filter == NULL) {
-		PMD_DRV_LOG(ERR, "Invalid parameter");
-		return -EINVAL;
-	}
-
-	if (filter->queue_id >= pf->dev_data->nb_rx_queues) {
-		PMD_DRV_LOG(ERR, "Invalid queue ID");
-		return -EINVAL;
-	}
-
-	if (filter->inner_vlan > RTE_ETHER_MAX_VLAN_ID) {
-		PMD_DRV_LOG(ERR, "Invalid inner VLAN ID");
-		return -EINVAL;
-	}
-
-	if ((filter->filter_type & ETH_TUNNEL_FILTER_OMAC) &&
-		(rte_is_zero_ether_addr(&filter->outer_mac))) {
-		PMD_DRV_LOG(ERR, "Cannot add NULL outer MAC address");
-		return -EINVAL;
-	}
-
-	if ((filter->filter_type & ETH_TUNNEL_FILTER_IMAC) &&
-		(rte_is_zero_ether_addr(&filter->inner_mac))) {
-		PMD_DRV_LOG(ERR, "Cannot add NULL inner MAC address");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 #define I40E_GL_PRS_FVBM_MSK_ENA 0x80000000
 #define I40E_GL_PRS_FVBM(_i)     (0x00269760 + ((_i) * 4))
 static int
@@ -8922,40 +8633,6 @@ i40e_filter_ctrl_global_config(struct rte_eth_dev *dev,
 		break;
 	default:
 		PMD_DRV_LOG(ERR, "unknown operation %u", filter_op);
-		break;
-	}
-
-	return ret;
-}
-
-static int
-i40e_tunnel_filter_handle(struct rte_eth_dev *dev,
-			  enum rte_filter_op filter_op,
-			  void *arg)
-{
-	struct rte_eth_tunnel_filter_conf *filter;
-	struct i40e_pf *pf = I40E_DEV_PRIVATE_TO_PF(dev->data->dev_private);
-	int ret = I40E_SUCCESS;
-
-	filter = (struct rte_eth_tunnel_filter_conf *)(arg);
-
-	if (i40e_tunnel_filter_param_check(pf, filter) < 0)
-		return I40E_ERR_PARAM;
-
-	switch (filter_op) {
-	case RTE_ETH_FILTER_NOP:
-		if (!(pf->flags & I40E_FLAG_VXLAN))
-			ret = I40E_NOT_SUPPORTED;
-		break;
-	case RTE_ETH_FILTER_ADD:
-		ret = i40e_dev_tunnel_filter_set(pf, filter, 1);
-		break;
-	case RTE_ETH_FILTER_DELETE:
-		ret = i40e_dev_tunnel_filter_set(pf, filter, 0);
-		break;
-	default:
-		PMD_DRV_LOG(ERR, "unknown operation %u", filter_op);
-		ret = I40E_ERR_PARAM;
 		break;
 	}
 
@@ -9923,89 +9600,6 @@ i40e_hash_filter_inset_select(struct i40e_hw *hw,
 	return 0;
 }
 
-int
-i40e_fdir_filter_inset_select(struct i40e_pf *pf,
-			 struct rte_eth_input_set_conf *conf)
-{
-	struct i40e_hw *hw = I40E_PF_TO_HW(pf);
-	enum i40e_filter_pctype pctype;
-	uint64_t input_set, inset_reg = 0;
-	uint32_t mask_reg[I40E_INSET_MASK_NUM_REG] = {0};
-	int ret, i, num;
-
-	if (!hw || !conf) {
-		PMD_DRV_LOG(ERR, "Invalid pointer");
-		return -EFAULT;
-	}
-	if (conf->op != RTE_ETH_INPUT_SET_SELECT &&
-	    conf->op != RTE_ETH_INPUT_SET_ADD) {
-		PMD_DRV_LOG(ERR, "Unsupported input set operation");
-		return -EINVAL;
-	}
-
-	pctype = i40e_flowtype_to_pctype(pf->adapter, conf->flow_type);
-
-	if (pctype == I40E_FILTER_PCTYPE_INVALID) {
-		PMD_DRV_LOG(ERR, "invalid flow_type input.");
-		return -EINVAL;
-	}
-
-	ret = i40e_parse_input_set(&input_set, pctype, conf->field,
-				   conf->inset_size);
-	if (ret) {
-		PMD_DRV_LOG(ERR, "Failed to parse input set");
-		return -EINVAL;
-	}
-
-	/* get inset value in register */
-	inset_reg = i40e_read_rx_ctl(hw, I40E_PRTQF_FD_INSET(pctype, 1));
-	inset_reg <<= I40E_32_BIT_WIDTH;
-	inset_reg |= i40e_read_rx_ctl(hw, I40E_PRTQF_FD_INSET(pctype, 0));
-
-	/* Can not change the inset reg for flex payload for fdir,
-	 * it is done by writing I40E_PRTQF_FD_FLXINSET
-	 * in i40e_set_flex_mask_on_pctype.
-	 */
-	if (conf->op == RTE_ETH_INPUT_SET_SELECT)
-		inset_reg &= I40E_REG_INSET_FLEX_PAYLOAD_WORDS;
-	else
-		input_set |= pf->fdir.input_set[pctype];
-	num = i40e_generate_inset_mask_reg(input_set, mask_reg,
-					   I40E_INSET_MASK_NUM_REG);
-	if (num < 0)
-		return -EINVAL;
-	if (pf->support_multi_driver && num > 0) {
-		PMD_DRV_LOG(ERR, "FDIR bit mask is not supported.");
-		return -ENOTSUP;
-	}
-
-	inset_reg |= i40e_translate_input_set_reg(hw->mac.type, input_set);
-
-	i40e_check_write_reg(hw, I40E_PRTQF_FD_INSET(pctype, 0),
-			      (uint32_t)(inset_reg & UINT32_MAX));
-	i40e_check_write_reg(hw, I40E_PRTQF_FD_INSET(pctype, 1),
-			     (uint32_t)((inset_reg >>
-			     I40E_32_BIT_WIDTH) & UINT32_MAX));
-
-	if (!pf->support_multi_driver) {
-		for (i = 0; i < num; i++)
-			i40e_check_write_global_reg(hw,
-						    I40E_GLQF_FD_MSK(i, pctype),
-						    mask_reg[i]);
-		/*clear unused mask registers of the pctype */
-		for (i = num; i < I40E_INSET_MASK_NUM_REG; i++)
-			i40e_check_write_global_reg(hw,
-						    I40E_GLQF_FD_MSK(i, pctype),
-						    0);
-	} else {
-		PMD_DRV_LOG(ERR, "FDIR bit mask is not supported.");
-	}
-	I40E_WRITE_FLUSH(hw);
-
-	pf->fdir.input_set[pctype] = input_set;
-	return 0;
-}
-
 static int
 i40e_hash_filter_get(struct i40e_hw *hw, struct rte_eth_hash_filter_info *info)
 {
@@ -10263,45 +9857,6 @@ i40e_ethertype_filter_set(struct i40e_pf *pf,
 	return ret;
 }
 
-/*
- * Handle operations for ethertype filter.
- */
-static int
-i40e_ethertype_filter_handle(struct rte_eth_dev *dev,
-				enum rte_filter_op filter_op,
-				void *arg)
-{
-	struct i40e_pf *pf = I40E_DEV_PRIVATE_TO_PF(dev->data->dev_private);
-	int ret = 0;
-
-	if (filter_op == RTE_ETH_FILTER_NOP)
-		return ret;
-
-	if (arg == NULL) {
-		PMD_DRV_LOG(ERR, "arg shouldn't be NULL for operation %u",
-			    filter_op);
-		return -EINVAL;
-	}
-
-	switch (filter_op) {
-	case RTE_ETH_FILTER_ADD:
-		ret = i40e_ethertype_filter_set(pf,
-			(struct rte_eth_ethertype_filter *)arg,
-			TRUE);
-		break;
-	case RTE_ETH_FILTER_DELETE:
-		ret = i40e_ethertype_filter_set(pf,
-			(struct rte_eth_ethertype_filter *)arg,
-			FALSE);
-		break;
-	default:
-		PMD_DRV_LOG(ERR, "unsupported operation %u", filter_op);
-		ret = -ENOSYS;
-		break;
-	}
-	return ret;
-}
-
 static int
 i40e_dev_filter_ctrl(struct rte_eth_dev *dev,
 		     enum rte_filter_type filter_type,
@@ -10320,15 +9875,6 @@ i40e_dev_filter_ctrl(struct rte_eth_dev *dev,
 		break;
 	case RTE_ETH_FILTER_HASH:
 		ret = i40e_hash_filter_ctrl(dev, filter_op, arg);
-		break;
-	case RTE_ETH_FILTER_MACVLAN:
-		ret = i40e_mac_filter_handle(dev, filter_op, arg);
-		break;
-	case RTE_ETH_FILTER_ETHERTYPE:
-		ret = i40e_ethertype_filter_handle(dev, filter_op, arg);
-		break;
-	case RTE_ETH_FILTER_TUNNEL:
-		ret = i40e_tunnel_filter_handle(dev, filter_op, arg);
 		break;
 	case RTE_ETH_FILTER_FDIR:
 		ret = i40e_fdir_ctrl_func(dev, filter_op, arg);
