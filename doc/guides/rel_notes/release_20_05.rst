@@ -56,6 +56,13 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Updated Intel i40e driver.**
+
+  Updated i40e PMD with new features and improvements, including:
+
+  * enable only dst MAC address as FDIR input set for ipv4-other
+  * enable both src MAC address and dst MAC address as FDIR input set for ipv4-other
+
 
 Removed Items
 -------------
