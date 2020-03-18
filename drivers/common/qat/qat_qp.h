@@ -89,6 +89,9 @@ uint16_t
 qat_enqueue_op_burst(void *qp, void **ops, uint16_t nb_ops);
 
 uint16_t
+qat_enqueue_comp_op_burst(void *qp, void **ops, uint16_t nb_ops);
+
+uint16_t
 qat_dequeue_op_burst(void *qp, void **ops, uint16_t nb_ops);
 
 int
@@ -102,6 +105,10 @@ qat_qp_setup(struct qat_pci_device *qat_dev,
 int
 qat_qps_per_service(const struct qat_qp_hw_data *qp_hw_data,
 			enum qat_service_type service);
+
+const struct rte_memzone *
+qat_dma_zone_reserve(const char *queue_name, uint32_t queue_size,
+			int socket_id);
 
 /* Needed for weak function*/
 int

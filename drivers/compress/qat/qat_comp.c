@@ -18,7 +18,6 @@
 #include "qat_comp.h"
 #include "qat_comp_pmd.h"
 
-
 int
 qat_comp_build_request(void *in_op, uint8_t *out_msg,
 		       void *op_cookie,
@@ -57,6 +56,53 @@ qat_comp_build_request(void *in_op, uint8_t *out_msg,
 	rte_mov128(out_msg, tmpl);
 	comp_req->comn_mid.opaque_data = (uint64_t)(uintptr_t)op;
 
+	if (likely(qat_xform->qat_comp_request_type ==
+			QAT_COMP_REQUEST_DYNAMIC_COMP_STATELESS)) {
+
+		if (unlikely(op->src.length > QAT_FALLBACK_THLD)) {
+			/* the operation must be split into pieces */
+			if (qat_xform->checksum_type !=
+					RTE_COMP_CHECKSUM_NONE) {
+				/* fallback to fixed compression in case any
+				 * checksum calculation was requested
+				 */
+				comp_req->comn_hdr.service_cmd_id =
+						ICP_QAT_FW_COMP_CMD_STATIC;
+
+				ICP_QAT_FW_COMN_NEXT_ID_SET(
+						&comp_req->comp_cd_ctrl,
+						ICP_QAT_FW_SLICE_DRAM_WR);
+
+				ICP_QAT_FW_COMN_NEXT_ID_SET(
+						&comp_req->u2.xlt_cd_ctrl,
+						ICP_QAT_FW_SLICE_NULL);
+				ICP_QAT_FW_COMN_CURR_ID_SET(
+						&comp_req->u2.xlt_cd_ctrl,
+						ICP_QAT_FW_SLICE_NULL);
+
+				QAT_DP_LOG(DEBUG, "QAT PMD: fallback to fixed compression!");
+			} else {
+				/* calculate num. of descriptors for split op */
+				int nb_descriptors_needed =
+					op->src.length / QAT_FALLBACK_THLD + 1;
+				QAT_LOG(DEBUG, "Input data is too big, op must be split into %d descriptors",
+						nb_descriptors_needed);
+				return nb_descriptors_needed;
+			}
+		}
+
+		/* set BFINAL bit according to flush_flag */
+		comp_req->comp_pars.req_par_flags =
+			ICP_QAT_FW_COMP_REQ_PARAM_FLAGS_BUILD(
+				ICP_QAT_FW_COMP_SOP,
+				ICP_QAT_FW_COMP_EOP,
+				op->flush_flag == RTE_COMP_FLUSH_FINAL ?
+					ICP_QAT_FW_COMP_BFINAL
+					: ICP_QAT_FW_COMP_NOT_BFINAL,
+				ICP_QAT_FW_COMP_CNV,
+				ICP_QAT_FW_COMP_CNV_RECOVERY);
+	}
+
 	if (op->op_type == RTE_COMP_OP_STATEFUL) {
 		comp_req->comp_pars.req_par_flags =
 			ICP_QAT_FW_COMP_REQ_PARAM_FLAGS_BUILD(
@@ -70,30 +116,6 @@ qat_comp_build_request(void *in_op, uint8_t *out_msg,
 				ICP_QAT_FW_COMP_NOT_BFINAL,
 				ICP_QAT_FW_COMP_NO_CNV,
 				ICP_QAT_FW_COMP_NO_CNV_RECOVERY);
-	}
-
-	if (likely(qat_xform->qat_comp_request_type ==
-		    QAT_COMP_REQUEST_DYNAMIC_COMP_STATELESS)) {
-		if (unlikely(op->src.length > QAT_FALLBACK_THLD)) {
-
-			/* fallback to fixed compression */
-			comp_req->comn_hdr.service_cmd_id =
-					ICP_QAT_FW_COMP_CMD_STATIC;
-
-			ICP_QAT_FW_COMN_NEXT_ID_SET(&comp_req->comp_cd_ctrl,
-					ICP_QAT_FW_SLICE_DRAM_WR);
-
-			ICP_QAT_FW_COMN_NEXT_ID_SET(&comp_req->u2.xlt_cd_ctrl,
-					ICP_QAT_FW_SLICE_NULL);
-			ICP_QAT_FW_COMN_CURR_ID_SET(&comp_req->u2.xlt_cd_ctrl,
-					ICP_QAT_FW_SLICE_NULL);
-
-			QAT_DP_LOG(DEBUG, "QAT PMD: fallback to fixed "
-				   "compression! IM buffer size can be too low "
-				   "for produced data.\n Please use input "
-				   "buffer length lower than %d bytes",
-				   QAT_FALLBACK_THLD);
-		}
 	}
 
 	/* common for sgl and flat buffers */
@@ -233,6 +255,289 @@ qat_comp_build_request(void *in_op, uint8_t *out_msg,
 	return 0;
 }
 
+static inline uint32_t adf_modulo(uint32_t data, uint32_t modulo_mask)
+{
+	return data & modulo_mask;
+}
+
+static int
+qat_comp_allocate_child_memzones(struct qat_qp *qp, uint32_t parent_tail,
+				 uint32_t data_to_enqueue)
+{
+	struct qat_queue *txq = &(qp->tx_q);
+	uint32_t children_count = (data_to_enqueue + QAT_FALLBACK_THLD - 1) /
+			QAT_FALLBACK_THLD;
+	uint32_t memzone_size = RTE_PMD_QAT_COMP_IM_BUFFER_SIZE;
+	uint32_t tail = parent_tail;
+	uint32_t i;
+
+	for (i = 0; i < children_count; i++) {
+		struct qat_comp_op_cookie *child_cookie;
+		uint32_t cookie_index;
+
+		tail = adf_modulo(tail + txq->msg_size, txq->modulo_mask);
+		cookie_index = tail / txq->msg_size;
+		child_cookie = (struct qat_comp_op_cookie *)
+				qp->op_cookies[cookie_index];
+
+		snprintf(child_cookie->dst_memz_name,
+				sizeof(child_cookie->dst_memz_name),
+				"dst_%u_%u_%u_%u",
+				qp->qat_dev->qat_dev_id, txq->hw_bundle_number,
+				txq->hw_queue_number, cookie_index);
+		child_cookie->dst_memzone = qat_dma_zone_reserve(
+				child_cookie->dst_memz_name,
+				memzone_size,
+				SOCKET_ID_ANY);
+		if (child_cookie->dst_memzone == NULL) {
+			uint32_t j;
+
+			QAT_LOG(ERR, "Failed to allocate dst buffer memzone");
+
+			/* let's free everything allocated up to now */
+			tail = parent_tail;
+			for (j = 0; j < i; j++) {
+				tail = adf_modulo(tail + txq->msg_size,
+						txq->modulo_mask);
+				cookie_index = tail / txq->msg_size;
+				child_cookie = (struct qat_comp_op_cookie *)
+						qp->op_cookies[cookie_index];
+				rte_memzone_free(child_cookie->dst_memzone);
+				child_cookie->dst_memzone = NULL;
+			}
+			return -ENOMEM;
+		}
+	}
+
+	return 0;
+}
+
+int
+qat_comp_build_multiple_requests(void *in_op, struct qat_qp *qp,
+				 uint32_t parent_tail, int nb_descr)
+{
+	struct rte_comp_op *op = in_op;
+	struct qat_queue *txq = &(qp->tx_q);
+	uint8_t *base_addr = (uint8_t *)txq->base_addr;
+	uint8_t *out_msg = base_addr + parent_tail;
+	uint32_t tail = parent_tail;
+	struct icp_qat_fw_comp_req *comp_req =
+			(struct icp_qat_fw_comp_req *)out_msg;
+	struct qat_comp_op_cookie *parent_cookie =
+			(struct qat_comp_op_cookie *)
+			qp->op_cookies[parent_tail / txq->msg_size];
+	struct qat_comp_op_cookie *child_cookie;
+	uint32_t data_to_enqueue, data_enqueued = 0;
+	int num_descriptors_built = 0;
+	int ret;
+
+	QAT_DP_LOG(DEBUG, "op %p, parent_cookie %p ", op, parent_cookie);
+
+	parent_cookie->nb_child_responses = 0;
+	parent_cookie->nb_children = 0;
+	parent_cookie->split_op = 1;
+	parent_cookie->orig_parent_src_len = op->src.length;
+	parent_cookie->orig_parent_flush_flag = op->flush_flag;
+	op->src.length = QAT_FALLBACK_THLD;
+	op->flush_flag = RTE_COMP_FLUSH_FULL;
+
+	data_to_enqueue = parent_cookie->orig_parent_src_len -
+			QAT_FALLBACK_THLD;
+
+	ret = qat_comp_build_request(in_op, out_msg, parent_cookie,
+			qp->qat_dev_gen);
+	if (ret == 0) {
+		/* allocate memzones for all children ops */
+		ret = qat_comp_allocate_child_memzones(qp, parent_tail,
+				data_to_enqueue);
+	}
+	if (ret != 0) {
+		/* restore op and clear cookie */
+		QAT_DP_LOG(WARNING, "Failed to build parent descriptor");
+		parent_cookie->split_op = 0;
+		op->src.length = parent_cookie->orig_parent_src_len;
+		parent_cookie->orig_parent_src_len =  0;
+		parent_cookie->orig_parent_flush_flag = 0;
+		return ret;
+	}
+
+	num_descriptors_built++;
+
+	data_enqueued = QAT_FALLBACK_THLD;
+	while (data_to_enqueue) {
+		/* create descriptor at next entry in tx queue */
+		uint32_t src_data_size = RTE_MIN(data_to_enqueue,
+				QAT_FALLBACK_THLD);
+		uint32_t dst_data_size = RTE_PMD_QAT_COMP_IM_BUFFER_SIZE;
+		const struct rte_memzone *mz;
+		uint32_t cookie_index;
+
+		tail = adf_modulo(tail + txq->msg_size, txq->modulo_mask);
+		cookie_index = tail / txq->msg_size;
+		child_cookie = (struct qat_comp_op_cookie *)
+				qp->op_cookies[cookie_index];
+		mz = child_cookie->dst_memzone;
+		comp_req = (struct icp_qat_fw_comp_req *)(base_addr + tail);
+
+		child_cookie->split_op = 1; /* must be set for child as well */
+		child_cookie->parent_cookie = parent_cookie; /* same as above */
+		child_cookie->nb_children = 0;
+
+		QAT_DP_LOG(DEBUG,
+				"cookie_index %d, child_cookie %p, comp_req %p",
+				cookie_index, child_cookie, comp_req);
+		QAT_DP_LOG(DEBUG,
+				"data_to_enqueue %d, data_enqueued %d, num_descriptors_built %d",
+				data_to_enqueue, data_enqueued,
+				num_descriptors_built);
+
+		rte_mov128((uint8_t *)comp_req, out_msg);
+
+		comp_req->comn_mid.opaque_data = (uint64_t)(uintptr_t)op;
+		comp_req->comn_mid.src_length = src_data_size;
+
+		if ((data_enqueued + src_data_size) >
+				rte_pktmbuf_data_len(op->m_src)) {
+			/* src */
+			ret = qat_sgl_fill_array(op->m_src,
+					data_enqueued,
+					child_cookie->qat_sgl_src_d,
+					src_data_size,
+					child_cookie->src_nb_elems);
+			if (ret) {
+				QAT_DP_LOG(ERR,
+						"QAT PMD (multiple_requests) Cannot fill src. sgl array");
+				op->status = RTE_COMP_OP_STATUS_INVALID_ARGS;
+				return ret;
+			}
+
+			child_cookie->qat_sgl_src_phys_addr =
+			      rte_malloc_virt2iova(child_cookie->qat_sgl_src_d);
+
+			comp_req->comn_mid.src_data_addr =
+					child_cookie->qat_sgl_src_phys_addr;
+
+			/* dst */
+			struct qat_sgl *list = (struct qat_sgl *)
+					child_cookie->qat_sgl_dst_d;
+
+			list->buffers[0].len = dst_data_size;
+			list->buffers[0].resrvd = 0;
+			list->buffers[0].addr = mz->iova;
+
+			comp_req->comn_mid.dst_length = dst_data_size;
+			comp_req->comn_mid.dest_data_addr =
+					child_cookie->qat_sgl_dst_phys_addr;
+
+			child_cookie->dest_buffer = (char *)mz->addr;
+
+			ICP_QAT_FW_COMN_PTR_TYPE_SET(
+					comp_req->comn_hdr.comn_req_flags,
+					QAT_COMN_PTR_TYPE_SGL);
+		} else {
+			op->src.offset = data_enqueued;
+			comp_req->comn_mid.src_data_addr =
+					rte_pktmbuf_mtophys_offset(op->m_src,
+					op->src.offset);
+
+			ICP_QAT_FW_COMN_PTR_TYPE_SET(
+					comp_req->comn_hdr.comn_req_flags,
+					QAT_COMN_PTR_TYPE_FLAT);
+
+			child_cookie->dest_buffer = mz->addr;
+
+			comp_req->comn_mid.dst_length = dst_data_size;
+			comp_req->comn_mid.dest_data_addr = mz->iova;
+		}
+
+		comp_req->comp_pars.comp_len = src_data_size;
+		comp_req->comp_pars.out_buffer_sz = dst_data_size;
+
+		data_to_enqueue -= src_data_size;
+		data_enqueued += src_data_size;
+		num_descriptors_built++;
+
+		comp_req->comp_pars.req_par_flags =
+			ICP_QAT_FW_COMP_REQ_PARAM_FLAGS_BUILD(
+				ICP_QAT_FW_COMP_SOP,
+				ICP_QAT_FW_COMP_EOP,
+				data_to_enqueue == 0 ?
+					ICP_QAT_FW_COMP_BFINAL
+					: ICP_QAT_FW_COMP_NOT_BFINAL,
+				ICP_QAT_FW_COMP_CNV,
+				ICP_QAT_FW_COMP_CNV_RECOVERY);
+	}
+
+	if (nb_descr != num_descriptors_built)
+		QAT_LOG(ERR, "split op. expected %d, built %d",
+				nb_descr, num_descriptors_built);
+
+	parent_cookie->nb_children = num_descriptors_built - 1;
+	return num_descriptors_built;
+}
+
+
+static inline void
+qat_comp_response_data_copy(struct qat_comp_op_cookie *cookie,
+		       struct rte_comp_op *rx_op)
+{
+	struct qat_comp_op_cookie *pc = cookie->parent_cookie;
+	uint32_t remaining_off = pc->total_produced;
+	struct rte_mbuf *sgl_buf = rx_op->m_dst;
+
+	uint32_t prod, sent;
+	void *op_dst_addr;
+
+	/* number of bytes left in the current segment */
+	uint32_t left_in_current;
+
+	/* sgl_buf - current sgl moved to the parent cookie */
+	while (remaining_off >= rte_pktmbuf_data_len(sgl_buf)) {
+		remaining_off -= rte_pktmbuf_data_len(sgl_buf);
+		sgl_buf = sgl_buf->next;
+		if (sgl_buf == NULL)
+			return;
+	}
+
+	op_dst_addr = rte_pktmbuf_mtod_offset(sgl_buf, uint8_t *,
+			remaining_off);
+
+	left_in_current = rte_pktmbuf_data_len(sgl_buf) - remaining_off;
+
+	if (rx_op->produced <= left_in_current)
+		rte_memcpy(op_dst_addr,  cookie->dest_buffer,
+				rx_op->produced);
+	else {
+		rte_memcpy(op_dst_addr,  cookie->dest_buffer,
+				left_in_current);
+		sgl_buf = sgl_buf->next;
+		prod = rx_op->produced - left_in_current;
+		sent = left_in_current;
+
+		while (prod > rte_pktmbuf_data_len(sgl_buf)) {
+			op_dst_addr = rte_pktmbuf_mtod_offset(sgl_buf,
+					uint8_t *, 0);
+
+			rte_memcpy(op_dst_addr,
+					((uint8_t *)cookie->dest_buffer) +
+					sent,
+					rte_pktmbuf_data_len(sgl_buf));
+
+			prod -= rte_pktmbuf_data_len(sgl_buf);
+			sent += rte_pktmbuf_data_len(sgl_buf);
+
+			sgl_buf = sgl_buf->next;
+		}
+
+		op_dst_addr = rte_pktmbuf_mtod_offset(sgl_buf, uint8_t *, 0);
+
+		rte_memcpy(op_dst_addr,
+				((uint8_t *)cookie->dest_buffer) +
+				sent,
+				prod);
+	}
+}
+
 int
 qat_comp_process_response(void **op, uint8_t *resp, void *op_cookie,
 			  uint64_t *dequeue_err_count)
@@ -241,6 +546,14 @@ qat_comp_process_response(void **op, uint8_t *resp, void *op_cookie,
 			(struct icp_qat_fw_comp_resp *)resp;
 	struct qat_comp_op_cookie *cookie =
 			(struct qat_comp_op_cookie *)op_cookie;
+
+	struct icp_qat_fw_resp_comp_pars *comp_resp1 =
+	  (struct icp_qat_fw_resp_comp_pars *)&resp_msg->comp_resp_pars;
+
+	QAT_DP_LOG(DEBUG, "input counter = %u, output counter = %u",
+		   comp_resp1->input_byte_counter,
+		   comp_resp1->output_byte_counter);
+
 	struct rte_comp_op *rx_op = (struct rte_comp_op *)(uintptr_t)
 			(resp_msg->opaque_data);
 	struct qat_comp_stream *stream;
@@ -275,7 +588,10 @@ qat_comp_process_response(void **op, uint8_t *resp, void *op_cookie,
 		rx_op->consumed = 0;
 		rx_op->produced = 0;
 		*op = (void *)rx_op;
-		return 0;
+		/* also in this case number of returned ops */
+		/* must be equal to one, */
+		/* appropriate status (error) must be set as well */
+		return 1;
 	}
 
 	if (likely(qat_xform->qat_comp_request_type
@@ -288,7 +604,7 @@ qat_comp_process_response(void **op, uint8_t *resp, void *op_cookie,
 			*op = (void *)rx_op;
 			QAT_DP_LOG(ERR, "QAT has wrong firmware");
 			++(*dequeue_err_count);
-			return 0;
+			return 1;
 		}
 	}
 
@@ -305,8 +621,9 @@ qat_comp_process_response(void **op, uint8_t *resp, void *op_cookie,
 		int8_t xlat_err_code =
 			(int8_t)resp_msg->comn_resp.comn_error.xlat_err_code;
 
-		/* handle recoverable out-of-buffer condition in stateful */
-		/* decompression scenario */
+		/* handle recoverable out-of-buffer condition in stateful
+		 * decompression scenario
+		 */
 		if (cmp_err_code == ERR_CODE_OVERFLOW_ERROR && !xlat_err_code
 				&& qat_xform->qat_comp_request_type
 					== QAT_COMP_REQUEST_DECOMPRESS
@@ -327,10 +644,12 @@ qat_comp_process_response(void **op, uint8_t *resp, void *op_cookie,
 		     xlat_err_code == ERR_CODE_OVERFLOW_ERROR)){
 
 			struct icp_qat_fw_resp_comp_pars *comp_resp =
-	  (struct icp_qat_fw_resp_comp_pars *)&resp_msg->comp_resp_pars;
+					(struct icp_qat_fw_resp_comp_pars *)
+					&resp_msg->comp_resp_pars;
 
-			/* handle recoverable out-of-buffer condition */
-			/* in stateless compression scenario */
+			/* handle recoverable out-of-buffer condition
+			 * in stateless compression scenario
+			 */
 			if (comp_resp->input_byte_counter) {
 				if ((qat_xform->qat_comp_request_type
 				== QAT_COMP_REQUEST_FIXED_COMP_STATELESS) ||
@@ -375,9 +694,74 @@ qat_comp_process_response(void **op, uint8_t *resp, void *op_cookie,
 				rx_op->output_chksum = comp_resp->curr_chksum;
 		}
 	}
-	*op = (void *)rx_op;
+	QAT_LOG(DEBUG, "About to check for split op :cookies: %p %p, split:%d",
+		cookie, cookie->parent_cookie, cookie->split_op);
 
-	return 0;
+	if (cookie->split_op) {
+		*op = NULL;
+		struct qat_comp_op_cookie *pc = cookie->parent_cookie;
+
+		if  (cookie->nb_children > 0) {
+			QAT_LOG(DEBUG, "Parent");
+			/* parent - don't return until all children
+			 * responses are collected
+			 */
+			cookie->total_consumed = rx_op->consumed;
+			cookie->total_produced = rx_op->produced;
+		} else {
+			QAT_LOG(DEBUG, "Child");
+			qat_comp_response_data_copy(cookie, rx_op);
+
+			const struct rte_memzone *mz =
+				rte_memzone_lookup(cookie->dst_memz_name);
+			if (mz != NULL)	{
+				int status = rte_memzone_free(mz);
+				if (status != 0)
+					QAT_LOG(ERR,
+						"Error %d on freeing queue %s",
+						status, cookie->dst_memz_name);
+			}
+			cookie->dest_buffer = NULL;
+
+			pc->total_consumed += rx_op->consumed;
+			pc->total_produced += rx_op->produced;
+			pc->nb_child_responses++;
+
+			/* (child) cookie fields have to be reset
+			 * to avoid problems with reusability -
+			 * rx and tx queue starting from index zero
+			 */
+			cookie->nb_children = 0;
+			cookie->split_op = 0;
+			cookie->nb_child_responses = 0;
+
+			if (pc->nb_child_responses == pc->nb_children) {
+				uint8_t child_resp;
+
+				/* parent should be included as well */
+				child_resp = pc->nb_child_responses + 1;
+
+				rx_op->status = RTE_COMP_OP_STATUS_SUCCESS;
+				rx_op->consumed = pc->total_consumed;
+				rx_op->produced = pc->total_produced;
+				*op = (void *)rx_op;
+
+				/* (parent) cookie fields have to be reset
+				 * to avoid problems with reusability -
+				 * rx and tx queue starting from index zero
+				 */
+				pc->nb_children = 0;
+				pc->split_op = 0;
+				pc->nb_child_responses = 0;
+
+				return child_resp;
+			}
+		}
+		return 0;
+	}
+
+	*op = (void *)rx_op;
+	return 1;
 }
 
 unsigned int
@@ -443,9 +827,9 @@ static int qat_comp_create_templates(struct qat_comp_xform *qat_xform,
 		comp_level = ICP_QAT_HW_COMPRESSION_DEPTH_1;
 		req_par_flags = ICP_QAT_FW_COMP_REQ_PARAM_FLAGS_BUILD(
 				ICP_QAT_FW_COMP_SOP, ICP_QAT_FW_COMP_EOP,
-				ICP_QAT_FW_COMP_BFINAL, ICP_QAT_FW_COMP_NO_CNV,
-				ICP_QAT_FW_COMP_NO_CNV_RECOVERY);
-
+				ICP_QAT_FW_COMP_BFINAL,
+				ICP_QAT_FW_COMP_CNV,
+				ICP_QAT_FW_COMP_CNV_RECOVERY);
 	} else {
 		if (xform->compress.level == RTE_COMP_LEVEL_PMD_DEFAULT)
 			comp_level = ICP_QAT_HW_COMPRESSION_DEPTH_8;
