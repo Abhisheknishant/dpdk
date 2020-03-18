@@ -2,7 +2,7 @@
 # Copyright(C) 2020 Marvell International Ltd.
 
 sources = files('null.c', 'log.c', 'ethdev_rx.c', 'ethdev_tx.c', 'ip4_lookup.c',
-		'ip4_rewrite.c', 'ethdev_ctrl.c')
+		'ip4_rewrite.c', 'pkt_drop.c', 'ethdev_ctrl.c')
 headers = files('rte_node_ip4_api.h', 'rte_node_eth_api.h')
 allow_experimental_apis = true
 deps += ['graph', 'mbuf', 'lpm', 'ethdev', 'mempool', 'cryptodev']
