@@ -22,6 +22,7 @@ LDLIBS += -lrte_mbuf -lrte_cryptodev -lpthread
 # library source files
 SRCS-y += rte_eventdev.c
 SRCS-y += rte_event_ring.c
+SRCS-y += eventdev_trace_points.c
 SRCS-y += rte_event_eth_rx_adapter.c
 SRCS-y += rte_event_timer_adapter.c
 SRCS-y += rte_event_crypto_adapter.c
@@ -30,6 +31,8 @@ SRCS-y += rte_event_eth_tx_adapter.c
 # export include files
 SYMLINK-y-include += rte_eventdev.h
 SYMLINK-y-include += rte_eventdev_pmd.h
+SYMLINK-y-include += rte_trace_eventdev.h
+SYMLINK-y-include += rte_trace_eventdev_fp.h
 SYMLINK-y-include += rte_eventdev_pmd_pci.h
 SYMLINK-y-include += rte_eventdev_pmd_vdev.h
 SYMLINK-y-include += rte_event_ring.h
