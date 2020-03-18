@@ -16,6 +16,7 @@ extern "C" {
 #endif
 
 #include <rte_alarm.h>
+#include <rte_interrupts.h>
 #include <rte_trace.h>
 
 /* Generic */
@@ -205,6 +206,39 @@ RTE_TRACE_POINT(
 	rte_trace_ctf_u32(lcore_id); rte_trace_ctf_string(cpuset);
 )
 
+/* Interrupt */
+RTE_TRACE_POINT(
+	rte_trace_lib_eal_intr_callback_register,
+	RTE_TRACE_POINT_ARGS(const struct rte_intr_handle *handle,
+			     rte_intr_callback_fn cb, void *cb_arg, int rc),
+	rte_trace_ctf_int(rc); rte_trace_ctf_int(handle->vfio_dev_fd);
+	rte_trace_ctf_int(handle->fd); rte_trace_ctf_int(handle->type);
+	rte_trace_ctf_u32(handle->max_intr); rte_trace_ctf_u32(handle->nb_efd);
+	rte_trace_ctf_ptr(cb); rte_trace_ctf_ptr(cb_arg);
+)
+RTE_TRACE_POINT(
+	rte_trace_lib_eal_intr_callback_unregister,
+	RTE_TRACE_POINT_ARGS(const struct rte_intr_handle *handle,
+			     rte_intr_callback_fn cb, void *cb_arg, int rc),
+	rte_trace_ctf_int(rc); rte_trace_ctf_int(handle->vfio_dev_fd);
+	rte_trace_ctf_int(handle->fd); rte_trace_ctf_int(handle->type);
+	rte_trace_ctf_u32(handle->max_intr); rte_trace_ctf_u32(handle->nb_efd);
+	rte_trace_ctf_ptr(cb); rte_trace_ctf_ptr(cb_arg);
+)
+RTE_TRACE_POINT(
+	rte_trace_lib_eal_intr_enable,
+	RTE_TRACE_POINT_ARGS(const struct rte_intr_handle *handle, int rc),
+	rte_trace_ctf_int(rc); rte_trace_ctf_int(handle->vfio_dev_fd);
+	rte_trace_ctf_int(handle->fd); rte_trace_ctf_int(handle->type);
+	rte_trace_ctf_u32(handle->max_intr); rte_trace_ctf_u32(handle->nb_efd);
+)
+RTE_TRACE_POINT(
+	rte_trace_lib_eal_intr_disable,
+	RTE_TRACE_POINT_ARGS(const struct rte_intr_handle *handle, int rc),
+	rte_trace_ctf_int(rc); rte_trace_ctf_int(handle->vfio_dev_fd);
+	rte_trace_ctf_int(handle->fd); rte_trace_ctf_int(handle->type);
+	rte_trace_ctf_u32(handle->max_intr); rte_trace_ctf_u32(handle->nb_efd);
+)
 
 #ifdef __cplusplus
 }
