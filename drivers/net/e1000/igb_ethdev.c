@@ -3716,16 +3716,6 @@ eth_igb_syn_filter_handle(struct rte_eth_dev *dev,
 	}
 
 	switch (filter_op) {
-	case RTE_ETH_FILTER_ADD:
-		ret = eth_igb_syn_filter_set(dev,
-				(struct rte_eth_syn_filter *)arg,
-				TRUE);
-		break;
-	case RTE_ETH_FILTER_DELETE:
-		ret = eth_igb_syn_filter_set(dev,
-				(struct rte_eth_syn_filter *)arg,
-				FALSE);
-		break;
 	case RTE_ETH_FILTER_GET:
 		ret = eth_igb_syn_filter_get(dev,
 				(struct rte_eth_syn_filter *)arg);
@@ -4207,12 +4197,6 @@ eth_igb_flex_filter_handle(struct rte_eth_dev *dev,
 	}
 
 	switch (filter_op) {
-	case RTE_ETH_FILTER_ADD:
-		ret = eth_igb_add_del_flex_filter(dev, filter, TRUE);
-		break;
-	case RTE_ETH_FILTER_DELETE:
-		ret = eth_igb_add_del_flex_filter(dev, filter, FALSE);
-		break;
 	case RTE_ETH_FILTER_GET:
 		ret = eth_igb_get_flex_filter(dev, filter);
 		break;
@@ -4713,16 +4697,6 @@ igb_ntuple_filter_handle(struct rte_eth_dev *dev,
 	}
 
 	switch (filter_op) {
-	case RTE_ETH_FILTER_ADD:
-		ret = igb_add_del_ntuple_filter(dev,
-			(struct rte_eth_ntuple_filter *)arg,
-			TRUE);
-		break;
-	case RTE_ETH_FILTER_DELETE:
-		ret = igb_add_del_ntuple_filter(dev,
-			(struct rte_eth_ntuple_filter *)arg,
-			FALSE);
-		break;
 	case RTE_ETH_FILTER_GET:
 		ret = igb_get_ntuple_filter(dev,
 			(struct rte_eth_ntuple_filter *)arg);
@@ -4894,16 +4868,6 @@ igb_ethertype_filter_handle(struct rte_eth_dev *dev,
 	}
 
 	switch (filter_op) {
-	case RTE_ETH_FILTER_ADD:
-		ret = igb_add_del_ethertype_filter(dev,
-			(struct rte_eth_ethertype_filter *)arg,
-			TRUE);
-		break;
-	case RTE_ETH_FILTER_DELETE:
-		ret = igb_add_del_ethertype_filter(dev,
-			(struct rte_eth_ethertype_filter *)arg,
-			FALSE);
-		break;
 	case RTE_ETH_FILTER_GET:
 		ret = igb_get_ethertype_filter(dev,
 			(struct rte_eth_ethertype_filter *)arg);

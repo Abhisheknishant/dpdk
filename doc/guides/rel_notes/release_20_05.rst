@@ -56,6 +56,15 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **remove legacy filter API and switch to rte flow**
+
+  remove legacy filter API functions and switch to rte_flow in drivers, including:
+
+  * remove legacy filter API functions in the Intel igb driver.
+  * remove legacy filter API functions in the Intel ixgbe driver.
+  * remove legacy filter API functions in the Intel i40 driver.
+  * Added support set hash function and set hash input set in rte flow API.
+
 
 Removed Items
 -------------
