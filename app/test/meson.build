@@ -121,6 +121,8 @@ test_sources = files('commands.c',
 	'test_timer_racecond.c',
 	'test_timer_secondary.c',
 	'test_ticketlock.c',
+	'test_trace.c',
+	'test_trace_register.c',
 	'test_version.c',
 	'virtual_pmd.c'
 )
