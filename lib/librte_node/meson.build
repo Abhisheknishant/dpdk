@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright(C) 2020 Marvell International Ltd.
 
-sources = files('null.c', 'log.c', 'ethdev_rx.c', 'ethdev_tx.c', 'ethdev_ctrl.c')
-headers = files('rte_node_eth_api.h')
+sources = files('null.c', 'log.c', 'ethdev_rx.c', 'ethdev_tx.c', 'ip4_lookup.c',
+		'ethdev_ctrl.c')
+headers = files('rte_node_ip4_api.h', 'rte_node_eth_api.h')
 allow_experimental_apis = true
 deps += ['graph', 'mbuf', 'lpm', 'ethdev', 'mempool', 'cryptodev']
