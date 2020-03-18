@@ -119,6 +119,110 @@ fail:
 }
 
 int
+eal_trace_level_args_save(const char *optarg)
+{
+	struct trace *trace = trace_obj_get();
+	char *trace_args;
+	uint8_t nb_args;
+
+	nb_args = trace->args.nb_args;
+
+	if (nb_args >= TRACE_LEVEL_MAX_ARGS) {
+		trace_err("ignoring trace level %s as limit exceeds", optarg);
+		return 0;
+	}
+
+	trace_args = (char *)calloc(1, (strlen(optarg) + 1));
+	if (trace_args == NULL) {
+		trace_err("fail to allocate memory for %s", optarg);
+		return -ENOMEM;
+	}
+
+	memcpy(trace_args, optarg, strlen(optarg));
+	trace->args.args[nb_args++] = trace_args;
+	trace->args.nb_args = nb_args;
+	return 0;
+}
+
+void
+eal_trace_level_args_free(void)
+{
+	struct trace *trace = trace_obj_get();
+	int i;
+
+	for (i = 0; i < trace->args.nb_args; i++) {
+		if (trace->args.args[i]) {
+			free((void *)trace->args.args[i]);
+			trace->args.args[i] = NULL;
+		}
+	}
+}
+
+int
+trace_level_args_apply(const char *arg)
+{
+	struct trace *trace = trace_obj_get();
+	const char *pattern = NULL;
+	const char *regex = NULL;
+	char *str, *level;
+	int level_idx;
+
+	str = strdup(arg);
+	if (str == NULL)
+		return -1;
+
+	level = strchr(str, ',');
+	if (level) {
+		regex = str;
+		*level++ = '\0';
+		goto found;
+	}
+
+	level = strchr(str, ':');
+	if (level) {
+		pattern = str;
+		*level++ = '\0';
+		goto found;
+	}
+
+	level = str;
+
+found:
+	level_idx = eal_parse_log_priority(level);
+	if (level_idx < 0) {
+		trace_err("invalid trace level: %s\n", level);
+		goto fail;
+	}
+
+	/* Update global level */
+	trace->level = level_idx;
+
+	if (regex) {
+		if (rte_trace_regexp(regex, true, NULL) < 0) {
+			trace_err("cannot set trace level %s:%d\n",
+				regex, level_idx);
+			goto fail;
+		}
+
+	} else if (pattern) {
+		if (rte_trace_pattern(pattern, true, NULL) < 0) {
+			trace_err("cannot set trace level %s:%d\n",
+				pattern, level_idx);
+			goto fail;
+		}
+	} else {
+		rte_trace_global_level_set(level_idx);
+	}
+
+	free(str);
+	return 0;
+
+fail:
+	free(str);
+	return -1;
+}
+
+int
 trace_epoch_time_save(void)
 {
 	struct trace *trace = trace_obj_get();
