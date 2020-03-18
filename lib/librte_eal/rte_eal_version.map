@@ -338,4 +338,5 @@ EXPERIMENTAL {
 
 	# added in 20.05
 	rte_thread_getname;
+	__rte_trace_point_register;
 };

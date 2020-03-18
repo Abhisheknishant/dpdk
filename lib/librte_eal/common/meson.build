@@ -86,6 +86,8 @@ common_headers = files(
 	'include/rte_string_fns.h',
 	'include/rte_tailq.h',
 	'include/rte_trace.h',
+	'include/rte_trace_provider.h',
+	'include/rte_trace_register.h',
 	'include/rte_time.h',
 	'include/rte_uuid.h',
 	'include/rte_version.h',
