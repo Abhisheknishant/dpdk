@@ -55,18 +55,24 @@ eal_trace_init(void)
 	/* Generate UUID ver 4 with total size of events and number of events */
 	trace_uuid_generate();
 
+	/* Generate CTF TDSL metadata */
+	if (trace_metadata_create())
+		goto fail;
+
 	/* Create trace directory */
 	if (trace_mkdir())
-		goto fail;
+		goto free_meta;
 
 	/* Save current epoch timestamp for future use */
 	if (trace_epoch_time_save())
-		goto fail;
+		goto free_meta;
 
 	rte_trace_global_mode_set(trace.mode);
 
 	return 0;
 
+free_meta:
+	trace_metadata_destroy();
 fail:
 	trace_err("failed to initialize trace [%s]", rte_strerror(rte_errno));
 	return -rte_errno;
@@ -77,6 +83,7 @@ eal_trace_fini(void)
 {
 	if (rte_trace_global_is_disabled())
 		return;
+	trace_metadata_destroy();
 }
 
 bool
