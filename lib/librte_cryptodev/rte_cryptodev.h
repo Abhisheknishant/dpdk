@@ -24,6 +24,9 @@ extern "C" {
 #include <rte_common.h>
 #include <rte_config.h>
 
+#include <rte_compat.h>
+#include <rte_function_versioning.h>
+
 extern const char **rte_cyptodev_names;
 
 /* Logging Macros */
@@ -758,7 +761,14 @@ rte_cryptodev_stats_reset(uint8_t dev_id);
  * the last valid element has it's op field set to
  * RTE_CRYPTO_OP_TYPE_UNDEFINED.
  */
-extern void
+void
+rte_cryptodev_info_get_v20(uint8_t dev_id, struct rte_cryptodev_info *dev_info);
+
+void
+rte_cryptodev_info_get_v2005(uint8_t dev_id, struct rte_cryptodev_info *dev_info);
+BIND_DEFAULT_SYMBOL(rte_cryptodev_info_get, _v2005, 20.05);
+
+void
 rte_cryptodev_info_get(uint8_t dev_id, struct rte_cryptodev_info *dev_info);
 
 

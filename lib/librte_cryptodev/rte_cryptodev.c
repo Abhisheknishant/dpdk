@@ -41,6 +41,9 @@
 #include "rte_cryptodev.h"
 #include "rte_cryptodev_pmd.h"
 
+#include <rte_compat.h>
+#include <rte_function_versioning.h>
+
 static uint8_t nb_drivers;
 
 static struct rte_cryptodev rte_crypto_devices[RTE_CRYPTO_MAX_DEVS];
@@ -56,6 +59,13 @@ static struct rte_cryptodev_global cryptodev_globals = {
 /* spinlock for crypto device callbacks */
 static rte_spinlock_t rte_cryptodev_cb_lock = RTE_SPINLOCK_INITIALIZER;
 
+static const struct rte_cryptodev_capabilities
+		cryptodev_undefined_capabilities[] = {
+		RTE_CRYPTODEV_END_OF_CAPABILITIES_LIST()
+};
+
+struct rte_cryptodev_capabilities *capability_copies[RTE_CRYPTO_MAX_DEVS];
+uint8_t is_capability_checked[RTE_CRYPTO_MAX_DEVS];
 
 /**
  * The user application callback description.
@@ -999,6 +1009,13 @@ rte_cryptodev_close(uint8_t dev_id)
 	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->dev_close, -ENOTSUP);
 	retval = (*dev->dev_ops->dev_close)(dev);
 
+
+	if (capability_copies[dev_id]) {
+		free(capability_copies[dev_id]);
+		capability_copies[dev_id] = NULL;
+	}
+	is_capability_checked[dev_id] = 0;
+
 	if (retval < 0)
 		return retval;
 
@@ -1111,9 +1128,84 @@ rte_cryptodev_stats_reset(uint8_t dev_id)
 	(*dev->dev_ops->stats_reset)(dev);
 }
 
+void
+rte_cryptodev_info_get_v20(uint8_t dev_id, struct rte_cryptodev_info *dev_info)
+{
+	struct rte_cryptodev *dev;
+	const struct rte_cryptodev_capabilities *capability;
+	uint8_t counter = 0;
+
+	if (!rte_cryptodev_pmd_is_valid_dev(dev_id)) {
+		CDEV_LOG_ERR("Invalid dev_id=%d", dev_id);
+		return;
+	}
+
+	dev = &rte_crypto_devices[dev_id];
+
+	memset(dev_info, 0, sizeof(struct rte_cryptodev_info));
+
+	RTE_FUNC_PTR_OR_RET(*dev->dev_ops->dev_infos_get);
+	(*dev->dev_ops->dev_infos_get)(dev, dev_info);
+
+	if (capability_copies[dev_id] == NULL) {
+		if (!is_capability_checked[dev_id]) {
+			uint8_t found_invalid_capa = 0;
+
+			for (capability = dev_info->capabilities;
+					capability->op != RTE_CRYPTO_OP_TYPE_UNDEFINED;
+					++capability, ++counter) {
+				if (capability->op == RTE_CRYPTO_OP_TYPE_SYMMETRIC &&
+						capability->sym.xform_type ==
+							RTE_CRYPTO_SYM_XFORM_AEAD
+						&& capability->sym.aead.algo >=
+						RTE_CRYPTO_AEAD_CHACHA20_POLY1305) {
+					found_invalid_capa = 1;
+					counter--;
+				}
+			}
+			is_capability_checked[dev_id] = 1;
+			if (found_invalid_capa) {
+				capability_copies[dev_id] = malloc(counter *
+					sizeof(struct rte_cryptodev_capabilities));
+				if (capability_copies[dev_id] == NULL) {
+					 /*
+					  * error case - no memory to store the trimmed list,
+					  * so have to return an empty list
+					  */
+					dev_info->capabilities =
+						cryptodev_undefined_capabilities;
+					is_capability_checked[dev_id] = 0;
+				} else {
+					counter = 0;
+					for (capability = dev_info->capabilities;
+							capability->op !=
+							RTE_CRYPTO_OP_TYPE_UNDEFINED;
+							capability++) {
+						if (!(capability->op ==
+								RTE_CRYPTO_OP_TYPE_SYMMETRIC
+								&& capability->sym.xform_type ==
+								RTE_CRYPTO_SYM_XFORM_AEAD
+								&& capability->sym.aead.algo >=
+								RTE_CRYPTO_AEAD_CHACHA20_POLY1305)) {
+							capability_copies[dev_id][counter++] =
+									*capability;
+						}
+					}
+					dev_info->capabilities =
+							capability_copies[dev_id];
+				}
+			}
+		}
+	} else
+		dev_info->capabilities = capability_copies[dev_id];
+
+	dev_info->driver_name = dev->device->driver->name;
+	dev_info->device = dev->device;
+}
+VERSION_SYMBOL(rte_cryptodev_info_get, _v20, 20.0);
 
 void
-rte_cryptodev_info_get(uint8_t dev_id, struct rte_cryptodev_info *dev_info)
+rte_cryptodev_info_get_v2005(uint8_t dev_id, struct rte_cryptodev_info *dev_info)
 {
 	struct rte_cryptodev *dev;
 
@@ -1132,7 +1224,8 @@ rte_cryptodev_info_get(uint8_t dev_id, struct rte_cryptodev_info *dev_info)
 	dev_info->driver_name = dev->device->driver->name;
 	dev_info->device = dev->device;
 }
-
+MAP_STATIC_SYMBOL(void rte_cryptodev_info_get(uint8_t dev_id,
+		struct rte_cryptodev_info *dev_info), rte_cryptodev_info_get_v2005);
 
 int
 rte_cryptodev_callback_register(uint8_t dev_id,
