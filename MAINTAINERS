@@ -1580,6 +1580,9 @@ F: doc/guides/sample_app_ug/l2_forward_event.rst
 F: examples/l3fwd/
 F: doc/guides/sample_app_ug/l3_forward.rst
 
+M: Nithin Dabilpuram <ndabilpuram@marvell.com>
+F: examples/l3fwd-graph/
+
 F: examples/link_status_interrupt/
 F: doc/guides/sample_app_ug/link_status_intr.rst
 
