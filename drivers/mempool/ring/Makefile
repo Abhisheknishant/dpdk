@@ -10,6 +10,7 @@ LIB = librte_mempool_ring.a
 
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 LDLIBS += -lrte_eal -lrte_mempool -lrte_ring
 
 EXPORT_MAP := rte_mempool_ring_version.map
