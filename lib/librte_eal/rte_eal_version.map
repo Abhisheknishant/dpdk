@@ -358,6 +358,7 @@ EXPERIMENTAL {
 	rte_trace_mode_get;
 	rte_trace_pattern;
 	rte_trace_regexp;
+	rte_trace_save;
 	rte_trace_from_name;
 	rte_trace_metadata_dump;
 	rte_trace_dump;
