@@ -1555,20 +1555,9 @@ ixgbe_fdir_ctrl_func(struct rte_eth_dev *dev,
 		return -EINVAL;
 
 	switch (filter_op) {
-	case RTE_ETH_FILTER_ADD:
-		ret = ixgbe_add_del_fdir_filter(dev,
-			(struct rte_eth_fdir_filter *)arg, FALSE, FALSE);
-		break;
 	case RTE_ETH_FILTER_UPDATE:
 		ret = ixgbe_add_del_fdir_filter(dev,
 			(struct rte_eth_fdir_filter *)arg, FALSE, TRUE);
-		break;
-	case RTE_ETH_FILTER_DELETE:
-		ret = ixgbe_add_del_fdir_filter(dev,
-			(struct rte_eth_fdir_filter *)arg, TRUE, FALSE);
-		break;
-	case RTE_ETH_FILTER_FLUSH:
-		ret = ixgbe_fdir_flush(dev);
 		break;
 	case RTE_ETH_FILTER_INFO:
 		ixgbe_fdir_info_get(dev, (struct rte_eth_fdir_info *)arg);
