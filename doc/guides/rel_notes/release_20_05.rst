@@ -56,6 +56,10 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Added Trace Library.**
+
+  A new library is added to record CTF based trace events to debug/analyze
+  DPDK application for slow and fast path APIs at run time.
 
 Removed Items
 -------------
