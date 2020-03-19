@@ -1022,6 +1022,7 @@ tap_dev_close(struct rte_eth_dev *dev)
 	int i;
 	struct pmd_internals *internals = dev->data->dev_private;
 	struct pmd_process_private *process_private = dev->process_private;
+	struct rx_queue *rxq;
 
 	tap_link_set_down(dev);
 	tap_flow_flush(dev, NULL);
@@ -1029,8 +1030,13 @@ tap_dev_close(struct rte_eth_dev *dev)
 
 	for (i = 0; i < RTE_PMD_TAP_MAX_QUEUES; i++) {
 		if (process_private->rxq_fds[i] != -1) {
+			rxq = &internals->rxq[i];
 			close(process_private->rxq_fds[i]);
 			process_private->rxq_fds[i] = -1;
+			rte_pktmbuf_free(rxq->pool);
+			rte_free(rxq->iovecs);
+			rxq->pool = NULL;
+			rxq->iovecs = NULL;
 		}
 		if (process_private->txq_fds[i] != -1) {
 			close(process_private->txq_fds[i]);
@@ -2399,6 +2405,7 @@ rte_pmd_tap_remove(struct rte_vdev_device *dev)
 	struct rte_eth_dev *eth_dev = NULL;
 	struct pmd_internals *internals;
 	struct pmd_process_private *process_private;
+	struct rx_queue *rxq;
 	int i;
 
 	/* find the ethdev entry */
@@ -2425,8 +2432,13 @@ rte_pmd_tap_remove(struct rte_vdev_device *dev)
 	}
 	for (i = 0; i < RTE_PMD_TAP_MAX_QUEUES; i++) {
 		if (process_private->rxq_fds[i] != -1) {
+			rxq = &internals->rxq[i];
 			close(process_private->rxq_fds[i]);
 			process_private->rxq_fds[i] = -1;
+			rte_pktmbuf_free(rxq->pool);
+			rte_free(rxq->iovecs);
+			rxq->pool = NULL;
+			rxq->iovecs = NULL;
 		}
 		if (process_private->txq_fds[i] != -1) {
 			close(process_private->txq_fds[i]);
