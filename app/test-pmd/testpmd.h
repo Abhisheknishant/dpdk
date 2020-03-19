@@ -321,8 +321,15 @@ extern uint16_t nb_rx_queue_stats_mappings;
 
 extern uint8_t xstats_hide_zero; /**< Hide zero values for xstats display */
 
+#ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
+#define RECORD_CORE_CYCLES_FWD (1<<0)
+#define RECORD_CORE_CYCLES_RX (1<<1)
+#define RECORD_CORE_CYCLES_TX (1<<2)
+#endif
+
 /* globals used for configuration */
 extern uint16_t verbose_level; /**< Drives messages being displayed, if any. */
+extern uint16_t fwdprof_flags; /**< Controls the profiling statistics. */
 extern int testpmd_logtype; /**< Log type for testpmd logs */
 extern uint8_t  interactive;
 extern uint8_t  auto_start;
@@ -787,6 +794,7 @@ void set_qmap(portid_t port_id, uint8_t is_rx, uint16_t queue_id, uint8_t map_va
 void set_xstats_hide_zero(uint8_t on_off);
 
 void set_verbose_level(uint16_t vb_level);
+void set_fwdprof_flags(uint16_t pf_flags);
 void set_tx_pkt_segments(unsigned *seg_lengths, unsigned nb_segs);
 void show_tx_pkt_segments(void);
 void set_tx_pkt_split(const char *name);

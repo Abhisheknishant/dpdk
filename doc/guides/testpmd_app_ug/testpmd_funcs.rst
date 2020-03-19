@@ -647,6 +647,28 @@ Regexes can also be used for type. To change log level of user1, user2 and user3
 
 	testpmd> set log user[1-3] (level)
 
+set fwdprof
+~~~~~~~~~~~
+
+Set the flags controlling the datapath profiling statistics::
+
+   testpmd> set fwdprof (flags)
+
+This command is available only if ``CONFIG_RTE_TEST_PMD_RECORD_CORE_CYCLES`` is
+configured to Y, enabling the profiling code generation.
+
+The bitmask flag controls the gathering profiling statistics for datapath:
+
+* ``bit 0`` enables gathering the profiling data for the entire
+  forwarding routine, counts the ticks spent in the forwarding routine,
+  is set by default.
+* ``bit 1`` enables gathering the profiling data for the transmit datapath,
+  counts the ticks spent within rte_eth_tx_burst() routine, is cleared by
+  default.
+* ``bit 2`` enables gathering the profiling data for the receive datapath,
+  counts the ticks spent within rte_eth_rx_burst() routine, is cleared by
+  default.
+
 set nbport
 ~~~~~~~~~~
 

@@ -3151,6 +3151,16 @@ set_verbose_level(uint16_t vb_level)
 	configure_rxtx_dump_callbacks(verbose_level);
 }
 
+#ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
+void
+set_fwdprof_flags(uint16_t pf_flags)
+{
+	printf("Change forward profiling flags from %u to %u\n",
+	       (unsigned int) fwdprof_flags, (unsigned int) pf_flags);
+	fwdprof_flags = pf_flags;
+}
+#endif
+
 void
 vlan_extend_set(portid_t port_id, int on)
 {

@@ -81,6 +81,9 @@
 #define EXTBUF_ZONE_SIZE RTE_PGSIZE_2M
 
 uint16_t verbose_level = 0; /**< Silent by default. */
+#ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
+uint16_t fwdprof_flags = RECORD_CORE_CYCLES_FWD; /**< Fwd only by default. */
+#endif
 int testpmd_logtype; /**< Log type for testpmd logs */
 
 /* use master core for command line ? */

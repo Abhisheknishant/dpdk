@@ -263,6 +263,9 @@ static void cmd_help_long_parsed(void *parsed_result,
 			"set verbose (level)\n"
 			"    Set the debug verbosity level X.\n\n"
 
+			"set fwdprof (flags)\n"
+			"    Set the flags to profile the forwarding.\n\n"
+
 			"set log global|(type) (level)\n"
 			"    Set the log level.\n\n"
 
@@ -3743,20 +3746,32 @@ static void cmd_set_parsed(void *parsed_result,
 		set_nb_pkt_per_burst(res->value);
 	else if (!strcmp(res->what, "verbose"))
 		set_verbose_level(res->value);
+#ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
+	else if (!strcmp(res->what, "fwdprof"))
+		set_fwdprof_flags(res->value);
+#endif
 }
 
 cmdline_parse_token_string_t cmd_set_set =
 	TOKEN_STRING_INITIALIZER(struct cmd_set_result, set, "set");
 cmdline_parse_token_string_t cmd_set_what =
 	TOKEN_STRING_INITIALIZER(struct cmd_set_result, what,
+#ifndef RTE_TEST_PMD_RECORD_CORE_CYCLES
 				 "nbport#nbcore#burst#verbose");
+#else
+				 "nbport#nbcore#burst#verbose#fwdprof");
+#endif
 cmdline_parse_token_num_t cmd_set_value =
 	TOKEN_NUM_INITIALIZER(struct cmd_set_result, value, UINT16);
 
 cmdline_parse_inst_t cmd_set_numbers = {
 	.f = cmd_set_parsed,
 	.data = NULL,
+#ifndef RTE_TEST_PMD_RECORD_CORE_CYCLES
 	.help_str = "set nbport|nbcore|burst|verbose <value>",
+#else
+	.help_str = "set nbport|nbcore|burst|verbose|fwdprof <value>",
+#endif
 	.tokens = {
 		(void *)&cmd_set_set,
 		(void *)&cmd_set_what,
