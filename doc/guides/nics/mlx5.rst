@@ -1267,6 +1267,16 @@ Supported hardware offloads
    |                       | |  ConnectX-5   | | ConnectX-5    |
    +-----------------------+-----------------+-----------------+
 
+Notes for metadata
+------------------
+MARK and META come and go to data path, so zero value has special meaning to
+metadata actions/items. The special meaning is to say that this packet don't
+have META/MARK anymore - clear it.
+
+Summery:
+1. Metadata actions allows setting meta, tag & mark to zero value.
+2. Match on metadata items is allowed, as long as mask is not zero.
+
 Notes for testpmd
 -----------------
 
