@@ -25,6 +25,7 @@ LDLIBS += -lrte_ethdev
 LDLIBS += $(JANSSON_LINK)
 
 CFLAGS += $(JANSSON_CFLAGS)
+CFLAGS += -I$(RTE_SDK)/lib/librte_telemetry/
 endif
 
 # Install header file
