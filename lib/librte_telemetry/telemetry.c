@@ -15,6 +15,7 @@
 #include <rte_spinlock.h>
 
 #include "rte_telemetry.h"
+#include "rte_telemetry_legacy.h"
 
 #define MAX_CMD_LEN 56
 
@@ -36,6 +37,7 @@ struct socket {
 	handler fn;
 };
 static struct socket v2_socket; /* socket for v2 telemetry */
+static struct socket v1_socket; /* socket for v1 telemetry */
 static char telemetry_log_error[1024]; /* Will contain error on init failure */
 /* list of command callbacks, with one command registered by default */
 static struct cmd_callback callbacks[TELEMETRY_MAX_CALLBACKS] = {
@@ -182,6 +184,8 @@ unlink_sockets(void)
 {
 	if (v2_socket.path[0])
 		unlink(v2_socket.path);
+	if (v1_socket.path[0])
+		unlink(v1_socket.path);
 }
 
 static int
@@ -219,6 +223,34 @@ error:
 	close(sock);
 	unlink_sockets();
 	return -1;
+}
+
+static int __rte_unused /* will be used in future commit */
+telemetry_legacy_init(const char *runtime_dir, const char **err_str)
+{
+	pthread_t t_old;
+
+	if (num_legacy_callbacks == 1) {
+		*err_str = "No legacy callbacks - error creating legacy socket";
+		return -1;
+	}
+
+	v1_socket.fn = legacy_client_handler;
+	if ((size_t) snprintf(v1_socket.path, sizeof(v1_socket.path),
+			"%s/telemetry", runtime_dir)
+			>= sizeof(v1_socket.path)) {
+		snprintf(telemetry_log_error, sizeof(telemetry_log_error),
+				"Error with socket binding, path too long");
+		return -1;
+	}
+	v1_socket.sock = create_socket(v1_socket.path);
+	if (v1_socket.sock < 0) {
+		*err_str = telemetry_log_error;
+		return -1;
+	}
+	pthread_create(&t_old, NULL, socket_listener, &v1_socket);
+
+	return 0;
 }
 
 static int

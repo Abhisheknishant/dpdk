@@ -21,7 +21,7 @@ ifneq ($(JANSSON_LINK),)
 SRCS-y += rte_metrics_telemetry.c
 SYMLINK-$(CONFIG_RTE_LIBRTE_METRICS)-include += rte_metrics_telemetry.h
 
-LDLIBS += -lrte_ethdev
+LDLIBS += -lrte_ethdev -lrte_telemetry
 LDLIBS += $(JANSSON_LINK)
 
 CFLAGS += $(JANSSON_CFLAGS)

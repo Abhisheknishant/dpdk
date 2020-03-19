@@ -125,4 +125,5 @@ int rte_telemetry_register_cmd(const char *cmd, telemetry_cb fn);
  */
 __rte_experimental
 int rte_telemetry_new_init(void);
+
 #endif
