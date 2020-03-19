@@ -100,3 +100,5 @@ include $(RTE_SDK)/mk/target/$(RTE_TARGET)/rte.vars.mk
 else
 include $(RTE_SDK)/mk/target/generic/rte.vars.mk
 endif
+
+PKG_CONFIG?=$(CROSS)pkg-config
