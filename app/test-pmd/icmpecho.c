@@ -294,20 +294,17 @@ reply_to_icmp_echo_rqsts(struct fwd_stream *fs)
 	uint8_t  i;
 	int l2_len;
 #ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
-	uint64_t start_tsc;
-	uint64_t end_tsc;
-	uint64_t core_cycles;
-#endif
-
-#ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
-	start_tsc = rte_rdtsc();
+	uint64_t start_rx_tsc = 0;
+	uint64_t start_tx_tsc = 0;
 #endif
 
 	/*
 	 * First, receive a burst of packets.
 	 */
+	TEST_PMD_CORE_CYC_RX_START(start_rx_tsc);
 	nb_rx = rte_eth_rx_burst(fs->rx_port, fs->rx_queue, pkts_burst,
 				 nb_pkt_per_burst);
+	TEST_PMD_CORE_CYC_RX_ADD(fs, start_rx_tsc);
 	if (unlikely(nb_rx == 0))
 		return;
 
@@ -492,8 +489,10 @@ reply_to_icmp_echo_rqsts(struct fwd_stream *fs)
 
 	/* Send back ICMP echo replies, if any. */
 	if (nb_replies > 0) {
+		TEST_PMD_CORE_CYC_TX_START(start_tx_tsc);
 		nb_tx = rte_eth_tx_burst(fs->tx_port, fs->tx_queue, pkts_burst,
 					 nb_replies);
+		TEST_PMD_CORE_CYC_TX_ADD(fs, start_tx_tsc);
 		/*
 		 * Retry if necessary
 		 */
@@ -502,10 +501,12 @@ reply_to_icmp_echo_rqsts(struct fwd_stream *fs)
 			while (nb_tx < nb_replies &&
 					retry++ < burst_tx_retry_num) {
 				rte_delay_us(burst_tx_delay_time);
+				TEST_PMD_CORE_CYC_TX_START(start_tx_tsc);
 				nb_tx += rte_eth_tx_burst(fs->tx_port,
 						fs->tx_queue,
 						&pkts_burst[nb_tx],
 						nb_replies - nb_tx);
+				TEST_PMD_CORE_CYC_TX_ADD(fs, start_tx_tsc);
 			}
 		}
 		fs->tx_packets += nb_tx;
@@ -520,11 +521,7 @@ reply_to_icmp_echo_rqsts(struct fwd_stream *fs)
 		}
 	}
 
-#ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
-	end_tsc = rte_rdtsc();
-	core_cycles = (end_tsc - start_tsc);
-	fs->core_cycles = (uint64_t) (fs->core_cycles + core_cycles);
-#endif
+	TEST_PMD_CORE_CYC_FWD_ADD(fs, start_rx_tsc);
 }
 
 struct fwd_engine icmp_echo_engine = {

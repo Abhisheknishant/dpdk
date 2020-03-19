@@ -241,15 +241,11 @@ pkt_burst_transmit(struct fwd_stream *fs)
 	uint64_t ol_flags = 0;
 	uint64_t tx_offloads;
 #ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
-	uint64_t start_tsc;
-	uint64_t end_tsc;
-	uint64_t core_cycles;
+	uint64_t start_rx_tsc = 0;
+	uint64_t start_tx_tsc = 0;
 #endif
 
-#ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
-	start_tsc = rte_rdtsc();
-#endif
-
+	TEST_PMD_CORE_CYC_RX_START(start_rx_tsc);
 	mbp = current_fwd_lcore()->mbp;
 	txp = &ports[fs->tx_port];
 	tx_offloads = txp->dev_conf.txmode.offloads;
@@ -301,7 +297,9 @@ pkt_burst_transmit(struct fwd_stream *fs)
 	if (nb_pkt == 0)
 		return;
 
+	TEST_PMD_CORE_CYC_TX_START(start_tx_tsc);
 	nb_tx = rte_eth_tx_burst(fs->tx_port, fs->tx_queue, pkts_burst, nb_pkt);
+	TEST_PMD_CORE_CYC_TX_ADD(fs, start_tx_tsc);
 	/*
 	 * Retry if necessary
 	 */
@@ -309,8 +307,10 @@ pkt_burst_transmit(struct fwd_stream *fs)
 		retry = 0;
 		while (nb_tx < nb_pkt && retry++ < burst_tx_retry_num) {
 			rte_delay_us(burst_tx_delay_time);
+			TEST_PMD_CORE_CYC_TX_START(start_tx_tsc);
 			nb_tx += rte_eth_tx_burst(fs->tx_port, fs->tx_queue,
 					&pkts_burst[nb_tx], nb_pkt - nb_tx);
+			TEST_PMD_CORE_CYC_TX_ADD(fs, start_tx_tsc);
 		}
 	}
 	fs->tx_packets += nb_tx;
@@ -334,11 +334,7 @@ pkt_burst_transmit(struct fwd_stream *fs)
 		} while (++nb_tx < nb_pkt);
 	}
 
-#ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
-	end_tsc = rte_rdtsc();
-	core_cycles = (end_tsc - start_tsc);
-	fs->core_cycles = (uint64_t) (fs->core_cycles + core_cycles);
-#endif
+	TEST_PMD_CORE_CYC_FWD_ADD(fs, start_rx_tsc);
 }
 
 static void

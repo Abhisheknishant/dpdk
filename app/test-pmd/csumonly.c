@@ -789,18 +789,15 @@ pkt_burst_checksum_forward(struct fwd_stream *fs)
 	int ret;
 
 #ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
-	uint64_t start_tsc;
-	uint64_t end_tsc;
-	uint64_t core_cycles;
-#endif
-
-#ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
-	start_tsc = rte_rdtsc();
+	uint64_t start_rx_tsc = 0;
+	uint64_t start_tx_tsc = 0;
 #endif
 
 	/* receive a burst of packet */
+	TEST_PMD_CORE_CYC_RX_START(start_rx_tsc);
 	nb_rx = rte_eth_rx_burst(fs->rx_port, fs->rx_queue, pkts_burst,
 				 nb_pkt_per_burst);
+	TEST_PMD_CORE_CYC_RX_ADD(fs, start_rx_tsc);
 	if (unlikely(nb_rx == 0))
 		return;
 #ifdef RTE_TEST_PMD_RECORD_BURST_STATS
@@ -1067,8 +1064,10 @@ tunnel_update:
 		printf("Preparing packet burst to transmit failed: %s\n",
 				rte_strerror(rte_errno));
 
+	TEST_PMD_CORE_CYC_TX_START(start_tx_tsc);
 	nb_tx = rte_eth_tx_burst(fs->tx_port, fs->tx_queue, tx_pkts_burst,
 			nb_prep);
+	TEST_PMD_CORE_CYC_TX_ADD(fs, start_tx_tsc);
 
 	/*
 	 * Retry if necessary
@@ -1077,8 +1076,10 @@ tunnel_update:
 		retry = 0;
 		while (nb_tx < nb_rx && retry++ < burst_tx_retry_num) {
 			rte_delay_us(burst_tx_delay_time);
+			TEST_PMD_CORE_CYC_TX_START(start_tx_tsc);
 			nb_tx += rte_eth_tx_burst(fs->tx_port, fs->tx_queue,
 					&tx_pkts_burst[nb_tx], nb_rx - nb_tx);
+			TEST_PMD_CORE_CYC_TX_ADD(fs, start_tx_tsc);
 		}
 	}
 	fs->tx_packets += nb_tx;
@@ -1096,11 +1097,7 @@ tunnel_update:
 		} while (++nb_tx < nb_rx);
 	}
 
-#ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
-	end_tsc = rte_rdtsc();
-	core_cycles = (end_tsc - start_tsc);
-	fs->core_cycles = (uint64_t) (fs->core_cycles + core_cycles);
-#endif
+	TEST_PMD_CORE_CYC_FWD_ADD(fs, start_rx_tsc);
 }
 
 struct fwd_engine csum_fwd_engine = {

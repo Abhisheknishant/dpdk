@@ -1625,6 +1625,8 @@ fwd_stats_display(void)
 	struct rte_eth_stats stats;
 #ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
 	uint64_t fwd_cycles = 0;
+	uint64_t rx_cycles = 0;
+	uint64_t tx_cycles = 0;
 #endif
 	uint64_t total_recv = 0;
 	uint64_t total_xmit = 0;
@@ -1655,6 +1657,8 @@ fwd_stats_display(void)
 
 #ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
 		fwd_cycles += fs->core_cycles;
+		rx_cycles += fs->core_rx_cycles;
+		tx_cycles += fs->core_tx_cycles;
 #endif
 	}
 	for (i = 0; i < cur_fwd_config.nb_fwd_ports; i++) {
@@ -1785,11 +1789,21 @@ fwd_stats_display(void)
 	       "%s\n",
 	       acc_stats_border, acc_stats_border);
 #ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
-	if (total_recv > 0)
+	if (fwdprof_flags & RECORD_CORE_CYCLES_FWD && total_recv > 0)
 		printf("\n  CPU cycles/packet=%u (total cycles="
 		       "%"PRIu64" / total RX packets=%"PRIu64")\n",
 		       (unsigned int)(fwd_cycles / total_recv),
 		       fwd_cycles, total_recv);
+	if (fwdprof_flags & RECORD_CORE_CYCLES_RX && total_recv > 0)
+		printf("\n  rx CPU cycles/packet=%u (total cycles="
+		       "%"PRIu64" / total RX packets=%"PRIu64")\n",
+		       (unsigned int)(rx_cycles / total_recv),
+		       rx_cycles, total_recv);
+	if (fwdprof_flags & RECORD_CORE_CYCLES_TX && total_xmit > 0)
+		printf("\n  tx CPU cycles/packet=%u (total cycles="
+		       "%"PRIu64" / total TX packets=%"PRIu64")\n",
+		       (unsigned int)(tx_cycles / total_xmit),
+		       tx_cycles, total_xmit);
 #endif
 }
 
@@ -1820,6 +1834,8 @@ fwd_stats_reset(void)
 #endif
 #ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
 		fs->core_cycles = 0;
+		fs->core_rx_cycles = 0;
+		fs->core_tx_cycles = 0;
 #endif
 	}
 }

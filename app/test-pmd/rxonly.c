@@ -51,18 +51,16 @@ pkt_burst_receive(struct fwd_stream *fs)
 	uint16_t i;
 
 #ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
-	uint64_t start_tsc;
-	uint64_t end_tsc;
-	uint64_t core_cycles;
-
-	start_tsc = rte_rdtsc();
+	uint64_t start_rx_tsc = 0;
 #endif
 
 	/*
 	 * Receive a burst of packets.
 	 */
+	TEST_PMD_CORE_CYC_RX_START(start_rx_tsc);
 	nb_rx = rte_eth_rx_burst(fs->rx_port, fs->rx_queue, pkts_burst,
 				 nb_pkt_per_burst);
+	TEST_PMD_CORE_CYC_RX_ADD(fs, start_rx_tsc);
 	if (unlikely(nb_rx == 0))
 		return;
 
@@ -73,11 +71,7 @@ pkt_burst_receive(struct fwd_stream *fs)
 	for (i = 0; i < nb_rx; i++)
 		rte_pktmbuf_free(pkts_burst[i]);
 
-#ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
-	end_tsc = rte_rdtsc();
-	core_cycles = (end_tsc - start_tsc);
-	fs->core_cycles = (uint64_t) (fs->core_cycles + core_cycles);
-#endif
+	TEST_PMD_CORE_CYC_FWD_ADD(fs, start_rx_tsc);
 }
 
 struct fwd_engine rx_only_engine = {

@@ -98,19 +98,16 @@ pkt_burst_flow_gen(struct fwd_stream *fs)
 	uint32_t retry;
 	uint64_t tx_offloads;
 #ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
-	uint64_t start_tsc;
-	uint64_t end_tsc;
-	uint64_t core_cycles;
+	uint64_t start_rx_tsc = 0;
+	uint64_t start_tx_tsc = 0;
 #endif
 	static int next_flow = 0;
 
-#ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
-	start_tsc = rte_rdtsc();
-#endif
-
 	/* Receive a burst of packets and discard them. */
+	TEST_PMD_CORE_CYC_RX_START(start_rx_tsc);
 	nb_rx = rte_eth_rx_burst(fs->rx_port, fs->rx_queue, pkts_burst,
 				 nb_pkt_per_burst);
+	TEST_PMD_CORE_CYC_RX_ADD(fs, start_rx_tsc);
 	fs->rx_packets += nb_rx;
 
 	for (i = 0; i < nb_rx; i++)
@@ -180,7 +177,9 @@ pkt_burst_flow_gen(struct fwd_stream *fs)
 		next_flow = (next_flow + 1) % cfg_n_flows;
 	}
 
+	TEST_PMD_CORE_CYC_TX_START(start_tx_tsc);
 	nb_tx = rte_eth_tx_burst(fs->tx_port, fs->tx_queue, pkts_burst, nb_pkt);
+	TEST_PMD_CORE_CYC_TX_ADD(fs, start_tx_tsc);
 	/*
 	 * Retry if necessary
 	 */
@@ -188,8 +187,10 @@ pkt_burst_flow_gen(struct fwd_stream *fs)
 		retry = 0;
 		while (nb_tx < nb_rx && retry++ < burst_tx_retry_num) {
 			rte_delay_us(burst_tx_delay_time);
+			TEST_PMD_CORE_CYC_TX_START(start_tx_tsc);
 			nb_tx += rte_eth_tx_burst(fs->tx_port, fs->tx_queue,
 					&pkts_burst[nb_tx], nb_rx - nb_tx);
+			TEST_PMD_CORE_CYC_TX_ADD(fs, start_tx_tsc);
 		}
 	}
 	fs->tx_packets += nb_tx;
@@ -207,11 +208,7 @@ pkt_burst_flow_gen(struct fwd_stream *fs)
 			rte_pktmbuf_free(pkts_burst[nb_tx]);
 		} while (++nb_tx < nb_pkt);
 	}
-#ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
-	end_tsc = rte_rdtsc();
-	core_cycles = (end_tsc - start_tsc);
-	fs->core_cycles = (uint64_t) (fs->core_cycles + core_cycles);
-#endif
+	TEST_PMD_CORE_CYC_FWD_ADD(fs, start_rx_tsc);
 }
 
 struct fwd_engine flow_gen_engine = {

@@ -136,7 +136,9 @@ struct fwd_stream {
 	/**< received packets has bad outer l4 checksum */
 	unsigned int gro_times;	/**< GRO operation times */
 #ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
-	uint64_t     core_cycles; /**< used for RX and TX processing */
+	uint64_t core_cycles; /**< used for RX and TX processing */
+	uint64_t core_tx_cycles; /**< used for tx_burst processing */
+	uint64_t core_rx_cycles; /**< used for rx_burst processing */
 #endif
 #ifdef RTE_TEST_PMD_RECORD_BURST_STATS
 	struct pkt_burst_stats rx_burst_stats;
@@ -325,7 +327,35 @@ extern uint8_t xstats_hide_zero; /**< Hide zero values for xstats display */
 #define RECORD_CORE_CYCLES_FWD (1<<0)
 #define RECORD_CORE_CYCLES_RX (1<<1)
 #define RECORD_CORE_CYCLES_TX (1<<2)
-#endif
+
+/* Macros to gather profiling statistics. */
+#define TEST_PMD_CORE_CYC_TX_START(a) \
+{if (fwdprof_flags & RECORD_CORE_CYCLES_TX) a = rte_rdtsc(); }
+
+#define TEST_PMD_CORE_CYC_RX_START(a) \
+{if (fwdprof_flags & (RECORD_CORE_CYCLES_FWD | \
+		       RECORD_CORE_CYCLES_RX)) a = rte_rdtsc(); }
+
+#define TEST_PMD_CORE_CYC_FWD_ADD(fs, s) \
+{if (fwdprof_flags & RECORD_CORE_CYCLES_FWD) \
+{uint64_t tsc = rte_rdtsc(); tsc -= (s); fs->core_cycles += tsc; } }
+
+#define TEST_PMD_CORE_CYC_TX_ADD(fs, s) \
+{if (fwdprof_flags & RECORD_CORE_CYCLES_TX) \
+{uint64_t tsc = rte_rdtsc(); tsc -= (s); fs->core_tx_cycles += tsc; } }
+
+#define TEST_PMD_CORE_CYC_RX_ADD(fs, s) \
+{if (fwdprof_flags & RECORD_CORE_CYCLES_RX) \
+{uint64_t tsc = rte_rdtsc(); tsc -= (s); fs->core_rx_cycles += tsc; } }
+
+#else
+/* No profiling statistics is configured. */
+#define TEST_PMD_CORE_CYC_TX_START(a)
+#define TEST_PMD_CORE_CYC_RX_START(a)
+#define TEST_PMD_CORE_CYC_FWD_ADD(fs, s)
+#define TEST_PMD_CORE_CYC_TX_ADD(fs, s)
+#define TEST_PMD_CORE_CYC_RX_ADD(fs, s)
+#endif /* RTE_TEST_PMD_RECORD_CORE_CYCLES */
 
 /* globals used for configuration */
 extern uint16_t verbose_level; /**< Drives messages being displayed, if any. */
