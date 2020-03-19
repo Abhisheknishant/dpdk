@@ -595,7 +595,11 @@ while [ "$QUIT" == "0" ]; do
 	echo -n "Option: "
 	read our_entry
 	echo ""
+
+	re='^[0-9]+$'
+	if  [[ $our_entry =~ $re ]] ; then
 	${OPTIONS[our_entry]} ${our_entry}
+	fi
 
 	if [ "$QUIT" == "0" ] ; then
 		echo
