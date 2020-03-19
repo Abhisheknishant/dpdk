@@ -415,6 +415,73 @@ flow_create_failure:
 	return 0;
 }
 
+int
+create_ipsec_esp_flow(struct ipsec_sa *sa)
+{
+	int ret = 0;
+	struct rte_flow_error err;
+	if (sa->direction == RTE_SECURITY_IPSEC_SA_DIR_EGRESS)
+		return 0; /* No Flow director rules for Egress traffic */
+	if (sa->flags == TRANSPORT) {
+		RTE_LOG(ERR, IPSEC,
+			"No Flow director rule for transport mode:");
+			return -1;
+	}
+	sa->action[0].type = RTE_FLOW_ACTION_TYPE_QUEUE;
+	sa->pattern[0].type = RTE_FLOW_ITEM_TYPE_ETH;
+	sa->action[0].conf =
+			&(struct rte_flow_action_queue){
+				.index = sa->fdir_qid,
+	};
+	sa->attr.egress = 0;
+	sa->attr.ingress = 1;
+	if (IS_IP6(sa->flags)) {
+		sa->pattern[1].mask = &rte_flow_item_ipv6_mask;
+		sa->pattern[1].type = RTE_FLOW_ITEM_TYPE_IPV6;
+		sa->pattern[1].spec = &sa->ipv6_spec;
+		memcpy(sa->ipv6_spec.hdr.dst_addr,
+				sa->dst.ip.ip6.ip6_b, IPV6_ADDR_LEN);
+		memcpy(sa->ipv6_spec.hdr.src_addr,
+				sa->src.ip.ip6.ip6_b, IPV6_ADDR_LEN);
+		sa->pattern[2].type = RTE_FLOW_ITEM_TYPE_ESP;
+		sa->pattern[2].spec = &sa->esp_spec;
+		sa->pattern[2].mask = &rte_flow_item_esp_mask;
+		sa->esp_spec.hdr.spi = rte_cpu_to_be_32(sa->spi);
+		sa->pattern[3].type = RTE_FLOW_ITEM_TYPE_END;
+	} else if (IS_IP4(sa->flags)) {
+		sa->pattern[1].mask = &rte_flow_item_ipv4_mask;
+		sa->pattern[1].type = RTE_FLOW_ITEM_TYPE_IPV4;
+		sa->pattern[1].spec = &sa->ipv4_spec;
+		sa->ipv4_spec.hdr.dst_addr = sa->dst.ip.ip4;
+		sa->ipv4_spec.hdr.src_addr = sa->src.ip.ip4;
+		sa->pattern[2].type = RTE_FLOW_ITEM_TYPE_ESP;
+		sa->pattern[2].spec = &sa->esp_spec;
+		sa->pattern[2].mask = &rte_flow_item_esp_mask;
+		sa->esp_spec.hdr.spi = rte_cpu_to_be_32(sa->spi);
+		sa->pattern[3].type = RTE_FLOW_ITEM_TYPE_END;
+	}
+	sa->action[1].type = RTE_FLOW_ACTION_TYPE_END;
+
+	ret = rte_flow_validate(sa->fdir_portid, &sa->attr,
+				sa->pattern, sa->action,
+				&err);
+	if (ret < 0) {
+		RTE_LOG(ERR, IPSEC,
+			"Flow Validation failed\n");
+		return ret;
+	}
+	sa->flow = rte_flow_create(sa->fdir_portid,
+				&sa->attr, sa->pattern, sa->action,
+				&err);
+	if (!sa->flow) {
+		RTE_LOG(ERR, IPSEC,
+			"Flow Creation failed\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 /*
  * queue crypto-ops into PMD queue.
  */

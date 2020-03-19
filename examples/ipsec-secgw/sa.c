@@ -20,6 +20,9 @@
 #include <rte_random.h>
 #include <rte_ethdev.h>
 #include <rte_malloc.h>
+#include <rte_common.h>
+#include <rte_string_fns.h>
+#include <rte_ethdev_driver.h>
 
 #include "ipsec.h"
 #include "esp.h"
@@ -271,6 +274,7 @@ parse_sa_tokens(char **tokens, uint32_t n_tokens,
 	uint32_t type_p = 0;
 	uint32_t portid_p = 0;
 	uint32_t fallback_p = 0;
+	int16_t status_p = 0;
 
 	if (strcmp(tokens[0], "in") == 0) {
 		ri = &nb_sa_in;
@@ -681,6 +685,38 @@ parse_sa_tokens(char **tokens, uint32_t n_tokens,
 			fallback_p = 1;
 			continue;
 		}
+		if (strcmp(tokens[ti], "flow-direction") == 0) {
+			if (ips->type ==
+				RTE_SECURITY_ACTION_TYPE_INLINE_PROTOCOL ||
+				ips->type ==
+				RTE_SECURITY_ACTION_TYPE_CPU_CRYPTO ||
+				ips->type ==
+				RTE_SECURITY_ACTION_TYPE_LOOKASIDE_PROTOCOL ||
+				ips->type ==
+				RTE_SECURITY_ACTION_TYPE_INLINE_CRYPTO) {
+				APP_CHECK(0, status, "Flow Director not "
+					"supported for security session "
+					"type:%d", ips->type);
+					return;
+			}
+			rule->fdir_flag = 1;
+			INCREMENT_TOKEN_INDEX(ti, n_tokens, status);
+			if (status->status < 0)
+				return;
+			rule->fdir_portid = atoi(tokens[ti]);
+			INCREMENT_TOKEN_INDEX(ti, n_tokens, status);
+			if (status->status < 0)
+				return;
+			rule->fdir_qid = atoi(tokens[ti]);
+			/* validating portid and queueid */
+			status_p = check_flow_params(rule->fdir_portid,
+					rule->fdir_qid);
+			if (status_p < 0) {
+				printf("port id %u / queue id %u is not valid\n",
+					rule->fdir_portid, rule->fdir_qid);
+			}
+			continue;
+		}
 
 		/* unrecognizeable input */
 		APP_CHECK(0, status, "unrecognized input \"%s\"",
@@ -823,6 +859,9 @@ print_one_sa_rule(const struct ipsec_sa *sa, int inbound)
 			break;
 		}
 	}
+	if (sa->fdir_flag == 1)
+		printf("flow-direction %d %d", sa->fdir_portid, sa->fdir_qid);
+
 	printf("\n");
 }
 
@@ -1153,7 +1192,12 @@ sa_add_rules(struct sa_ctx *sa_ctx, const struct ipsec_sa entries[],
 				return -EINVAL;
 			}
 		}
-
+		if (sa->fdir_flag && inbound) {
+			rc = create_ipsec_esp_flow(sa);
+			if (rc != 0)
+				RTE_LOG(ERR, IPSEC_ESP,
+					"create_ipsec_esp flow failed\n");
+			}
 		print_one_sa_rule(sa, inbound);
 	}
 
@@ -1254,6 +1298,20 @@ fill_ipsec_session(struct rte_ipsec_session *ss, struct rte_ipsec_sa *sa)
 	}
 
 	return rc;
+}
+
+int
+check_fdir_configured(uint16_t portid)
+{
+	struct ipsec_sa *sa = NULL;
+	uint32_t idx_sa = 0;
+
+	for (idx_sa = 0; idx_sa < nb_sa_in; idx_sa++) {
+		sa = &sa_in[idx_sa];
+		if (sa->fdir_portid == portid)
+			return sa->fdir_flag;
+	}
+	return 0;
 }
 
 /*
