@@ -14,7 +14,6 @@ CFLAGS += -I$(RTE_SDK)/lib/librte_eal/common/include
 CFLAGS += -I$(RTE_SDK)/lib/librte_eal/common/include/arch/$(ARCH_DIR)/
 CFLAGS += -pthread
 
-LDLIBS += -lrte_eal
 LDLIBS += -lpthread
 
 EXPORT_MAP := rte_telemetry_version.map

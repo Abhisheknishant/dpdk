@@ -918,7 +918,7 @@ CONFIG_RTE_LIBRTE_LATENCY_STATS=y
 #
 # Compile librte_telemetry
 #
-CONFIG_RTE_LIBRTE_TELEMETRY=n
+CONFIG_RTE_LIBRTE_TELEMETRY=y
 
 #
 # Compile librte_rcu

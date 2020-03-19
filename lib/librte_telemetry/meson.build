@@ -8,4 +8,3 @@ sources = files('telemetry.c', 'telemetry_legacy.c')
 headers = files('rte_telemetry.h')
 cflags += '-DALLOW_EXPERIMENTAL_API'
 includes += include_directories('../librte_metrics')
-dpdk_app_link_libraries += ['telemetry']

@@ -13,7 +13,7 @@ dpdk_conf.set('RTE_EXEC_ENV_' + exec_env.to_upper(), 1)
 subdir(exec_env + '/eal')
 
 allow_experimental_apis = true
-deps += 'kvargs'
+deps += ['kvargs', 'telemetry']
 if dpdk_conf.has('RTE_USE_LIBBSD')
 	ext_deps += libbsd
 endif

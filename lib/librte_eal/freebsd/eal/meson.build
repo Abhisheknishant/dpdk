@@ -19,4 +19,4 @@ env_sources = files('eal_alarm.c',
 		'eal_dev.c'
 )
 
-deps += ['kvargs']
+deps += ['kvargs', 'telemetry']
