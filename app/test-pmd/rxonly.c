@@ -60,7 +60,7 @@ pkt_burst_receive(struct fwd_stream *fs)
 	TEST_PMD_CORE_CYC_RX_START(start_rx_tsc);
 	nb_rx = rte_eth_rx_burst(fs->rx_port, fs->rx_queue, pkts_burst,
 				 nb_pkt_per_burst);
-	TEST_PMD_CORE_CYC_RX_ADD(fs, start_rx_tsc);
+	TEST_PMD_CORE_CYC_RX_ADD(fs, start_rx_tsc, nb_rx);
 	if (unlikely(nb_rx == 0))
 		return;
 

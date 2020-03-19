@@ -1515,7 +1515,7 @@ init_fwd_streams(void)
 
 #ifdef RTE_TEST_PMD_RECORD_BURST_STATS
 static void
-pkt_burst_stats_display(const char *rx_tx, struct pkt_burst_stats *pbs)
+pkt_burst_stats_display(int nrx_tx, struct pkt_burst_stats *pbs)
 {
 	unsigned int total_burst;
 	unsigned int nb_burst;
@@ -1549,8 +1549,8 @@ pkt_burst_stats_display(const char *rx_tx, struct pkt_burst_stats *pbs)
 	if (total_burst == 0)
 		return;
 	burst_percent[0] = (burst_stats[0] * 100) / total_burst;
-	printf("  %s-bursts : %u [%d%% of %d pkts", rx_tx, total_burst,
-	       burst_percent[0], (int) pktnb_stats[0]);
+	printf("  %s-bursts : %u [%d%% of %d pkts", nrx_tx ? "TX" : "RX",
+	       total_burst, burst_percent[0], (int) pktnb_stats[0]);
 	if (burst_stats[0] == total_burst) {
 		printf("]\n");
 		return;
@@ -1568,6 +1568,23 @@ pkt_burst_stats_display(const char *rx_tx, struct pkt_burst_stats *pbs)
 	}
 	printf(" + %d%% of %d pkts + %d%% of others]\n",
 	       burst_percent[1], (int) pktnb_stats[1], burst_percent[2]);
+#ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
+	if (!(fwdprof_flags & (nrx_tx ? RECORD_CORE_CYCLES_TX
+				      : RECORD_CORE_CYCLES_RX)))
+		return;
+	for (nb_pkt = 0; nb_pkt < MAX_PKT_BURST; nb_pkt++) {
+		nb_burst = nrx_tx ? pbs->pkt_retry_spread[nb_pkt]
+				  : pbs->pkt_burst_spread[nb_pkt];
+		if (nb_burst == 0)
+			continue;
+		printf("  CPU cycles/%u packet burst=%u (total cycles="
+		       "%"PRIu64" / total %s bursts=%u)\n",
+		       (unsigned int)nb_pkt,
+		       (unsigned int)(pbs->pkt_ticks_spread[nb_pkt] / nb_burst),
+		       pbs->pkt_ticks_spread[nb_pkt],
+		       nrx_tx ? "TX" : "RX", nb_burst);
+	}
+#endif
 }
 #endif /* RTE_TEST_PMD_RECORD_BURST_STATS */
 
@@ -1601,8 +1618,8 @@ fwd_stream_stats_display(streamid_t stream_id)
 	}
 
 #ifdef RTE_TEST_PMD_RECORD_BURST_STATS
-	pkt_burst_stats_display("RX", &fs->rx_burst_stats);
-	pkt_burst_stats_display("TX", &fs->tx_burst_stats);
+	pkt_burst_stats_display(false, &fs->rx_burst_stats);
+	pkt_burst_stats_display(true, &fs->tx_burst_stats);
 #endif
 }
 
@@ -1742,10 +1759,10 @@ fwd_stats_display(void)
 
 #ifdef RTE_TEST_PMD_RECORD_BURST_STATS
 		if (ports_stats[pt_id].rx_stream)
-			pkt_burst_stats_display("RX",
+			pkt_burst_stats_display(false,
 				&ports_stats[pt_id].rx_stream->rx_burst_stats);
 		if (ports_stats[pt_id].tx_stream)
-			pkt_burst_stats_display("TX",
+			pkt_burst_stats_display(true,
 				&ports_stats[pt_id].tx_stream->tx_burst_stats);
 #endif
 

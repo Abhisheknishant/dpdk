@@ -89,6 +89,10 @@ enum {
  */
 struct pkt_burst_stats {
 	unsigned int pkt_burst_spread[MAX_PKT_BURST];
+#ifdef RTE_TEST_PMD_RECORD_CORE_CYCLES
+	unsigned int pkt_retry_spread[MAX_PKT_BURST];
+	uint64_t pkt_ticks_spread[MAX_PKT_BURST];
+#endif
 };
 #endif
 
@@ -340,21 +344,35 @@ extern uint8_t xstats_hide_zero; /**< Hide zero values for xstats display */
 {if (fwdprof_flags & RECORD_CORE_CYCLES_FWD) \
 {uint64_t tsc = rte_rdtsc(); tsc -= (s); fs->core_cycles += tsc; } }
 
-#define TEST_PMD_CORE_CYC_TX_ADD(fs, s) \
+#ifdef RTE_TEST_PMD_RECORD_BURST_STATS
+#define TEST_PMD_CORE_CYC_TX_ADD(fs, s, np) \
+{if (fwdprof_flags & RECORD_CORE_CYCLES_TX) \
+{uint64_t tsc = rte_rdtsc(); tsc -= (s); fs->core_tx_cycles += tsc; \
+fs->tx_burst_stats.pkt_ticks_spread[np] += tsc; \
+fs->tx_burst_stats.pkt_retry_spread[np]++; } }
+
+#define TEST_PMD_CORE_CYC_RX_ADD(fs, s, np) \
+{if (fwdprof_flags & RECORD_CORE_CYCLES_RX) \
+{uint64_t tsc = rte_rdtsc(); tsc -= (s); fs->core_rx_cycles += tsc; \
+fs->rx_burst_stats.pkt_ticks_spread[np] += tsc; } }
+
+#else /* RTE_TEST_PMD_RECORD_BURST_STATS */
+#define TEST_PMD_CORE_CYC_TX_ADD(fs, s, np) \
 {if (fwdprof_flags & RECORD_CORE_CYCLES_TX) \
 {uint64_t tsc = rte_rdtsc(); tsc -= (s); fs->core_tx_cycles += tsc; } }
 
-#define TEST_PMD_CORE_CYC_RX_ADD(fs, s) \
+#define TEST_PMD_CORE_CYC_RX_ADD(fs, s, np) \
 {if (fwdprof_flags & RECORD_CORE_CYCLES_RX) \
 {uint64_t tsc = rte_rdtsc(); tsc -= (s); fs->core_rx_cycles += tsc; } }
+#endif /* RTE_TEST_PMD_RECORD_BURST_STATS */
 
 #else
 /* No profiling statistics is configured. */
 #define TEST_PMD_CORE_CYC_TX_START(a)
 #define TEST_PMD_CORE_CYC_RX_START(a)
 #define TEST_PMD_CORE_CYC_FWD_ADD(fs, s)
-#define TEST_PMD_CORE_CYC_TX_ADD(fs, s)
-#define TEST_PMD_CORE_CYC_RX_ADD(fs, s)
+#define TEST_PMD_CORE_CYC_TX_ADD(fs, s, np)
+#define TEST_PMD_CORE_CYC_RX_ADD(fs, s, np)
 #endif /* RTE_TEST_PMD_RECORD_CORE_CYCLES */
 
 /* globals used for configuration */

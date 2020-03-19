@@ -304,7 +304,7 @@ reply_to_icmp_echo_rqsts(struct fwd_stream *fs)
 	TEST_PMD_CORE_CYC_RX_START(start_rx_tsc);
 	nb_rx = rte_eth_rx_burst(fs->rx_port, fs->rx_queue, pkts_burst,
 				 nb_pkt_per_burst);
-	TEST_PMD_CORE_CYC_RX_ADD(fs, start_rx_tsc);
+	TEST_PMD_CORE_CYC_RX_ADD(fs, start_rx_tsc, nb_rx);
 	if (unlikely(nb_rx == 0))
 		return;
 
@@ -492,7 +492,7 @@ reply_to_icmp_echo_rqsts(struct fwd_stream *fs)
 		TEST_PMD_CORE_CYC_TX_START(start_tx_tsc);
 		nb_tx = rte_eth_tx_burst(fs->tx_port, fs->tx_queue, pkts_burst,
 					 nb_replies);
-		TEST_PMD_CORE_CYC_TX_ADD(fs, start_tx_tsc);
+		TEST_PMD_CORE_CYC_TX_ADD(fs, start_tx_tsc, nb_tx);
 		/*
 		 * Retry if necessary
 		 */
@@ -500,13 +500,17 @@ reply_to_icmp_echo_rqsts(struct fwd_stream *fs)
 			retry = 0;
 			while (nb_tx < nb_replies &&
 					retry++ < burst_tx_retry_num) {
+				uint16_t nb_rt;
+
 				rte_delay_us(burst_tx_delay_time);
 				TEST_PMD_CORE_CYC_TX_START(start_tx_tsc);
-				nb_tx += rte_eth_tx_burst(fs->tx_port,
+				nb_rt = rte_eth_tx_burst(fs->tx_port,
 						fs->tx_queue,
 						&pkts_burst[nb_tx],
 						nb_replies - nb_tx);
-				TEST_PMD_CORE_CYC_TX_ADD(fs, start_tx_tsc);
+				nb_tx += nb_rt;
+				TEST_PMD_CORE_CYC_TX_ADD(fs, start_tx_tsc,
+							 nb_rt);
 			}
 		}
 		fs->tx_packets += nb_tx;
