@@ -4147,11 +4147,19 @@ static void
 ixgbe_dev_cancel_link_thread(struct rte_eth_dev *dev)
 {
 	struct ixgbe_adapter *ad = dev->data->dev_private;
+	struct ixgbe_interrupt *intr =
+		IXGBE_DEV_PRIVATE_TO_INTR(dev->data->dev_private);
 	void *retval;
 
 	if (rte_atomic32_read(&ad->link_thread_running)) {
 		pthread_cancel(ad->link_thread_tid);
 		pthread_join(ad->link_thread_tid, &retval);
+		/* clear this flag once the thread has been
+		 * cancelled, to avoid link status error in
+		 * case unfinished threads cannot clean up
+		 * this flag.
+		 */
+		intr->flags &= ~IXGBE_FLAG_NEED_LINK_CONFIG;
 		rte_atomic32_clear(&ad->link_thread_running);
 	}
 }
@@ -4262,8 +4270,12 @@ ixgbe_dev_link_update_share(struct rte_eth_dev *dev,
 
 	if (link_up == 0) {
 		if (ixgbe_get_media_type(hw) == ixgbe_media_type_fiber) {
-			intr->flags |= IXGBE_FLAG_NEED_LINK_CONFIG;
 			if (rte_atomic32_test_and_set(&ad->link_thread_running)) {
+				/* To avoid race condition between threads, set
+				 * the IXGBE_FLAG_NEED_LINK_CONFIG flag only
+				 * when there is no link thread running.
+				 */
+				intr->flags |= IXGBE_FLAG_NEED_LINK_CONFIG;
 				if (rte_ctrl_thread_create(&ad->link_thread_tid,
 					"ixgbe-link-handler",
 					NULL,
