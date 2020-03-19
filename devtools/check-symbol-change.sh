@@ -17,13 +17,13 @@ build_map_changes()
 		# map files are altered, and all section/symbol names
 		# appearing between a triggering of this rule and the
 		# next trigger of this rule are associated with this file
-		/[-+] a\/.*\.map/ {map=$2; in_map=1}
+		/[-+] [ab]\/.*\.map/ {map=$2; in_map=1}
 
 		# Same pattern as above, only it matches on anything that
 		# does not end in 'map', indicating we have left the map chunk.
 		# When we hit this, turn off the in_map variable, which
 		# supresses the subordonate rules below
-		/[-+] a\/.*\.[^map]/ {in_map=0}
+		/[-+] [ab]\/.*\.[^map]/ {in_map=0}
 
 		# Triggering this rule, which starts a line and ends it
 		# with a { identifies a versioned section.  The section name is
