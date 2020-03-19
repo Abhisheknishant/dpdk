@@ -38,6 +38,9 @@
 #include <rte_kvargs.h>
 #include <rte_class.h>
 #include <rte_ether.h>
+#ifdef RTE_LIBRTE_TELEMETRY
+#include <rte_telemetry.h>
+#endif
 
 #include "rte_ethdev.h"
 #include "rte_ethdev_driver.h"
@@ -5189,9 +5192,85 @@ parse_cleanup:
 	return result;
 }
 
+#ifdef RTE_LIBRTE_TELEMETRY
+static int
+handle_port_list(const char *cmd __rte_unused,
+		const char *params __rte_unused,
+		char *buffer, int buf_len)
+{
+	int used = 0;
+	int port_id;
+
+	used = strlcpy(buffer, "[", buf_len);
+	RTE_ETH_FOREACH_DEV(port_id)
+		used += snprintf(buffer + used, buf_len - used, "%d,", port_id);
+	buffer[used - 1] = ']';
+	return used;
+}
+
+static int
+handle_port_stats(const char *cmd __rte_unused,
+		const char *params,
+		char *buffer, int buf_len)
+{
+	struct rte_eth_xstat *eth_xstats;
+	struct rte_eth_xstat_name *xstat_names;
+	int port_id, num_xstats;
+	int i, ret;
+	int used = 0;
+
+	if (params == NULL || strlen(params) == 0 || !isdigit(*params))
+		return -1;
+
+	port_id = atoi(params);
+	if (!rte_eth_dev_is_valid_port(port_id))
+		return -1;
+
+	used = strlcpy(buffer, "{", buf_len);
+
+	num_xstats = rte_eth_xstats_get(port_id, NULL, 0);
+	if (num_xstats < 0)
+		return -1;
+
+	/* use one malloc for both names and stats */
+	eth_xstats = malloc((sizeof(struct rte_eth_xstat) +
+			sizeof(struct rte_eth_xstat_name)) * num_xstats);
+	if (eth_xstats == NULL)
+		return -1;
+	xstat_names = (void *)&eth_xstats[num_xstats];
+
+	ret = rte_eth_xstats_get_names(port_id, xstat_names, num_xstats);
+	if (ret < 0 || ret > num_xstats) {
+		free(eth_xstats);
+		return -1;
+	}
+
+	ret = rte_eth_xstats_get(port_id, eth_xstats, num_xstats);
+	if (ret < 0 || ret > num_xstats) {
+		free(eth_xstats);
+		return -1;
+	}
+
+	for (i = 0; i < num_xstats; i++) {
+		ret = snprintf(buffer + used, buf_len - used, "\"%s\":%"PRIu64",",
+				xstat_names[i].name, eth_xstats[i].value);
+		if (ret + used >= buf_len)
+			break;
+		used += ret;
+	}
+
+	buffer[used - 1] = '}';
+	return used;
+}
+#endif
+
 RTE_INIT(ethdev_init_log)
 {
 	rte_eth_dev_logtype = rte_log_register("lib.ethdev");
 	if (rte_eth_dev_logtype >= 0)
 		rte_log_set_level(rte_eth_dev_logtype, RTE_LOG_INFO);
+#ifdef RTE_LIBRTE_TELEMETRY
+	rte_telemetry_register_cmd("/ethdev/list", handle_port_list);
+	rte_telemetry_register_cmd("/ethdev/stats", handle_port_stats);
+#endif
 }
