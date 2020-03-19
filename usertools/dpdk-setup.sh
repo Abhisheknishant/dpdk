@@ -595,7 +595,13 @@ while [ "$QUIT" == "0" ]; do
 	echo -n "Option: "
 	read our_entry
 	echo ""
-	${OPTIONS[our_entry]} ${our_entry}
+	echo $our_entry | grep "^[0-9]*$" > /dev/null
+
+	if  [ "$?" -eq 0 ] ; then
+		${OPTIONS[our_entry]} ${our_entry}
+	else
+		echo "Wrong input format"
+	fi
 
 	if [ "$QUIT" == "0" ] ; then
 		echo
