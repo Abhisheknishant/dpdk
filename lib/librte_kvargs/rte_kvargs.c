@@ -48,7 +48,8 @@ rte_kvargs_tokenize(struct rte_kvargs *kvlist, const char *params)
 		str = kvlist->pairs[i].value;
 		if (str[0] == '[') {
 			/* Find the end of the list. */
-			while (str[strlen(str) - 1] != ']') {
+			while ((str[strlen(str) - 1] != ']') &&
+			       (strlen(ctx1) > 0)) {
 				/* Restore the comma erased by strtok_r(). */
 				str[strlen(str)] = ',';
 				/* Parse until next comma. */
