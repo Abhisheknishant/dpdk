@@ -592,10 +592,16 @@ while [ "$QUIT" == "0" ]; do
 	echo "[$OPTION_NUM] Exit Script"
 	OPTIONS[$OPTION_NUM]="quit"
 	echo ""
-	echo -n "Option: "
-	read our_entry
+	read -p "Option: " our_entry
+       [ $? -eq 0 ] || exit 0
+
 	echo ""
-	${OPTIONS[our_entry]} ${our_entry}
+       numeric="^[[:digit:]]+$"
+       if [[ "$our_entry" =~ $numeric ]]; then
+     		${OPTIONS[our_entry]} ${our_entry}
+       else
+   		echo "Please enter a numeric value"
+       fi
 
 	if [ "$QUIT" == "0" ] ; then
 		echo
