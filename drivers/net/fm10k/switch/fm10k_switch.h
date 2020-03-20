@@ -76,6 +76,37 @@
 #define FM10K_SW_MEM_POOL_SEGS_MAX	24576
 #define FM10K_SW_MEM_POOL_SEGS_RSVD	256
 
+/*
+ * GLORT MAP
+ */
+#define FM10K_SW_EPLA_GLORT		0x10
+#define FM10K_SW_EPLB_GLORT		0x20
+#define FM10K_SW_PEP01_GLORT		0x30
+#define FM10K_SW_PEP23_GLORT		0x40
+#define FM10K_SW_PEP45_GLORT		0x50
+#define FM10K_SW_PEP67_GLORT		0x60
+
+/*
+ * logical port number
+ */
+#define FM10K_SW_EPLA_LOGICAL_PORT	1
+#define FM10K_SW_EPLB_LOGICAL_PORT	2
+
+#define FM10K_SW_PEP01_LOGICAL_PORT	3
+#define FM10K_SW_PEP23_LOGICAL_PORT	4
+#define FM10K_SW_PEP45_LOGICAL_PORT	5
+#define FM10K_SW_PEP67_LOGICAL_PORT	6
+
+/*
+ * physical port number
+ */
+#define FM10K_SW_EPLA_PHYSICAL_PORT	0
+#define FM10K_SW_EPLB_PHYSICAL_PORT	4
+
+#define FM10K_SW_PEP01_PHYSICAL_PORT	36
+#define FM10K_SW_PEP23_PHYSICAL_PORT	40
+#define FM10K_SW_PEP45_PHYSICAL_PORT	44
+#define FM10K_SW_PEP67_PHYSICAL_PORT	48
 
 
 #define FM10K_SW_CARD_ID(v_, d_)	(((v_) << 16) | (d_))
@@ -111,6 +142,7 @@
 #define FM10K_SW_DEV_ID_PE3100G2DQIRM_QXSL4		0x01C2
 #define FM10K_SW_DEV_ID_PE325G2DSIR			0x01C8
 
+
 /*
  * SWITCH
  */
@@ -123,6 +155,15 @@ struct fm10k_device_info {
 	uint8_t ext_port_speed;
 	uint8_t num_epls;
 	uint8_t num_peps;
+};
+
+static struct fm10k_device_info fm10k_device_table[] = {
+	{   FM10K_SW_VENDOR_ID_SILICOM,	FM10K_SW_DEV_ID_PE3100G2DQIR_QXSL4,
+		"Silicom PE3100G2DQiR-QX4/QS4/QL4",	2, 100, 2, 2 },
+	{   FM10K_SW_VENDOR_ID_SILICOM,	FM10K_SW_DEV_ID_PE3100G2DQIRL_QXSL4,
+		"Silicom PE3100G2DQiRL-QX4/QS4/QL4",	2, 100, 2, 2 },
+	{   FM10K_SW_VENDOR_ID_SILICOM,	FM10K_SW_DEV_ID_PE3100G2DQIRM_QXSL4,
+		"Silicom PE3100G2DQiRM-QX4/QS4/QL4",	2, 100, 2, 4 },
 };
 
 
@@ -287,6 +328,114 @@ fm10k_gpio_output_set(struct fm10k_switch *sw, int gpio_pin, int value)
 	fm10k_write_switch_reg(sw, FM10K_SW_GPIO_DATA, data);
 }
 
+
+static struct fm10k_sw_port_map fm10k_pep_port_map[FM10K_SW_PEPS_SUPPORTED] = {
+	{
+		FM10K_SW_PEP01_GLORT,
+		FM10K_SW_PEP01_LOGICAL_PORT,
+		FM10K_SW_PEP01_PHYSICAL_PORT
+	},
+	{
+		FM10K_SW_PEP23_GLORT,
+		FM10K_SW_PEP23_LOGICAL_PORT,
+		FM10K_SW_PEP23_PHYSICAL_PORT
+	},
+	{
+		FM10K_SW_PEP45_GLORT,
+		FM10K_SW_PEP45_LOGICAL_PORT,
+		FM10K_SW_PEP45_PHYSICAL_PORT
+	},
+	{
+		FM10K_SW_PEP67_GLORT,
+		FM10K_SW_PEP67_LOGICAL_PORT,
+		FM10K_SW_PEP67_PHYSICAL_PORT
+	},
+};
+
+static struct fm10k_sw_port_map fm10k_epl_port_map[FM10K_SW_EPLS_SUPPORTED] = {
+	{
+		FM10K_SW_EPLA_GLORT,
+		FM10K_SW_EPLA_LOGICAL_PORT,
+		FM10K_SW_EPLA_PHYSICAL_PORT
+	},
+	{
+		FM10K_SW_EPLB_GLORT,
+		FM10K_SW_EPLB_LOGICAL_PORT,
+		FM10K_SW_EPLB_PHYSICAL_PORT
+	},
+};
+
+static inline uint32_t
+fm10k_switch_pf_logical_get(uint8_t pf_no)
+{
+	return fm10k_pep_port_map[pf_no].logical_port;
+}
+
+static inline uint32_t
+fm10k_switch_epl_logical_get(uint8_t epl_no)
+{
+	return fm10k_epl_port_map[epl_no].logical_port;
+}
+
+static inline uint32_t
+fm10k_switch_vf_glort_get(uint8_t vf_no)
+{
+	return FM10K_SW_VF_GLORT_START + vf_no;
+}
+
+static inline uint32_t
+fm10k_switch_pf_glort_get(uint8_t pf_no)
+{
+	return fm10k_pep_port_map[pf_no].glort;
+}
+
+static inline uint32_t
+fm10k_switch_epl_glort_get(uint8_t epl_no)
+{
+	return fm10k_epl_port_map[epl_no].glort;
+}
+
+static inline uint32_t
+fm10k_switch_pfs_glort_get(uint8_t pf1, uint8_t pf2)
+{
+	uint8_t idx;
+	if (pf1 > pf2)
+		idx = (pf2 & 0xf) | (pf1 << 4 & 0xf0);
+	else
+		idx = (pf1 & 0xf) | (pf2 << 4 & 0xf0);
+	return FM10K_SW_PFS_GLORT_START + idx;
+}
+
+
+static inline struct fm10k_device_info*
+fm10k_get_device_info(struct fm10k_hw *hw)
+{
+	unsigned int i;
+	struct fm10k_device_info *info;
+	uint16_t pci_vendor = hw->vendor_id;
+	uint16_t pci_device = hw->device_id;
+	uint16_t pci_subvendor = hw->subsystem_vendor_id;
+	uint16_t pci_subdevice = hw->subsystem_device_id;
+
+	if (pci_vendor != FM10K_SW_VENDOR_ID_INTEL ||
+	    pci_device != FM10K_SW_DEV_ID_FM10K)
+		return (NULL);
+
+	for (i = 0;
+			i < sizeof(fm10k_device_table) /
+				sizeof(fm10k_device_table[0]);
+			i++) {
+		info = &fm10k_device_table[i];
+		if (pci_subvendor == info->subvendor &&
+		    pci_subdevice == info->subdevice) {
+			return info;
+		}
+	}
+
+	return NULL;
+}
+
+
 #define fm10k_udelay	usec_delay
 typedef int eth_fm10k_dev_init_half_func(struct fm10k_hw *hw);
 
@@ -311,15 +460,6 @@ struct fm10k_flow_list *
 fm10k_switch_dpdk_port_flow_list_get(struct fm10k_hw *hw);
 void fm10k_switch_dpdk_tx_queue_num_set(struct fm10k_hw *hw, uint8_t num);
 void fm10k_switch_dpdk_rx_queue_num_set(struct fm10k_hw *hw, uint8_t num);
-
-uint32_t fm10k_switch_pf_logical_get(uint8_t pf_no);
-uint32_t fm10k_switch_epl_logical_get(uint8_t epl_no);
-uint32_t fm10k_switch_vf_glort_get(uint8_t vf_no);
-uint32_t fm10k_switch_pf_glort_get(uint8_t pf_no);
-uint32_t fm10k_switch_pfs_glort_get(uint8_t pf1, uint8_t pf2);
-uint32_t fm10k_switch_epl_glort_get(uint8_t epl_no);
-uint32_t fm10k_switch_multi_glort_get(uint8_t pf1, uint8_t pf2,
-		uint16_t vlan1, uint16_t vlan2, bool *p_new);
 
 int fm10k_switch_mirror_set(struct fm10k_hw *hw, u16 dest_port, u16 vlan);
 int fm10k_switch_mirror_reset(struct fm10k_hw *hw);
