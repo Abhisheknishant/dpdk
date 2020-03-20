@@ -1,11 +1,13 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright(c) 2017 Intel Corporation
 
-env_objs = []
-env_headers = files(
+includes += include_directories('include')
+
+headers += files(
 		'include/rte_os.h',
 )
-env_sources = files('eal_alarm.c',
+
+sources += files('eal_alarm.c',
 		'eal_cpuflags.c',
 		'eal_debug.c',
 		'eal_hugepage_info.c',
