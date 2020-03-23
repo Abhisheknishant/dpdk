@@ -569,6 +569,20 @@ details please refer to :doc:`../testpmd_app_ug/index`.
    testpmd> set port (port_id) queue-region flush (on|off)
    testpmd> show port (port_id) queue-region
 
+Generic flow API
+~~~~~~~~~~~~~~~~~~~
+Enable set hash input set and hash enable in generic flow API.
+For the reason queue region configuration in i40e is for all PCTYPE,
+pctype must be empty while configuring queue region.
+The pctype in pattern and actions must be matched.
+For exampale, to set queue region configuration queue 0, 1, 2, 3
+and set PCTYPE ipv4-tcp hash enable and set input set l3-src-only:
+
+   testpmd> flow create 0 ingress pattern end actions rss types end \
+		queues 0 1 2 3 end / end
+   testpmd> flow create 0 ingress pattern eth / ipv4 / tcp / end \
+		actions rss types ipv4-tcp l3-src-only end queues end / end
+
 Limitations or Known issues
 ---------------------------
 
