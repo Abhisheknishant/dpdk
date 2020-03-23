@@ -99,7 +99,7 @@
 
 #define NUM_ATOMIC_TYPES 3
 
-#define N 1000000
+#define N 10000
 
 static rte_atomic16_t a16;
 static rte_atomic32_t a32;
