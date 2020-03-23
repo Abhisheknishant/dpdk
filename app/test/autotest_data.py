@@ -784,6 +784,12 @@ non_parallel_test_list = [
         "Func":    default_autotest,
         "Report":  None,
     },
+    {
+        "Name":    "MCS Lock performance autotest",
+        "Command": "mcslock_perf_autotest",
+        "Func":    default_autotest,
+        "Report":  None,
+    },
     #
     # Please always make sure that ring_perf is the last test!
     #
