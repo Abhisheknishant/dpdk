@@ -61,7 +61,7 @@ New Features
   Updated Mellanox mlx5 driver with new features and improvements, including:
 
   * Added support for matching on IPv4 Time To Live and IPv6 Hop Limit.
-
+  * Added support for creating Relaxed Ordering Memory Regions.
 
 Removed Items
 -------------
