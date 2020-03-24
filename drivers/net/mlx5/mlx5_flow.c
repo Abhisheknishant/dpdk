@@ -712,17 +712,19 @@ flow_rxq_tunnel_ptype_update(struct mlx5_rxq_ctrl *rxq_ctrl)
  *
  * @param[in] dev
  *   Pointer to the Ethernet device structure.
- * @param[in] dev_flow
- *   Pointer to device flow structure.
+ * @param[in] flow
+ *   Pointer to flow structure.
+ * @param[in] dev_handle
+ *   Pointer to device flow handle structure.
  */
 static void
-flow_drv_rxq_flags_set(struct rte_eth_dev *dev, struct mlx5_flow *dev_flow)
+flow_drv_rxq_flags_set(struct rte_eth_dev *dev, struct rte_flow *flow,
+		       struct mlx5_flow_handle *dev_handle)
 {
 	struct mlx5_priv *priv = dev->data->dev_private;
-	struct rte_flow *flow = dev_flow->flow;
-	const int mark = !!(dev_flow->handle.act_flags &
+	const int mark = !!(dev_handle->act_flags &
 			    (MLX5_FLOW_ACTION_FLAG | MLX5_FLOW_ACTION_MARK));
-	const int tunnel = !!(dev_flow->handle.layers & MLX5_FLOW_LAYER_TUNNEL);
+	const int tunnel = !!(dev_handle->layers & MLX5_FLOW_LAYER_TUNNEL);
 	unsigned int i;
 
 	for (i = 0; i != flow->rss.queue_num; ++i) {
@@ -751,7 +753,7 @@ flow_drv_rxq_flags_set(struct rte_eth_dev *dev, struct mlx5_flow *dev_flow)
 			/* Increase the counter matching the flow. */
 			for (j = 0; j != MLX5_FLOW_TUNNEL; ++j) {
 				if ((tunnels_info[j].tunnel &
-				     dev_flow->handle.layers) ==
+				     dev_handle->layers) ==
 				    tunnels_info[j].tunnel) {
 					rxq_ctrl->flow_tunnels_n[j]++;
 					break;
@@ -773,10 +775,10 @@ flow_drv_rxq_flags_set(struct rte_eth_dev *dev, struct mlx5_flow *dev_flow)
 static void
 flow_rxq_flags_set(struct rte_eth_dev *dev, struct rte_flow *flow)
 {
-	struct mlx5_flow *dev_flow;
+	struct mlx5_flow_handle *dev_handle;
 
-	LIST_FOREACH(dev_flow, &flow->dev_flows, next)
-		flow_drv_rxq_flags_set(dev, dev_flow);
+	LIST_FOREACH(dev_handle, &flow->dev_handles, next)
+		flow_drv_rxq_flags_set(dev, flow, dev_handle);
 }
 
 /**
@@ -785,17 +787,19 @@ flow_rxq_flags_set(struct rte_eth_dev *dev, struct rte_flow *flow)
  *
  * @param dev
  *   Pointer to Ethernet device.
- * @param[in] dev_flow
- *   Pointer to the device flow.
+ * @param[in] flow
+ *   Pointer to flow structure.
+ * @param[in] dev_handle
+ *   Pointer to the device flow handle structure.
  */
 static void
-flow_drv_rxq_flags_trim(struct rte_eth_dev *dev, struct mlx5_flow *dev_flow)
+flow_drv_rxq_flags_trim(struct rte_eth_dev *dev, struct rte_flow *flow,
+			struct mlx5_flow_handle *dev_handle)
 {
 	struct mlx5_priv *priv = dev->data->dev_private;
-	struct rte_flow *flow = dev_flow->flow;
-	const int mark = !!(dev_flow->handle.act_flags &
+	const int mark = !!(dev_handle->act_flags &
 			    (MLX5_FLOW_ACTION_FLAG | MLX5_FLOW_ACTION_MARK));
-	const int tunnel = !!(dev_flow->handle.layers & MLX5_FLOW_LAYER_TUNNEL);
+	const int tunnel = !!(dev_handle->layers & MLX5_FLOW_LAYER_TUNNEL);
 	unsigned int i;
 
 	MLX5_ASSERT(dev->data->dev_started);
@@ -820,7 +824,7 @@ flow_drv_rxq_flags_trim(struct rte_eth_dev *dev, struct mlx5_flow *dev_flow)
 			/* Decrease the counter matching the flow. */
 			for (j = 0; j != MLX5_FLOW_TUNNEL; ++j) {
 				if ((tunnels_info[j].tunnel &
-				     dev_flow->handle.layers) ==
+				     dev_handle->layers) ==
 				    tunnels_info[j].tunnel) {
 					rxq_ctrl->flow_tunnels_n[j]--;
 					break;
@@ -843,10 +847,10 @@ flow_drv_rxq_flags_trim(struct rte_eth_dev *dev, struct mlx5_flow *dev_flow)
 static void
 flow_rxq_flags_trim(struct rte_eth_dev *dev, struct rte_flow *flow)
 {
-	struct mlx5_flow *dev_flow;
+	struct mlx5_flow_handle *dev_handle;
 
-	LIST_FOREACH(dev_flow, &flow->dev_flows, next)
-		flow_drv_rxq_flags_trim(dev, dev_flow);
+	LIST_FOREACH(dev_handle, &flow->dev_handles, next)
+		flow_drv_rxq_flags_trim(dev, flow, dev_handle);
 }
 
 /**
@@ -2340,11 +2344,11 @@ static void
 flow_mreg_split_qrss_release(struct rte_eth_dev *dev,
 			     struct rte_flow *flow)
 {
-	struct mlx5_flow *dev_flow;
+	struct mlx5_flow_handle *dev_handle;
 
-	LIST_FOREACH(dev_flow, &flow->dev_flows, next)
-		if (dev_flow->handle.qrss_id)
-			flow_qrss_free_id(dev, dev_flow->handle.qrss_id);
+	LIST_FOREACH(dev_handle, &flow->dev_handles, next)
+		if (dev_handle->qrss_id)
+			flow_qrss_free_id(dev, dev_handle->qrss_id);
 }
 
 static int
@@ -2360,7 +2364,8 @@ flow_null_validate(struct rte_eth_dev *dev __rte_unused,
 }
 
 static struct mlx5_flow *
-flow_null_prepare(const struct rte_flow_attr *attr __rte_unused,
+flow_null_prepare(struct rte_eth_dev *dev __rte_unused,
+		  const struct rte_flow_attr *attr __rte_unused,
 		  const struct rte_flow_item items[] __rte_unused,
 		  const struct rte_flow_action actions[] __rte_unused,
 		  struct rte_flow_error *error)
@@ -2500,6 +2505,8 @@ flow_drv_validate(struct rte_eth_dev *dev,
  *   setting backward reference to the flow should be done out of this function.
  *   layers field is not filled either.
  *
+ * @param[in] dev
+ *   Pointer to the dev structure.
  * @param[in] attr
  *   Pointer to the flow attributes.
  * @param[in] items
@@ -2513,7 +2520,8 @@ flow_drv_validate(struct rte_eth_dev *dev,
  *   Pointer to device flow on success, otherwise NULL and rte_errno is set.
  */
 static inline struct mlx5_flow *
-flow_drv_prepare(const struct rte_flow *flow,
+flow_drv_prepare(struct rte_eth_dev *dev,
+		 const struct rte_flow *flow,
 		 const struct rte_flow_attr *attr,
 		 const struct rte_flow_item items[],
 		 const struct rte_flow_action actions[],
@@ -2524,7 +2532,7 @@ flow_drv_prepare(const struct rte_flow *flow,
 
 	MLX5_ASSERT(type > MLX5_FLOW_TYPE_MIN && type < MLX5_FLOW_TYPE_MAX);
 	fops = flow_get_drv_ops(type);
-	return fops->prepare(attr, items, actions, error);
+	return fops->prepare(dev, attr, items, actions, error);
 }
 
 /**
@@ -2732,17 +2740,17 @@ flow_get_prefix_layer_flags(struct mlx5_flow *dev_flow)
 	 * help to do the optimization work for source code.
 	 * If no decap actions, use the layers directly.
 	 */
-	if (!(dev_flow->handle.act_flags & MLX5_FLOW_ACTION_DECAP))
-		return dev_flow->handle.layers;
+	if (!(dev_flow->handle->act_flags & MLX5_FLOW_ACTION_DECAP))
+		return dev_flow->handle->layers;
 	/* Convert L3 layers with decap action. */
-	if (dev_flow->handle.layers & MLX5_FLOW_LAYER_INNER_L3_IPV4)
+	if (dev_flow->handle->layers & MLX5_FLOW_LAYER_INNER_L3_IPV4)
 		layers |= MLX5_FLOW_LAYER_OUTER_L3_IPV4;
-	else if (dev_flow->handle.layers & MLX5_FLOW_LAYER_INNER_L3_IPV6)
+	else if (dev_flow->handle->layers & MLX5_FLOW_LAYER_INNER_L3_IPV6)
 		layers |= MLX5_FLOW_LAYER_OUTER_L3_IPV6;
 	/* Convert L4 layers with decap action.  */
-	if (dev_flow->handle.layers & MLX5_FLOW_LAYER_INNER_L4_TCP)
+	if (dev_flow->handle->layers & MLX5_FLOW_LAYER_INNER_L4_TCP)
 		layers |= MLX5_FLOW_LAYER_OUTER_L4_TCP;
-	else if (dev_flow->handle.layers & MLX5_FLOW_LAYER_INNER_L4_UDP)
+	else if (dev_flow->handle->layers & MLX5_FLOW_LAYER_INNER_L4_UDP)
 		layers |= MLX5_FLOW_LAYER_OUTER_L4_UDP;
 	return layers;
 }
@@ -3443,7 +3451,7 @@ flow_hairpin_split(struct rte_eth_dev *dev,
  * The last stage of splitting chain, just creates the subflow
  * without any modification.
  *
- * @param dev
+ * @param[in] dev
  *   Pointer to Ethernet device.
  * @param[in] flow
  *   Parent flow structure pointer.
@@ -3476,19 +3484,19 @@ flow_create_split_inner(struct rte_eth_dev *dev,
 {
 	struct mlx5_flow *dev_flow;
 
-	dev_flow = flow_drv_prepare(flow, attr, items, actions, error);
+	dev_flow = flow_drv_prepare(dev, flow, attr, items, actions, error);
 	if (!dev_flow)
 		return -rte_errno;
 	dev_flow->flow = flow;
 	dev_flow->external = external;
 	/* Subflow object was created, we must include one in the list. */
-	LIST_INSERT_HEAD(&flow->dev_flows, dev_flow, next);
+	LIST_INSERT_HEAD(&flow->dev_handles, dev_flow->handle, next);
 	/*
 	 * If dev_flow is as one of the suffix flow, some actions in suffix
 	 * flow may need some user defined item layer flags.
 	 */
 	if (prefix_layers)
-		dev_flow->handle.layers = prefix_layers;
+		dev_flow->handle->layers = prefix_layers;
 	if (sub_flow)
 		*sub_flow = dev_flow;
 	return flow_drv_translate(dev, dev_flow, attr, items, actions, error);
@@ -4003,7 +4011,7 @@ flow_create_split_metadata(struct rte_eth_dev *dev,
 			 * reallocation becomes possible (for example, for
 			 * other flows in other threads).
 			 */
-			dev_flow->handle.qrss_id = qrss_id;
+			dev_flow->handle->qrss_id = qrss_id;
 			ret = mlx5_flow_get_reg_id(dev, MLX5_COPY_MARK, 0,
 						   error);
 			if (ret < 0)
@@ -4116,7 +4124,7 @@ flow_create_split_meter(struct rte_eth_dev *dev,
 			ret = -rte_errno;
 			goto exit;
 		}
-		dev_flow->handle.mtr_flow_id = mtr_tag_id;
+		dev_flow->handle->mtr_flow_id = mtr_tag_id;
 		/* Setting the sfx group atrr. */
 		sfx_attr.group = sfx_attr.transfer ?
 				(MLX5_FLOW_TABLE_LEVEL_SUFFIX - 1) :
@@ -4287,7 +4295,7 @@ flow_list_create(struct rte_eth_dev *dev, struct mlx5_flows *list,
 		/* RSS type 0 indicates default RSS type (ETH_RSS_IP). */
 		flow->rss.types = !rss->types ? ETH_RSS_IP : rss->types;
 	}
-	LIST_INIT(&flow->dev_flows);
+	LIST_INIT(&flow->dev_handles);
 	if (rss && rss->types) {
 		unsigned int graph_root;
 
@@ -4302,6 +4310,8 @@ flow_list_create(struct rte_eth_dev *dev, struct mlx5_flows *list,
 		buf->entries = 1;
 		buf->entry[0].pattern = (void *)(uintptr_t)items;
 	}
+	/* Reset device flow index to 0. */
+	priv->flow_idx = 0;
 	for (i = 0; i < buf->entries; ++i) {
 		/*
 		 * The splitter may create multiple dev_flows,
@@ -4320,13 +4330,13 @@ flow_list_create(struct rte_eth_dev *dev, struct mlx5_flows *list,
 		attr_tx.group = MLX5_HAIRPIN_TX_TABLE;
 		attr_tx.ingress = 0;
 		attr_tx.egress = 1;
-		dev_flow = flow_drv_prepare(flow, &attr_tx, items_tx.items,
+		dev_flow = flow_drv_prepare(dev, flow, &attr_tx, items_tx.items,
 					    actions_hairpin_tx.actions, error);
 		if (!dev_flow)
 			goto error;
 		dev_flow->flow = flow;
 		dev_flow->external = 0;
-		LIST_INSERT_HEAD(&flow->dev_flows, dev_flow, next);
+		LIST_INSERT_HEAD(&flow->dev_handles, dev_flow->handle, next);
 		ret = flow_drv_translate(dev, dev_flow, &attr_tx,
 					 items_tx.items,
 					 actions_hairpin_tx.actions, error);
@@ -4574,8 +4584,6 @@ error:
  *
  * @param dev
  *   Pointer to Ethernet device.
- * @param list
- *   Pointer to a TAILQ flow list.
  */
 void
 mlx5_flow_stop_default(struct rte_eth_dev *dev)
@@ -4598,6 +4606,37 @@ mlx5_flow_start_default(struct rte_eth_dev *dev)
 
 	/* Make sure default copy action (reg_c[0] -> reg_b) is created. */
 	return flow_mreg_add_default_copy_action(dev, &error);
+}
+
+/**
+ * Allocate intermediate resources for flow creation.
+ *
+ * @param dev
+ *   Pointer to Ethernet device.
+ */
+void
+mlx5_flow_alloc_intermediate(struct rte_eth_dev *dev)
+{
+	struct mlx5_priv *priv = dev->data->dev_private;
+
+	if (!priv->inter_flows)
+		priv->inter_flows = rte_calloc(__func__, MLX5_NUM_MAX_DEV_FLOWS,
+					       sizeof(struct mlx5_flow), 0);
+}
+
+/**
+ * Free intermediate resources for flows.
+ *
+ * @param dev
+ *   Pointer to Ethernet device.
+ */
+void
+mlx5_flow_free_intermediate(struct rte_eth_dev *dev)
+{
+	struct mlx5_priv *priv = dev->data->dev_private;
+
+	rte_free(priv->inter_flows);
+	priv->inter_flows = NULL;
 }
 
 /**
