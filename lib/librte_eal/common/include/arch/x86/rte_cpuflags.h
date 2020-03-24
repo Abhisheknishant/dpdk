@@ -127,6 +127,7 @@ enum rte_cpu_flag_t {
 	RTE_CPUFLAG_AVX512BITALG,           /**< AVX512 Bit Algorithms */
 	RTE_CPUFLAG_AVX512VPOPCNTDQ,        /**< AVX512 Vector Popcount */
 	RTE_CPUFLAG_CLDEMOTE,               /**< Cache Line Demote */
+	RTE_CPUFLAG_MOVDIRI,                /**< Direct Store Instructions */
 
 	/* The last item */
 	RTE_CPUFLAG_NUMFLAGS,               /**< This should always be the last! */
