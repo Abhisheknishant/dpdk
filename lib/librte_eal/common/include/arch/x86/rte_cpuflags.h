@@ -129,6 +129,7 @@ enum rte_cpu_flag_t {
 	RTE_CPUFLAG_CLDEMOTE,               /**< Cache Line Demote */
 	RTE_CPUFLAG_MOVDIRI,                /**< Direct Store Instructions */
 	RTE_CPUFLAG_MOVDIR64B,              /**< Direct Store Instructions 64B */
+	RTE_CPUFLAG_AVX512VP2INTERSECT,     /**< AVX512 Two Register Intersection */
 
 	/* The last item */
 	RTE_CPUFLAG_NUMFLAGS,               /**< This should always be the last! */
