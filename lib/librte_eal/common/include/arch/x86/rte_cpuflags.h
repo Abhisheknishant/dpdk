@@ -121,6 +121,7 @@ enum rte_cpu_flag_t {
 	RTE_CPUFLAG_AVX512VBMI,             /**< AVX512 Vector Bit Manipulation */
 	RTE_CPUFLAG_AVX512VBMI2,            /**< AVX512 Vector Bit Manipulation 2 */
 	RTE_CPUFLAG_GFNI,                   /**< Galois Field New Instructions */
+	RTE_CPUFLAG_VAES,                   /**< Vector AES */
 
 	/* The last item */
 	RTE_CPUFLAG_NUMFLAGS,               /**< This should always be the last! */
