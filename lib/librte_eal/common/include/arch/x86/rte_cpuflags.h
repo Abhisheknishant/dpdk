@@ -113,6 +113,8 @@ enum rte_cpu_flag_t {
 	/* (EAX 80000007h) EDX features */
 	RTE_CPUFLAG_INVTSC,                 /**< INVTSC */
 
+	RTE_CPUFLAG_AVX512DQ,               /**< AVX512 Doubleword and Quadword */
+
 	/* The last item */
 	RTE_CPUFLAG_NUMFLAGS,               /**< This should always be the last! */
 };
