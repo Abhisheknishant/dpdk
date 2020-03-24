@@ -117,6 +117,7 @@ enum rte_cpu_flag_t {
 	RTE_CPUFLAG_AVX512IFMA,             /**< AVX512 Integer Fused Multiply-Add */
 	RTE_CPUFLAG_AVX512CD,               /**< AVX512 Conflict Detection*/
 	RTE_CPUFLAG_AVX512BW,               /**< AVX512 Byte and Word */
+	RTE_CPUFLAG_AVX512VL,               /**< AVX512 Vector Length */
 
 	/* The last item */
 	RTE_CPUFLAG_NUMFLAGS,               /**< This should always be the last! */
