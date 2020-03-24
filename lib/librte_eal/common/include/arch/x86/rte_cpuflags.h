@@ -123,6 +123,7 @@ enum rte_cpu_flag_t {
 	RTE_CPUFLAG_GFNI,                   /**< Galois Field New Instructions */
 	RTE_CPUFLAG_VAES,                   /**< Vector AES */
 	RTE_CPUFLAG_VPCLMULQDQ,             /**< Vector Carry-less Multiply */
+	RTE_CPUFLAG_AVX512VNNI,             /**< AVX512 Vector Neural Network Instructions */
 
 	/* The last item */
 	RTE_CPUFLAG_NUMFLAGS,               /**< This should always be the last! */
