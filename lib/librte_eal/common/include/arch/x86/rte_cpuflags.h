@@ -119,6 +119,7 @@ enum rte_cpu_flag_t {
 	RTE_CPUFLAG_AVX512BW,               /**< AVX512 Byte and Word */
 	RTE_CPUFLAG_AVX512VL,               /**< AVX512 Vector Length */
 	RTE_CPUFLAG_AVX512VBMI,             /**< AVX512 Vector Bit Manipulation */
+	RTE_CPUFLAG_AVX512VBMI2,            /**< AVX512 Vector Bit Manipulation 2 */
 
 	/* The last item */
 	RTE_CPUFLAG_NUMFLAGS,               /**< This should always be the last! */
