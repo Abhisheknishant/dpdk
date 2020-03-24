@@ -122,6 +122,7 @@ const struct feature_entry rte_cpu_feature_table[] = {
 	FEAT_DEF(INVTSC, 0x80000007, 0, RTE_REG_EDX,  8)
 
 	FEAT_DEF(AVX512DQ, 0x00000007, 0, RTE_REG_EBX, 17)
+	FEAT_DEF(AVX512IFMA, 0x00000007, 0, RTE_REG_EBX, 21)
 };
 
 int
