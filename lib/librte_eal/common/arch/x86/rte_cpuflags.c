@@ -130,6 +130,7 @@ const struct feature_entry rte_cpu_feature_table[] = {
 	FEAT_DEF(AVX512VBMI2, 0x00000007, 0, RTE_REG_ECX, 6)
 	FEAT_DEF(GFNI, 0x00000007, 0, RTE_REG_ECX, 8)
 	FEAT_DEF(VAES, 0x00000007, 0, RTE_REG_ECX, 9)
+	FEAT_DEF(VPCLMULQDQ, 0x00000007, 0, RTE_REG_ECX, 10)
 };
 
 int
