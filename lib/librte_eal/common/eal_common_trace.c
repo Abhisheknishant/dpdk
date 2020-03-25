@@ -64,6 +64,9 @@ eal_trace_init(void)
 	/* Generate UUID ver 4 with total size of events and number of events */
 	trace_uuid_generate();
 
+	/* Apply buffer size configuration for trace output */
+	trace_bufsz_args_apply();
+
 	/* Generate CTF TDSL metadata */
 	if (trace_metadata_create() < 0)
 		goto fail;
