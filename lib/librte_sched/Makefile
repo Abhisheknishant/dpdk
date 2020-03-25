@@ -10,6 +10,7 @@ LIB = librte_sched.a
 
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 
 LDLIBS += -lm
 LDLIBS += -lrt

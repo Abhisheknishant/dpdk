@@ -10,6 +10,7 @@ include $(RTE_SDK)/mk/rte.vars.mk
 LIB = librte_common_cpt.a
 
 CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 CFLAGS += -I$(RTE_SDK)/drivers/bus/pci
 EXPORT_MAP := rte_common_cpt_version.map
 

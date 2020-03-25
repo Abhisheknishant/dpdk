@@ -10,6 +10,7 @@ LIB = librte_table.a
 
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 LDLIBS += -lrte_eal -lrte_mempool -lrte_mbuf -lrte_port
 LDLIBS += -lrte_lpm -lrte_hash
 ifeq ($(CONFIG_RTE_LIBRTE_ACL),y)

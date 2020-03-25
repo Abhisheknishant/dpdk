@@ -9,6 +9,7 @@ LIB = librte_rawdev_ioat.a
 # build flags
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 
 LDLIBS += -lrte_eal -lrte_rawdev
 LDLIBS += -lrte_pci -lrte_bus_pci

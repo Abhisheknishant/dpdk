@@ -10,6 +10,7 @@ LIB = librte_rawdev_octeontx2_ep.a
 # Build flags
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 
 CFLAGS += -I$(RTE_SDK)/drivers/common/octeontx2/
 CFLAGS += -I$(RTE_SDK)/drivers/raw/octeontx2_ep/
