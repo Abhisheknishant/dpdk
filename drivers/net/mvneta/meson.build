@@ -21,6 +21,7 @@ else
 	]
 endif
 
+allow_experimental_apis = true
 sources = files(
 	'mvneta_ethdev.c',
 	'mvneta_rxtx.c'

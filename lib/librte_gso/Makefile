@@ -6,6 +6,7 @@ include $(RTE_SDK)/mk/rte.vars.mk
 # library name
 LIB = librte_gso.a
 
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 CFLAGS += $(WERROR_FLAGS) -I$(SRCDIR) -O3
 LDLIBS += -lrte_eal -lrte_mbuf -lrte_ethdev -lrte_net
 LDLIBS += -lrte_mempool

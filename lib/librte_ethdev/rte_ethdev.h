@@ -158,6 +158,7 @@ extern "C" {
 #include <rte_config.h>
 #include <rte_ether.h>
 
+#include "rte_trace_ethdev_fp.h"
 #include "rte_dev_info.h"
 
 extern int rte_eth_dev_logtype;
@@ -4400,6 +4401,8 @@ rte_eth_rx_burst(uint16_t port_id, uint16_t queue_id,
 	}
 #endif
 
+	rte_trace_lib_ethdev_rx_burst(port_id, queue_id, (void **)rx_pkts,
+				      nb_rx);
 	return nb_rx;
 }
 
@@ -4663,6 +4666,8 @@ rte_eth_tx_burst(uint16_t port_id, uint16_t queue_id,
 	}
 #endif
 
+	rte_trace_lib_ethdev_tx_burst(port_id, queue_id, (void **)tx_pkts,
+				      nb_pkts);
 	return (*dev->tx_pkt_burst)(dev->data->tx_queues[queue_id], tx_pkts, nb_pkts);
 }
 

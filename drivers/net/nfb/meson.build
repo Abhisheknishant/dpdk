@@ -7,5 +7,6 @@ dep = dependency('netcope-common', required: false)
 reason = 'missing dependency, "libnfb"'
 build = dep.found()
 ext_deps += dep
+allow_experimental_apis = true
 
 sources = files('nfb_rx.c', 'nfb_tx.c', 'nfb_stats.c', 'nfb_ethdev.c', 'nfb_rxmode.c')

@@ -15,6 +15,7 @@ INCLUDES :=-I$(SRCDIR)
 
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 CFLAGS += $(shell command -v pkg-config > /dev/null 2>&1 && pkg-config --cflags netcope-common)
 LDLIBS += -lrte_eal -lrte_mbuf -lrte_mempool -lrte_kvargs
 LDLIBS += -lrte_ethdev -lrte_net

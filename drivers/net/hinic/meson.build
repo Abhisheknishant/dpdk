@@ -4,6 +4,7 @@
 subdir('base')
 objs = [base_objs]
 
+allow_experimental_apis = true
 sources = files(
 	'hinic_pmd_ethdev.c',
 	'hinic_pmd_rx.c',

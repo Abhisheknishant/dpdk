@@ -10,6 +10,7 @@ LIB = librte_pmd_enetc.a
 
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 CFLAGS += -I$(RTE_SDK)/drivers/common/dpaax
 CFLAGS += -DALLOW_EXPERIMENTAL_API
 EXPORT_MAP := rte_pmd_enetc_version.map
