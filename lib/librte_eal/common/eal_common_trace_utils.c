@@ -118,6 +118,22 @@ fail:
 	return -rte_errno;
 }
 
+static int
+trace_dir_update(const char *str)
+{
+	struct trace *trace = trace_obj_get();
+	int rc, remaining;
+
+	remaining = sizeof(trace->dir) - trace->dir_offset;
+	rc = rte_strscpy(&trace->dir[0] + trace->dir_offset, str, remaining);
+	if (rc < 0)
+		goto fail;
+
+	trace->dir_offset += rc;
+fail:
+	return rc;
+}
+
 int
 eal_trace_level_args_save(const char *optarg)
 {
@@ -223,6 +239,37 @@ fail:
 }
 
 int
+eal_trace_dir_args_save(char const *optarg)
+{
+	struct trace *trace = trace_obj_get();
+	uint32_t size = sizeof(trace->dir);
+	char *dir_path = NULL;
+	int rc;
+
+	if (optarg == NULL) {
+		trace_err("no optarg is passed\n");
+		return -EINVAL;
+	}
+
+	if (strlen(optarg) >= size) {
+		trace_err("input string is too big\n");
+		return -ENAMETOOLONG;
+	}
+
+	dir_path = (char *)calloc(1, size);
+	if (dir_path == NULL) {
+		trace_err("fail to allocate memory\n");
+		return -ENOMEM;
+	}
+
+	sprintf(dir_path, "%s/", optarg);
+	rc = trace_dir_update(dir_path);
+
+	free(dir_path);
+	return rc;
+}
+
+int
 trace_epoch_time_save(void)
 {
 	struct trace *trace = trace_obj_get();
@@ -292,6 +339,10 @@ trace_mkdir(void)
 			return rc;
 		}
 
+		rc = trace_dir_update(dir_path);
+		free(dir_path);
+		if (rc < 0)
+			return rc;
 	}
 
 	/* Create the path if it t exist, no "mkdir -p" available here */
@@ -303,6 +354,9 @@ trace_mkdir(void)
 	}
 
 	rc = trace_session_name_generate(session);
+	if (rc < 0)
+		return rc;
+	rc = trace_dir_update(session);
 	if (rc < 0)
 		return rc;
 
