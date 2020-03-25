@@ -359,4 +359,6 @@ EXPERIMENTAL {
 	rte_trace_pattern;
 	rte_trace_regexp;
 	rte_trace_by_name;
+	rte_trace_metadata_dump;
+	rte_trace_dump;
 };
