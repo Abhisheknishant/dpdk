@@ -35,6 +35,7 @@ Programmer's Guide
     lpm_lib
     lpm6_lib
     flow_classify_lib
+    trace_lib
     packet_distrib_lib
     reorder_lib
     ip_fragment_reassembly_lib
