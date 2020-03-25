@@ -14,6 +14,7 @@ LIB = librte_pmd_virtio_crypto.a
 CFLAGS += -I$(RTE_SDK)/lib/librte_vhost
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 
 EXPORT_MAP := rte_pmd_virtio_crypto_version.map
 
