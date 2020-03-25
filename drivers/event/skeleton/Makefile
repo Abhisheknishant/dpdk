@@ -10,6 +10,7 @@ include $(RTE_SDK)/mk/rte.vars.mk
 LIB = librte_pmd_skeleton_event.a
 
 CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 LDLIBS += -lrte_eal -lrte_eventdev
 LDLIBS += -lrte_pci -lrte_bus_pci
 LDLIBS += -lrte_bus_vdev
