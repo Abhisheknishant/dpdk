@@ -517,6 +517,8 @@ _tp _args \
 
 /** @internal Macro to define maximum emit length of string datatype. */
 #define __RTE_TRACE_EMIT_STRING_LEN_MAX 32
+/** @internal Macro to define event header size. */
+#define __RTE_TRACE_EVENT_HEADER_SZ sizeof(uint64_t)
 
 /**
  * @internal @warning
@@ -550,6 +552,24 @@ void __rte_trace_mem_per_thread_alloc(void);
 __rte_experimental
 int __rte_trace_point_register(rte_trace_t *trace, const char *name,
 			     uint32_t level, void (*register_fn)(void));
+/**
+ * @internal @warning
+ * @b EXPERIMENTAL: this API may change without prior notice
+ *
+ * Helper function to emit ctf field.
+ *
+ * @param sz
+ *   The tracepoint size.
+ * @param field
+ *   The name of the trace event.
+ * @param type
+ *   The datatype of the trace event as string.
+ * @return
+ *   - 0: Success.
+ *   - <0: Failure.
+ */
+__rte_experimental
+void __rte_trace_emit_ctf_field(size_t sz, const char *field, const char *type);
 
 #ifdef RTE_TRACE_POINT_REGISTER_SELECT
 #include <rte_trace_register.h>
