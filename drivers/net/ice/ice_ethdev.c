@@ -47,6 +47,11 @@ struct proto_xtr_ol_flag {
 	bool required;
 };
 
+struct ice_hash_flow_cfg {
+	bool simple_xor;
+	struct ice_rss_cfg rss_cfg;
+};
+
 static struct proto_xtr_ol_flag ice_proto_xtr_ol_flag_params[] = {
 	[PROTO_XTR_VLAN] = {
 		.param = { .name = "ice_dynflag_proto_xtr_vlan" },
@@ -2461,6 +2466,45 @@ ice_dev_configure(struct rte_eth_dev *dev)
 	return 0;
 }
 
+static int
+ice_rss_restore(struct rte_eth_dev *dev)
+{
+	struct ice_pf *pf = ICE_DEV_PRIVATE_TO_PF(dev->data->dev_private);
+	struct ice_hw *hw = ICE_DEV_PRIVATE_TO_HW(dev->data->dev_private);
+	struct ice_vsi *vsi = pf->main_vsi;
+	struct rte_flow *p_flow;
+	struct ice_hash_flow_cfg *filter_ptr;
+	struct ice_flow_engine *engine;
+	uint32_t reg;
+	int ret;
+
+	TAILQ_FOREACH(p_flow, &pf->flow_list, node) {
+		engine = p_flow->engine;
+		if (engine->type == ICE_FLOW_ENGINE_HASH) {
+			filter_ptr = (struct ice_hash_flow_cfg *)p_flow->rule;
+			/* Enable registers for simple_xor hash function. */
+			if (filter_ptr->simple_xor == 1) {
+				reg = ICE_READ_REG(hw,
+					VSIQF_HASH_CTL(vsi->vsi_id));
+				reg = (reg & (~VSIQF_HASH_CTL_HASH_SCHEME_M)) |
+					(2 << VSIQF_HASH_CTL_HASH_SCHEME_S);
+				ICE_WRITE_REG(hw,
+					VSIQF_HASH_CTL(vsi->vsi_id), reg);
+			} else {
+				ret = ice_add_rss_cfg(hw, vsi->idx,
+					filter_ptr->rss_cfg.hashed_flds,
+					filter_ptr->rss_cfg.packet_hdr,
+					filter_ptr->rss_cfg.symm);
+				if (ret)
+					PMD_DRV_LOG(ERR,
+						"%s restore rss fail %d",
+						__func__, ret);
+			}
+		}
+	}
+	return 0;
+}
+
 static int ice_init_rss(struct ice_pf *pf)
 {
 	struct ice_hw *hw = ICE_PF_TO_HW(pf);
@@ -2587,6 +2631,9 @@ static int ice_init_rss(struct ice_pf *pf)
 	if (ret)
 		PMD_DRV_LOG(ERR, "%s PPPoE/PPPoD_SessionID rss flow fail %d",
 				__func__, ret);
+
+	/* restore RSS configuration */
+	ice_rss_restore(dev);
 
 	return 0;
 }
