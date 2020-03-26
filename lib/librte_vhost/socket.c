@@ -920,12 +920,6 @@ rte_vhost_driver_register(const char *path, uint64_t flags)
 			ret = -1;
 			goto out_mutex;
 		}
-		if (vsocket->linearbuf) {
-			VHOST_LOG_CONFIG(ERR,
-			"error: zero copy is incompatible with linear buffers\n");
-			ret = -1;
-			goto out_mutex;
-		}
 		vsocket->supported_features &= ~(1ULL << VIRTIO_F_IN_ORDER);
 		vsocket->features &= ~(1ULL << VIRTIO_F_IN_ORDER);
 
