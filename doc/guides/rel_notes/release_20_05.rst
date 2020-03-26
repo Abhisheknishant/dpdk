@@ -62,6 +62,11 @@ New Features
 
   * Added support for matching on IPv4 Time To Live and IPv6 Hop Limit.
 
+* **Updated the Intel ice driver.**
+
+  Updated the Intel ice driver with new features and improvements, including:
+
+  * Added support for DCF (Device Config Function) feature.
 
 Removed Items
 -------------
