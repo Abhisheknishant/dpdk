@@ -45,6 +45,13 @@ DPDK_20.0.1 {
 	otx2_sec_idev_tx_cpt_qp_put;
 } DPDK_20.0;
 
+DPDK_20.0.2 {
+	global:
+
+	otx2_parse_common_devargs;
+
+} DPDK_20.0;
+
 EXPERIMENTAL {
 	global:
 
