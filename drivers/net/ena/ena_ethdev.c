@@ -1282,6 +1282,7 @@ static int ena_rx_queue_setup(struct rte_eth_dev *dev,
 {
 	struct ena_adapter *adapter = dev->data->dev_private;
 	struct ena_ring *rxq = NULL;
+	size_t buffer_size;
 	int i;
 
 	rxq = &adapter->rx_ring[queue_idx];
@@ -1308,6 +1309,17 @@ static int ena_rx_queue_setup(struct rte_eth_dev *dev,
 			adapter->rx_ring_size);
 		return -EINVAL;
 	}
+
+	/* ENA isn't supporting buffers smaller than 1400 bytes */
+	buffer_size = mp->elt_size - sizeof(struct rte_mbuf) -
+		RTE_PKTMBUF_HEADROOM;
+	if (buffer_size < ENA_RX_BUF_MIN_SIZE) {
+		PMD_DRV_LOG(ERR,
+			"Unsupported size of RX buffer: %zu (min size: %d)\n",
+			buffer_size, ENA_RX_BUF_MIN_SIZE);
+		return -EINVAL;
+	}
+	printf("mempool size: %ld\n", buffer_size);
 
 	rxq->port_id = dev->data->port_id;
 	rxq->next_to_clean = 0;
