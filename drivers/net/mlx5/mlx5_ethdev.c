@@ -896,11 +896,6 @@ mlx5_link_update_unlocked_gset(struct rte_eth_dev *dev,
 				ETH_LINK_HALF_DUPLEX : ETH_LINK_FULL_DUPLEX);
 	dev_link.link_autoneg = !(dev->data->dev_conf.link_speeds &
 			ETH_LINK_SPEED_FIXED);
-	if (((dev_link.link_speed && !dev_link.link_status) ||
-	     (!dev_link.link_speed && dev_link.link_status))) {
-		rte_errno = EAGAIN;
-		return -rte_errno;
-	}
 	*link = dev_link;
 	return 0;
 }
@@ -1032,11 +1027,6 @@ mlx5_link_update_unlocked_gs(struct rte_eth_dev *dev,
 				ETH_LINK_HALF_DUPLEX : ETH_LINK_FULL_DUPLEX);
 	dev_link.link_autoneg = !(dev->data->dev_conf.link_speeds &
 				  ETH_LINK_SPEED_FIXED);
-	if (((dev_link.link_speed && !dev_link.link_status) ||
-	     (!dev_link.link_speed && dev_link.link_status))) {
-		rte_errno = EAGAIN;
-		return -rte_errno;
-	}
 	*link = dev_link;
 	return 0;
 }
