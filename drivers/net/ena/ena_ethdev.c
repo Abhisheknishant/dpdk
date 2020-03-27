@@ -894,6 +894,19 @@ ena_calc_io_queue_size(struct ena_calc_queue_size_ctx *ctx)
 	max_rx_queue_size = rte_align32prevpow2(max_rx_queue_size);
 	max_tx_queue_size = rte_align32prevpow2(max_tx_queue_size);
 
+#ifdef RTE_LIBRTE_ENA_LARGE_LLQ_HEADERS
+	if ((llq->entry_size_ctrl_supported & ENA_ADMIN_LIST_ENTRY_SIZE_256B) &&
+	    (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)) {
+		max_tx_queue_size /= 2;
+		PMD_INIT_LOG(INFO,
+			"Forcing large headers and decreasing maximum TX queue size to %d\n",
+			max_tx_queue_size);
+	} else {
+		PMD_INIT_LOG(ERR,
+			"Forcing large headers failed: LLQ is disabled or device does not support large headers\n");
+	}
+#endif
+
 	if (unlikely(max_rx_queue_size == 0 || max_tx_queue_size == 0)) {
 		PMD_INIT_LOG(ERR, "Invalid queue size");
 		return -EFAULT;
@@ -1595,14 +1608,28 @@ static void ena_timer_wd_callback(__rte_unused struct rte_timer *timer,
 }
 
 static inline void
-set_default_llq_configurations(struct ena_llq_configurations *llq_config)
+set_default_llq_configurations(struct ena_llq_configurations *llq_config,
+			       struct ena_admin_feature_llq_desc *llq)
 {
 	llq_config->llq_header_location = ENA_ADMIN_INLINE_HEADER;
-	llq_config->llq_ring_entry_size = ENA_ADMIN_LIST_ENTRY_SIZE_128B;
 	llq_config->llq_stride_ctrl = ENA_ADMIN_MULTIPLE_DESCS_PER_ENTRY;
 	llq_config->llq_num_decs_before_header =
 		ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_2;
+#ifdef RTE_LIBRTE_ENA_LARGE_LLQ_HEADERS
+	if ((llq->entry_size_ctrl_supported & ENA_ADMIN_LIST_ENTRY_SIZE_256B)) {
+		llq_config->llq_ring_entry_size =
+			ENA_ADMIN_LIST_ENTRY_SIZE_256B;
+		llq_config->llq_ring_entry_size_value = 256;
+	} else {
+		llq_config->llq_ring_entry_size =
+			ENA_ADMIN_LIST_ENTRY_SIZE_128B;
+		llq_config->llq_ring_entry_size_value = 128;
+	}
+#else
+	llq_config->llq_ring_entry_size = ENA_ADMIN_LIST_ENTRY_SIZE_128B;
 	llq_config->llq_ring_entry_size_value = 128;
+	RTE_SET_USED(llq);
+#endif
 }
 
 static int
@@ -1749,7 +1776,7 @@ static int eth_ena_dev_init(struct rte_eth_dev *eth_dev)
 	}
 	adapter->wd_state = wd_state;
 
-	set_default_llq_configurations(&llq_config);
+	set_default_llq_configurations(&llq_config, &get_feat_ctx.llq);
 	rc = ena_set_queues_placement_policy(adapter, ena_dev,
 					     &get_feat_ctx.llq, &llq_config);
 	if (unlikely(rc)) {
