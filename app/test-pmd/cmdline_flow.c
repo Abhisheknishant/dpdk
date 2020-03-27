@@ -768,7 +768,6 @@ static const enum index next_item[] = {
 	ITEM_GTP_PSC,
 	ITEM_PPPOES,
 	ITEM_PPPOED,
-	ITEM_PPPOE_PROTO_ID,
 	ITEM_HIGIG2,
 	ITEM_TAG,
 	ITEM_L2TPV3OIP,
@@ -1030,11 +1029,6 @@ static const enum index item_pppoed[] = {
 
 static const enum index item_pppoes[] = {
 	ITEM_PPPOE_SEID,
-	ITEM_NEXT,
-	ZERO,
-};
-
-static const enum index item_pppoe_proto_id[] = {
 	ITEM_PPPOE_PROTO_ID,
 	ITEM_NEXT,
 	ZERO,
@@ -2643,10 +2637,9 @@ static const struct token token_list[] = {
 	[ITEM_PPPOE_PROTO_ID] = {
 		.name = "proto_id",
 		.help = "match PPPoE session protocol identifier",
-		.priv = PRIV_ITEM(PPPOE_PROTO_ID,
-				sizeof(struct rte_flow_item_pppoe_proto_id)),
-		.next = NEXT(item_pppoe_proto_id),
-		.call = parse_vc,
+		.next = NEXT(item_pppoes, NEXT_ENTRY(UNSIGNED), item_param),
+		.args = ARGS(ARGS_ENTRY_HTON
+			     (struct rte_flow_item_pppoe_proto_id, proto_id)),
 	},
 	[ITEM_HIGIG2] = {
 		.name = "higig2",
