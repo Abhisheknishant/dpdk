@@ -166,6 +166,32 @@ RTE_TRACE_POINT(
 	rte_trace_ctf_ptr(ptr);
 )
 
+/* Memzone */
+RTE_TRACE_POINT(
+	rte_trace_lib_eal_memzone_reserve,
+	RTE_TRACE_POINT_ARGS(const char *name, size_t len, int socket_id,
+			     unsigned int flags, unsigned int align,
+			     unsigned int bound, const void *mz),
+	rte_trace_ctf_string(name); rte_trace_ctf_long(len);
+	rte_trace_ctf_int(socket_id); rte_trace_ctf_u32(flags);
+	rte_trace_ctf_u32(align); rte_trace_ctf_u32(bound);
+	rte_trace_ctf_ptr(mz);
+)
+
+RTE_TRACE_POINT(
+	rte_trace_lib_eal_memzone_lookup,
+	RTE_TRACE_POINT_ARGS(const char *name, const void *memzone),
+	rte_trace_ctf_string(name); rte_trace_ctf_ptr(memzone);
+)
+
+RTE_TRACE_POINT(
+	rte_trace_lib_eal_memzone_free,
+	RTE_TRACE_POINT_ARGS(const char *name, void *addr, int rc),
+	rte_trace_ctf_string(name); rte_trace_ctf_ptr(addr);
+	rte_trace_ctf_int(rc);
+)
+
+
 #ifdef __cplusplus
 }
 #endif
