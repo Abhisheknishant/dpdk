@@ -239,6 +239,36 @@ fail:
 }
 
 int
+eal_trace_bufsz_args_save(char const *optarg)
+{
+	struct trace *trace = trace_obj_get();
+	uint64_t bufsz;
+
+	if (optarg == NULL) {
+		trace_err("no optarg is passed\n");
+		return -EINVAL;
+	}
+
+	bufsz = rte_str_to_size(optarg);
+	if (bufsz == 0) {
+		trace_err("buffer size cannot be zero\n");
+		return -EINVAL;
+	}
+
+	trace->buff_len = bufsz;
+	return 0;
+}
+
+void
+trace_bufsz_args_apply(void)
+{
+	struct trace *trace = trace_obj_get();
+
+	if (trace->buff_len == 0)
+		trace->buff_len = 1024 * 1024; /* 1MB */
+}
+
+int
 eal_trace_dir_args_save(char const *optarg)
 {
 	struct trace *trace = trace_obj_get();
