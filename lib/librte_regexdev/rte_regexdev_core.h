@@ -142,6 +142,8 @@ struct rte_regexdev {
 	const struct rte_regexdev_ops *dev_ops;
 	/**< Functions exported by PMD */
 	struct rte_device *device; /**< Backing device */
+	char dev_name[RTE_REGEX_NAME_MAX_LEN]; /**< Unique identifier name */
+	uint16_t dev_id; /**< Device [external]  identifier. */
 } __rte_cache_aligned;
 
 #endif /* _RTE_REGEX_CORE_H_ */
