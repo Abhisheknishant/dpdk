@@ -17,6 +17,7 @@ else
 	cflags += ['-DMVCONF_TYPES_PUBLIC', '-DMVCONF_DMA_PHYS_ADDR_T_PUBLIC']
 endif
 
+allow_experimental_apis = true
 sources = files('rte_mrvl_pmd.c', 'rte_mrvl_pmd_ops.c')
 
 deps += ['bus_vdev', 'common_mvep']

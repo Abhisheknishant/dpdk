@@ -14,7 +14,7 @@ LDLIBS += -lrte_eal -lrte_mempool -lrte_ring -lrte_mbuf
 LDLIBS += -lrte_kvargs
 
 # library source files
-SRCS-y += rte_cryptodev.c rte_cryptodev_pmd.c
+SRCS-y += rte_cryptodev.c rte_cryptodev_pmd.c cryptodev_trace_points.c
 
 # export include files
 SYMLINK-y-include += rte_crypto.h
@@ -22,6 +22,8 @@ SYMLINK-y-include += rte_crypto_sym.h
 SYMLINK-y-include += rte_cryptodev.h
 SYMLINK-y-include += rte_cryptodev_pmd.h
 SYMLINK-y-include += rte_crypto_asym.h
+SYMLINK-y-include += rte_trace_cryptodev.h
+SYMLINK-y-include += rte_trace_cryptodev_fp.h
 
 # versioning export map
 EXPORT_MAP := rte_cryptodev_version.map

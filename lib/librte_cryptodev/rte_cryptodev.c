@@ -40,6 +40,7 @@
 #include "rte_crypto.h"
 #include "rte_cryptodev.h"
 #include "rte_cryptodev_pmd.h"
+#include "rte_trace_cryptodev.h"
 
 static uint8_t nb_drivers;
 
@@ -905,6 +906,7 @@ rte_cryptodev_configure(uint8_t dev_id, struct rte_cryptodev_config *config)
 		return diag;
 	}
 
+	rte_trace_lib_cryptodev_configure(dev_id, config);
 	return (*dev->dev_ops->dev_configure)(dev, config);
 }
 
@@ -933,6 +935,7 @@ rte_cryptodev_start(uint8_t dev_id)
 	}
 
 	diag = (*dev->dev_ops->dev_start)(dev);
+	rte_trace_lib_cryptodev_start(dev_id, diag);
 	if (diag == 0)
 		dev->data->dev_started = 1;
 	else
@@ -962,6 +965,7 @@ rte_cryptodev_stop(uint8_t dev_id)
 	}
 
 	(*dev->dev_ops->dev_stop)(dev);
+	rte_trace_lib_cryptodev_stop(dev_id);
 	dev->data->dev_started = 0;
 }
 
@@ -998,6 +1002,7 @@ rte_cryptodev_close(uint8_t dev_id)
 
 	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->dev_close, -ENOTSUP);
 	retval = (*dev->dev_ops->dev_close)(dev);
+	rte_trace_lib_cryptodev_close(dev_id, retval);
 
 	if (retval < 0)
 		return retval;
@@ -1067,6 +1072,8 @@ rte_cryptodev_queue_pair_setup(uint8_t dev_id, uint16_t queue_pair_id,
 
 	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->queue_pair_setup, -ENOTSUP);
 
+	rte_trace_lib_cryptodev_queue_pair_setup(dev_id, queue_pair_id,
+						 qp_conf);
 	return (*dev->dev_ops->queue_pair_setup)(dev, queue_pair_id, qp_conf,
 			socket_id);
 }
@@ -1283,6 +1290,7 @@ rte_cryptodev_sym_session_init(uint8_t dev_id,
 		}
 	}
 
+	rte_trace_lib_cryptodev_sym_session_init(dev_id, sess, xforms, mp);
 	sess->sess_data[index].refcnt++;
 	return 0;
 }
@@ -1319,6 +1327,7 @@ rte_cryptodev_asym_session_init(uint8_t dev_id,
 		}
 	}
 
+	rte_trace_lib_cryptodev_asym_session_init(dev_id, sess, xforms, mp);
 	return 0;
 }
 
@@ -1359,6 +1368,9 @@ rte_cryptodev_sym_session_pool_create(const char *name, uint32_t nb_elts,
 	pool_priv->nb_drivers = nb_drivers;
 	pool_priv->user_data_sz = user_data_size;
 
+	rte_trace_lib_cryptodev_sym_session_pool_create(name, nb_elts,
+							elt_size, cache_size,
+							user_data_size, mp);
 	return mp;
 }
 
@@ -1403,6 +1415,7 @@ rte_cryptodev_sym_session_create(struct rte_mempool *mp)
 	memset(sess->sess_data, 0,
 			rte_cryptodev_sym_session_data_size(sess));
 
+	rte_trace_lib_cryptodev_sym_session_create(mp, sess);
 	return sess;
 }
 
@@ -1422,6 +1435,7 @@ rte_cryptodev_asym_session_create(struct rte_mempool *mp)
 	 */
 	memset(sess, 0, (sizeof(void *) * nb_drivers) + sizeof(uint8_t));
 
+	rte_trace_lib_cryptodev_asym_session_create(mp, sess);
 	return sess;
 }
 
@@ -1447,6 +1461,7 @@ rte_cryptodev_sym_session_clear(uint8_t dev_id,
 
 	dev->dev_ops->sym_session_clear(dev, sess);
 
+	rte_trace_lib_cryptodev_sym_session_clear(dev_id, sess);
 	return 0;
 }
 
@@ -1465,6 +1480,7 @@ rte_cryptodev_asym_session_clear(uint8_t dev_id,
 
 	dev->dev_ops->asym_session_clear(dev, sess);
 
+	rte_trace_lib_cryptodev_sym_session_clear(dev_id, sess);
 	return 0;
 }
 
@@ -1487,6 +1503,7 @@ rte_cryptodev_sym_session_free(struct rte_cryptodev_sym_session *sess)
 	sess_mp = rte_mempool_from_obj(sess);
 	rte_mempool_put(sess_mp, sess);
 
+	rte_trace_lib_cryptodev_sym_session_free(sess);
 	return 0;
 }
 
@@ -1511,6 +1528,7 @@ rte_cryptodev_asym_session_free(struct rte_cryptodev_asym_session *sess)
 	sess_mp = rte_mempool_from_obj(sess);
 	rte_mempool_put(sess_mp, sess);
 
+	rte_trace_lib_cryptodev_asym_session_free(sess);
 	return 0;
 }
 
