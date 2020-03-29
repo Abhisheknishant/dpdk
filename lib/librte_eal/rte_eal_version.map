@@ -382,4 +382,6 @@ EXPERIMENTAL {
 	__rte_trace_lib_eal_generic_ptr;
 	__rte_trace_lib_eal_generic_str;
 	__rte_trace_lib_eal_generic_func;
+	__rte_trace_lib_eal_alarm_set;
+	__rte_trace_lib_eal_alarm_cancel;
 };

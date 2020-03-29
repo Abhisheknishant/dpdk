@@ -15,6 +15,7 @@
 extern "C" {
 #endif
 
+#include <rte_alarm.h>
 #include <rte_trace.h>
 
 /* Generic */
@@ -114,6 +115,23 @@ RTE_TRACE_POINT(
 )
 
 #define RTE_TRACE_LIB_EAL_GENERIC_FUNC rte_trace_lib_eal_generic_func(__func__)
+
+/* Alarm */
+RTE_TRACE_POINT(
+	rte_trace_lib_eal_alarm_set,
+	RTE_TRACE_POINT_ARGS(uint64_t us, rte_eal_alarm_callback cb_fn,
+			     void *cb_arg, int rc),
+	rte_trace_ctf_u64(us); rte_trace_ctf_ptr(cb_fn);
+	rte_trace_ctf_ptr(cb_arg); rte_trace_ctf_int(rc);
+)
+
+RTE_TRACE_POINT(
+	rte_trace_lib_eal_alarm_cancel,
+	RTE_TRACE_POINT_ARGS(rte_eal_alarm_callback cb_fn, void *cb_arg,
+			     int count),
+	rte_trace_ctf_ptr(cb_fn); rte_trace_ctf_ptr(cb_arg);
+	rte_trace_ctf_int(count);
+)
 
 #ifdef __cplusplus
 }
