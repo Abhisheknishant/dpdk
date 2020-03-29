@@ -15,7 +15,7 @@
  * Allocate flow counters via devx interface.
  *
  * @param[in] ctx
- *   ibv contexts returned from mlx5dv_open_device.
+ *   Context returned from mlx5 open_device() glue function.
  * @param dcs
  *   Pointer to counters properties structure to be filled by the routine.
  * @param bulk_n_128
@@ -26,7 +26,7 @@
  *   rte_errno is set.
  */
 struct mlx5_devx_obj *
-mlx5_devx_cmd_flow_counter_alloc(struct ibv_context *ctx, uint32_t bulk_n_128)
+mlx5_devx_cmd_flow_counter_alloc(void *ctx, uint32_t bulk_n_128)
 {
 	struct mlx5_devx_obj *dcs = rte_zmalloc("dcs", sizeof(*dcs), 0);
 	uint32_t in[MLX5_ST_SZ_DW(alloc_flow_counter_in)]   = {0};
@@ -81,7 +81,7 @@ mlx5_devx_cmd_flow_counter_query(struct mlx5_devx_obj *dcs,
 				 int clear, uint32_t n_counters,
 				 uint64_t *pkts, uint64_t *bytes,
 				 uint32_t mkey, void *addr,
-				 struct mlx5dv_devx_cmd_comp *cmd_comp,
+				 void *cmd_comp,
 				 uint64_t async_id)
 {
 	int out_len = MLX5_ST_SZ_BYTES(query_flow_counter_out) +
@@ -130,7 +130,7 @@ mlx5_devx_cmd_flow_counter_query(struct mlx5_devx_obj *dcs,
  * Create a new mkey.
  *
  * @param[in] ctx
- *   ibv contexts returned from mlx5dv_open_device.
+ *   Context returned from mlx5 open_device() glue function.
  * @param[in] attr
  *   Attributes of the requested mkey.
  *
@@ -139,7 +139,7 @@ mlx5_devx_cmd_flow_counter_query(struct mlx5_devx_obj *dcs,
  *   is set.
  */
 struct mlx5_devx_obj *
-mlx5_devx_cmd_mkey_create(struct ibv_context *ctx,
+mlx5_devx_cmd_mkey_create(void *ctx,
 			  struct mlx5_devx_mkey_attr *attr)
 {
 	struct mlx5_klm *klm_array = attr->klm_array;
@@ -275,7 +275,7 @@ mlx5_devx_cmd_destroy(struct mlx5_devx_obj *obj)
  *   0 on success, a negative value otherwise.
  */
 static int
-mlx5_devx_cmd_query_nic_vport_context(struct ibv_context *ctx,
+mlx5_devx_cmd_query_nic_vport_context(void *ctx,
 				      unsigned int vport,
 				      struct mlx5_hca_attr *attr)
 {
@@ -317,12 +317,12 @@ error:
  * Query NIC vDPA attributes.
  *
  * @param[in] ctx
- *   ibv contexts returned from mlx5dv_open_device.
+ *   Context returned from mlx5 open_device() glue function.
  * @param[out] vdpa_attr
  *   vDPA Attributes structure to fill.
  */
 static void
-mlx5_devx_cmd_query_hca_vdpa_attr(struct ibv_context *ctx,
+mlx5_devx_cmd_query_hca_vdpa_attr(void *ctx,
 				  struct mlx5_hca_vdpa_attr *vdpa_attr)
 {
 	uint32_t in[MLX5_ST_SZ_DW(query_hca_cap_in)] = {0};
@@ -398,7 +398,7 @@ mlx5_devx_cmd_query_hca_vdpa_attr(struct ibv_context *ctx,
  * is having the required capabilities.
  *
  * @param[in] ctx
- *   ibv contexts returned from mlx5dv_open_device.
+ *   Context returned from mlx5 open_device() glue function.
  * @param[out] attr
  *   Attributes device values.
  *
@@ -406,7 +406,7 @@ mlx5_devx_cmd_query_hca_vdpa_attr(struct ibv_context *ctx,
  *   0 on success, a negative value otherwise.
  */
 int
-mlx5_devx_cmd_query_hca_attr(struct ibv_context *ctx,
+mlx5_devx_cmd_query_hca_attr(void *ctx,
 			     struct mlx5_hca_attr *attr)
 {
 	uint32_t in[MLX5_ST_SZ_DW(query_hca_cap_in)] = {0};
@@ -566,7 +566,7 @@ error:
  *   0 on success, a negative value otherwise.
  */
 int
-mlx5_devx_cmd_qp_query_tis_td(struct ibv_qp *qp, uint32_t tis_num,
+mlx5_devx_cmd_qp_query_tis_td(void *qp, uint32_t tis_num,
 			      uint32_t *tis_td)
 {
 	uint32_t in[MLX5_ST_SZ_DW(query_tis_in)] = {0};
@@ -633,7 +633,7 @@ devx_cmd_fill_wq_data(void *wq_ctx, struct mlx5_devx_wq_attr *wq_attr)
  * Create RQ using DevX API.
  *
  * @param[in] ctx
- *   ibv_context returned from mlx5dv_open_device.
+ *   Context returned from mlx5 open_device() glue function.
  * @param [in] rq_attr
  *   Pointer to create RQ attributes structure.
  * @param [in] socket
@@ -643,7 +643,7 @@ devx_cmd_fill_wq_data(void *wq_ctx, struct mlx5_devx_wq_attr *wq_attr)
  *   The DevX object created, NULL otherwise and rte_errno is set.
  */
 struct mlx5_devx_obj *
-mlx5_devx_cmd_create_rq(struct ibv_context *ctx,
+mlx5_devx_cmd_create_rq(void *ctx,
 			struct mlx5_devx_create_rq_attr *rq_attr,
 			int socket)
 {
@@ -742,7 +742,7 @@ mlx5_devx_cmd_modify_rq(struct mlx5_devx_obj *rq,
  * Create TIR using DevX API.
  *
  * @param[in] ctx
- *   ibv_context returned from mlx5dv_open_device.
+ *  Context returned from mlx5 open_device() glue function.
  * @param [in] tir_attr
  *   Pointer to TIR attributes structure.
  *
@@ -750,7 +750,7 @@ mlx5_devx_cmd_modify_rq(struct mlx5_devx_obj *rq,
  *   The DevX object created, NULL otherwise and rte_errno is set.
  */
 struct mlx5_devx_obj *
-mlx5_devx_cmd_create_tir(struct ibv_context *ctx,
+mlx5_devx_cmd_create_tir(void *ctx,
 			 struct mlx5_devx_tir_attr *tir_attr)
 {
 	uint32_t in[MLX5_ST_SZ_DW(create_tir_in)] = {0};
@@ -814,7 +814,7 @@ mlx5_devx_cmd_create_tir(struct ibv_context *ctx,
  * Create RQT using DevX API.
  *
  * @param[in] ctx
- *   ibv_context returned from mlx5dv_open_device.
+ *   Context returned from mlx5 open_device() glue function.
  * @param [in] rqt_attr
  *   Pointer to RQT attributes structure.
  *
@@ -822,7 +822,7 @@ mlx5_devx_cmd_create_tir(struct ibv_context *ctx,
  *   The DevX object created, NULL otherwise and rte_errno is set.
  */
 struct mlx5_devx_obj *
-mlx5_devx_cmd_create_rqt(struct ibv_context *ctx,
+mlx5_devx_cmd_create_rqt(void *ctx,
 			 struct mlx5_devx_rqt_attr *rqt_attr)
 {
 	uint32_t *in = NULL;
@@ -916,7 +916,7 @@ mlx5_devx_cmd_modify_rqt(struct mlx5_devx_obj *rqt,
  * Create SQ using DevX API.
  *
  * @param[in] ctx
- *   ibv_context returned from mlx5dv_open_device.
+ *   Context returned from mlx5 open_device() glue function.
  * @param [in] sq_attr
  *   Pointer to SQ attributes structure.
  * @param [in] socket
@@ -926,7 +926,7 @@ mlx5_devx_cmd_modify_rqt(struct mlx5_devx_obj *rqt,
  *   The DevX object created, NULL otherwise and rte_errno is set.
  **/
 struct mlx5_devx_obj *
-mlx5_devx_cmd_create_sq(struct ibv_context *ctx,
+mlx5_devx_cmd_create_sq(void *ctx,
 			struct mlx5_devx_create_sq_attr *sq_attr)
 {
 	uint32_t in[MLX5_ST_SZ_DW(create_sq_in)] = {0};
@@ -1018,7 +1018,7 @@ mlx5_devx_cmd_modify_sq(struct mlx5_devx_obj *sq,
  * Create TIS using DevX API.
  *
  * @param[in] ctx
- *   ibv_context returned from mlx5dv_open_device.
+ *   Context returned from mlx5 open_device() glue function.
  * @param [in] tis_attr
  *   Pointer to TIS attributes structure.
  *
@@ -1026,7 +1026,7 @@ mlx5_devx_cmd_modify_sq(struct mlx5_devx_obj *sq,
  *   The DevX object created, NULL otherwise and rte_errno is set.
  */
 struct mlx5_devx_obj *
-mlx5_devx_cmd_create_tis(struct ibv_context *ctx,
+mlx5_devx_cmd_create_tis(void *ctx,
 			 struct mlx5_devx_tis_attr *tis_attr)
 {
 	uint32_t in[MLX5_ST_SZ_DW(create_tis_in)] = {0};
@@ -1065,13 +1065,12 @@ mlx5_devx_cmd_create_tis(struct ibv_context *ctx,
  * Create transport domain using DevX API.
  *
  * @param[in] ctx
- *   ibv_context returned from mlx5dv_open_device.
- *
+ *   Context returned from mlx5 open_device() glue function.
  * @return
  *   The DevX object created, NULL otherwise and rte_errno is set.
  */
 struct mlx5_devx_obj *
-mlx5_devx_cmd_create_td(struct ibv_context *ctx)
+mlx5_devx_cmd_create_td(void *ctx)
 {
 	uint32_t in[MLX5_ST_SZ_DW(alloc_transport_domain_in)] = {0};
 	uint32_t out[MLX5_ST_SZ_DW(alloc_transport_domain_out)] = {0};
@@ -1142,7 +1141,7 @@ mlx5_devx_cmd_flow_dump(void *fdb_domain __rte_unused,
  * Create CQ using DevX API.
  *
  * @param[in] ctx
- *   ibv_context returned from mlx5dv_open_device.
+ *   Context returned from mlx5 open_device() glue function.
  * @param [in] attr
  *   Pointer to CQ attributes structure.
  *
@@ -1150,7 +1149,7 @@ mlx5_devx_cmd_flow_dump(void *fdb_domain __rte_unused,
  *   The DevX object created, NULL otherwise and rte_errno is set.
  */
 struct mlx5_devx_obj *
-mlx5_devx_cmd_create_cq(struct ibv_context *ctx, struct mlx5_devx_cq_attr *attr)
+mlx5_devx_cmd_create_cq(void *ctx, struct mlx5_devx_cq_attr *attr)
 {
 	uint32_t in[MLX5_ST_SZ_DW(create_cq_in)] = {0};
 	uint32_t out[MLX5_ST_SZ_DW(create_cq_out)] = {0};
@@ -1200,7 +1199,7 @@ mlx5_devx_cmd_create_cq(struct ibv_context *ctx, struct mlx5_devx_cq_attr *attr)
  * Create VIRTQ using DevX API.
  *
  * @param[in] ctx
- *   ibv_context returned from mlx5dv_open_device.
+ *   Context returned from mlx5 open_device() glue function.
  * @param [in] attr
  *   Pointer to VIRTQ attributes structure.
  *
@@ -1208,7 +1207,7 @@ mlx5_devx_cmd_create_cq(struct ibv_context *ctx, struct mlx5_devx_cq_attr *attr)
  *   The DevX object created, NULL otherwise and rte_errno is set.
  */
 struct mlx5_devx_obj *
-mlx5_devx_cmd_create_virtq(struct ibv_context *ctx,
+mlx5_devx_cmd_create_virtq(void *ctx,
 			   struct mlx5_devx_virtq_attr *attr)
 {
 	uint32_t in[MLX5_ST_SZ_DW(create_virtq_in)] = {0};
@@ -1369,7 +1368,7 @@ mlx5_devx_cmd_query_virtq(struct mlx5_devx_obj *virtq_obj,
  * Create QP using DevX API.
  *
  * @param[in] ctx
- *   ibv_context returned from mlx5dv_open_device.
+ *   Context returned from mlx5 open_device() glue function.
  * @param [in] attr
  *   Pointer to QP attributes structure.
  *
@@ -1377,7 +1376,7 @@ mlx5_devx_cmd_query_virtq(struct mlx5_devx_obj *virtq_obj,
  *   The DevX object created, NULL otherwise and rte_errno is set.
  */
 struct mlx5_devx_obj *
-mlx5_devx_cmd_create_qp(struct ibv_context *ctx,
+mlx5_devx_cmd_create_qp(void *ctx,
 			struct mlx5_devx_qp_attr *attr)
 {
 	uint32_t in[MLX5_ST_SZ_DW(create_qp_in)] = {0};
