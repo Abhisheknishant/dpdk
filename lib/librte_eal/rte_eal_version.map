@@ -339,7 +339,9 @@ EXPERIMENTAL {
 	# added in 20.05
 	rte_log_can_log;
 	rte_thread_getname;
+	__rte_trace_mem_per_thread_alloc;
 	__rte_trace_point_register;
+	per_lcore_trace_mem;
 	rte_trace_global_is_enabled;
 	rte_trace_global_is_disabled;
 	rte_trace_is_id_invalid;
