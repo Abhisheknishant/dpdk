@@ -22,7 +22,8 @@ libraries = [
 	'gro', 'gso', 'ip_frag', 'jobstats',
 	'kni', 'latencystats', 'lpm', 'member',
 	'power', 'pdump', 'rawdev',
-	'rcu', 'rib', 'reorder', 'sched', 'security', 'stack', 'vhost',
+	'rcu', 'regexdev', 'rib', 'reorder', 'sched', 'security', 'stack',
+	'vhost',
 	# ipsec lib depends on net, crypto and security
 	'ipsec',
 	#fib lib depends on rib
