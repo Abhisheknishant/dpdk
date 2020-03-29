@@ -391,4 +391,6 @@ EXPERIMENTAL {
 	__rte_trace_lib_eal_memzone_reserve;
 	__rte_trace_lib_eal_memzone_lookup;
 	__rte_trace_lib_eal_memzone_free;
+	__rte_trace_lib_eal_thread_remote_launch;
+	__rte_trace_lib_eal_thread_lcore_ready;
 };
