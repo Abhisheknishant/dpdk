@@ -2,6 +2,7 @@
 # Copyright(C) 2019 Marvell International Ltd.
 #
 
+allow_experimental_apis = true
 sources = files('otx2_rx.c',
 		'otx2_tx.c',
 		'otx2_tm.c',

@@ -10,6 +10,7 @@ include $(RTE_SDK)/mk/rte.vars.mk
 LIB = librte_pmd_octeontx.a
 
 CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 CFLAGS += -I$(RTE_SDK)/drivers/common/octeontx/
 CFLAGS += -I$(RTE_SDK)/drivers/mempool/octeontx/
 

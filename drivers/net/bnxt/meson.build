@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright(c) 2018 Intel Corporation
 
+allow_experimental_apis = true
 install_headers('rte_pmd_bnxt.h')
 sources = files('bnxt_cpr.c',
 	'bnxt_ethdev.c',

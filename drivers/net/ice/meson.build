@@ -27,6 +27,9 @@ if arch_subdir == 'x86'
 	if dpdk_conf.has('RTE_MACHINE_CPUFLAG_AVX2')
 		sources += files('ice_rxtx_vec_avx2.c')
 	elif cc.has_argument('-mavx2')
+		if allow_experimental_apis
+			cflags += ['-DALLOW_EXPERIMENTAL_API']
+		endif
 		ice_avx2_lib = static_library('ice_avx2_lib',
 				'ice_rxtx_vec_avx2.c',
 				dependencies: [static_rte_ethdev,

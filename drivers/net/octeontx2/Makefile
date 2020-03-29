@@ -20,6 +20,7 @@ ifneq ($(CONFIG_RTE_TOOLCHAIN_ICC),y)
 CFLAGS += -flax-vector-conversions
 endif
 
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 ifneq ($(CONFIG_RTE_ARCH_64),y)
 CFLAGS += -Wno-int-to-pointer-cast
 CFLAGS += -Wno-pointer-to-int-cast

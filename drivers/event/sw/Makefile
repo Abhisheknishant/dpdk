@@ -9,6 +9,7 @@ LIB = librte_pmd_sw_event.a
 # build flags
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 LDLIBS += -lrte_eal -lrte_eventdev -lrte_kvargs -lrte_ring
 LDLIBS += -lrte_mempool -lrte_mbuf
 LDLIBS += -lrte_bus_vdev

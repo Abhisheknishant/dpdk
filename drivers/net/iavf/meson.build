@@ -25,6 +25,9 @@ if arch_subdir == 'x86'
 		sources += files('iavf_rxtx_vec_avx2.c')
 	elif cc.has_argument('-mavx2')
 		cflags += ['-DCC_AVX2_SUPPORT']
+		if allow_experimental_apis
+			cflags += ['-DALLOW_EXPERIMENTAL_API']
+		endif
 		iavf_avx2_lib = static_library('iavf_avx2_lib',
 				'iavf_rxtx_vec_avx2.c',
 				dependencies: [static_rte_ethdev,

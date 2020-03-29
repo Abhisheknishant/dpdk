@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright(c) 2017 Intel Corporation
 
+allow_experimental_apis = true
 sources = files('rte_gro.c', 'gro_tcp4.c', 'gro_vxlan_tcp4.c')
 headers = files('rte_gro.h')
 deps += ['ethdev']

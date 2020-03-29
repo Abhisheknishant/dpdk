@@ -3,6 +3,7 @@
 
 build = dpdk_conf.has('RTE_LIBRTE_VHOST')
 reason = 'missing dependency, DPDK vhost library'
+allow_experimental_apis = true
 sources = files('rte_eth_vhost.c')
 install_headers('rte_eth_vhost.h')
 deps += 'vhost'

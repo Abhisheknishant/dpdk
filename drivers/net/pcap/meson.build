@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright(c) 2017 Intel Corporation
 
+allow_experimental_apis = true
 if not dpdk_conf.has('RTE_PORT_PCAP')
 	build = false
 	reason = 'missing dependency, "libpcap"'

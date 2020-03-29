@@ -6,6 +6,7 @@ include $(RTE_SDK)/mk/rte.vars.mk
 APP = dpdk-procinfo
 
 CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 
 # all source are stored in SRCS-y
 
