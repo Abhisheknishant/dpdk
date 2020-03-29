@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright 2019 Intel Corporation
 
+allow_experimental_apis = true
 build = dpdk_conf.has('RTE_ARCH_X86')
 reason = 'only supported on x86'
 sources = files('ioat_rawdev.c',

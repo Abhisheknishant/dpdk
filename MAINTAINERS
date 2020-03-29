@@ -208,6 +208,8 @@ F: lib/librte_eventdev/eventdev_trace_points.c
 F: lib/librte_eventdev/rte_trace_eventdev*.h
 F: lib/librte_cryptodev/cryptodev_trace_points.c
 F: lib/librte_cryptodev/rte_trace_cryptodev*.h
+F: lib/librte_mempool/mempool_trace_points.c
+F: lib/librte_mempool/rte_trace_mempool*.h
 
 Memory Allocation
 M: Anatoly Burakov <anatoly.burakov@intel.com>

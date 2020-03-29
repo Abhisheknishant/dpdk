@@ -19,7 +19,10 @@ CFLAGS += -DALLOW_EXPERIMENTAL_API
 SRCS-$(CONFIG_RTE_LIBRTE_MEMPOOL) +=  rte_mempool.c
 SRCS-$(CONFIG_RTE_LIBRTE_MEMPOOL) +=  rte_mempool_ops.c
 SRCS-$(CONFIG_RTE_LIBRTE_MEMPOOL) +=  rte_mempool_ops_default.c
+SRCS-$(CONFIG_RTE_LIBRTE_MEMPOOL) +=  mempool_trace_points.c
 # install includes
 SYMLINK-$(CONFIG_RTE_LIBRTE_MEMPOOL)-include := rte_mempool.h
+SYMLINK-$(CONFIG_RTE_LIBRTE_MEMPOOL)-include += rte_trace_mempool.h
+SYMLINK-$(CONFIG_RTE_LIBRTE_MEMPOOL)-include += rte_trace_mempool_fp.h
 
 include $(RTE_SDK)/mk/rte.lib.mk
