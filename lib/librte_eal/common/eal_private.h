@@ -443,4 +443,7 @@ rte_option_usage(void);
 uint64_t
 eal_get_baseaddr(void);
 
+const char *
+eal_loglevel_to_string(uint32_t level);
+
 #endif /* _EAL_PRIVATE_H_ */
