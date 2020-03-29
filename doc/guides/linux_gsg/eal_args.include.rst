@@ -136,6 +136,25 @@ Debugging options
 
     Can be specified multiple times.
 
+*   ``--trace-level=<val> | <*type*:val> | <type, val>``
+
+    Specify trace level for global or specific component, based on pattern or
+    regular expression matching. For example:
+
+    Global trace level configuration::
+
+        --trace-level=8
+
+    Global trace level configuration for EAL only using pattern match::
+
+        --trace-level=*eal*:8
+
+    Global trace level configuration for EAL only using regexp match::
+
+        --trace-level=eal,8
+
+    Can be specified multiple times up to 32 times.
+
 Other options
 ~~~~~~~~~~~~~
 
