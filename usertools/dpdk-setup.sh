@@ -366,6 +366,10 @@ run_test_app()
 	echo "  Example: to execute app on cores 0 to 7, enter 0xff"
 	echo -n "bitmask: "
 	read Bitmask
+	if [ -z "$RTE_TARGET" ]; then
+    	echo -n "build directory: "
+		read RTE_TARGET
+	fi
 	echo "Launching app"
 	sudo ${RTE_TARGET}/app/test -c $Bitmask $EAL_PARAMS
 }
@@ -380,6 +384,10 @@ run_testpmd_app()
 	echo "  Example: to execute app on cores 0 to 7, enter 0xff"
 	echo -n "bitmask: "
 	read Bitmask
+	if [ -z "$RTE_TARGET" ]; then
+    	echo -n "build directory: "
+		read RTE_TARGET
+	fi
 	echo "Launching app"
 	sudo ${RTE_TARGET}/app/testpmd -c $Bitmask $EAL_PARAMS -- -i
 }
