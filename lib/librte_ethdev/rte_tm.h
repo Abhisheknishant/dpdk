@@ -339,6 +339,20 @@ struct rte_tm_capabilities {
 	 */
 	uint32_t sched_wfq_weight_max;
 
+	/** WFQ weight mode supported. Non-zero value indicates wfq weight mode
+	 * is supported and a SP child (even a wfq group) can be configured to
+	 * use packet-mode or byte-mode for weight calculations.
+	 */
+	int sched_wfq_weight_mode_supported;
+
+	/** Private shaper and scheduler weight mode.
+	 * When non-zero value indicates that all SP children should have
+	 * same weight mode and the same mode applies to private
+	 * shaper as well. This is only valid if
+	 * *sched_wfq_weight_mode_supported* is set.
+	 */
+	int sched_shaper_private_weight_mode;
+
 	/** WRED packet mode support. When non-zero, this parameter indicates
 	 * that there is at least one leaf node that supports the WRED packet
 	 * mode, which might not be true for all the leaf nodes. In packet
@@ -554,6 +568,21 @@ struct rte_tm_level_capabilities {
 			 */
 			uint32_t sched_wfq_weight_max;
 
+			/** WFQ weight mode supported. Non-zero value indicates
+			 * wfq weight mode is supported and a SP child
+			 * (even a wfq group) can be configured to use
+			 * packet-mode or byte-mode for weight calculations.
+			 */
+			int sched_wfq_weight_mode_supported;
+
+			/** Private shaper and scheduler weight mode.
+			 * When non-zero value indicates that all SP children
+			 * should have same weight mode and the same mode
+			 * applies to private shaper as well. This is only
+			 * valid if *sched_wfq_weight_mode_supported* is set.
+			 */
+			int sched_shaper_private_weight_mode;
+
 			/** Mask of statistics counter types supported by the
 			 * non-leaf nodes on this level. Every supported
 			 * statistics counter type is supported by at least one
@@ -735,6 +764,21 @@ struct rte_tm_node_capabilities {
 			 * WFQ weight, so WFQ is reduced to FQ.
 			 */
 			uint32_t sched_wfq_weight_max;
+
+			/** WFQ weight mode supported. Non-zero value indicates
+			 * wfq weight mode is supported and a SP child
+			 * (even a wfq group) can be configured to use
+			 * packet-mode or byte-mode for weight calculations.
+			 */
+			int sched_wfq_weight_mode_supported;
+
+			/** Private shaper and scheduler weight mode.
+			 * When non-zero value indicates that all SP children
+			 * should have same weight mode and the same mode
+			 * applies to private shaper as well. This is only
+			 * valid if *sched_wfq_weight_mode_supported* is set.
+			 */
+			int sched_shaper_private_weight_mode;
 		} nonleaf;
 
 		/** Items valid only for leaf nodes. */
@@ -836,10 +880,19 @@ struct rte_tm_wred_params {
  * Token bucket
  */
 struct rte_tm_token_bucket {
-	/** Token bucket rate (bytes per second) */
+	/** Token bucket rate. This is in "bytes per second" by default.
+	 * For private shaper attached to node that is set in packet mode
+	 * and tm capability *sched_shaper_private_weight_mode* is set,
+	 * this is interpreted as "packets per second".
+	 */
 	uint64_t rate;
 
-	/** Token bucket size (bytes), a.k.a. max burst size */
+	/** Token bucket size, a.k.a. max burst size.
+	 * This is in "bytes" by default.
+	 * For private shaper attached to node that is set in packet mode
+	 * and tm capability *sched_shaper_private_weight_mode* is set,
+	 * this is interpreted as "packets".
+	 */
 	uint64_t size;
 };
 
@@ -924,7 +977,10 @@ struct rte_tm_node_params {
 			 * indicates that WFQ is to be used for all priorities.
 			 * When non-NULL, it points to a pre-allocated array of
 			 * *n_sp_priorities* values, with non-zero value for
-			 * byte-mode and zero for packet-mode.
+			 * byte-mode and zero for packet-mode. The same mode is
+			 * used for private shaper connected to this node if
+			 * tm capability *sched_shaper_private_weight_mode* is
+			 * true.
 			 */
 			int *wfq_weight_mode;
 
