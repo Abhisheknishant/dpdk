@@ -593,7 +593,7 @@ while [ "$QUIT" == "0" ]; do
 	OPTIONS[$OPTION_NUM]="quit"
 	echo ""
 	echo -n "Option: "
-	read our_entry
+	read our_entry || break
 	echo ""
 	${OPTIONS[our_entry]} ${our_entry}
 
