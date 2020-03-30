@@ -62,6 +62,13 @@ New Features
 
   * Added support for matching on IPv4 Time To Live and IPv6 Hop Limit.
 
+* **Updated Intel i40e driver.**
+
+  Updated i40e PMD with new features and improvements, including:
+
+  * Added support for RSS using L3/L4 source/destination only.
+  * Added support for setting hash function in rte flow.
+
 
 Removed Items
 -------------
