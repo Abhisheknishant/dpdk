@@ -11,3 +11,8 @@
         type_kind = enum
         name = rte_crypto_asym_xform_type
         changed_enumerators = RTE_CRYPTO_ASYM_XFORM_TYPE_LIST_END
+; Ignore this enum update as it should not be allocated by the application
+[suppress_type]
+	type_kind = enum
+	name = rte_cpu_flag_t
+	changed_enumerators = RTE_CPUFLAG_NUMFLAGS
