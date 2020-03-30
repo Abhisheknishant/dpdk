@@ -283,6 +283,10 @@ static void cmd_show_port_tm_cap_parsed(void *parsed_result,
 		cap.sched_wfq_n_groups_max);
 	printf("cap.sched_wfq_weight_max %" PRIu32 "\n",
 		cap.sched_wfq_weight_max);
+	printf("cap.sched_wfq_weight_mode_supported %" PRId32 "\n",
+		cap.sched_wfq_weight_mode_supported);
+	printf("cap.sched_shaper_private_weight_mode %" PRId32 "\n",
+		cap.sched_shaper_private_weight_mode);
 	printf("cap.cman_head_drop_supported %" PRId32 "\n",
 		cap.cman_head_drop_supported);
 	printf("cap.cman_wred_context_n_max %" PRIu32 "\n",
@@ -413,6 +417,10 @@ static void cmd_show_port_tm_level_cap_parsed(void *parsed_result,
 			lcap.nonleaf.sched_wfq_n_groups_max);
 		printf("cap.nonleaf.sched_wfq_weight_max %" PRIu32 "\n",
 			lcap.nonleaf.sched_wfq_weight_max);
+		printf("cap.nonleaf.sched_wfq_weight_mode_supported %" PRId32 "\n",
+			lcap.nonleaf.sched_wfq_weight_mode_supported);
+		printf("cap.nonleaf.sched_shaper_private_weight_mode %" PRId32 "\n",
+			lcap.nonleaf.sched_shaper_private_weight_mode);
 		printf("cap.nonleaf.stats_mask %" PRIx64 "\n",
 			lcap.nonleaf.stats_mask);
 	} else {
@@ -537,6 +545,10 @@ static void cmd_show_port_tm_node_cap_parsed(void *parsed_result,
 			ncap.nonleaf.sched_wfq_n_groups_max);
 		printf("cap.nonleaf.sched_wfq_weight_max %" PRIu32 "\n",
 			ncap.nonleaf.sched_wfq_weight_max);
+		printf("cap.nonleaf.sched_wfq_weight_mode_supported %" PRId32 "\n",
+			ncap.nonleaf.sched_wfq_weight_mode_supported);
+		printf("cap.nonleaf.sched_shaper_private_weight_mode %" PRId32 "\n",
+			ncap.nonleaf.sched_shaper_private_weight_mode);
 	} else {
 		printf("cap.leaf.cman_head_drop_supported %" PRId32 "\n",
 			ncap.leaf.cman_head_drop_supported);
@@ -1671,6 +1683,172 @@ cmdline_parse_inst_t cmd_add_port_tm_nonleaf_node = {
 	},
 };
 
+/* *** Add Port TM nonleaf node pkt mode *** */
+struct cmd_add_port_tm_nonleaf_node_pmode_result {
+	cmdline_fixed_string_t add;
+	cmdline_fixed_string_t port;
+	cmdline_fixed_string_t tm;
+	cmdline_fixed_string_t nonleaf;
+	cmdline_fixed_string_t node;
+	uint16_t port_id;
+	uint32_t node_id;
+	int32_t parent_node_id;
+	uint32_t priority;
+	uint32_t weight;
+	uint32_t level_id;
+	int32_t shaper_profile_id;
+	uint32_t n_sp_priorities;
+	uint64_t stats_mask;
+	cmdline_multi_string_t multi_shared_shaper_id;
+};
+
+cmdline_parse_token_string_t cmd_add_port_tm_nonleaf_node_pmode_add =
+	TOKEN_STRING_INITIALIZER(
+		struct cmd_add_port_tm_nonleaf_node_pmode_result, add, "add");
+cmdline_parse_token_string_t cmd_add_port_tm_nonleaf_node_pmode_port =
+	TOKEN_STRING_INITIALIZER(
+		struct cmd_add_port_tm_nonleaf_node_pmode_result, port, "port");
+cmdline_parse_token_string_t cmd_add_port_tm_nonleaf_node_pmode_tm =
+	TOKEN_STRING_INITIALIZER(
+		struct cmd_add_port_tm_nonleaf_node_pmode_result, tm, "tm");
+cmdline_parse_token_string_t cmd_add_port_tm_nonleaf_node_pmode_nonleaf =
+	TOKEN_STRING_INITIALIZER(
+		struct cmd_add_port_tm_nonleaf_node_pmode_result, nonleaf, "nonleaf");
+cmdline_parse_token_string_t cmd_add_port_tm_nonleaf_node_pmode_node =
+	TOKEN_STRING_INITIALIZER(
+		struct cmd_add_port_tm_nonleaf_node_pmode_result, node, "node");
+cmdline_parse_token_string_t cmd_add_port_tm_nonleaf_node_pmode_pktmode =
+	TOKEN_STRING_INITIALIZER(
+		struct cmd_add_port_tm_nonleaf_node_pmode_result, node, "pktmode");
+cmdline_parse_token_num_t cmd_add_port_tm_nonleaf_node_pmode_port_id =
+	TOKEN_NUM_INITIALIZER(
+		struct cmd_add_port_tm_nonleaf_node_pmode_result,
+		 port_id, UINT16);
+cmdline_parse_token_num_t cmd_add_port_tm_nonleaf_node_pmode_node_id =
+	TOKEN_NUM_INITIALIZER(struct cmd_add_port_tm_nonleaf_node_pmode_result,
+		 node_id, UINT32);
+cmdline_parse_token_num_t cmd_add_port_tm_nonleaf_node_pmode_parent_node_id =
+	TOKEN_NUM_INITIALIZER(struct cmd_add_port_tm_nonleaf_node_pmode_result,
+		 parent_node_id, INT32);
+cmdline_parse_token_num_t cmd_add_port_tm_nonleaf_node_pmode_priority =
+	TOKEN_NUM_INITIALIZER(struct cmd_add_port_tm_nonleaf_node_pmode_result,
+		 priority, UINT32);
+cmdline_parse_token_num_t cmd_add_port_tm_nonleaf_node_pmode_weight =
+	TOKEN_NUM_INITIALIZER(struct cmd_add_port_tm_nonleaf_node_pmode_result,
+		 weight, UINT32);
+cmdline_parse_token_num_t cmd_add_port_tm_nonleaf_node_pmode_level_id =
+	TOKEN_NUM_INITIALIZER(struct cmd_add_port_tm_nonleaf_node_pmode_result,
+		 level_id, UINT32);
+cmdline_parse_token_num_t cmd_add_port_tm_nonleaf_node_pmode_shaper_profile_id =
+	TOKEN_NUM_INITIALIZER(struct cmd_add_port_tm_nonleaf_node_pmode_result,
+		 shaper_profile_id, INT32);
+cmdline_parse_token_num_t cmd_add_port_tm_nonleaf_node_pmode_n_sp_priorities =
+	TOKEN_NUM_INITIALIZER(struct cmd_add_port_tm_nonleaf_node_pmode_result,
+		 n_sp_priorities, UINT32);
+cmdline_parse_token_num_t cmd_add_port_tm_nonleaf_node_pmode_stats_mask =
+	TOKEN_NUM_INITIALIZER(struct cmd_add_port_tm_nonleaf_node_pmode_result,
+		 stats_mask, UINT64);
+cmdline_parse_token_string_t
+	cmd_add_port_tm_nonleaf_node_pmode_multi_shrd_shpr_id =
+	TOKEN_STRING_INITIALIZER(
+			struct cmd_add_port_tm_nonleaf_node_pmode_result,
+			multi_shared_shaper_id, TOKEN_STRING_MULTI);
+
+static void cmd_add_port_tm_nonleaf_node_pmode_parsed(void *parsed_result,
+	__attribute__((unused)) struct cmdline *cl,
+	__attribute__((unused)) void *data)
+{
+	struct cmd_add_port_tm_nonleaf_node_pmode_result *res = parsed_result;
+	uint32_t parent_node_id, n_shared_shapers = 0;
+	char *s_str = res->multi_shared_shaper_id;
+	portid_t port_id = res->port_id;
+	struct rte_tm_node_params np;
+	int *wfq_weight_mode = NULL;
+	uint32_t *shared_shaper_id;
+	struct rte_tm_error error;
+	int ret;
+
+	if (port_id_is_invalid(port_id, ENABLED_WARN))
+		return;
+
+	memset(&np, 0, sizeof(struct rte_tm_node_params));
+	memset(&error, 0, sizeof(struct rte_tm_error));
+
+	/* Node parameters */
+	if (res->parent_node_id < 0)
+		parent_node_id = UINT32_MAX;
+	else
+		parent_node_id = res->parent_node_id;
+
+	shared_shaper_id = (uint32_t *)malloc(MAX_NUM_SHARED_SHAPERS *
+		sizeof(uint32_t));
+	if (shared_shaper_id == NULL) {
+		printf(" Memory not allocated for shared shapers (error)\n");
+		return;
+	}
+
+	/* Parse multi shared shaper id string */
+	ret = parse_multi_ss_id_str(s_str, &n_shared_shapers, shared_shaper_id);
+	if (ret) {
+		printf(" Shared shapers params string parse error\n");
+		free(shared_shaper_id);
+		return;
+	}
+
+	if (res->shaper_profile_id < 0)
+		np.shaper_profile_id = UINT32_MAX;
+	else
+		np.shaper_profile_id = res->shaper_profile_id;
+
+	np.n_shared_shapers = n_shared_shapers;
+	if (np.n_shared_shapers) {
+		np.shared_shaper_id = &shared_shaper_id[0];
+	} else {
+		free(shared_shaper_id);
+		shared_shaper_id = NULL;
+	}
+
+	if (res->n_sp_priorities)
+		wfq_weight_mode = calloc(res->n_sp_priorities, sizeof(int));
+	np.nonleaf.n_sp_priorities = res->n_sp_priorities;
+	np.stats_mask = res->stats_mask;
+	np.nonleaf.wfq_weight_mode = wfq_weight_mode;
+
+	ret = rte_tm_node_add(port_id, res->node_id, parent_node_id,
+				res->priority, res->weight, res->level_id,
+				&np, &error);
+	if (ret != 0) {
+		print_err_msg(&error);
+		free(shared_shaper_id);
+		free(wfq_weight_mode);
+		return;
+	}
+}
+
+cmdline_parse_inst_t cmd_add_port_tm_nonleaf_node_pmode = {
+	.f = cmd_add_port_tm_nonleaf_node_pmode_parsed,
+	.data = NULL,
+	.help_str = "Add port tm nonleaf node pktmode",
+	.tokens = {
+		(void *)&cmd_add_port_tm_nonleaf_node_pmode_add,
+		(void *)&cmd_add_port_tm_nonleaf_node_pmode_port,
+		(void *)&cmd_add_port_tm_nonleaf_node_pmode_tm,
+		(void *)&cmd_add_port_tm_nonleaf_node_pmode_nonleaf,
+		(void *)&cmd_add_port_tm_nonleaf_node_pmode_node,
+		(void *)&cmd_add_port_tm_nonleaf_node_pmode_pktmode,
+		(void *)&cmd_add_port_tm_nonleaf_node_pmode_port_id,
+		(void *)&cmd_add_port_tm_nonleaf_node_pmode_node_id,
+		(void *)&cmd_add_port_tm_nonleaf_node_pmode_parent_node_id,
+		(void *)&cmd_add_port_tm_nonleaf_node_pmode_priority,
+		(void *)&cmd_add_port_tm_nonleaf_node_pmode_weight,
+		(void *)&cmd_add_port_tm_nonleaf_node_pmode_level_id,
+		(void *)&cmd_add_port_tm_nonleaf_node_pmode_shaper_profile_id,
+		(void *)&cmd_add_port_tm_nonleaf_node_pmode_n_sp_priorities,
+		(void *)&cmd_add_port_tm_nonleaf_node_pmode_stats_mask,
+		(void *)&cmd_add_port_tm_nonleaf_node_pmode_multi_shrd_shpr_id,
+		NULL,
+	},
+};
 /* *** Add Port TM leaf node *** */
 struct cmd_add_port_tm_leaf_node_result {
 	cmdline_fixed_string_t add;
