@@ -315,6 +315,7 @@ _atomic_set_cmd(struct i40e_vf *vf, enum virtchnl_ops ops)
 
 #define MAX_TRY_TIMES 200
 #define ASQ_DELAY_MS  10
+#define DELAY_MS(x) DELAY(x * 1000)
 
 static int
 i40evf_execute_vf_cmd(struct rte_eth_dev *dev, struct vf_cmd_info *args)
@@ -358,7 +359,7 @@ i40evf_execute_vf_cmd(struct rte_eth_dev *dev, struct vf_cmd_info *args)
 				break;
 			} else if (ret == I40EVF_MSG_ERR)
 				break;
-			rte_delay_ms(ASQ_DELAY_MS);
+			DELAY_MS(ASQ_DELAY_MS);
 			/* If don't read msg or read sys event, continue */
 		} while (i++ < MAX_TRY_TIMES);
 		_clear_cmd(vf);
@@ -380,7 +381,7 @@ i40evf_execute_vf_cmd(struct rte_eth_dev *dev, struct vf_cmd_info *args)
 					   ret == I40EVF_MSG_CMD) {
 				break;
 			}
-			rte_delay_ms(ASQ_DELAY_MS);
+			DELAY_MS(ASQ_DELAY_MS);
 			/* If don't read msg or read sys event, continue */
 		} while (i++ < MAX_TRY_TIMES);
 		_clear_cmd(vf);
@@ -394,7 +395,7 @@ i40evf_execute_vf_cmd(struct rte_eth_dev *dev, struct vf_cmd_info *args)
 				err = 0;
 				break;
 			}
-			rte_delay_ms(ASQ_DELAY_MS);
+			DELAY_MS(ASQ_DELAY_MS);
 			/* If don't read msg or read sys event, continue */
 		} while (i++ < MAX_TRY_TIMES);
 		/* If there's no response is received, clear command */
