@@ -1782,9 +1782,7 @@ mlx5_rxq_new(struct rte_eth_dev *dev, uint16_t idx, uint16_t desc,
 	struct mlx5_priv *priv = dev->data->dev_private;
 	struct mlx5_rxq_ctrl *tmpl;
 	unsigned int mb_len = rte_pktmbuf_data_room_size(mp);
-	unsigned int mprq_stride_size;
 	struct mlx5_dev_config *config = &priv->config;
-	unsigned int strd_headroom_en;
 	/*
 	 * Always allocate extra slots, even if eventually
 	 * the vector Rx will not be used.
@@ -1830,27 +1828,13 @@ mlx5_rxq_new(struct rte_eth_dev *dev, uint16_t idx, uint16_t desc,
 	tmpl->socket = socket;
 	if (dev->data->dev_conf.intr_conf.rxq)
 		tmpl->irq = 1;
-	/*
-	 * LRO packet may consume all the stride memory, hence we cannot
-	 * guaranty head-room near the packet memory in the stride.
-	 * In this case scatter is, for sure, enabled and an empty mbuf may be
-	 * added in the start for the head-room.
-	 */
-	if (lro_on_queue && RTE_PKTMBUF_HEADROOM > 0 &&
-	    non_scatter_min_mbuf_size > mb_len) {
-		strd_headroom_en = 0;
-		mprq_stride_size = RTE_MIN(max_rx_pkt_len,
-					1u << config->mprq.max_stride_size_n);
-	} else {
-		strd_headroom_en = 1;
-		mprq_stride_size = non_scatter_min_mbuf_size;
-	}
 	if (!config->mprq.stride_num_n)
 		config->mprq.stride_num_n = MLX5_MPRQ_STRIDE_NUM_N;
 	if (!config->mprq.stride_size_n)
-		config->mprq.stride_size_n = (mprq_stride_size <=
+		config->mprq.stride_size_n = (non_scatter_min_mbuf_size <=
 				(1U << config->mprq.max_stride_size_n)) ?
-			log2above(mprq_stride_size) : MLX5_MPRQ_STRIDE_SIZE_N;
+			log2above(non_scatter_min_mbuf_size) :
+			MLX5_MPRQ_STRIDE_SIZE_N;
 	/*
 	 * This Rx queue can be configured as a Multi-Packet RQ if all of the
 	 * following conditions are met:
@@ -1866,7 +1850,8 @@ mlx5_rxq_new(struct rte_eth_dev *dev, uint16_t idx, uint16_t desc,
 		tmpl->rxq.strd_num_n = config->mprq.stride_num_n;
 		tmpl->rxq.strd_sz_n = config->mprq.stride_size_n;
 		tmpl->rxq.strd_shift_en = MLX5_MPRQ_TWO_BYTE_SHIFT;
-		tmpl->rxq.strd_headroom_en = strd_headroom_en;
+		tmpl->rxq.strd_scatter_en =
+				!!(offloads & DEV_RX_OFFLOAD_SCATTER);
 		tmpl->rxq.mprq_max_memcpy_len = RTE_MIN(first_mb_free_size,
 				config->mprq.max_memcpy_len);
 		max_lro_size = RTE_MIN(max_rx_pkt_len,
