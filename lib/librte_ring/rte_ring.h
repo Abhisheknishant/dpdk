@@ -65,10 +65,13 @@ enum rte_ring_queue_behavior {
 enum rte_ring_sync_type {
 	RTE_RING_SYNC_MT,     /**< multi-thread safe (default mode) */
 	RTE_RING_SYNC_ST,     /**< single thread only */
+#ifdef ALLOW_EXPERIMENTAL_API
+	RTE_RING_SYNC_MT_RTS, /**< multi-thread relaxed tail sync */
+#endif
 };
 
 /**
- * structure to hold a pair of head/tail values and other metadata.
+ * structures to hold a pair of head/tail values and other metadata.
  * Depending on sync_type format of that structure might be different,
  * but offset for *sync_type* and *tail* values should remain the same.
  */
@@ -82,6 +85,21 @@ struct rte_ring_headtail {
 		/** deprecated -  True if single prod/cons */
 		uint32_t single;
 	};
+};
+
+union rte_ring_ht_poscnt {
+	uint64_t raw;
+	struct {
+		uint32_t cnt; /**< head/tail reference counter */
+		uint32_t pos; /**< head/tail position */
+	} val;
+};
+
+struct rte_ring_rts_headtail {
+	volatile union rte_ring_ht_poscnt tail;
+	enum rte_ring_sync_type sync_type;  /**< sync type of prod/cons */
+	uint32_t htd_max;   /**< max allowed distance between head/tail */
+	volatile union rte_ring_ht_poscnt head;
 };
 
 /**
@@ -111,11 +129,21 @@ struct rte_ring {
 	char pad0 __rte_cache_aligned; /**< empty cache line */
 
 	/** Ring producer status. */
-	struct rte_ring_headtail prod __rte_cache_aligned;
+	RTE_STD_C11
+	union {
+		struct rte_ring_headtail prod;
+		struct rte_ring_rts_headtail rts_prod;
+	}  __rte_cache_aligned;
+
 	char pad1 __rte_cache_aligned; /**< empty cache line */
 
 	/** Ring consumer status. */
-	struct rte_ring_headtail cons __rte_cache_aligned;
+	RTE_STD_C11
+	union {
+		struct rte_ring_headtail cons;
+		struct rte_ring_rts_headtail rts_cons;
+	}  __rte_cache_aligned;
+
 	char pad2 __rte_cache_aligned; /**< empty cache line */
 };
 
@@ -131,6 +159,9 @@ struct rte_ring {
  */
 #define RING_F_EXACT_SZ 0x0004
 #define RTE_RING_SZ_MASK  (0x7fffffffU) /**< Ring size mask */
+
+#define RING_F_MP_RTS_ENQ 0x0008 /**< The default enqueue is "MP RTS". */
+#define RING_F_MC_RTS_DEQ 0x0010 /**< The default dequeue is "MC RTS". */
 
 #define __IS_SP RTE_RING_SYNC_ST
 #define __IS_MP RTE_RING_SYNC_MT
@@ -461,6 +492,10 @@ rte_ring_sp_enqueue_bulk(struct rte_ring *r, void * const *obj_table,
 			RTE_RING_SYNC_ST, free_space);
 }
 
+#ifdef ALLOW_EXPERIMENTAL_API
+#include <rte_ring_rts.h>
+#endif
+
 /**
  * Enqueue several objects on a ring.
  *
@@ -484,8 +519,21 @@ static __rte_always_inline unsigned int
 rte_ring_enqueue_bulk(struct rte_ring *r, void * const *obj_table,
 		      unsigned int n, unsigned int *free_space)
 {
-	return __rte_ring_do_enqueue(r, obj_table, n, RTE_RING_QUEUE_FIXED,
-			r->prod.sync_type, free_space);
+	switch (r->prod.sync_type) {
+	case RTE_RING_SYNC_MT:
+		return rte_ring_mp_enqueue_bulk(r, obj_table, n, free_space);
+	case RTE_RING_SYNC_ST:
+		return rte_ring_sp_enqueue_bulk(r, obj_table, n, free_space);
+#ifdef ALLOW_EXPERIMENTAL_API
+	case RTE_RING_SYNC_MT_RTS:
+		return rte_ring_mp_rts_enqueue_bulk(r, obj_table, n,
+			free_space);
+#endif
+	}
+
+	/* valid ring should never reach this point */
+	RTE_ASSERT(0);
+	return 0;
 }
 
 /**
@@ -619,8 +667,20 @@ static __rte_always_inline unsigned int
 rte_ring_dequeue_bulk(struct rte_ring *r, void **obj_table, unsigned int n,
 		unsigned int *available)
 {
-	return __rte_ring_do_dequeue(r, obj_table, n, RTE_RING_QUEUE_FIXED,
-				r->cons.sync_type, available);
+	switch (r->cons.sync_type) {
+	case RTE_RING_SYNC_MT:
+		return rte_ring_mc_dequeue_bulk(r, obj_table, n, available);
+	case RTE_RING_SYNC_ST:
+		return rte_ring_sc_dequeue_bulk(r, obj_table, n, available);
+#ifdef ALLOW_EXPERIMENTAL_API
+	case RTE_RING_SYNC_MT_RTS:
+		return rte_ring_mc_rts_dequeue_bulk(r, obj_table, n, available);
+#endif
+	}
+
+	/* valid ring should never reach this point */
+	RTE_ASSERT(0);
+	return 0;
 }
 
 /**
@@ -940,8 +1000,21 @@ static __rte_always_inline unsigned
 rte_ring_enqueue_burst(struct rte_ring *r, void * const *obj_table,
 		      unsigned int n, unsigned int *free_space)
 {
-	return __rte_ring_do_enqueue(r, obj_table, n, RTE_RING_QUEUE_VARIABLE,
-			r->prod.sync_type, free_space);
+	switch (r->prod.sync_type) {
+	case RTE_RING_SYNC_MT:
+		return rte_ring_mp_enqueue_burst(r, obj_table, n, free_space);
+	case RTE_RING_SYNC_ST:
+		return rte_ring_sp_enqueue_burst(r, obj_table, n, free_space);
+#ifdef ALLOW_EXPERIMENTAL_API
+	case RTE_RING_SYNC_MT_RTS:
+		return rte_ring_mp_rts_enqueue_burst(r, obj_table, n,
+			free_space);
+#endif
+	}
+
+	/* valid ring should never reach this point */
+	RTE_ASSERT(0);
+	return 0;
 }
 
 /**
@@ -1020,9 +1093,21 @@ static __rte_always_inline unsigned
 rte_ring_dequeue_burst(struct rte_ring *r, void **obj_table,
 		unsigned int n, unsigned int *available)
 {
-	return __rte_ring_do_dequeue(r, obj_table, n,
-				RTE_RING_QUEUE_VARIABLE,
-				r->cons.sync_type, available);
+	switch (r->cons.sync_type) {
+	case RTE_RING_SYNC_MT:
+		return rte_ring_mc_dequeue_burst(r, obj_table, n, available);
+	case RTE_RING_SYNC_ST:
+		return rte_ring_sc_dequeue_burst(r, obj_table, n, available);
+#ifdef ALLOW_EXPERIMENTAL_API
+	case RTE_RING_SYNC_MT_RTS:
+		return rte_ring_mc_rts_dequeue_burst(r, obj_table, n,
+			available);
+#endif
+	}
+
+	/* valid ring should never reach this point */
+	RTE_ASSERT(0);
+	return 0;
 }
 
 #ifdef __cplusplus
