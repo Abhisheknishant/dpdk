@@ -132,7 +132,7 @@ ipv6_frag_reassemble(struct ip_frag_pkt *fp)
  *   - not all fragments of the packet are collected yet.
  */
 #define MORE_FRAGS(x) (((x) & 0x100) >> 8)
-#define FRAG_OFFSET(x) (rte_cpu_to_be_16(x) >> 3)
+#define FRAG_OFFSET(x) (rte_be_to_cpu_16(x) >> 3)
 struct rte_mbuf *
 rte_ipv6_frag_reassemble_packet(struct rte_ip_frag_tbl *tbl,
 	struct rte_ip_frag_death_row *dr, struct rte_mbuf *mb, uint64_t tms,
