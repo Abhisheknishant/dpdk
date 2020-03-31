@@ -80,6 +80,17 @@ rte_ipv6_fragment_packet(struct rte_mbuf *pkt_in,
 	uint64_t frag_bytes_remaining;
 
 	/*
+	 * The rules on ipv6 fragmentation means we need at least to be
+	 * greater than the smallest fragment possible - ipv6hdr + frag header
+	 * + min octets.  We rely on the ipv6_extension_fragment header to
+	 * include 'data' octets.
+	 */
+	if (unlikely(mtu_size <
+		     (sizeof(struct rte_ipv6_hdr) +
+		      sizeof(struct ipv6_extension_fragment))))
+		return -EINVAL;
+
+	/*
 	 * Ensure the IP payload length of all fragments (except the
 	 * the last fragment) are a multiple of 8 bytes per RFC2460.
 	 */
