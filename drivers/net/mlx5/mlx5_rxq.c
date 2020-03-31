@@ -1845,25 +1845,26 @@ mlx5_rxq_new(struct rte_eth_dev *dev, uint16_t idx, uint16_t desc,
 		strd_headroom_en = 1;
 		mprq_stride_size = non_scatter_min_mbuf_size;
 	}
+	if (!config->mprq.stride_num_n)
+		config->mprq.stride_num_n = MLX5_MPRQ_STRIDE_NUM_N;
+	if (!config->mprq.stride_size_n)
+		config->mprq.stride_size_n = (mprq_stride_size <=
+				(1U << config->mprq.max_stride_size_n)) ?
+			log2above(mprq_stride_size) : MLX5_MPRQ_STRIDE_SIZE_N;
 	/*
 	 * This Rx queue can be configured as a Multi-Packet RQ if all of the
 	 * following conditions are met:
 	 *  - MPRQ is enabled.
 	 *  - The number of descs is more than the number of strides.
-	 *  - max_rx_pkt_len plus overhead is less than the max size of a
-	 *    stride.
 	 *  Otherwise, enable Rx scatter if necessary.
 	 */
-	if (mprq_en &&
-	    desc > (1U << config->mprq.stride_num_n) &&
-	    mprq_stride_size <= (1U << config->mprq.max_stride_size_n)) {
+	if (mprq_en && desc > (1U << config->mprq.stride_num_n)) {
 		/* TODO: Rx scatter isn't supported yet. */
 		tmpl->rxq.sges_n = 0;
 		/* Trim the number of descs needed. */
 		desc >>= config->mprq.stride_num_n;
 		tmpl->rxq.strd_num_n = config->mprq.stride_num_n;
-		tmpl->rxq.strd_sz_n = RTE_MAX(log2above(mprq_stride_size),
-					      config->mprq.min_stride_size_n);
+		tmpl->rxq.strd_sz_n = config->mprq.stride_size_n;
 		tmpl->rxq.strd_shift_en = MLX5_MPRQ_TWO_BYTE_SHIFT;
 		tmpl->rxq.strd_headroom_en = strd_headroom_en;
 		tmpl->rxq.mprq_max_memcpy_len = RTE_MIN(first_mb_free_size,
@@ -1913,9 +1914,12 @@ mlx5_rxq_new(struct rte_eth_dev *dev, uint16_t idx, uint16_t desc,
 		DRV_LOG(WARNING,
 			"port %u MPRQ is requested but cannot be enabled"
 			" (requested: desc = %u, stride_sz = %u,"
-			" supported: min_stride_num = %u, max_stride_sz = %u).",
-			dev->data->port_id, desc, mprq_stride_size,
+			" supported: min_stride_num = %u, min_stride_sz = %u,"
+			"max_stride_sz = %u).",
+			dev->data->port_id, desc,
+			(1 << config->mprq.stride_size_n),
 			(1 << config->mprq.stride_num_n),
+			(1 << config->mprq.min_stride_size_n),
 			(1 << config->mprq.max_stride_size_n));
 	DRV_LOG(DEBUG, "port %u maximum number of segments per packet: %u",
 		dev->data->port_id, 1 << tmpl->rxq.sges_n);
