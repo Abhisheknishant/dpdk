@@ -747,7 +747,6 @@ mlx5_free_table_hash_list(struct mlx5_priv *priv)
 	if (pos) {
 		tbl_data = container_of(pos, struct mlx5_flow_tbl_data_entry,
 					entry);
-		MLX5_ASSERT(tbl_data);
 		mlx5_hlist_remove(sh->flow_tbls, pos);
 		rte_free(tbl_data);
 	}
@@ -756,7 +755,6 @@ mlx5_free_table_hash_list(struct mlx5_priv *priv)
 	if (pos) {
 		tbl_data = container_of(pos, struct mlx5_flow_tbl_data_entry,
 					entry);
-		MLX5_ASSERT(tbl_data);
 		mlx5_hlist_remove(sh->flow_tbls, pos);
 		rte_free(tbl_data);
 	}
@@ -766,7 +764,6 @@ mlx5_free_table_hash_list(struct mlx5_priv *priv)
 	if (pos) {
 		tbl_data = container_of(pos, struct mlx5_flow_tbl_data_entry,
 					entry);
-		MLX5_ASSERT(tbl_data);
 		mlx5_hlist_remove(sh->flow_tbls, pos);
 		rte_free(tbl_data);
 	}
