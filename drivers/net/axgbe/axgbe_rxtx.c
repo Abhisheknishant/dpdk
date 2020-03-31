@@ -739,6 +739,12 @@ static int axgbe_xmit_hw(struct axgbe_tx_queue *txq,
 	AXGMAC_SET_BITS_LE(desc->desc3, TX_NORMAL_DESC3, OWN, 1);
 	rte_wmb();
 
+	if (mbuf->ol_flags & (PKT_TX_VLAN_PKT | PKT_TX_QINQ_PKT))
+		AXGMAC_SET_BITS_LE(desc->desc2, TX_NORMAL_DESC2, VTIR, 0x2);
+	else
+		AXGMAC_SET_BITS_LE(desc->desc2, TX_NORMAL_DESC2, VTIR, 0x0);
+	rte_wmb();
+
 	/* Save mbuf */
 	txq->sw_ring[idx] = mbuf;
 	/* Update current index*/
