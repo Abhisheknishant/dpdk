@@ -10,6 +10,54 @@
 #ifndef _RTE_RING_GENERIC_H_
 #define _RTE_RING_GENERIC_H_
 
+/**
+ * @internal get current tail value.
+ * This function should be used only for single thread producer/consumer.
+ * Check that user didn't request to move tail above the head.
+ * In that situation:
+ * - return zero, that will cause abort any pending changes and
+ *   return head to its previous position.
+ * - throw an assert in debug mode.
+ */
+static __rte_always_inline uint32_t
+__rte_ring_st_get_tail(struct rte_ring_headtail *ht, uint32_t *tail,
+	uint32_t num)
+{
+	uint32_t h, n, t;
+
+	h = ht->head;
+	t = ht->tail;
+	n = h - t;
+
+	RTE_ASSERT(n >= num);
+	num = (n >= num) ? num : 0;
+
+	*tail = h;
+	return num;
+}
+
+/**
+ * @internal set new values for head and tail.
+ * This function should be used only for single thread producer/consumer.
+ * Should be used only in conjunction with __rte_ring_st_get_tail.
+ */
+static __rte_always_inline void
+__rte_ring_st_set_head_tail(struct rte_ring_headtail *ht, uint32_t tail,
+	uint32_t num, uint32_t enqueue)
+{
+	uint32_t pos;
+
+	pos = tail + num;
+
+	if (enqueue)
+		rte_smp_wmb();
+	else
+		rte_smp_rmb();
+
+	ht->head = pos;
+	ht->tail = pos;
+}
+
 static __rte_always_inline void
 update_tail(struct rte_ring_headtail *ht, uint32_t old_val, uint32_t new_val,
 		uint32_t single, uint32_t enqueue)
