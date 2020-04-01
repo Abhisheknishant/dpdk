@@ -24,4 +24,14 @@
 int
 __rte_eth_dev_profile_init(uint16_t port_id, struct rte_eth_dev *dev);
 
+#ifdef RTE_ETHDEV_PROFILE_WITH_VTUNE
+
+uint16_t
+profile_hook_rx_burst_cb(
+	__rte_unused uint16_t port_id, __rte_unused uint16_t queue_id,
+	__rte_unused struct rte_mbuf *pkts[], uint16_t nb_pkts,
+	__rte_unused uint16_t max_pkts, __rte_unused void *user_param);
+
+#endif /* RTE_ETHDEV_PROFILE_WITH_VTUNE */
+
 #endif
