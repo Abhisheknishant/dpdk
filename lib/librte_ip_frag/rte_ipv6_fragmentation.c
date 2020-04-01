@@ -106,6 +106,10 @@ rte_ipv6_fragment_packet(struct rte_mbuf *pkt_in,
 
 	in_hdr = rte_pktmbuf_mtod(pkt_in, struct rte_ipv6_hdr *);
 
+	/* Fragmenting a fragmented packet?! */
+	if (unlikely(in_hdr->proto == IPPROTO_FRAGMENT))
+		return -ENOTSUP;
+
 	in_seg = pkt_in;
 	in_seg_data_pos = sizeof(struct rte_ipv6_hdr);
 	out_pkt_pos = 0;
