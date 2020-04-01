@@ -77,6 +77,12 @@ rte_ipv4_fragment_packet(struct rte_mbuf *pkt_in,
 	uint16_t frag_bytes_remaining;
 
 	/*
+	 * Ensure the IP fragmentation size is at least iphdr length + 8 octets
+	 */
+	if (unlikely(mtu_size < (sizeof(struct rte_ipv4_hdr) + 8*sizeof(char))))
+		return -EINVAL;
+
+	/*
 	 * Ensure the IP payload length of all fragments is aligned to a
 	 * multiple of 8 bytes as per RFC791 section 2.3.
 	 */
