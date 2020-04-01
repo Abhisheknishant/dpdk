@@ -95,6 +95,14 @@ Configuration information
    * **CONFIG_RTE_LIBRTE_ENA_COM_DEBUG** (default n): Enables or disables debug
      logging of low level tx/rx logic in ena_com(base) within the ENA PMD driver.
 
+**Runtime Configuration Parameters**
+
+   * **large_llq_hdr** (default 0)
+
+     Enables or disables usage of large LLQ headers. This option will have
+     effect only if the device also supports large LLQ headers. Otherwise, the
+     default value will be used.
+
 **ENA Configuration Parameters**
 
    * **Number of Queues**
