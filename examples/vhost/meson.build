@@ -10,6 +10,9 @@ if not is_linux
 	build = false
 endif
 deps += 'vhost'
+if dpdk_conf.has('RTE_LIBRTE_PMD_VHOST')
+	deps += 'pmd_vhost'
+endif
 allow_experimental_apis = true
 sources = files(
 	'main.c', 'virtio_net.c'

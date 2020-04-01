@@ -63,6 +63,10 @@ CFLAGS += -DALLOW_EXPERIMENTAL_API
 CFLAGS += -O2 -D_FILE_OFFSET_BITS=64
 CFLAGS += $(WERROR_FLAGS)
 
+ifeq ($(CONFIG_RTE_LIBRTE_PMD_VHOST),y
+LDLIBS += -lrte_pmd_vhost
+endif
+
 include $(RTE_SDK)/mk/rte.extapp.mk
 
 endif
