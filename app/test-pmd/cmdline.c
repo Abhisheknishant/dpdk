@@ -9566,6 +9566,55 @@ dump_struct_sizes(void)
 #undef DUMP_SIZE
 }
 
+
+/* Dump the socket memory statistics on console */
+static void
+dump_socket_mem(FILE *f)
+{
+	struct rte_malloc_socket_stats socket_stats;
+	unsigned int i;
+	int64_t total = 0;
+	int64_t alloc = 0;
+	int64_t free = 0;
+	unsigned int n_alloc = 0;
+	unsigned int n_free = 0;
+	static int64_t last_allocs;
+	static int64_t last_total;
+
+
+	for (i = 0; i < RTE_MAX_NUMA_NODES; i++) {
+		if (rte_malloc_get_socket_stats(i, &socket_stats) ||
+		    !socket_stats.heap_totalsz_bytes)
+			continue;
+		total += socket_stats.heap_totalsz_bytes;
+		alloc += socket_stats.heap_allocsz_bytes;
+		free += socket_stats.heap_freesz_bytes;
+		n_alloc += socket_stats.alloc_count;
+		n_free += socket_stats.free_count;
+		fprintf(f,
+			"Socket %u: size(M) total: %.6lf alloc: %.6lf(%.3lf%%) free: %.6lf \tcount alloc: %-4u free: %u\n",
+			i,
+			socket_stats.heap_totalsz_bytes / 1.0e6,
+			socket_stats.heap_allocsz_bytes / 1.0e6,
+			(double)socket_stats.heap_allocsz_bytes * 100 /
+			(double)socket_stats.heap_totalsz_bytes,
+			socket_stats.heap_freesz_bytes / 1.0e6,
+			socket_stats.alloc_count,
+			socket_stats.free_count);
+	}
+	fprintf(f,
+		"Total   : size(M) total: %.6lf alloc: %.6lf(%.3lf%%) free: %.6lf \tcount alloc: %-4u free: %u\n",
+		total / 1.0e6, alloc / 1.0e6,
+		(double)alloc * 100 / (double)total, free / 1.0e6,
+		n_alloc, n_free);
+	if (last_allocs)
+		fprintf(stdout, "Memory total change: %.6lf(M), allocation change: %.6lf(M)\n",
+			(total - last_total) / 1.0e6,
+			(alloc - last_allocs) / 1.0e6);
+	last_allocs = alloc;
+	last_total = total;
+}
+
 static void cmd_dump_parsed(void *parsed_result,
 			    __attribute__((unused)) struct cmdline *cl,
 			    __attribute__((unused)) void *data)
@@ -9574,6 +9623,8 @@ static void cmd_dump_parsed(void *parsed_result,
 
 	if (!strcmp(res->dump, "dump_physmem"))
 		rte_dump_physmem_layout(stdout);
+	else if (!strcmp(res->dump, "dump_socket"))
+		dump_socket_mem(stdout);
 	else if (!strcmp(res->dump, "dump_memzone"))
 		rte_memzone_dump(stdout);
 	else if (!strcmp(res->dump, "dump_struct_sizes"))
@@ -9592,6 +9643,7 @@ cmdline_parse_token_string_t cmd_dump_dump =
 	TOKEN_STRING_INITIALIZER(struct cmd_dump_result, dump,
 		"dump_physmem#"
 		"dump_memzone#"
+		"dump_socket#"
 		"dump_struct_sizes#"
 		"dump_ring#"
 		"dump_mempool#"
