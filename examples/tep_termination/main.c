@@ -149,8 +149,6 @@ static char dev_basename[MAX_BASENAME_SZ] = "vhost-net";
 static unsigned lcore_ids[RTE_MAX_LCORE];
 uint16_t ports[RTE_MAX_ETHPORTS];
 
-static unsigned nb_ports; /**< The number of ports specified in command line */
-
 /* ethernet addresses of ports */
 struct rte_ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
 
@@ -268,7 +266,6 @@ tep_termination_parse_args(int argc, char **argv)
 {
 	int opt, ret;
 	int option_index;
-	unsigned i;
 	const char *prgname = argv[0];
 	static struct option long_option[] = {
 		{CMD_LINE_OPT_NB_DEVICES, required_argument, NULL, 0},
@@ -474,18 +471,6 @@ tep_termination_parse_args(int argc, char **argv)
 		}
 	}
 
-	for (i = 0; i < RTE_MAX_ETHPORTS; i++) {
-		if (enabled_port_mask & (1 << i))
-			ports[nb_ports++] = (uint8_t)i;
-	}
-
-	if ((nb_ports ==  0) || (nb_ports > MAX_SUP_PORTS)) {
-		RTE_LOG(INFO, VHOST_PORT, "Current enabled port number is %u,"
-			"but only %u port can be enabled\n", nb_ports,
-			MAX_SUP_PORTS);
-		return -1;
-	}
-
 	return 0;
 }
 
@@ -493,28 +478,29 @@ tep_termination_parse_args(int argc, char **argv)
  * Update the global var NB_PORTS and array PORTS
  * according to system ports number and return valid ports number
  */
-static unsigned
-check_ports_num(unsigned max_nb_ports)
+static unsigned int
+get_ports(void)
 {
-	unsigned valid_nb_ports = nb_ports;
-	unsigned portid;
+	uint32_t port_mask = enabled_port_mask;
+	unsigned int valid_nb_ports = 0;
+	uint16_t portid;
 
-	if (nb_ports > max_nb_ports) {
-		RTE_LOG(INFO, VHOST_PORT, "\nSpecified port number(%u) "
-			" exceeds total system port number(%u)\n",
-			nb_ports, max_nb_ports);
-		nb_ports = max_nb_ports;
+	RTE_ETH_FOREACH_DEV(portid) {
+		uint32_t mask = 1u << portid;
+
+		if ((mask & port_mask) == 0)
+			continue;
+
+		port_mask &= ~mask;
+		ports[valid_nb_ports++] = portid;
 	}
 
-	for (portid = 0; portid < nb_ports; portid++) {
-		if (!rte_eth_dev_is_valid_port(ports[portid])) {
-			RTE_LOG(INFO, VHOST_PORT,
-				"\nSpecified port ID(%u) is not valid\n",
-				ports[portid]);
-			ports[portid] = INVALID_PORT_ID;
-			valid_nb_ports--;
-		}
+	if (port_mask != 0) {
+		RTE_LOG(INFO, VHOST_PORT,
+			"\nInvalid ports %#x specified in portmask\n",
+			port_mask);
 	}
+
 	return valid_nb_ports;
 }
 
@@ -1123,7 +1109,7 @@ main(int argc, char *argv[])
 {
 	struct rte_mempool *mbuf_pool = NULL;
 	unsigned lcore_id, core_id = 0;
-	unsigned nb_ports, valid_nb_ports;
+	unsigned int valid_nb_ports;
 	int ret;
 	uint16_t portid;
 	uint16_t queue_id;
@@ -1148,20 +1134,14 @@ main(int argc, char *argv[])
 	/* set the number of swithcing cores available */
 	nb_switching_cores = rte_lcore_count()-1;
 
-	/* Get the number of physical ports. */
-	nb_ports = rte_eth_dev_count_avail();
-
-	/*
-	 * Update the global var NB_PORTS and global array PORTS
-	 * and get value of var VALID_NB_PORTS according to system ports number
-	 */
-	valid_nb_ports = check_ports_num(nb_ports);
-
-	if ((valid_nb_ports == 0) || (valid_nb_ports > MAX_SUP_PORTS)) {
+	/* Set ports[] array based on system ports and port mask */
+	valid_nb_ports = get_ports();
+	if (valid_nb_ports == 0 || valid_nb_ports > MAX_SUP_PORTS) {
 		rte_exit(EXIT_FAILURE, "Current enabled port number is %u,"
-			"but only %u port can be enabled\n", nb_ports,
+			"but only %u port can be enabled\n", valid_nb_ports,
 			MAX_SUP_PORTS);
 	}
+
 	/* Create the mbuf pool. */
 	mbuf_pool = rte_pktmbuf_pool_create(
 			"MBUF_POOL",
