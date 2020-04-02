@@ -27,6 +27,8 @@ LDFLAGS += --as-needed
 # default path for libs
 _LDLIBS-y += -L$(RTE_SDK_BIN)/lib
 
+CFLAGS += -DALLOW_EXPERIMENTAL_API
+
 #
 # Order is important: from higher level to lower level
 #
