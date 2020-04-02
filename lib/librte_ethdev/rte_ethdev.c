@@ -729,7 +729,9 @@ rte_eth_dev_owner_get(const uint16_t port_id, struct rte_eth_dev_owner *owner)
 		RTE_ETHDEV_LOG(ERR, "Port id %"PRIu16" is not allocated\n",
 			port_id);
 		ret = -ENODEV;
-	} else {
+	} else if (ethdev->data->owner.id == RTE_ETH_DEV_NO_OWNER) {
+		ret = -ENOENT;
+	} else if (owner != NULL) {
 		rte_memcpy(owner, &ethdev->data->owner, sizeof(*owner));
 	}
 

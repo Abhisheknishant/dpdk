@@ -63,15 +63,14 @@ static int hn_vf_attach(struct hn_data *hv, uint16_t port_id)
 	}
 
 	ret = rte_eth_dev_owner_get(port_id, &owner);
-	if (ret < 0) {
-		PMD_DRV_LOG(ERR, "Can not find owner for port %d", port_id);
-		return ret;
-	}
-
-	if (owner.id != RTE_ETH_DEV_NO_OWNER) {
+	if (ret == 0) {
 		PMD_DRV_LOG(ERR, "Port %u already owned by other device %s",
 			    port_id, owner.name);
 		return -EBUSY;
+	}
+	if (ret != -ENOENT) {
+		PMD_DRV_LOG(ERR, "Can not find owner for port %d", port_id);
+		return ret;
 	}
 
 	ret = rte_eth_dev_owner_set(port_id, &hv->owner);

@@ -63,8 +63,8 @@ fs_bus_init(struct rte_eth_dev *dev)
 			 * The NEW callback tried to take ownership, check
 			 * whether it succeed or didn't.
 			 */
-			rte_eth_dev_owner_get(pid, &pid_owner);
-			if (pid_owner.id != PRIV(dev)->my_owner.id) {
+			if (rte_eth_dev_owner_get(pid, &pid_owner) == 0 &&
+			    pid_owner.id != PRIV(dev)->my_owner.id) {
 				INFO("sub_device %d owner(%s_%016"PRIX64") is not my,"
 				     " owner(%s_%016"PRIX64"), will try again later",
 				     i, pid_owner.name, pid_owner.id,

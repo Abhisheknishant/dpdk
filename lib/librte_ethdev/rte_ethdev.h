@@ -1685,9 +1685,11 @@ int rte_eth_dev_owner_delete(const uint64_t owner_id);
  * @param	port_id
  *  The port identifier.
  * @param	owner
- *  The owner structure pointer to fill.
+ *  The owner structure pointer to fill (optional can be NULL)
  * @return
- *  0 on success, negative errno value on error..
+ *  0 on success,
+ *  -ENODEV if port_id is not valid
+ *  -ENOENT if the device is ownerless.
  */
 __rte_experimental
 int rte_eth_dev_owner_get(const uint16_t port_id,
