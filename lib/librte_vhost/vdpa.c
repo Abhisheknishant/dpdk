@@ -227,3 +227,17 @@ fail:
 		free_ind_table(idesc);
 	return -1;
 }
+
+int
+rte_vdpa_get_stats(int did, uint16_t qid, struct rte_vdpa_queue_stats *stats)
+{
+	struct rte_vdpa_device *vdpa_dev;
+
+	vdpa_dev = rte_vdpa_get_device(did);
+	if (!vdpa_dev)
+		return -ENODEV;
+
+	RTE_FUNC_PTR_OR_ERR_RET(vdpa_dev->ops->get_stats, -ENOTSUP);
+
+	return vdpa_dev->ops->get_stats(did, qid, stats);
+}

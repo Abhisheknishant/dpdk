@@ -37,6 +37,27 @@ struct rte_vdpa_dev_addr {
 	};
 };
 
+struct rte_vdpa_queue_stats {
+	/** Number of descriptors received by device */
+	uint64_t received_desc;
+	/** Number of descriptors completed by the device */
+	uint64_t completed_desc;
+	/** Number of bad descriptors received by device */
+	uint32_t bad_desc;
+	/**
+	 * Number of chained descriptors received that exceed the max allowed
+	 * chain by device
+	 */
+	uint32_t exceed_max_chain;
+	/**
+	 * Number of times device tried to read or write buffer that is not
+	 * registered to the device
+	 */
+	uint32_t invalid_buffer;
+	/** Number of errors detected by the device */
+	uint32_t errors;
+};
+
 /**
  * vdpa device operations
  */
@@ -73,8 +94,11 @@ struct rte_vdpa_dev_ops {
 	int (*get_notify_area)(int vid, int qid,
 			uint64_t *offset, uint64_t *size);
 
+	/** Get statistics of the queue */
+	int (*get_stats)(int did, int qid, struct rte_vdpa_queue_stats *stats);
+
 	/** Reserved for future extension */
-	void *reserved[5];
+	void *reserved[4];
 };
 
 /**
@@ -200,4 +224,23 @@ rte_vhost_host_notifier_ctrl(int vid, bool enable);
 __rte_experimental
 int
 rte_vdpa_relay_vring_used(int vid, uint16_t qid, void *vring_m);
+
+/**
+ * @warning
+ * @b EXPERIMENTAL: this API may change without prior notice
+ *
+ * Get vDPA device queue statistics.
+ *
+ * @param did
+ *  device id
+ * @param qid
+ *  queue id
+ * @param stats
+ *  queue statistics pointer.
+ * @return
+ *  0 on success, non-zero on failure.
+ */
+__rte_experimental
+int
+rte_vdpa_get_stats(int did, uint16_t qid, struct rte_vdpa_queue_stats *stats);
 #endif /* _RTE_VDPA_H_ */

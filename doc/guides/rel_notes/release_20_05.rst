@@ -56,6 +56,10 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Added vDPA device API to query virtio queue statistics.**
+
+  A new API has been added to query virtio queue statistics from a vDPA device.
+
 * **Updated Mellanox mlx5 driver.**
 
   Updated Mellanox mlx5 driver with new features and improvements, including:
