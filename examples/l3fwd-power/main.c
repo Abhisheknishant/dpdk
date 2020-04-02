@@ -1396,6 +1396,10 @@ check_port_config(void)
 								portid);
 			return -1;
 		}
+		if (rte_eth_dev_owner_get(portid, NULL) == 0) {
+			printf("port %u is already in use\n", portid);
+			return -1;
+		}
 	}
 	return 0;
 }
