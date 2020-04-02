@@ -135,6 +135,9 @@ jobs:
   - env: DEF_LIB="static"
     arch: ppc64le
     compiler: gcc
+  - env: DEF_LIB="shared" RUN_TESTS=1
+    arch: ppc64le
+    compiler: gcc
   - env: DEF_LIB="shared" BUILD_DOCS=1
     arch: ppc64le
     compiler: gcc
