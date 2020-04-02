@@ -44,7 +44,6 @@ foreach class:dpdk_driver_classes
 		reason = '<unknown reason>' # set if build == false to explain
 		name = drv
 		fmt_name = ''
-		allow_experimental_apis = false
 		sources = []
 		objs = []
 		cflags = default_cflags
@@ -106,10 +105,7 @@ foreach class:dpdk_driver_classes
 			dpdk_conf.set(config_flag_fmt.format(fmt_name.to_upper()),1)
 			lib_name = driver_name_fmt.format(fmt_name)
 
-			if allow_experimental_apis
-				cflags += '-DALLOW_EXPERIMENTAL_API'
-			endif
-
+			cflags += '-DALLOW_EXPERIMENTAL_API'
 			dpdk_extra_ldflags += pkgconfig_extra_libs
 
 			# generate pmdinfo sources by building a temporary

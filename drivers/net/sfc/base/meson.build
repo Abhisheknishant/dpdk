@@ -63,9 +63,7 @@ extra_flags = [
 ]
 
 c_args = cflags
-if allow_experimental_apis
-	c_args += '-DALLOW_EXPERIMENTAL_API'
-endif
+c_args += '-DALLOW_EXPERIMENTAL_API'
 foreach flag: extra_flags
 	if cc.has_argument(flag)
 		c_args += flag
