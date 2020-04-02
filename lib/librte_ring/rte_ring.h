@@ -68,6 +68,7 @@ enum rte_ring_sync_type {
 	RTE_RING_SYNC_ST,     /**< single thread only */
 #ifdef ALLOW_EXPERIMENTAL_API
 	RTE_RING_SYNC_MT_RTS, /**< multi-thread relaxed tail sync */
+	RTE_RING_SYNC_MT_HTS, /**< multi-thread head/tail sync */
 #endif
 };
 
@@ -103,6 +104,19 @@ struct rte_ring_rts_headtail {
 	volatile union rte_ring_ht_poscnt head;
 };
 
+union rte_ring_ht_pos {
+	uint64_t raw;
+	struct {
+		uint32_t head; /**< head position */
+		uint32_t tail; /**< tail position */
+	} pos;
+};
+
+struct rte_ring_hts_headtail {
+	volatile union rte_ring_ht_pos ht;
+	enum rte_ring_sync_type sync_type;  /**< sync type of prod/cons */
+};
+
 /**
  * An RTE ring structure.
  *
@@ -133,6 +147,7 @@ struct rte_ring {
 	RTE_STD_C11
 	union {
 		struct rte_ring_headtail prod;
+		struct rte_ring_hts_headtail hts_prod;
 		struct rte_ring_rts_headtail rts_prod;
 	}  __rte_cache_aligned;
 
@@ -142,6 +157,7 @@ struct rte_ring {
 	RTE_STD_C11
 	union {
 		struct rte_ring_headtail cons;
+		struct rte_ring_hts_headtail hts_cons;
 		struct rte_ring_rts_headtail rts_cons;
 	}  __rte_cache_aligned;
 
@@ -163,6 +179,9 @@ struct rte_ring {
 
 #define RING_F_MP_RTS_ENQ 0x0008 /**< The default enqueue is "MP RTS". */
 #define RING_F_MC_RTS_DEQ 0x0010 /**< The default dequeue is "MC RTS". */
+
+#define RING_F_MP_HTS_ENQ 0x0020 /**< The default enqueue is "MP HTS". */
+#define RING_F_MC_HTS_DEQ 0x0040 /**< The default dequeue is "MC HTS". */
 
 #define __IS_SP RTE_RING_SYNC_ST
 #define __IS_MP RTE_RING_SYNC_MT
@@ -494,6 +513,7 @@ rte_ring_sp_enqueue_bulk(struct rte_ring *r, void * const *obj_table,
 }
 
 #ifdef ALLOW_EXPERIMENTAL_API
+#include <rte_ring_hts.h>
 #include <rte_ring_rts.h>
 #endif
 
@@ -528,6 +548,9 @@ rte_ring_enqueue_bulk(struct rte_ring *r, void * const *obj_table,
 #ifdef ALLOW_EXPERIMENTAL_API
 	case RTE_RING_SYNC_MT_RTS:
 		return rte_ring_mp_rts_enqueue_bulk(r, obj_table, n,
+			free_space);
+	case RTE_RING_SYNC_MT_HTS:
+		return rte_ring_mp_hts_enqueue_bulk(r, obj_table, n,
 			free_space);
 #endif
 	}
@@ -676,6 +699,8 @@ rte_ring_dequeue_bulk(struct rte_ring *r, void **obj_table, unsigned int n,
 #ifdef ALLOW_EXPERIMENTAL_API
 	case RTE_RING_SYNC_MT_RTS:
 		return rte_ring_mc_rts_dequeue_bulk(r, obj_table, n, available);
+	case RTE_RING_SYNC_MT_HTS:
+		return rte_ring_mc_hts_dequeue_bulk(r, obj_table, n, available);
 #endif
 	}
 
@@ -1010,6 +1035,9 @@ rte_ring_enqueue_burst(struct rte_ring *r, void * const *obj_table,
 	case RTE_RING_SYNC_MT_RTS:
 		return rte_ring_mp_rts_enqueue_burst(r, obj_table, n,
 			free_space);
+	case RTE_RING_SYNC_MT_HTS:
+		return rte_ring_mp_hts_enqueue_burst(r, obj_table, n,
+			free_space);
 #endif
 	}
 
@@ -1102,6 +1130,9 @@ rte_ring_dequeue_burst(struct rte_ring *r, void **obj_table,
 #ifdef ALLOW_EXPERIMENTAL_API
 	case RTE_RING_SYNC_MT_RTS:
 		return rte_ring_mc_rts_dequeue_burst(r, obj_table, n,
+			available);
+	case RTE_RING_SYNC_MT_HTS:
+		return rte_ring_mc_hts_dequeue_burst(r, obj_table, n,
 			available);
 #endif
 	}
