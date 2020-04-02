@@ -1060,6 +1060,11 @@ rte_eal_init(int argc, char **argv)
 
 	phys_addrs = rte_eal_using_phys_addrs() != 0;
 
+	if (!phys_addrs) {
+		internal_config.iova_mode = RTE_IOVA_VA;
+		RTE_LOG(INFO, EAL, "Physical addresses are unavailable, selecting IOVA as VA mode.\n");
+	}
+
 	/* if no EAL option "--iova-mode=<pa|va>", use bus IOVA scheme */
 	if (internal_config.iova_mode == RTE_IOVA_DC) {
 		/* autodetect the IOVA mapping mode */
@@ -1068,18 +1073,7 @@ rte_eal_init(int argc, char **argv)
 		if (iova_mode == RTE_IOVA_DC) {
 			RTE_LOG(DEBUG, EAL, "Buses did not request a specific IOVA mode.\n");
 
-			if (!phys_addrs) {
-				/* if we have no access to physical addresses,
-				 * pick IOVA as VA mode.
-				 */
-				iova_mode = RTE_IOVA_VA;
-				RTE_LOG(DEBUG, EAL, "Physical addresses are unavailable, selecting IOVA as VA mode.\n");
-#if defined(RTE_LIBRTE_KNI) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
-			} else if (rte_eal_check_module("rte_kni") == 1) {
-				iova_mode = RTE_IOVA_PA;
-				RTE_LOG(DEBUG, EAL, "KNI is loaded, selecting IOVA as PA mode for better KNI perfomance.\n");
-#endif
-			} else if (is_iommu_enabled()) {
+			if (is_iommu_enabled()) {
 				/* we have an IOMMU, pick IOVA as VA mode */
 				iova_mode = RTE_IOVA_VA;
 				RTE_LOG(DEBUG, EAL, "IOMMU is available, selecting IOVA as VA mode.\n");
@@ -1090,6 +1084,12 @@ rte_eal_init(int argc, char **argv)
 				iova_mode = RTE_IOVA_PA;
 				RTE_LOG(DEBUG, EAL, "IOMMU is not available, selecting IOVA as PA mode.\n");
 			}
+#if defined(RTE_LIBRTE_KNI) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+			if (rte_eal_check_module("rte_kni") == 1) {
+				iova_mode = RTE_IOVA_PA;
+				RTE_LOG(DEBUG, EAL, "KNI is loaded, selecting IOVA as PA mode for better KNI perfomance.\n");
+			}
+#endif
 		}
 #if defined(RTE_LIBRTE_KNI) && LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
 		/* Workaround for KNI which requires physical address to work
