@@ -62,6 +62,14 @@ New Features
 
   * Added support for matching on IPv4 Time To Live and IPv6 Hop Limit.
 
+* **Updated Marvell OCTEON TX2 ethdev driver.**
+
+ Updated Marvell OCTEON TX2 ethdev driver with traffic manager support with
+ below features.
+
+ * Hierarchial Scheduling with DWRR and SP.
+ * Single rate - two color, Two rate - three color shaping.
+
 
 Removed Items
 -------------
