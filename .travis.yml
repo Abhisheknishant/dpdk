@@ -131,3 +131,23 @@ jobs:
   - env: DEF_LIB="shared" RUN_TESTS=1
     arch: arm64
     compiler: clang
+  # ppc64le gcc jobs
+  - env: DEF_LIB="static"
+    arch: ppc64le
+    compiler: gcc
+  - env: DEF_LIB="shared" BUILD_DOCS=1
+    arch: ppc64le
+    compiler: gcc
+    addons:
+      apt:
+        packages:
+          - *required_packages
+          - *doc_packages
+  - env: DEF_LIB="shared" ABI_CHECKS=1
+    arch: ppc64le
+    compiler: gcc
+    addons:
+      apt:
+        packages:
+          - *required_packages
+          - *libabigail_build_packages
