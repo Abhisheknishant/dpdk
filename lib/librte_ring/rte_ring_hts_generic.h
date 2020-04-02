@@ -18,9 +18,38 @@
  * For more information please refer to <rte_ring_hts.h>.
  */
 
+/**
+ * @internal get current tail value.
+ * Check that user didn't request to move tail above the head.
+ * In that situation:
+ * - return zero, that will cause abort any pending changes and
+ *   return head to its previous position.
+ * - throw an assert in debug mode.
+ */
+static __rte_always_inline uint32_t
+__rte_ring_hts_get_tail(struct rte_ring_hts_headtail *ht, uint32_t *tail,
+	uint32_t num)
+{
+	uint32_t n;
+	union rte_ring_ht_pos p;
+
+	p.raw = rte_atomic64_read((rte_atomic64_t *)(uintptr_t)&ht->ht.raw);
+	n = p.pos.head - p.pos.tail;
+
+	RTE_ASSERT(n >= num);
+	num = (n >= num) ? num : 0;
+
+	*tail = p.pos.tail;
+	return num;
+}
+
+/**
+ * @internal set new values for head and tail as one atomic 64 bit operation.
+ * Should be used only in conjunction with __rte_ring_hts_get_tail.
+ */
 static __rte_always_inline void
-__rte_ring_hts_update_tail(struct rte_ring_hts_headtail *ht, uint32_t num,
-	uint32_t enqueue)
+__rte_ring_hts_set_head_tail(struct rte_ring_hts_headtail *ht, uint32_t tail,
+	uint32_t num, uint32_t enqueue)
 {
 	union rte_ring_ht_pos p;
 
@@ -29,12 +58,20 @@ __rte_ring_hts_update_tail(struct rte_ring_hts_headtail *ht, uint32_t num,
 	else
 		rte_smp_rmb();
 
-	p.raw = rte_atomic64_read((rte_atomic64_t *)(uintptr_t)&ht->ht.raw);
-
-	p.pos.head = p.pos.tail + num;
+	p.pos.head = tail + num;
 	p.pos.tail = p.pos.head;
 
 	rte_atomic64_set((rte_atomic64_t *)(uintptr_t)&ht->ht.raw, p.raw);
+}
+
+static __rte_always_inline void
+__rte_ring_hts_update_tail(struct rte_ring_hts_headtail *ht, uint32_t num,
+	uint32_t enqueue)
+{
+	uint32_t tail;
+
+	num = __rte_ring_hts_get_tail(ht, &tail, num);
+	__rte_ring_hts_set_head_tail(ht, tail, num, enqueue);
 }
 
 /**

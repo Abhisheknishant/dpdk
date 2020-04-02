@@ -22,6 +22,7 @@ SYMLINK-$(CONFIG_RTE_LIBRTE_RING)-include := rte_ring.h \
 					rte_ring_hts.h \
 					rte_ring_hts_elem.h \
 					rte_ring_hts_generic.h \
+					rte_ring_peek.h \
 					rte_ring_rts.h \
 					rte_ring_rts_elem.h \
 					rte_ring_rts_generic.h
