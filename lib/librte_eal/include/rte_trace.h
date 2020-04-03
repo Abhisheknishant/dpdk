@@ -515,6 +515,19 @@ _tp _args \
 
 #endif /* __DOXYGEN__ */
 
+/** @internal Macro to define maximum emit length of string datatype. */
+#define __RTE_TRACE_EMIT_STRING_LEN_MAX 32
+
+/**
+ * @internal @warning
+ * @b EXPERIMENTAL: this API may change without prior notice
+ *
+ * Allocate trace memory buffer per thread.
+ *
+ */
+__rte_experimental
+void __rte_trace_mem_per_thread_alloc(void);
+
 /**
  * @internal @warning
  * @b EXPERIMENTAL: this API may change without prior notice
