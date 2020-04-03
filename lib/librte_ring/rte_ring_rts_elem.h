@@ -24,7 +24,11 @@
 extern "C" {
 #endif
 
+#ifdef RTE_USE_C11_MEM_MODEL
+#include <rte_ring_rts_c11_mem.h>
+#else
 #include <rte_ring_rts_generic.h>
+#endif
 
 /**
  * @internal Enqueue several objects on the RTS ring.
