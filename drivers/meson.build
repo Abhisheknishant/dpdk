@@ -10,6 +10,7 @@ dpdk_driver_classes = ['common',
 	       'bus',
 	       'mempool', # depends on common and bus.
 	       'net',     # depends on common, bus, mempool
+	       'raw/common',
 	       'raw',     # depends on common, bus and net.
 	       'crypto',  # depends on common, bus and mempool (net in future).
 	       'compress', # depends on common, bus, mempool.
@@ -212,5 +213,9 @@ foreach class:dpdk_driver_classes
 		endif # build
 	endforeach
 
+	if class.contains('/')
+		class_split = class.split('/')
+		class = '_'.join(class_split)
+	endif
 	set_variable(class + '_drivers', class_drivers)
 endforeach

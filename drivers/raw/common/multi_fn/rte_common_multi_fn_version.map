@@ -1,0 +1,11 @@
+EXPERIMENTAL {
+	global:
+
+	rte_multi_fn_session_create;
+	rte_multi_fn_session_destroy;
+	rte_multi_fn_op_pool_create;
+	rte_multi_fn_op_bulk_alloc;
+	rte_multi_fn_op_free;
+
+	local: *;
+};

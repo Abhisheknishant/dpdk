@@ -102,6 +102,10 @@ message(output_message + '\n')
 
 output_message = '\n===============\nDrivers Enabled\n===============\n'
 foreach class:dpdk_driver_classes
+	if class.contains('/')
+		class_split = class.split('/')
+		class = '_'.join(class_split)
+	endif
 	class_drivers = get_variable(class + '_drivers')
 	output_message += '\n' + class + ':\n\t'
 	output_count = 0
