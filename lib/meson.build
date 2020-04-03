@@ -47,7 +47,6 @@ foreach l:libraries
 	build = true
 	reason = '<unknown reason>' # set if build == false to explain why
 	name = l
-	allow_experimental_apis = false
 	use_function_versioning = false
 	sources = []
 	headers = []
@@ -98,9 +97,7 @@ foreach l:libraries
 			static_dep = shared_dep
 		else
 
-			if allow_experimental_apis
-				cflags += '-DALLOW_EXPERIMENTAL_API'
-			endif
+			cflags += '-DALLOW_EXPERIMENTAL_API'
 			if use_function_versioning
 				cflags += '-DRTE_USE_FUNCTION_VERSIONING'
 			endif

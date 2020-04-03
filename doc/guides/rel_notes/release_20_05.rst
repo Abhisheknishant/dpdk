@@ -62,6 +62,12 @@ New Features
 
   * Added support for matching on IPv4 Time To Live and IPv6 Hop Limit.
 
+* **Enable ALLOW_EXPERIMENTAL_API flag globally.**
+
+  Remove setting ALLOW_EXPERIMENTAL_API individually for each Makefile and
+  meson.build in app, lib and drivers instead enable ALLOW_EXPERIMENTAL_API
+  flag globally.
+
 
 Removed Items
 -------------

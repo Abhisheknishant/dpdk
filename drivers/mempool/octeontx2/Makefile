@@ -23,8 +23,6 @@ CFLAGS += -diag-disable 2259
 endif
 endif
 
-CFLAGS += -DALLOW_EXPERIMENTAL_API
-
 EXPORT_MAP := rte_mempool_octeontx2_version.map
 
 #
@@ -32,7 +30,7 @@ EXPORT_MAP := rte_mempool_octeontx2_version.map
 #
 SRCS-$(CONFIG_RTE_LIBRTE_OCTEONTX2_MEMPOOL) += \
 	otx2_mempool_ops.c	\
-	otx2_mempool.c 		\
+	otx2_mempool.c		\
 	otx2_mempool_irq.c	\
 	otx2_mempool_debug.c
 

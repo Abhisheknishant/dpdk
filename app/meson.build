@@ -26,7 +26,6 @@ default_cflags = machine_args
 foreach app:apps
 	build = true
 	name = app
-	allow_experimental_apis = false
 	sources = []
 	includes = []
 	cflags = default_cflags
@@ -53,10 +52,7 @@ foreach app:apps
 			link_libs = dpdk_static_libraries + dpdk_drivers
 		endif
 
-		if allow_experimental_apis
-			cflags += '-DALLOW_EXPERIMENTAL_API'
-		endif
-
+		cflags += '-DALLOW_EXPERIMENTAL_API'
 		executable('dpdk-' + name,
 				sources,
 				c_args: cflags,

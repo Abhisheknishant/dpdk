@@ -34,6 +34,7 @@ _INSTALL = $(INSTALL-FILES-y) $(RTE_OUTPUT)/lib/$(LIB)
 _CLEAN = doclean
 
 LDLIBS += $(EXECENV_LDLIBS-y)
+CFLAGS += -DALLOW_EXPERIMENTAL_API
 
 .PHONY: all
 all: install
