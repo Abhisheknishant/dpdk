@@ -45,3 +45,19 @@ test_rawdev_selftest_ioat(void)
 }
 
 REGISTER_TEST_COMMAND(ioat_rawdev_autotest, test_rawdev_selftest_ioat);
+
+static int
+test_rawdev_selftest_aesni_mb(void)
+{
+	int ret;
+
+	ret = rte_vdev_init("rawdev_aesni_mb", NULL);
+	if (ret) {
+		printf("Failed to create AESNI-MB rawdev\n");
+		return ret;
+	}
+
+	return rte_rawdev_selftest(rte_rawdev_get_dev_id("rawdev_aesni_mb"));
+}
+
+REGISTER_TEST_COMMAND(rawdev_aesni_mb_autotest, test_rawdev_selftest_aesni_mb);
