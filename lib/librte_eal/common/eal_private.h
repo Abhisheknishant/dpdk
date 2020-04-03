@@ -446,6 +446,9 @@ eal_get_baseaddr(void);
 const char *
 eal_loglevel_to_string(uint32_t level);
 
+int
+eal_parse_log_priority(const char *level);
+
 void *
 eal_malloc_no_trace(const char *type, size_t size, unsigned int align);
 
