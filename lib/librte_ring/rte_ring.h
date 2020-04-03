@@ -61,11 +61,27 @@ enum rte_ring_queue_behavior {
 #define RTE_RING_NAMESIZE (RTE_MEMZONE_NAMESIZE - \
 			   sizeof(RTE_RING_MZ_PREFIX) + 1)
 
-/* structure to hold a pair of head/tail values and other metadata */
+/** prod/cons sync types */
+enum rte_ring_sync_type {
+	RTE_RING_SYNC_MT,     /**< multi-thread safe (default mode) */
+	RTE_RING_SYNC_ST,     /**< single thread only */
+};
+
+/**
+ * structure to hold a pair of head/tail values and other metadata.
+ * Depending on sync_type format of that structure might be different,
+ * but offset for *sync_type* and *tail* values should remain the same.
+ */
 struct rte_ring_headtail {
-	volatile uint32_t head;  /**< Prod/consumer head. */
-	volatile uint32_t tail;  /**< Prod/consumer tail. */
-	uint32_t single;         /**< True if single prod/cons */
+	volatile uint32_t head;      /**< prod/consumer head. */
+	volatile uint32_t tail;      /**< prod/consumer tail. */
+	RTE_STD_C11
+	union {
+		/** sync type of prod/cons */
+		enum rte_ring_sync_type sync_type;
+		/** deprecated -  True if single prod/cons */
+		uint32_t single;
+	};
 };
 
 /**
@@ -116,11 +132,10 @@ struct rte_ring {
 #define RING_F_EXACT_SZ 0x0004
 #define RTE_RING_SZ_MASK  (0x7fffffffU) /**< Ring size mask */
 
-/* @internal defines for passing to the enqueue dequeue worker functions */
-#define __IS_SP 1
-#define __IS_MP 0
-#define __IS_SC 1
-#define __IS_MC 0
+#define __IS_SP RTE_RING_SYNC_ST
+#define __IS_MP RTE_RING_SYNC_MT
+#define __IS_SC RTE_RING_SYNC_ST
+#define __IS_MC RTE_RING_SYNC_MT
 
 /**
  * Calculate the memory size needed for a ring
@@ -420,7 +435,7 @@ rte_ring_mp_enqueue_bulk(struct rte_ring *r, void * const *obj_table,
 			 unsigned int n, unsigned int *free_space)
 {
 	return __rte_ring_do_enqueue(r, obj_table, n, RTE_RING_QUEUE_FIXED,
-			__IS_MP, free_space);
+			RTE_RING_SYNC_MT, free_space);
 }
 
 /**
@@ -443,7 +458,7 @@ rte_ring_sp_enqueue_bulk(struct rte_ring *r, void * const *obj_table,
 			 unsigned int n, unsigned int *free_space)
 {
 	return __rte_ring_do_enqueue(r, obj_table, n, RTE_RING_QUEUE_FIXED,
-			__IS_SP, free_space);
+			RTE_RING_SYNC_ST, free_space);
 }
 
 /**
@@ -470,7 +485,7 @@ rte_ring_enqueue_bulk(struct rte_ring *r, void * const *obj_table,
 		      unsigned int n, unsigned int *free_space)
 {
 	return __rte_ring_do_enqueue(r, obj_table, n, RTE_RING_QUEUE_FIXED,
-			r->prod.single, free_space);
+			r->prod.sync_type, free_space);
 }
 
 /**
@@ -554,7 +569,7 @@ rte_ring_mc_dequeue_bulk(struct rte_ring *r, void **obj_table,
 		unsigned int n, unsigned int *available)
 {
 	return __rte_ring_do_dequeue(r, obj_table, n, RTE_RING_QUEUE_FIXED,
-			__IS_MC, available);
+			RTE_RING_SYNC_MT, available);
 }
 
 /**
@@ -578,7 +593,7 @@ rte_ring_sc_dequeue_bulk(struct rte_ring *r, void **obj_table,
 		unsigned int n, unsigned int *available)
 {
 	return __rte_ring_do_dequeue(r, obj_table, n, RTE_RING_QUEUE_FIXED,
-			__IS_SC, available);
+			RTE_RING_SYNC_ST, available);
 }
 
 /**
@@ -605,7 +620,7 @@ rte_ring_dequeue_bulk(struct rte_ring *r, void **obj_table, unsigned int n,
 		unsigned int *available)
 {
 	return __rte_ring_do_dequeue(r, obj_table, n, RTE_RING_QUEUE_FIXED,
-				r->cons.single, available);
+				r->cons.sync_type, available);
 }
 
 /**
@@ -778,6 +793,62 @@ rte_ring_get_capacity(const struct rte_ring *r)
 }
 
 /**
+ * Return sync type used by producer in the ring.
+ *
+ * @param r
+ *   A pointer to the ring structure.
+ * @return
+ *   Producer sync type value.
+ */
+static inline enum rte_ring_sync_type
+rte_ring_get_prod_sync_type(const struct rte_ring *r)
+{
+	return r->prod.sync_type;
+}
+
+/**
+ * Check is the ring for single producer.
+ *
+ * @param r
+ *   A pointer to the ring structure.
+ * @return
+ *   true if ring is SP, zero otherwise.
+ */
+static inline int
+rte_ring_prod_single(const struct rte_ring *r)
+{
+	return (rte_ring_get_prod_sync_type(r) == RTE_RING_SYNC_ST);
+}
+
+/**
+ * Return sync type used by consumer in the ring.
+ *
+ * @param r
+ *   A pointer to the ring structure.
+ * @return
+ *   Consumer sync type value.
+ */
+static inline enum rte_ring_sync_type
+rte_ring_get_cons_sync_type(const struct rte_ring *r)
+{
+	return r->cons.sync_type;
+}
+
+/**
+ * Check is the ring for single consumer.
+ *
+ * @param r
+ *   A pointer to the ring structure.
+ * @return
+ *   true if ring is SC, zero otherwise.
+ */
+static inline int
+rte_ring_cons_single(const struct rte_ring *r)
+{
+	return (rte_ring_get_cons_sync_type(r) == RTE_RING_SYNC_ST);
+}
+
+/**
  * Dump the status of all rings on the console
  *
  * @param f
@@ -820,7 +891,7 @@ rte_ring_mp_enqueue_burst(struct rte_ring *r, void * const *obj_table,
 			 unsigned int n, unsigned int *free_space)
 {
 	return __rte_ring_do_enqueue(r, obj_table, n,
-			RTE_RING_QUEUE_VARIABLE, __IS_MP, free_space);
+			RTE_RING_QUEUE_VARIABLE, RTE_RING_SYNC_MT, free_space);
 }
 
 /**
@@ -843,7 +914,7 @@ rte_ring_sp_enqueue_burst(struct rte_ring *r, void * const *obj_table,
 			 unsigned int n, unsigned int *free_space)
 {
 	return __rte_ring_do_enqueue(r, obj_table, n,
-			RTE_RING_QUEUE_VARIABLE, __IS_SP, free_space);
+			RTE_RING_QUEUE_VARIABLE, RTE_RING_SYNC_ST, free_space);
 }
 
 /**
@@ -870,7 +941,7 @@ rte_ring_enqueue_burst(struct rte_ring *r, void * const *obj_table,
 		      unsigned int n, unsigned int *free_space)
 {
 	return __rte_ring_do_enqueue(r, obj_table, n, RTE_RING_QUEUE_VARIABLE,
-			r->prod.single, free_space);
+			r->prod.sync_type, free_space);
 }
 
 /**
@@ -898,7 +969,7 @@ rte_ring_mc_dequeue_burst(struct rte_ring *r, void **obj_table,
 		unsigned int n, unsigned int *available)
 {
 	return __rte_ring_do_dequeue(r, obj_table, n,
-			RTE_RING_QUEUE_VARIABLE, __IS_MC, available);
+			RTE_RING_QUEUE_VARIABLE, RTE_RING_SYNC_MT, available);
 }
 
 /**
@@ -923,7 +994,7 @@ rte_ring_sc_dequeue_burst(struct rte_ring *r, void **obj_table,
 		unsigned int n, unsigned int *available)
 {
 	return __rte_ring_do_dequeue(r, obj_table, n,
-			RTE_RING_QUEUE_VARIABLE, __IS_SC, available);
+			RTE_RING_QUEUE_VARIABLE, RTE_RING_SYNC_ST, available);
 }
 
 /**
@@ -951,7 +1022,7 @@ rte_ring_dequeue_burst(struct rte_ring *r, void **obj_table,
 {
 	return __rte_ring_do_dequeue(r, obj_table, n,
 				RTE_RING_QUEUE_VARIABLE,
-				r->cons.single, available);
+				r->cons.sync_type, available);
 }
 
 #ifdef __cplusplus
