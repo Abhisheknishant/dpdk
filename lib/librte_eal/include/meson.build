@@ -41,6 +41,8 @@ headers += files(
 	'rte_tailq.h',
 	'rte_time.h',
 	'rte_trace.h',
+	'rte_trace_provider.h',
+	'rte_trace_register.h',
 	'rte_uuid.h',
 	'rte_version.h',
 	'rte_vfio.h',

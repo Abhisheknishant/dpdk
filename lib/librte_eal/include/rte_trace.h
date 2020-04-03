@@ -515,6 +515,35 @@ _tp _args \
 
 #endif /* __DOXYGEN__ */
 
+/**
+ * @internal @warning
+ * @b EXPERIMENTAL: this API may change without prior notice
+ *
+ * Helper function to register a dynamic tracepoint.
+ * Use RTE_TRACE_POINT_REGISTER() macro for tracepoint registration.
+ *
+ * @param trace
+ *   The tracepoint object created using RTE_TRACE_POINT_DEFINE().
+ * @param name
+ *   The name of the tracepoint object.
+ * @param level
+ *   Trace level. A value between RTE_LOG_EMERG (1) and RTE_LOG_DEBUG (8).
+ * @param register_fn
+ *   Trace registration function.
+ * @return
+ *   - 0: Successfully registered the tracepoint.
+ *   - <0: Failure to register the tracepoint.
+ */
+__rte_experimental
+int __rte_trace_point_register(rte_trace_t *trace, const char *name,
+			     uint32_t level, void (*register_fn)(void));
+
+#ifdef RTE_TRACE_POINT_REGISTER_SELECT
+#include <rte_trace_register.h>
+#else
+#include <rte_trace_provider.h>
+#endif
+
 #ifdef __cplusplus
 }
 #endif
