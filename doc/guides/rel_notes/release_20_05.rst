@@ -62,6 +62,12 @@ New Features
 
   * Added support for matching on IPv4 Time To Live and IPv6 Hop Limit.
 
+* **Added --config command line parameter to l2fwd example.**
+
+  Added new command line option ``--config(port, port)[,(port, port)]`` to
+  pass forwarding port details.
+  See the :doc:`doc/guides/sample_app_ug/l2_forward_real_virtual` for more
+  details of this parameter usage.
 
 Removed Items
 -------------
