@@ -93,6 +93,7 @@ test_sources = files('commands.c',
 	'test_rawdev.c',
 	'test_rcu_qsbr.c',
 	'test_rcu_qsbr_perf.c',
+	'test_reassembly_perf.c',
 	'test_reciprocal_division.c',
 	'test_reciprocal_division_perf.c',
 	'test_red.c',
@@ -272,6 +273,7 @@ perf_test_names = [
         'rand_perf_autotest',
         'hash_readwrite_perf_autotest',
         'hash_readwrite_lf_perf_autotest',
+        'reassembly_perf_autotest',
 ]
 
 driver_test_names = [
