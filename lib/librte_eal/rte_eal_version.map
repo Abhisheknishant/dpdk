@@ -384,4 +384,8 @@ EXPERIMENTAL {
 	__rte_trace_lib_eal_generic_func;
 	__rte_trace_lib_eal_alarm_set;
 	__rte_trace_lib_eal_alarm_cancel;
+	__rte_trace_lib_eal_mem_zmalloc;
+	__rte_trace_lib_eal_mem_malloc;
+	__rte_trace_lib_eal_mem_realloc;
+	__rte_trace_lib_eal_mem_free;
 };
