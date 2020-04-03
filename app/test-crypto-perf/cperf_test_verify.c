@@ -6,6 +6,10 @@
 #include <rte_cycles.h>
 #include <rte_crypto.h>
 #include <rte_cryptodev.h>
+#ifdef MULTI_FN_SUPPORTED
+#include <rte_rawdev.h>
+#include <rte_multi_fn.h>
+#endif /* MULTI_FN_SUPPORTED */
 
 #include "cperf_test_verify.h"
 #include "cperf_ops.h"
@@ -36,17 +40,26 @@ struct cperf_op_result {
 static void
 cperf_verify_test_free(struct cperf_verify_ctx *ctx)
 {
-	if (ctx) {
-		if (ctx->sess) {
+	if (ctx)
+		return;
+
+	if (ctx->sess) {
+#ifdef MULTI_FN_SUPPORTED
+		if (ctx->options->op_type == CPERF_MULTI_FN) {
+			rte_multi_fn_session_destroy(ctx->dev_id,
+				(struct rte_multi_fn_session *)ctx->sess);
+		} else
+#endif /* MULTI_FN_SUPPORTED */
+		{
 			rte_cryptodev_sym_session_clear(ctx->dev_id, ctx->sess);
 			rte_cryptodev_sym_session_free(ctx->sess);
 		}
-
-		if (ctx->pool)
-			rte_mempool_free(ctx->pool);
-
-		rte_free(ctx);
 	}
+
+	if (ctx->pool)
+		rte_mempool_free(ctx->pool);
+
+	rte_free(ctx);
 }
 
 void *
@@ -58,6 +71,7 @@ cperf_verify_test_constructor(struct rte_mempool *sess_mp,
 		const struct cperf_op_fns *op_fns)
 {
 	struct cperf_verify_ctx *ctx = NULL;
+	uint16_t iv_offset;
 
 	ctx = rte_malloc(NULL, sizeof(struct cperf_verify_ctx), 0);
 	if (ctx == NULL)
@@ -70,9 +84,17 @@ cperf_verify_test_constructor(struct rte_mempool *sess_mp,
 	ctx->options = options;
 	ctx->test_vector = test_vector;
 
-	/* IV goes at the end of the crypto operation */
-	uint16_t iv_offset = sizeof(struct rte_crypto_op) +
-		sizeof(struct rte_crypto_sym_op);
+#ifdef MULTI_FN_SUPPORTED
+	if (options->op_type == CPERF_MULTI_FN) {
+		/* IV goes at the end of the multi-function operation */
+		iv_offset = sizeof(struct rte_multi_fn_op);
+	} else
+#endif /* MULTI_FN_SUPPORTED */
+	{
+		/* IV goes at the end of the crypto operation */
+		iv_offset = sizeof(struct rte_crypto_op) +
+			sizeof(struct rte_crypto_sym_op);
+	}
 
 	ctx->sess = op_fns->sess_create(sess_mp, sess_priv_mp, dev_id, options,
 			test_vector, iv_offset);
@@ -91,6 +113,65 @@ err:
 	return NULL;
 }
 
+#ifdef MULTI_FN_SUPPORTED
+static int
+cperf_verify_mf_op(struct rte_multi_fn_op *op,
+			const struct cperf_options *options,
+			const struct cperf_test_vector *vector)
+{
+	const struct rte_mbuf *m;
+	uint32_t len;
+	uint16_t nb_segs;
+	uint8_t *data;
+	int res = 0;
+
+	if (op->overall_status != RTE_MULTI_FN_OP_STATUS_SUCCESS)
+		return 1;
+
+	if (op->m_dst)
+		m = op->m_dst;
+	else
+		m = op->m_src;
+	nb_segs = m->nb_segs;
+	len = 0;
+	while (m && nb_segs != 0) {
+		len += m->data_len;
+		m = m->next;
+		nb_segs--;
+	}
+
+	data = rte_malloc(NULL, len, 0);
+	if (data == NULL)
+		return 1;
+
+	if (op->m_dst)
+		m = op->m_dst;
+	else
+		m = op->m_src;
+	nb_segs = m->nb_segs;
+	len = 0;
+	while (m && nb_segs != 0) {
+		memcpy(data + len, rte_pktmbuf_mtod(m, uint8_t *),
+				m->data_len);
+		len += m->data_len;
+		m = m->next;
+		nb_segs--;
+	}
+
+	if (options->cipher_op == RTE_CRYPTO_CIPHER_OP_ENCRYPT)
+		res += memcmp(data,
+				vector->ciphertext.data,
+				options->test_buffer_size);
+	else
+		res += memcmp(data,
+				vector->plaintext.data,
+				options->test_buffer_size);
+
+	rte_free(data);
+	return !!res;
+}
+#endif /* MULTI_FN_SUPPORTED */
+
 static int
 cperf_verify_op(struct rte_crypto_op *op,
 		const struct cperf_options *options,
@@ -103,6 +184,12 @@ cperf_verify_op(struct rte_crypto_op *op,
 	uint32_t cipher_offset, auth_offset;
 	uint8_t	cipher, auth;
 	int res = 0;
+
+#ifdef MULTI_FN_SUPPORTED
+	if (options->op_type == CPERF_MULTI_FN)
+		return cperf_verify_mf_op((struct rte_multi_fn_op *)op, options,
+						vector);
+#endif /* MULTI_FN_SUPPORTED */
 
 	if (op->status != RTE_CRYPTO_OP_STATUS_SUCCESS)
 		return 1;
@@ -252,15 +339,30 @@ cperf_verify_test_runner(void *test_ctx)
 
 	uint32_t lcore = rte_lcore_id();
 
+	uint16_t iv_offset;
+
+	int multi_fn = 0;
+
+#ifdef MULTI_FN_SUPPORTED
+	if (ctx->options->op_type == CPERF_MULTI_FN)
+		multi_fn = 1;
+#else
+	RTE_SET_USED(multi_fn);
+#endif /* MULTI_FN_SUPPORTED */
+
 #ifdef CPERF_LINEARIZATION_ENABLE
-	struct rte_cryptodev_info dev_info;
 	int linearize = 0;
 
 	/* Check if source mbufs require coalescing */
 	if (ctx->options->segment_sz < ctx->options->max_buffer_size) {
-		rte_cryptodev_info_get(ctx->dev_id, &dev_info);
-		if ((dev_info.feature_flags &
-				RTE_CRYPTODEV_FF_MBUF_SCATTER_GATHER) == 0)
+		if (!multi_fn) {
+			struct rte_cryptodev_info dev_info;
+			rte_cryptodev_info_get(ctx->dev_id, &dev_info);
+			if ((dev_info.feature_flags &
+					RTE_CRYPTODEV_FF_MBUF_SCATTER_GATHER) ==
+									0)
+				linearize = 1;
+		} else
 			linearize = 1;
 	}
 #endif /* CPERF_LINEARIZATION_ENABLE */
@@ -271,12 +373,18 @@ cperf_verify_test_runner(void *test_ctx)
 		printf("\n# Running verify test on device: %u, lcore: %u\n",
 			ctx->dev_id, lcore);
 
-	uint16_t iv_offset = sizeof(struct rte_crypto_op) +
-		sizeof(struct rte_crypto_sym_op);
+#ifdef MULTI_FN_SUPPORTED
+	if (multi_fn)
+		iv_offset = sizeof(struct rte_multi_fn_op);
+	else
+#endif /* MULTI_FN_SUPPORTED */
+		iv_offset = sizeof(struct rte_crypto_op) +
+			sizeof(struct rte_crypto_sym_op);
 
 	while (ops_enqd_total < ctx->options->total_ops) {
 
-		uint16_t burst_size = ((ops_enqd_total + ctx->options->max_burst_size)
+		uint16_t burst_size = ((ops_enqd_total +
+						ctx->options->max_burst_size)
 				<= ctx->options->total_ops) ?
 						ctx->options->max_burst_size :
 						ctx->options->total_ops -
@@ -319,9 +427,32 @@ cperf_verify_test_runner(void *test_ctx)
 		}
 #endif /* CPERF_LINEARIZATION_ENABLE */
 
-		/* Enqueue burst of ops on crypto device */
-		ops_enqd = rte_cryptodev_enqueue_burst(ctx->dev_id, ctx->qp_id,
-				ops, burst_size);
+#ifdef MULTI_FN_SUPPORTED
+		if (multi_fn) {
+			/* Enqueue burst of op on raw device */
+			ops_enqd = rte_rawdev_enqueue_buffers(ctx->dev_id,
+					(struct rte_rawdev_buf **)ops,
+					burst_size,
+					(rte_rawdev_obj_t)&ctx->qp_id);
+
+			/* Dequeue processed burst of ops from raw device */
+			ops_deqd = rte_rawdev_dequeue_buffers(ctx->dev_id,
+					(struct rte_rawdev_buf **)ops_processed,
+					ctx->options->max_burst_size,
+					(rte_rawdev_obj_t)&ctx->qp_id);
+		} else
+#endif /* MULTI_FN_SUPPORTED */
+		{
+			/* Enqueue burst of ops on crypto device */
+			ops_enqd = rte_cryptodev_enqueue_burst(ctx->dev_id,
+					ctx->qp_id, ops, burst_size);
+
+			/* Dequeue processed burst of ops from crypto device */
+			ops_deqd = rte_cryptodev_dequeue_burst(ctx->dev_id,
+					ctx->qp_id, ops_processed,
+					ctx->options->max_burst_size);
+		}
+
 		if (ops_enqd < burst_size)
 			ops_enqd_failed++;
 
@@ -331,11 +462,6 @@ cperf_verify_test_runner(void *test_ctx)
 		 */
 		ops_unused = burst_size - ops_enqd;
 		ops_enqd_total += ops_enqd;
-
-
-		/* Dequeue processed burst of ops from crypto device */
-		ops_deqd = rte_cryptodev_dequeue_burst(ctx->dev_id, ctx->qp_id,
-				ops_processed, ctx->options->max_burst_size);
 
 		if (ops_deqd == 0) {
 			/**
@@ -358,15 +484,32 @@ cperf_verify_test_runner(void *test_ctx)
 		ops_deqd_total += ops_deqd;
 	}
 
-	/* Dequeue any operations still in the crypto device */
-
+	/* Dequeue any operations still in the device */
 	while (ops_deqd_total < ctx->options->total_ops) {
-		/* Sending 0 length burst to flush sw crypto device */
-		rte_cryptodev_enqueue_burst(ctx->dev_id, ctx->qp_id, NULL, 0);
+#ifdef MULTI_FN_SUPPORTED
+		if (multi_fn) {
+			/* Sending 0 length burst to flush sw raw device */
+			rte_rawdev_enqueue_buffers(ctx->dev_id, NULL, 0,
+					(rte_rawdev_obj_t)&ctx->qp_id);
 
-		/* dequeue burst */
-		ops_deqd = rte_cryptodev_dequeue_burst(ctx->dev_id, ctx->qp_id,
-				ops_processed, ctx->options->max_burst_size);
+			/* dequeue burst */
+			ops_deqd = rte_rawdev_dequeue_buffers(ctx->dev_id,
+					(struct rte_rawdev_buf **)ops_processed,
+					ctx->options->max_burst_size,
+					(rte_rawdev_obj_t)&ctx->qp_id);
+		} else
+#endif /* MULTI_FN_SUPPORTED */
+		{
+			/* Sending 0 length burst to flush sw crypto device */
+			rte_cryptodev_enqueue_burst(ctx->dev_id, ctx->qp_id,
+					NULL, 0);
+
+			/* dequeue burst */
+			ops_deqd = rte_cryptodev_dequeue_burst(ctx->dev_id,
+					ctx->qp_id, ops_processed,
+					ctx->options->max_burst_size);
+		}
+
 		if (ops_deqd == 0) {
 			ops_deqd_failed++;
 			continue;

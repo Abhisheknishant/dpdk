@@ -6,6 +6,10 @@
 
 #include <rte_crypto.h>
 #include <rte_cryptodev.h>
+#ifdef MULTI_FN_SUPPORTED
+#include <rte_rawdev.h>
+#include <rte_multi_fn.h>
+#endif /* MULTI_FN_SUPPORTED */
 #include <rte_cycles.h>
 #include <rte_malloc.h>
 
@@ -44,6 +48,7 @@ struct pmd_cyclecount_state {
 	uint32_t lcore;
 	uint64_t delay;
 	int linearize;
+	int multi_fn;
 	uint32_t ops_enqd;
 	uint32_t ops_deqd;
 	uint32_t ops_enq_retries;
@@ -53,29 +58,37 @@ struct pmd_cyclecount_state {
 	double cycles_per_deq;
 };
 
-static const uint16_t iv_offset =
-		sizeof(struct rte_crypto_op) + sizeof(struct rte_crypto_sym_op);
+static uint16_t iv_offset;
 
 static void
 cperf_pmd_cyclecount_test_free(struct cperf_pmd_cyclecount_ctx *ctx)
 {
-	if (ctx) {
-		if (ctx->sess) {
+	if (!ctx)
+		return;
+
+	if (ctx->sess) {
+#ifdef MULTI_FN_SUPPORTED
+		if (ctx->options->op_type == CPERF_MULTI_FN) {
+			rte_multi_fn_session_destroy(ctx->dev_id,
+				(struct rte_multi_fn_session *)ctx->sess);
+		} else
+#endif /* MULTI_FN_SUPPORTED */
+		{
 			rte_cryptodev_sym_session_clear(ctx->dev_id, ctx->sess);
 			rte_cryptodev_sym_session_free(ctx->sess);
 		}
-
-		if (ctx->pool)
-			rte_mempool_free(ctx->pool);
-
-		if (ctx->ops)
-			rte_free(ctx->ops);
-
-		if (ctx->ops_processed)
-			rte_free(ctx->ops_processed);
-
-		rte_free(ctx);
 	}
+
+	if (ctx->pool)
+		rte_mempool_free(ctx->pool);
+
+	if (ctx->ops)
+		rte_free(ctx->ops);
+
+	if (ctx->ops_processed)
+		rte_free(ctx->ops_processed);
+
+	rte_free(ctx);
 }
 
 void *
@@ -103,9 +116,17 @@ cperf_pmd_cyclecount_test_constructor(struct rte_mempool *sess_mp,
 	ctx->options = options;
 	ctx->test_vector = test_vector;
 
-	/* IV goes at the end of the crypto operation */
-	uint16_t iv_offset = sizeof(struct rte_crypto_op) +
-			sizeof(struct rte_crypto_sym_op);
+#ifdef MULTI_FN_SUPPORTED
+	if (options->op_type == CPERF_MULTI_FN) {
+		/* IV goes at the end of the multi-function operation */
+		iv_offset = sizeof(struct rte_multi_fn_op);
+	} else
+#endif /* MULTI_FN_SUPPORTED */
+	{
+		/* IV goes at the end of the crypto operation */
+		iv_offset = sizeof(struct rte_crypto_op) +
+				sizeof(struct rte_crypto_sym_op);
+	}
 
 	ctx->sess = op_fns->sess_create(sess_mp, sess_priv_mp, dev_id, options,
 			test_vector, iv_offset);
@@ -237,8 +258,18 @@ pmd_cyclecount_bench_enq(struct pmd_cyclecount_state *state,
 		struct rte_crypto_op **ops = &state->ctx->ops[cur_iter_op];
 		uint32_t burst_enqd;
 
-		burst_enqd = rte_cryptodev_enqueue_burst(state->ctx->dev_id,
-				state->ctx->qp_id, ops, burst_size);
+#ifdef MULTI_FN_SUPPORTED
+		if (state->multi_fn)
+			burst_enqd = rte_rawdev_enqueue_buffers(
+					state->ctx->dev_id,
+					(struct rte_rawdev_buf **)ops,
+					burst_size,
+					(rte_rawdev_obj_t)&state->ctx->qp_id);
+		else
+#endif /* MULTI_FN_SUPPORTED */
+			burst_enqd = rte_cryptodev_enqueue_burst(
+					state->ctx->dev_id, state->ctx->qp_id,
+					ops, burst_size);
 
 		/* if we couldn't enqueue anything, the queue is full */
 		if (!burst_enqd) {
@@ -268,8 +299,18 @@ pmd_cyclecount_bench_deq(struct pmd_cyclecount_state *state,
 				&state->ctx->ops[cur_iter_op];
 		uint32_t burst_deqd;
 
-		burst_deqd = rte_cryptodev_dequeue_burst(state->ctx->dev_id,
-				state->ctx->qp_id, ops_processed, burst_size);
+#ifdef MULTI_FN_SUPPORTED
+		if (state->multi_fn)
+			burst_deqd = rte_rawdev_dequeue_buffers(
+					state->ctx->dev_id,
+					(struct rte_rawdev_buf **)ops_processed,
+					burst_size,
+					(rte_rawdev_obj_t)&state->ctx->qp_id);
+		else
+#endif /* MULTI_FN_SUPPORTED */
+			burst_deqd = rte_cryptodev_dequeue_burst(
+					state->ctx->dev_id, state->ctx->qp_id,
+					ops_processed, burst_size);
 
 		if (burst_deqd < burst_size)
 			state->ops_deq_retries++;
@@ -390,6 +431,12 @@ cperf_pmd_cyclecount_test_runner(void *test_ctx)
 	state.opts = opts;
 	state.lcore = rte_lcore_id();
 	state.linearize = 0;
+	state.multi_fn = 0;
+
+#ifdef MULTI_FN_SUPPORTED
+	if (opts->op_type == CPERF_MULTI_FN)
+		state.multi_fn = 1;
+#endif /* MULTI_FN_SUPPORTED */
 
 	static rte_atomic16_t display_once = RTE_ATOMIC16_INIT(0);
 	static bool warmup = true;
@@ -406,12 +453,15 @@ cperf_pmd_cyclecount_test_runner(void *test_ctx)
 
 	/* Check if source mbufs require coalescing */
 	if (opts->segments_sz < ctx->options->max_buffer_size) {
-		rte_cryptodev_info_get(state.ctx->dev_id, &dev_info);
-		if ((dev_info.feature_flags &
+		if (!state.multi_fn) {
+			rte_cryptodev_info_get(state.ctx->dev_id, &dev_info);
+			if ((dev_info.feature_flags &
 				    RTE_CRYPTODEV_FF_MBUF_SCATTER_GATHER) ==
-				0) {
+								0) {
+				state.linearize = 1;
+			}
+		} else
 			state.linearize = 1;
-		}
 	}
 #endif /* CPERF_LINEARIZATION_ENABLE */
 

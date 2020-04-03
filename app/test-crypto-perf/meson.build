@@ -13,3 +13,9 @@ sources = files('cperf_ops.c',
 		'cperf_test_verify.c',
 		'main.c')
 deps += ['cryptodev', 'security']
+#deps += ['cryptodev', 'security', 'rawdev', 'common_multi_fn']
+
+if dpdk_conf.has('RTE_LIBRTE_MULTI_FN_COMMON') and dpdk_conf.has('RTE_LIBRTE_PMD_AESNI_MB_RAWDEV')
+	deps += ['rawdev', 'common_multi_fn']
+	cflags += ['-DMULTI_FN_SUPPORTED']
+endif

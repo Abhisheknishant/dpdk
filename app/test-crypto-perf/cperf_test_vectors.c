@@ -587,5 +587,58 @@ cperf_test_vector_get_dummy(struct cperf_options *options)
 		memcpy(t_vec->aead_iv.data, iv, options->aead_iv_sz);
 		t_vec->aead_iv.length = options->aead_iv_sz;
 	}
+
+#ifdef MULTI_FN_SUPPORTED
+	if (options->op_type == CPERF_MULTI_FN) {
+		if (options->multi_fn_opts.ops ==
+				CPERF_MULTI_FN_OPS_DOCSIS_CIPHER_CRC ||
+			options->multi_fn_opts.ops ==
+				CPERF_MULTI_FN_OPS_PON_CIPHER_CRC_BIP) {
+			if (options->cipher_algo == RTE_CRYPTO_CIPHER_NULL) {
+				t_vec->cipher_key.length = 0;
+				t_vec->ciphertext.data = plaintext;
+				t_vec->cipher_key.data = NULL;
+			} else {
+				t_vec->cipher_key.length =
+						options->cipher_key_sz;
+				t_vec->ciphertext.data = ciphertext;
+				t_vec->cipher_key.data = cipher_key;
+			}
+
+			/* Init IV data ptr */
+			t_vec->cipher_iv.data = NULL;
+
+			if (options->cipher_iv_sz != 0) {
+				/* Set IV parameters */
+				t_vec->cipher_iv.data = rte_malloc(NULL,
+						options->cipher_iv_sz, 16);
+				if (t_vec->cipher_iv.data == NULL) {
+					rte_free(t_vec);
+					return NULL;
+				}
+				memcpy(t_vec->cipher_iv.data, iv,
+					options->cipher_iv_sz);
+			}
+			t_vec->ciphertext.length = options->max_buffer_size;
+			t_vec->cipher_iv.length = options->cipher_iv_sz;
+			t_vec->data.cipher_offset =
+					options->multi_fn_opts.cipher_offset;
+			t_vec->data.cipher_length = options->max_buffer_size;
+
+			t_vec->multi_fn_data.crc_offset =
+					options->multi_fn_opts.crc_offset;
+			t_vec->multi_fn_data.crc_length =
+					options->max_buffer_size;
+		}
+
+		if (options->multi_fn_opts.ops ==
+				CPERF_MULTI_FN_OPS_PON_CIPHER_CRC_BIP) {
+			t_vec->multi_fn_data.bip_offset = 0;
+			t_vec->multi_fn_data.bip_length =
+					options->max_buffer_size;
+		}
+	}
+#endif /* MULTI_FN_SUPPORTED */
+
 	return t_vec;
 }

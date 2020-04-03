@@ -7,6 +7,7 @@
 
 #include <rte_cryptodev.h>
 #include <rte_malloc.h>
+#include <rte_ether.h>
 
 #include "cperf_options.h"
 
@@ -34,7 +35,7 @@ usage(char *progname)
 		" --desc-nb N: set number of descriptors for each crypto device\n"
 		" --devtype TYPE: set crypto device type to use\n"
 		" --optype cipher-only / auth-only / cipher-then-auth /\n"
-		"           auth-then-cipher / aead : set operation type\n"
+		"           auth-then-cipher / aead%s : set operation type\n"
 		" --sessionless: enable session-less crypto operations\n"
 		" --out-of-place: enable out-of-place crypto operations\n"
 		" --test-file NAME: set the test vector file path\n"
@@ -53,11 +54,20 @@ usage(char *progname)
 		" --aead-iv-sz N: set the AEAD IV size\n"
 		" --aead-aad-sz N: set the AEAD AAD size\n"
 		" --digest-sz N: set the digest size\n"
+#ifdef MULTI_FN_SUPPORTED
+		" --multi-fn-params PARAMS: set multi function parameters\n"
+#endif /* MULTI_FN_SUPPORTED */
 		" --pmd-cyclecount-delay-ms N: set delay between enqueue\n"
 		"           and dequeue in pmd-cyclecount benchmarking mode\n"
 		" --csv-friendly: enable test result output CSV friendly\n"
 		" -h: prints this help\n",
-		progname);
+		progname,
+#ifdef MULTI_FN_SUPPORTED
+		" / multi-fn"
+#else
+		""
+#endif /* MULTI_FN_SUPPORTED */
+		);
 }
 
 static int
@@ -446,7 +456,13 @@ parse_op_type(struct cperf_options *opts, const char *arg)
 		{
 			cperf_op_type_strs[CPERF_PDCP],
 			CPERF_PDCP
+		},
+#ifdef MULTI_FN_SUPPORTED
+		{
+			cperf_op_type_strs[CPERF_MULTI_FN],
+			CPERF_MULTI_FN
 		}
+#endif /* MULTI_FN_SUPPORTED */
 	};
 
 	int id = get_str_key_id_mapping(optype_namemap,
@@ -744,6 +760,112 @@ parse_aead_aad_sz(struct cperf_options *opts, const char *arg)
 	return parse_uint16_t(&opts->aead_aad_sz, arg);
 }
 
+#ifdef MULTI_FN_SUPPORTED
+static int
+parse_multi_fn_ops(struct cperf_options *opts, const char *arg)
+{
+	struct name_id_map multi_fn_ops_namemap[] = {
+		{
+			cperf_multi_fn_ops_strs
+			[CPERF_MULTI_FN_OPS_DOCSIS_CIPHER_CRC],
+			CPERF_MULTI_FN_OPS_DOCSIS_CIPHER_CRC
+		},
+		{
+			cperf_multi_fn_ops_strs
+			[CPERF_MULTI_FN_OPS_PON_CIPHER_CRC_BIP],
+			CPERF_MULTI_FN_OPS_PON_CIPHER_CRC_BIP
+		}
+	};
+
+	int id = get_str_key_id_mapping(multi_fn_ops_namemap,
+			RTE_DIM(multi_fn_ops_namemap), arg);
+	if (id < 0) {
+		RTE_LOG(ERR, USER1, "invalid multi function operation specified\n");
+		return -1;
+	}
+
+	opts->multi_fn_opts.ops = (enum cperf_multi_fn_ops)id;
+
+	return 0;
+}
+
+static int
+parse_multi_fn_params(struct cperf_options *opts, const char *arg)
+{
+	char *token;
+	char *copy_arg = strdup(arg);
+
+	if (copy_arg == NULL)
+		return -1;
+
+	errno = 0;
+	token = strtok(copy_arg, ",");
+
+	/* Parse first value */
+	if (token == NULL || parse_multi_fn_ops(opts, token) < 0)
+		goto err_multi_fn_opts;
+
+	if (opts->multi_fn_opts.ops ==
+			CPERF_MULTI_FN_OPS_DOCSIS_CIPHER_CRC) {
+		/* Next params is cipher_offset */
+		token = strtok(NULL, ",");
+
+		if (token == NULL ||
+			parse_uint32_t(&opts->multi_fn_opts.cipher_offset,
+					token) < 0) {
+			RTE_LOG(ERR, USER1, "invalid %s multi function cipher "
+				"offset specified\n",
+				cperf_multi_fn_ops_strs[
+						opts->multi_fn_opts.ops]);
+			goto err_multi_fn_opts;
+		}
+
+		/* Next params is crc_offset */
+		token = strtok(NULL, ",");
+
+		if (token == NULL ||
+			parse_uint32_t(&opts->multi_fn_opts.crc_offset,
+					token) < 0) {
+			RTE_LOG(ERR, USER1, "invalid %s multi function crc "
+				"offset specified\n",
+				cperf_multi_fn_ops_strs[
+						opts->multi_fn_opts.ops]);
+			goto err_multi_fn_opts;
+		}
+
+	} else if (opts->multi_fn_opts.ops ==
+			CPERF_MULTI_FN_OPS_PON_CIPHER_CRC_BIP) {
+		/* Next param is buffer_padding */
+		token = strtok(NULL, ",");
+
+		if (token == NULL ||
+			parse_uint32_t(&opts->multi_fn_opts.buffer_padding,
+					token) < 0) {
+			RTE_LOG(ERR, USER1, "invalid %s multi function buffer "
+				"padding specified\n",
+				cperf_multi_fn_ops_strs[
+						opts->multi_fn_opts.ops]);
+			goto err_multi_fn_opts;
+		}
+	}
+
+	token = strtok(NULL, ",");
+
+	if (token != NULL) {
+		RTE_LOG(ERR, USER1, "unknown %s multi function parameter\n",
+			cperf_multi_fn_ops_strs[opts->multi_fn_opts.ops]);
+		goto err_multi_fn_opts;
+	}
+
+	free(copy_arg);
+	return 0;
+
+err_multi_fn_opts:
+	free(copy_arg);
+	return -1;
+}
+#endif /* MULTI_FN_SUPPORTED */
+
 static int
 parse_csv_friendly(struct cperf_options *opts, const char *arg __rte_unused)
 {
@@ -821,6 +943,11 @@ static struct option lgopts[] = {
 	{ CPERF_PDCP_SN_SZ, required_argument, 0, 0 },
 	{ CPERF_PDCP_DOMAIN, required_argument, 0, 0 },
 #endif
+
+#ifdef MULTI_FN_SUPPORTED
+	{ CPERF_MULTI_FN_PARAMS, required_argument, 0, 0 },
+#endif /* MULTI_FN_SUPPORTED */
+
 	{ CPERF_CSV, no_argument, 0, 0},
 
 	{ CPERF_PMDCC_DELAY_MS, required_argument, 0, 0 },
@@ -891,47 +1018,57 @@ cperf_options_default(struct cperf_options *opts)
 	opts->pdcp_sn_sz = 12;
 	opts->pdcp_domain = RTE_SECURITY_PDCP_MODE_CONTROL;
 #endif
+
+#ifdef MULTI_FN_SUPPORTED
+	opts->multi_fn_opts.ops = CPERF_MULTI_FN_OPS_DOCSIS_CIPHER_CRC;
+	opts->multi_fn_opts.cipher_offset = 0;
+	opts->multi_fn_opts.crc_offset = 0;
+	opts->multi_fn_opts.buffer_padding = 0;
+#endif /* MULTI_FN_SUPPORTED */
 }
 
 static int
 cperf_opts_parse_long(int opt_idx, struct cperf_options *opts)
 {
 	struct long_opt_parser parsermap[] = {
-		{ CPERF_PTEST_TYPE,	parse_cperf_test_type },
-		{ CPERF_SILENT,		parse_silent },
-		{ CPERF_POOL_SIZE,	parse_pool_sz },
-		{ CPERF_TOTAL_OPS,	parse_total_ops },
-		{ CPERF_BURST_SIZE,	parse_burst_sz },
-		{ CPERF_BUFFER_SIZE,	parse_buffer_sz },
-		{ CPERF_SEGMENT_SIZE,	parse_segment_sz },
-		{ CPERF_DESC_NB,	parse_desc_nb },
-		{ CPERF_DEVTYPE,	parse_device_type },
-		{ CPERF_OPTYPE,		parse_op_type },
-		{ CPERF_SESSIONLESS,	parse_sessionless },
-		{ CPERF_OUT_OF_PLACE,	parse_out_of_place },
-		{ CPERF_IMIX,		parse_imix },
-		{ CPERF_TEST_FILE,	parse_test_file },
-		{ CPERF_TEST_NAME,	parse_test_name },
-		{ CPERF_CIPHER_ALGO,	parse_cipher_algo },
-		{ CPERF_CIPHER_OP,	parse_cipher_op },
-		{ CPERF_CIPHER_KEY_SZ,	parse_cipher_key_sz },
-		{ CPERF_CIPHER_IV_SZ,	parse_cipher_iv_sz },
-		{ CPERF_AUTH_ALGO,	parse_auth_algo },
-		{ CPERF_AUTH_OP,	parse_auth_op },
-		{ CPERF_AUTH_KEY_SZ,	parse_auth_key_sz },
-		{ CPERF_AUTH_IV_SZ,	parse_auth_iv_sz },
-		{ CPERF_AEAD_ALGO,	parse_aead_algo },
-		{ CPERF_AEAD_OP,	parse_aead_op },
-		{ CPERF_AEAD_KEY_SZ,	parse_aead_key_sz },
-		{ CPERF_AEAD_IV_SZ,	parse_aead_iv_sz },
-		{ CPERF_AEAD_AAD_SZ,	parse_aead_aad_sz },
-		{ CPERF_DIGEST_SZ,	parse_digest_sz },
+		{ CPERF_PTEST_TYPE,		parse_cperf_test_type },
+		{ CPERF_SILENT,			parse_silent },
+		{ CPERF_POOL_SIZE,		parse_pool_sz },
+		{ CPERF_TOTAL_OPS,		parse_total_ops },
+		{ CPERF_BURST_SIZE,		parse_burst_sz },
+		{ CPERF_BUFFER_SIZE,		parse_buffer_sz },
+		{ CPERF_SEGMENT_SIZE,		parse_segment_sz },
+		{ CPERF_DESC_NB,		parse_desc_nb },
+		{ CPERF_DEVTYPE,		parse_device_type },
+		{ CPERF_OPTYPE,			parse_op_type },
+		{ CPERF_SESSIONLESS,		parse_sessionless },
+		{ CPERF_OUT_OF_PLACE,		parse_out_of_place },
+		{ CPERF_IMIX,			parse_imix },
+		{ CPERF_TEST_FILE,		parse_test_file },
+		{ CPERF_TEST_NAME,		parse_test_name },
+		{ CPERF_CIPHER_ALGO,		parse_cipher_algo },
+		{ CPERF_CIPHER_OP,		parse_cipher_op },
+		{ CPERF_CIPHER_KEY_SZ,		parse_cipher_key_sz },
+		{ CPERF_CIPHER_IV_SZ,		parse_cipher_iv_sz },
+		{ CPERF_AUTH_ALGO,		parse_auth_algo },
+		{ CPERF_AUTH_OP,		parse_auth_op },
+		{ CPERF_AUTH_KEY_SZ,		parse_auth_key_sz },
+		{ CPERF_AUTH_IV_SZ,		parse_auth_iv_sz },
+		{ CPERF_AEAD_ALGO,		parse_aead_algo },
+		{ CPERF_AEAD_OP,		parse_aead_op },
+		{ CPERF_AEAD_KEY_SZ,		parse_aead_key_sz },
+		{ CPERF_AEAD_IV_SZ,		parse_aead_iv_sz },
+		{ CPERF_AEAD_AAD_SZ,		parse_aead_aad_sz },
+		{ CPERF_DIGEST_SZ,		parse_digest_sz },
 #ifdef RTE_LIBRTE_SECURITY
-		{ CPERF_PDCP_SN_SZ,	parse_pdcp_sn_sz },
-		{ CPERF_PDCP_DOMAIN,	parse_pdcp_domain },
+		{ CPERF_PDCP_SN_SZ,		parse_pdcp_sn_sz },
+		{ CPERF_PDCP_DOMAIN,		parse_pdcp_domain },
 #endif
-		{ CPERF_CSV,		parse_csv_friendly},
-		{ CPERF_PMDCC_DELAY_MS,	parse_pmd_cyclecount_delay_ms},
+#ifdef MULTI_FN_SUPPORTED
+		{ CPERF_MULTI_FN_PARAMS,	parse_multi_fn_params },
+#endif /* MULTI_FN_SUPPORTED */
+		{ CPERF_CSV,			parse_csv_friendly },
+		{ CPERF_PMDCC_DELAY_MS,		parse_pmd_cyclecount_delay_ms },
 	};
 	unsigned int i;
 
@@ -1030,6 +1167,155 @@ check_cipher_buffer_length(struct cperf_options *options)
 
 	return 0;
 }
+
+#ifdef MULTI_FN_SUPPORTED
+#define DOCSIS_CIPHER_CRC_OFFSET_DIFF (RTE_ETHER_HDR_LEN - RTE_ETHER_TYPE_LEN)
+#define DOCSIS_MIN_CIPHER_SIZE        (RTE_ETHER_HDR_LEN + RTE_ETHER_CRC_LEN)
+
+#define PON_FRAME_HDR_SIZE      (8U)
+#define PON_FRAME_MULTIPLE_SIZE (4)
+#define PON_FRAME_INVALID_SIZE  (12)
+
+static int
+check_multi_fn_options(struct cperf_options *options)
+{
+	uint32_t buffer_size, buffer_size_idx = 0;
+
+	options->digest_sz = 0;
+
+	if (options->multi_fn_opts.ops ==
+			CPERF_MULTI_FN_OPS_DOCSIS_CIPHER_CRC ||
+		options->multi_fn_opts.ops ==
+			CPERF_MULTI_FN_OPS_PON_CIPHER_CRC_BIP) {
+
+		/* Check the device type is a rawdev */
+		if (strcmp(options->device_type, "rawdev_aesni_mb") != 0) {
+			RTE_LOG(ERR, USER1, "Invalid device type %s for "
+				"multi-function\n",
+				options->device_type);
+			return -EINVAL;
+		}
+
+		/* Only single segment supported */
+		if (options->segment_sz < options->max_buffer_size) {
+			RTE_LOG(ERR, USER1, "Segmented buffers not supported "
+				"for multi-function\n");
+			return -EINVAL;
+		}
+
+		/* Out-of-place not supported */
+		if (options->out_of_place) {
+			RTE_LOG(ERR, USER1, "Out-of-place not supported for "
+				"multi-function\n");
+			return -EINVAL;
+		}
+	}
+
+	if (options->multi_fn_opts.ops ==
+			CPERF_MULTI_FN_OPS_DOCSIS_CIPHER_CRC) {
+		/*
+		 * Cipher offset must be at least 12 bytes (Ethernet SRC and
+		 * DEST MACs) greater than CRC offset
+		 */
+		if (options->multi_fn_opts.cipher_offset <
+				options->multi_fn_opts.crc_offset +
+					DOCSIS_CIPHER_CRC_OFFSET_DIFF) {
+			RTE_LOG(ERR, USER1, "Cipher and CRC offsets not valid "
+				"for %s multi-function operation - "
+				"cipher_offset must greater than or equal to "
+				"crc_offset + %u\n",
+				cperf_multi_fn_ops_strs[
+						options->multi_fn_opts.ops],
+				DOCSIS_CIPHER_CRC_OFFSET_DIFF);
+			return -EINVAL;
+		}
+	}
+
+	if (options->multi_fn_opts.ops ==
+			CPERF_MULTI_FN_OPS_PON_CIPHER_CRC_BIP) {
+		options->multi_fn_opts.cipher_offset = PON_FRAME_HDR_SIZE;
+		options->multi_fn_opts.crc_offset = PON_FRAME_HDR_SIZE;
+	}
+
+	if (options->inc_buffer_size != 0)
+		buffer_size = options->min_buffer_size;
+	else
+		buffer_size = options->buffer_size_list[0];
+
+	while (buffer_size <= options->max_buffer_size) {
+		if (options->multi_fn_opts.ops ==
+				CPERF_MULTI_FN_OPS_DOCSIS_CIPHER_CRC) {
+			/* Buffer must be large enough to accommodate offsets */
+			if (buffer_size <
+					(options->multi_fn_opts.cipher_offset +
+						DOCSIS_MIN_CIPHER_SIZE) ||
+				buffer_size <
+					(options->multi_fn_opts.crc_offset +
+							RTE_ETHER_CRC_LEN)) {
+				RTE_LOG(ERR, USER1, "Some of the buffer sizes "
+					"are not valid for %s multi-function "
+					"operation\n",
+					cperf_multi_fn_ops_strs[
+						options->multi_fn_opts.ops]);
+				return -EINVAL;
+			}
+		} else if (options->multi_fn_opts.ops ==
+				CPERF_MULTI_FN_OPS_PON_CIPHER_CRC_BIP) {
+			/*
+			 * Buffer length must be:
+			 * - a multiple of 4
+			 * - large enough to accommodate PON frame header and
+			 *   any padding
+			 * - not 12
+			 */
+			if (((buffer_size % PON_FRAME_MULTIPLE_SIZE) != 0) ||
+				(buffer_size < (PON_FRAME_HDR_SIZE +
+				options->multi_fn_opts.buffer_padding)) ||
+				(buffer_size == PON_FRAME_INVALID_SIZE)) {
+
+				RTE_LOG(ERR, USER1, "Some of the buffer sizes "
+					"are not suitable for %s "
+					"multi-function operation\n",
+					cperf_multi_fn_ops_strs[
+						options->multi_fn_opts.ops]);
+				return -EINVAL;
+			}
+
+			/*
+			 * Padding length must be valid:
+			 * - 0, if buffer length == 8
+			 * - less than 8, if buffer length >= 16
+			 * - less than 4, if buffer length >= 20
+			 */
+			if ((buffer_size == 8 &&
+				options->multi_fn_opts.buffer_padding != 0) ||
+				(buffer_size >= 16 &&
+				options->multi_fn_opts.buffer_padding >= 8) ||
+				(buffer_size >= 20 &&
+				options->multi_fn_opts.buffer_padding >= 4)) {
+
+				RTE_LOG(ERR, USER1, "Padding length not valid "
+					"for some of the buffer sizes for %s "
+					"multi-function operation\n",
+					cperf_multi_fn_ops_strs[
+						options->multi_fn_opts.ops]);
+				return -EINVAL;
+			}
+		}
+
+		if (options->inc_buffer_size != 0)
+			buffer_size += options->inc_buffer_size;
+		else {
+			if (++buffer_size_idx == options->buffer_size_count)
+				break;
+			buffer_size =
+				options->buffer_size_list[buffer_size_idx];
+		}
+	}
+
+	return 0;
+}
+#endif /* MULTI_FN_SUPPORTED */
 
 int
 cperf_options_check(struct cperf_options *options)
@@ -1151,6 +1437,13 @@ cperf_options_check(struct cperf_options *options)
 			return -EINVAL;
 	}
 
+#ifdef MULTI_FN_SUPPORTED
+	if (options->op_type == CPERF_MULTI_FN) {
+		if (check_multi_fn_options(options) < 0)
+			return -EINVAL;
+	}
+#endif /* MULTI_FN_SUPPORTED */
+
 	return 0;
 }
 
@@ -1236,4 +1529,37 @@ cperf_options_dump(struct cperf_options *opts)
 		printf("# aead aad size: %u\n", opts->aead_aad_sz);
 		printf("#\n");
 	}
+
+#ifdef MULTI_FN_SUPPORTED
+	if (opts->op_type == CPERF_MULTI_FN) {
+		if (opts->multi_fn_opts.ops ==
+				CPERF_MULTI_FN_OPS_DOCSIS_CIPHER_CRC ||
+			opts->multi_fn_opts.ops ==
+				CPERF_MULTI_FN_OPS_PON_CIPHER_CRC_BIP) {
+			printf("# cipher algorithm: %s\n",
+				rte_crypto_cipher_algorithm_strings[
+							opts->cipher_algo]);
+			printf("# cipher operation: %s\n",
+				rte_crypto_cipher_operation_strings[
+							opts->cipher_op]);
+			printf("# cipher key size: %u\n", opts->cipher_key_sz);
+			printf("# cipher iv size: %u\n", opts->cipher_iv_sz);
+			printf("# multi fn operations: %s\n",
+				cperf_multi_fn_ops_strs[
+						opts->multi_fn_opts.ops]);
+		}
+		if (opts->multi_fn_opts.ops ==
+				CPERF_MULTI_FN_OPS_DOCSIS_CIPHER_CRC) {
+			printf("# multi fn cipher offset: %u\n",
+				opts->multi_fn_opts.cipher_offset);
+			printf("# multi fn crc offset: %u\n",
+				opts->multi_fn_opts.crc_offset);
+		}
+		if (opts->multi_fn_opts.ops ==
+				CPERF_MULTI_FN_OPS_PON_CIPHER_CRC_BIP)
+			printf("# multi fn buffer padding: %u\n",
+				opts->multi_fn_opts.buffer_padding);
+		printf("#\n");
+	}
+#endif /* MULTI_FN_SUPPORTED */
 }

@@ -3,6 +3,10 @@
  */
 
 #include <rte_cryptodev.h>
+#include <rte_ether.h>
+#ifdef MULTI_FN_SUPPORTED
+#include <rte_multi_fn.h>
+#endif /* MULTI_FN_SUPPORTED */
 
 #include "cperf_ops.h"
 #include "cperf_test_vectors.h"
@@ -505,6 +509,168 @@ cperf_set_ops_aead(struct rte_crypto_op **ops,
 	return 0;
 }
 
+#ifdef MULTI_FN_SUPPORTED
+static int
+cperf_set_ops_multi_fn_cipher_crc(struct rte_crypto_op **ops,
+		uint32_t src_buf_offset, uint32_t dst_buf_offset __rte_unused,
+		uint16_t nb_ops, struct rte_cryptodev_sym_session *sess,
+		const struct cperf_options *options,
+		const struct cperf_test_vector *test_vector,
+		uint16_t iv_offset, uint32_t *imix_idx)
+{
+	uint32_t buffer_sz, offset;
+	uint16_t i;
+
+	for (i = 0; i < nb_ops; i++) {
+		struct rte_multi_fn_op *mf_op =
+					(struct rte_multi_fn_op *)ops[i];
+		struct rte_crypto_sym_op *cipher_op;
+		struct rte_multi_fn_err_detect_op *crc_op;
+		struct rte_multi_fn_op *mf_cipher_op;
+
+		mf_op->sess = (struct rte_multi_fn_session *)sess;
+		mf_op->m_src = (struct rte_mbuf *)((uint8_t *)ops[i] +
+							src_buf_offset);
+		mf_op->m_dst = NULL;
+
+		if (options->imix_distribution_count) {
+			buffer_sz =
+				options->imix_buffer_sizes[*imix_idx];
+			*imix_idx = (*imix_idx + 1) % options->pool_sz;
+		} else
+			buffer_sz = options->test_buffer_size;
+
+		if (options->cipher_op == RTE_CRYPTO_CIPHER_OP_ENCRYPT) {
+			/* CRC -> Cipher */
+			crc_op = &mf_op->err_detect;
+			cipher_op = &mf_op->next->crypto_sym;
+			mf_cipher_op = mf_op->next;
+		} else {
+			/* Cipher -> CRC */
+			cipher_op = &mf_op->crypto_sym;
+			crc_op = &mf_op->next->err_detect;
+			mf_cipher_op = mf_op;
+		}
+
+		crc_op->data.offset = test_vector->multi_fn_data.crc_offset;
+		crc_op->data.length = buffer_sz - crc_op->data.offset -
+					RTE_ETHER_CRC_LEN;
+		offset = crc_op->data.offset + crc_op->data.length;
+		crc_op->output.data = rte_pktmbuf_mtod_offset(mf_op->m_src,
+								uint8_t *,
+								offset);
+		crc_op->output.phys_addr = rte_pktmbuf_iova_offset(mf_op->m_src,
+								offset);
+
+		cipher_op->cipher.data.offset = test_vector->data.cipher_offset;
+		cipher_op->cipher.data.length = buffer_sz -
+						cipher_op->cipher.data.offset;
+
+		if (options->test == CPERF_TEST_TYPE_VERIFY) {
+			uint8_t *iv_ptr = (uint8_t *)mf_cipher_op + iv_offset;
+			memcpy(iv_ptr, test_vector->cipher_iv.data,
+					test_vector->cipher_iv.length);
+		}
+	}
+
+	return 0;
+}
+
+#define PLI_SHIFT_BITS 2
+
+static int
+cperf_set_ops_multi_fn_cipher_crc_bip(struct rte_crypto_op **ops,
+		uint32_t src_buf_offset, uint32_t dst_buf_offset __rte_unused,
+		uint16_t nb_ops, struct rte_cryptodev_sym_session *sess,
+		const struct cperf_options *options,
+		const struct cperf_test_vector *test_vector, uint16_t iv_offset,
+		uint32_t *imix_idx)
+{
+	uint32_t buffer_sz, offset;
+	uint16_t i;
+	int crc_len;
+
+	for (i = 0; i < nb_ops; i++) {
+		struct rte_multi_fn_op *mf_op =
+					(struct rte_multi_fn_op *)ops[i];
+		struct rte_crypto_sym_op *cipher_op;
+		struct rte_multi_fn_err_detect_op *crc_op;
+		struct rte_multi_fn_err_detect_op *bip_op;
+		struct rte_multi_fn_op *mf_cipher_op;
+
+		mf_op->sess = (struct rte_multi_fn_session *)sess;
+		mf_op->m_src = (struct rte_mbuf *)((uint8_t *)ops[i] +
+							src_buf_offset);
+		mf_op->m_dst = NULL;
+
+		if (options->imix_distribution_count) {
+			buffer_sz =
+				options->imix_buffer_sizes[*imix_idx];
+			*imix_idx = (*imix_idx + 1) % options->pool_sz;
+		} else
+			buffer_sz = options->test_buffer_size;
+
+		if (options->cipher_op == RTE_CRYPTO_CIPHER_OP_ENCRYPT) {
+			/* CRC -> Cipher -> BIP */
+			crc_op = &mf_op->err_detect;
+			cipher_op = &mf_op->next->crypto_sym;
+			bip_op = &mf_op->next->next->err_detect;
+		} else {
+			/* BIP-> Cipher -> CRC */
+			bip_op = &mf_op->err_detect;
+			cipher_op = &mf_op->next->crypto_sym;
+			crc_op = &mf_op->next->next->err_detect;
+		}
+		mf_cipher_op = mf_op->next;
+
+		crc_op->data.offset = test_vector->multi_fn_data.crc_offset;
+		crc_len = buffer_sz - crc_op->data.offset -
+				options->multi_fn_opts.buffer_padding -
+				RTE_ETHER_CRC_LEN;
+		crc_len = crc_len > 0 ? crc_len : 0;
+		crc_op->data.length = crc_len;
+		offset = crc_op->data.offset + crc_op->data.length;
+		crc_op->output.data = rte_pktmbuf_mtod_offset(mf_op->m_src,
+								uint8_t *,
+								offset);
+		crc_op->output.phys_addr = rte_pktmbuf_iova_offset(mf_op->m_src,
+								offset);
+
+		cipher_op->cipher.data.offset = test_vector->data.cipher_offset;
+		cipher_op->cipher.data.length = buffer_sz -
+						cipher_op->cipher.data.offset;
+
+		bip_op->data.offset = test_vector->multi_fn_data.bip_offset;
+		bip_op->data.length = buffer_sz - bip_op->data.offset;
+		offset = options->test_buffer_size;
+		bip_op->output.data = rte_pktmbuf_mtod_offset(mf_op->m_src,
+								uint8_t *,
+								offset);
+		bip_op->output.phys_addr = rte_pktmbuf_iova_offset(mf_op->m_src,
+								offset);
+
+		if (options->test == CPERF_TEST_TYPE_VERIFY) {
+			uint8_t *iv_ptr = (uint8_t *)mf_cipher_op + iv_offset;
+			memcpy(iv_ptr, test_vector->cipher_iv.data,
+					test_vector->cipher_iv.length);
+		}
+
+		/*
+		 * This is very protocol specific but IPSec MB uses the PLI
+		 * (Payload Length Indication) field of the PON frame header
+		 * to get the CRC length. So set the PLI here now
+		 */
+		uint16_t *pli_key_idx = rte_pktmbuf_mtod(mf_op->m_src,
+								uint16_t *);
+		uint16_t pli = cipher_op->cipher.data.length -
+				options->multi_fn_opts.buffer_padding;
+		*pli_key_idx = rte_bswap16(pli) << PLI_SHIFT_BITS;
+	}
+
+	return 0;
+}
+#endif /* MULTI_FN_SUPPORTED */
+
 static struct rte_cryptodev_sym_session *
 cperf_create_session(struct rte_mempool *sess_mp,
 	struct rte_mempool *priv_mp,
@@ -590,6 +756,90 @@ cperf_create_session(struct rte_mempool *sess_mp,
 					&sess_conf, sess_mp);
 	}
 #endif
+
+#ifdef MULTI_FN_SUPPORTED
+	/*
+	 * multi function
+	 */
+	if (options->op_type == CPERF_MULTI_FN) {
+		struct rte_multi_fn_xform mf_cipher_xform;
+		struct rte_multi_fn_xform mf_crc_xform;
+		struct rte_multi_fn_xform mf_bip_xform;
+		struct rte_multi_fn_xform *first_xform = NULL;
+		struct rte_crypto_cipher_xform *cipher_xform;
+
+		if (options->multi_fn_opts.ops ==
+				CPERF_MULTI_FN_OPS_DOCSIS_CIPHER_CRC ||
+			options->multi_fn_opts.ops ==
+				CPERF_MULTI_FN_OPS_PON_CIPHER_CRC_BIP) {
+
+			mf_cipher_xform.type =
+				RTE_MULTI_FN_XFORM_TYPE_CRYPTO_SYM;
+			mf_cipher_xform.crypto_sym.type =
+				RTE_CRYPTO_SYM_XFORM_CIPHER;
+			cipher_xform = &mf_cipher_xform.crypto_sym.cipher;
+			cipher_xform->algo = options->cipher_algo;
+			cipher_xform->op = options->cipher_op;
+			cipher_xform->iv.offset = iv_offset;
+			cipher_xform->key.data = test_vector->cipher_key.data;
+			cipher_xform->key.length =
+						test_vector->cipher_key.length;
+			cipher_xform->iv.length = test_vector->cipher_iv.length;
+
+			mf_crc_xform.type =
+				RTE_MULTI_FN_XFORM_TYPE_ERR_DETECT;
+			mf_crc_xform.err_detect.algo =
+				RTE_MULTI_FN_ERR_DETECT_CRC32_ETH;
+
+			if (cipher_xform->op ==
+					RTE_CRYPTO_CIPHER_OP_ENCRYPT) {
+				mf_crc_xform.err_detect.op =
+					RTE_MULTI_FN_ERR_DETECT_OP_GENERATE;
+			} else {
+				mf_crc_xform.err_detect.op =
+					RTE_MULTI_FN_ERR_DETECT_OP_VERIFY;
+			}
+
+			mf_bip_xform.type =
+				RTE_MULTI_FN_XFORM_TYPE_ERR_DETECT;
+			mf_bip_xform.err_detect.algo =
+				RTE_MULTI_FN_ERR_DETECT_BIP32;
+			mf_bip_xform.err_detect.op =
+				RTE_MULTI_FN_ERR_DETECT_OP_GENERATE;
+
+			if (options->multi_fn_opts.ops ==
+					CPERF_MULTI_FN_OPS_DOCSIS_CIPHER_CRC) {
+				if (cipher_xform->op ==
+						RTE_CRYPTO_CIPHER_OP_ENCRYPT) {
+					first_xform = &mf_crc_xform;
+					mf_crc_xform.next = &mf_cipher_xform;
+					mf_cipher_xform.next = NULL;
+				} else {
+					first_xform = &mf_cipher_xform;
+					mf_cipher_xform.next = &mf_crc_xform;
+					mf_crc_xform.next = NULL;
+				}
+			} else {
+				if (cipher_xform->op ==
+						RTE_CRYPTO_CIPHER_OP_ENCRYPT) {
+					first_xform = &mf_crc_xform;
+					mf_crc_xform.next = &mf_cipher_xform;
+					mf_cipher_xform.next = &mf_bip_xform;
+					mf_bip_xform.next = NULL;
+				} else {
+					first_xform = &mf_bip_xform;
+					mf_bip_xform.next = &mf_cipher_xform;
+					mf_cipher_xform.next = &mf_crc_xform;
+					mf_crc_xform.next = NULL;
+				}
+			}
+		}
+
+		return (void *)rte_multi_fn_session_create(dev_id,
+					first_xform, rte_socket_id());
+	}
+#endif /* MULTI_FN_SUPPORTED */
+
 	sess = rte_cryptodev_sym_session_create(sess_mp);
 	/*
 	 * cipher only
@@ -773,5 +1023,20 @@ cperf_get_op_functions(const struct cperf_options *options,
 		return 0;
 	}
 #endif
+#ifdef MULTI_FN_SUPPORTED
+	if (options->op_type == CPERF_MULTI_FN) {
+		if (options->multi_fn_opts.ops ==
+				CPERF_MULTI_FN_OPS_DOCSIS_CIPHER_CRC)
+			op_fns->populate_ops =
+				cperf_set_ops_multi_fn_cipher_crc;
+		else if (options->multi_fn_opts.ops ==
+				CPERF_MULTI_FN_OPS_PON_CIPHER_CRC_BIP)
+			op_fns->populate_ops =
+				cperf_set_ops_multi_fn_cipher_crc_bip;
+		else
+			return -1;
+		return 0;
+	}
+#endif /* MULTI_FN_SUPPORTED */
 	return -1;
 }

@@ -14,6 +14,8 @@ struct obj_params {
 	uint16_t headroom_sz;
 	uint16_t data_len;
 	uint16_t segments_nb;
+	uint16_t ops_per_obj_nb;
+	uint8_t multi_fn;
 };
 
 static void
@@ -92,15 +94,39 @@ mempool_obj_init(struct rte_mempool *mp,
 	struct rte_crypto_op *op = obj;
 	struct rte_mbuf *m = (struct rte_mbuf *) ((uint8_t *) obj +
 					params->src_buf_offset);
-	/* Set crypto operation */
-	op->type = RTE_CRYPTO_OP_TYPE_SYMMETRIC;
-	op->status = RTE_CRYPTO_OP_STATUS_NOT_PROCESSED;
-	op->sess_type = RTE_CRYPTO_OP_WITH_SESSION;
-	op->phys_addr = rte_mem_virt2iova(obj);
-	op->mempool = mp;
+
+	if (!params->multi_fn) {
+		/* Set crypto operation */
+		op->type = RTE_CRYPTO_OP_TYPE_SYMMETRIC;
+		op->status = RTE_CRYPTO_OP_STATUS_NOT_PROCESSED;
+		op->sess_type = RTE_CRYPTO_OP_WITH_SESSION;
+		op->phys_addr = rte_mem_virt2iova(obj);
+		op->mempool = mp;
+		op->sym->m_src = m;
+		op->sym->m_dst = NULL;
+	} else {
+#ifdef MULTI_FN_SUPPORTED
+		/* Set multi-function operation(s) */
+		struct rte_multi_fn_op *mf_op, *next_mf_op;
+		uint16_t remaining_ops, op_sz;
+		remaining_ops = params->ops_per_obj_nb;
+		mf_op = obj;
+		op_sz = params->src_buf_offset / params->ops_per_obj_nb;
+		do {
+			mf_op->mempool = mp;
+			mf_op->m_src = m;
+			mf_op->m_dst = NULL;
+			next_mf_op = (struct rte_multi_fn_op *)
+					((uint8_t *) mf_op + op_sz);
+			mf_op->next = next_mf_op;
+			mf_op = next_mf_op;
+
+			remaining_ops--;
+		} while (remaining_ops > 0);
+#endif /* MULTI_FN_SUPPORTED */
+	}
 
 	/* Set source buffer */
-	op->sym->m_src = m;
 	if (params->segments_nb == 1)
 		fill_single_seg_mbuf(m, mp, obj, params->src_buf_offset,
 				params->segment_sz, params->headroom_sz,
@@ -118,9 +144,15 @@ mempool_obj_init(struct rte_mempool *mp,
 		fill_single_seg_mbuf(m, mp, obj, params->dst_buf_offset,
 				params->segment_sz, params->headroom_sz,
 				params->data_len);
-		op->sym->m_dst = m;
-	} else
-		op->sym->m_dst = NULL;
+		if (!params->multi_fn) {
+			op->sym->m_dst = m;
+		} else {
+#ifdef MULTI_FN_SUPPORTED
+			struct rte_multi_fn_op *mf_op = obj;
+			mf_op->m_dst = m;
+#endif /* MULTI_FN_SUPPORTED */
+		}
+	}
 }
 
 int
@@ -134,12 +166,38 @@ cperf_alloc_common_memory(const struct cperf_options *options,
 {
 	const char *mp_ops_name;
 	char pool_name[32] = "";
+	uint8_t multi_fn = 0;
 	int ret;
 
 	/* Calculate the object size */
-	uint16_t crypto_op_size = sizeof(struct rte_crypto_op) +
-		sizeof(struct rte_crypto_sym_op);
+	uint16_t crypto_op_size;
 	uint16_t crypto_op_private_size;
+	uint16_t ops_per_obj_nb;
+
+#ifdef MULTI_FN_SUPPORTED
+	if (options->op_type == CPERF_MULTI_FN) {
+		crypto_op_size = sizeof(struct rte_multi_fn_op);
+		if (options->multi_fn_opts.ops ==
+				CPERF_MULTI_FN_OPS_DOCSIS_CIPHER_CRC) {
+			ops_per_obj_nb = 2;
+		} else if  (options->multi_fn_opts.ops ==
+				CPERF_MULTI_FN_OPS_PON_CIPHER_CRC_BIP) {
+			ops_per_obj_nb = 3;
+		} else {
+			RTE_LOG(ERR, USER1,
+				"Invalid multi-function operations for pool "
+				"creation\n");
+			return -1;
+		}
+		multi_fn = 1;
+	} else
+#endif /* MULTI_FN_SUPPORTED */
+	{
+		crypto_op_size = sizeof(struct rte_crypto_op) +
+			sizeof(struct rte_crypto_sym_op);
+		ops_per_obj_nb = 1;
+	}
+
 	/*
 	 * If doing AES-CCM, IV field needs to be 16 bytes long,
 	 * and AAD field needs to be long enough to have 18 bytes,
@@ -162,7 +220,7 @@ cperf_alloc_common_memory(const struct cperf_options *options,
 
 	uint16_t crypto_op_total_size = crypto_op_size +
 				crypto_op_private_size;
-	uint16_t crypto_op_total_size_padded =
+	uint16_t crypto_op_total_size_padded = ops_per_obj_nb *
 				RTE_CACHE_LINE_ROUNDUP(crypto_op_total_size);
 	uint32_t mbuf_size = sizeof(struct rte_mbuf) + options->segment_sz;
 	uint32_t max_size = options->max_buffer_size + options->digest_sz;
@@ -186,7 +244,9 @@ cperf_alloc_common_memory(const struct cperf_options *options,
 			    options->tailroom_sz,
 		.segments_nb = segments_nb,
 		.src_buf_offset = crypto_op_total_size_padded,
-		.dst_buf_offset = 0
+		.dst_buf_offset = 0,
+		.ops_per_obj_nb = ops_per_obj_nb,
+		.multi_fn = multi_fn,
 	};
 
 	if (options->out_of_place) {

@@ -26,4 +26,9 @@ ifeq ($(CONFIG_RTE_LIBRTE_PMD_CRYPTO_SCHEDULER),y)
 LDLIBS += -lrte_pmd_crypto_scheduler
 endif
 
+ifeq ($(CONFIG_RTE_LIBRTE_MULTI_FN_COMMON)$(CONFIG_RTE_LIBRTE_RAWDEV),yy)
+CFLAGS += -DMULTI_FN_SUPPORTED
+LDLIBS += -lrte_multi_fn
+endif
+
 include $(RTE_SDK)/mk/rte.app.mk

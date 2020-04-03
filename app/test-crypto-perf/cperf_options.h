@@ -10,6 +10,9 @@
 #ifdef RTE_LIBRTE_SECURITY
 #include <rte_security.h>
 #endif
+#ifdef MULTI_FN_SUPPORTED
+#include <rte_multi_fn.h>
+#endif /* MULTI_FN_SUPPORTED */
 
 #define CPERF_PTEST_TYPE	("ptest")
 #define CPERF_SILENT		("silent")
@@ -52,6 +55,10 @@
 #define CPERF_PDCP_DOMAIN	("pdcp-domain")
 #endif
 
+#ifdef MULTI_FN_SUPPORTED
+#define CPERF_MULTI_FN_PARAMS	("multi-fn-params")
+#endif /* MULTI_FN_SUPPORTED */
+
 #define CPERF_CSV		("csv-friendly")
 
 /* benchmark-specific options */
@@ -75,10 +82,33 @@ enum cperf_op_type {
 	CPERF_CIPHER_THEN_AUTH,
 	CPERF_AUTH_THEN_CIPHER,
 	CPERF_AEAD,
-	CPERF_PDCP
+	CPERF_PDCP,
+#ifdef MULTI_FN_SUPPORTED
+	CPERF_MULTI_FN
+#endif /* MULTI_FN_SUPPORTED */
 };
 
 extern const char *cperf_op_type_strs[];
+
+#ifdef MULTI_FN_SUPPORTED
+enum cperf_multi_fn_ops {
+	CPERF_MULTI_FN_OPS_DOCSIS_CIPHER_CRC,
+	CPERF_MULTI_FN_OPS_PON_CIPHER_CRC_BIP
+};
+
+extern const char *cperf_multi_fn_ops_strs[];
+
+struct cperf_multi_fn_options {
+	enum cperf_multi_fn_ops ops;
+
+	/* DOCSIS_CIPHER_CRC */
+	uint32_t cipher_offset;
+	uint32_t crc_offset;
+
+	/* PON_CIPHER_CRC_BIP */
+	uint32_t buffer_padding;
+};
+#endif /* MULTI_FN_SUPPORTED */
 
 struct cperf_options {
 	enum cperf_perf_test_type test;
@@ -123,6 +153,11 @@ struct cperf_options {
 	uint16_t pdcp_sn_sz;
 	enum rte_security_pdcp_domain pdcp_domain;
 #endif
+
+#ifdef MULTI_FN_SUPPORTED
+	struct cperf_multi_fn_options multi_fn_opts;
+#endif /* MULTI_FN_SUPPORTED */
+
 	char device_type[RTE_CRYPTODEV_NAME_MAX_LEN];
 	enum cperf_op_type op_type;
 

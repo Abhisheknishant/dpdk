@@ -6,6 +6,10 @@
 #include <rte_cycles.h>
 #include <rte_crypto.h>
 #include <rte_cryptodev.h>
+#ifdef MULTI_FN_SUPPORTED
+#include <rte_rawdev.h>
+#include <rte_multi_fn.h>
+#endif /* MULTI_FN_SUPPORTED */
 
 #include "cperf_test_latency.h"
 #include "cperf_ops.h"
@@ -43,18 +47,27 @@ struct priv_op_data {
 static void
 cperf_latency_test_free(struct cperf_latency_ctx *ctx)
 {
-	if (ctx) {
-		if (ctx->sess) {
+	if (!ctx)
+		return;
+
+	if (ctx->sess) {
+#ifdef MULTI_FN_SUPPORTED
+		if (ctx->options->op_type == CPERF_MULTI_FN) {
+			rte_multi_fn_session_destroy(ctx->dev_id,
+				(struct rte_multi_fn_session *)ctx->sess);
+		} else
+#endif /* MULTI_FN_SUPPORTED */
+		{
 			rte_cryptodev_sym_session_clear(ctx->dev_id, ctx->sess);
 			rte_cryptodev_sym_session_free(ctx->sess);
 		}
-
-		if (ctx->pool)
-			rte_mempool_free(ctx->pool);
-
-		rte_free(ctx->res);
-		rte_free(ctx);
 	}
+
+	if (ctx->pool)
+		rte_mempool_free(ctx->pool);
+
+	rte_free(ctx->res);
+	rte_free(ctx);
 }
 
 void *
@@ -67,6 +80,7 @@ cperf_latency_test_constructor(struct rte_mempool *sess_mp,
 {
 	struct cperf_latency_ctx *ctx = NULL;
 	size_t extra_op_priv_size = sizeof(struct priv_op_data);
+	uint16_t iv_offset;
 
 	ctx = rte_malloc(NULL, sizeof(struct cperf_latency_ctx), 0);
 	if (ctx == NULL)
@@ -79,10 +93,19 @@ cperf_latency_test_constructor(struct rte_mempool *sess_mp,
 	ctx->options = options;
 	ctx->test_vector = test_vector;
 
-	/* IV goes at the end of the crypto operation */
-	uint16_t iv_offset = sizeof(struct rte_crypto_op) +
-		sizeof(struct rte_crypto_sym_op) +
-		sizeof(struct cperf_op_result *);
+#ifdef MULTI_FN_SUPPORTED
+	if (options->op_type == CPERF_MULTI_FN) {
+		/* IV goes at the end of the multi-function operation */
+		iv_offset = sizeof(struct rte_multi_fn_op) +
+			sizeof(struct cperf_op_result *);
+	} else
+#endif /* MULTI_FN_SUPPORTED */
+	{
+		/* IV goes at the end of the crypto operation */
+		iv_offset = sizeof(struct rte_crypto_op) +
+			sizeof(struct rte_crypto_sym_op) +
+			sizeof(struct cperf_op_result *);
+	}
 
 	ctx->sess = op_fns->sess_create(sess_mp, sess_priv_mp, dev_id, options,
 			test_vector, iv_offset);
@@ -138,24 +161,35 @@ cperf_latency_test_runner(void *arg)
 
 	uint32_t lcore = rte_lcore_id();
 
+	uint16_t iv_offset;
+
+	int multi_fn = 0;
+
+#ifdef MULTI_FN_SUPPORTED
+	if (ctx->options->op_type == CPERF_MULTI_FN)
+		multi_fn = 1;
+#else
+	RTE_SET_USED(multi_fn);
+#endif /* MULTI_FN_SUPPORTED */
+
 #ifdef CPERF_LINEARIZATION_ENABLE
-	struct rte_cryptodev_info dev_info;
 	int linearize = 0;
 
 	/* Check if source mbufs require coalescing */
 	if (ctx->options->segment_sz < ctx->options->max_buffer_size) {
-		rte_cryptodev_info_get(ctx->dev_id, &dev_info);
-		if ((dev_info.feature_flags &
-				RTE_CRYPTODEV_FF_MBUF_SCATTER_GATHER) == 0)
+		if (!multi_fn) {
+			struct rte_cryptodev_info dev_info;
+			rte_cryptodev_info_get(ctx->dev_id, &dev_info);
+			if ((dev_info.feature_flags &
+					RTE_CRYPTODEV_FF_MBUF_SCATTER_GATHER) ==
+									0)
+				linearize = 1;
+		} else
 			linearize = 1;
 	}
 #endif /* CPERF_LINEARIZATION_ENABLE */
 
 	ctx->lcore_id = lcore;
-
-	/* Warm up the host CPU before starting the test */
-	for (i = 0; i < ctx->options->total_ops; i++)
-		rte_cryptodev_enqueue_burst(ctx->dev_id, ctx->qp_id, NULL, 0);
 
 	/* Get first size from range or list */
 	if (ctx->options->inc_burst_size != 0)
@@ -163,9 +197,29 @@ cperf_latency_test_runner(void *arg)
 	else
 		test_burst_size = ctx->options->burst_size_list[0];
 
-	uint16_t iv_offset = sizeof(struct rte_crypto_op) +
-		sizeof(struct rte_crypto_sym_op) +
-		sizeof(struct cperf_op_result *);
+#ifdef MULTI_FN_SUPPORTED
+	if (multi_fn) {
+		/* Warm up the host CPU before starting the test */
+		for (i = 0; i < ctx->options->total_ops; i++)
+			rte_rawdev_enqueue_buffers(ctx->dev_id, NULL, 0,
+						(rte_rawdev_obj_t)&ctx->qp_id);
+
+		iv_offset = sizeof(struct rte_multi_fn_op) +
+			sizeof(struct cperf_op_result *);
+
+		multi_fn = 1;
+	} else
+#endif /* MULTI_FN_SUPPORTED */
+	{
+		/* Warm up the host CPU before starting the test */
+		for (i = 0; i < ctx->options->total_ops; i++)
+			rte_cryptodev_enqueue_burst(ctx->dev_id, ctx->qp_id,
+						NULL, 0);
+
+		iv_offset = sizeof(struct rte_crypto_op) +
+			sizeof(struct rte_crypto_sym_op) +
+			sizeof(struct cperf_op_result *);
+	}
 
 	while (test_burst_size <= ctx->options->max_burst_size) {
 		uint64_t ops_enqd = 0, ops_deqd = 0;
@@ -215,13 +269,40 @@ cperf_latency_test_runner(void *arg)
 			}
 #endif /* CPERF_LINEARIZATION_ENABLE */
 
-			/* Enqueue burst of ops on crypto device */
-			ops_enqd = rte_cryptodev_enqueue_burst(ctx->dev_id, ctx->qp_id,
-					ops, burst_size);
+#ifdef MULTI_FN_SUPPORTED
+			if (multi_fn) {
+				/* Enqueue burst of op on raw device */
+				ops_enqd = rte_rawdev_enqueue_buffers(
+					ctx->dev_id,
+					(struct rte_rawdev_buf **)ops,
+					burst_size,
+					(rte_rawdev_obj_t)&ctx->qp_id);
 
-			/* Dequeue processed burst of ops from crypto device */
-			ops_deqd = rte_cryptodev_dequeue_burst(ctx->dev_id, ctx->qp_id,
-					ops_processed, test_burst_size);
+				/*
+				 * Dequeue processed burst of ops from raw
+				 * device
+				 */
+				ops_deqd = rte_rawdev_dequeue_buffers(
+					ctx->dev_id,
+					(struct rte_rawdev_buf **)ops_processed,
+					test_burst_size,
+					(rte_rawdev_obj_t)&ctx->qp_id);
+			} else
+#endif /* MULTI_FN_SUPPORTED */
+			{
+				/* Enqueue burst of ops on crypto device */
+				ops_enqd = rte_cryptodev_enqueue_burst(
+					ctx->dev_id, ctx->qp_id, ops,
+					burst_size);
+
+				/*
+				 * Dequeue processed burst of ops from crypto
+				 * device
+				 */
+				ops_deqd = rte_cryptodev_dequeue_burst(
+					ctx->dev_id, ctx->qp_id, ops_processed,
+					test_burst_size);
+			}
 
 			tsc_end = rte_rdtsc_precise();
 
@@ -262,14 +343,41 @@ cperf_latency_test_runner(void *arg)
 			b_idx++;
 		}
 
-		/* Dequeue any operations still in the crypto device */
+		/* Dequeue any operations still in the device */
 		while (deqd_tot < ctx->options->total_ops) {
-			/* Sending 0 length burst to flush sw crypto device */
-			rte_cryptodev_enqueue_burst(ctx->dev_id, ctx->qp_id, NULL, 0);
+#ifdef MULTI_FN_SUPPORTED
+			if (multi_fn) {
+				/*
+				 * Sending 0 length burst to flush sw raw
+				 * device
+				 */
+				rte_rawdev_enqueue_buffers(ctx->dev_id, NULL, 0,
+					(rte_rawdev_obj_t)&ctx->qp_id);
 
-			/* dequeue burst */
-			ops_deqd = rte_cryptodev_dequeue_burst(ctx->dev_id, ctx->qp_id,
-					ops_processed, test_burst_size);
+				/*
+				 * Dequeue processed burst of ops from raw
+				 * device
+				 */
+				ops_deqd = rte_rawdev_dequeue_buffers(
+					ctx->dev_id,
+					(struct rte_rawdev_buf **)ops_processed,
+					test_burst_size,
+					(rte_rawdev_obj_t)&ctx->qp_id);
+			} else
+#endif /* MULTI_FN_SUPPORTED */
+			{
+				/*
+				 * Sending 0 length burst to flush sw crypto
+				 * device
+				 */
+				rte_cryptodev_enqueue_burst(ctx->dev_id,
+					ctx->qp_id, NULL, 0);
+
+				/* dequeue burst */
+				ops_deqd = rte_cryptodev_dequeue_burst(
+					ctx->dev_id, ctx->qp_id, ops_processed,
+					test_burst_size);
+			}
 
 			tsc_end = rte_rdtsc_precise();
 

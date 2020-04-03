@@ -581,11 +581,38 @@ cperf_test_vector_get_from_file(struct cperf_options *opts)
 	}
 
 	/* other values not included in the file */
-	test_vector->data.cipher_offset = 0;
-	test_vector->data.cipher_length = opts->max_buffer_size;
+#ifdef MULTI_FN_SUPPORTED
+	if (opts->op_type == CPERF_MULTI_FN) {
+		if (opts->multi_fn_opts.ops ==
+				CPERF_MULTI_FN_OPS_DOCSIS_CIPHER_CRC ||
+			opts->multi_fn_opts.ops ==
+				CPERF_MULTI_FN_OPS_PON_CIPHER_CRC_BIP) {
+			test_vector->data.cipher_offset =
+					opts->multi_fn_opts.cipher_offset;
+			test_vector->data.cipher_length =
+					opts->max_buffer_size;
 
-	test_vector->data.auth_offset = 0;
-	test_vector->data.auth_length = opts->max_buffer_size;
+			test_vector->multi_fn_data.crc_offset =
+					opts->multi_fn_opts.crc_offset;
+			test_vector->multi_fn_data.crc_length =
+					opts->max_buffer_size;
+		}
+
+		if (opts->multi_fn_opts.ops ==
+				CPERF_MULTI_FN_OPS_PON_CIPHER_CRC_BIP) {
+			test_vector->multi_fn_data.bip_offset = 0;
+			test_vector->multi_fn_data.bip_length =
+					opts->max_buffer_size;
+		}
+	} else
+#endif /* MULTI_FN_SUPPORTED */
+	{
+		test_vector->data.cipher_offset = 0;
+		test_vector->data.cipher_length = opts->max_buffer_size;
+
+		test_vector->data.auth_offset = 0;
+		test_vector->data.auth_length = opts->max_buffer_size;
+	}
 
 	return test_vector;
 }

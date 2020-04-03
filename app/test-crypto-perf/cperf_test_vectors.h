@@ -68,6 +68,15 @@ struct cperf_test_vector {
 		uint32_t aead_offset;
 		uint32_t aead_length;
 	} data;
+
+#ifdef MULTI_FN_SUPPORTED
+	struct {
+		uint32_t crc_offset;
+		uint32_t crc_length;
+		uint32_t bip_offset;
+		uint32_t bip_length;
+	} multi_fn_data;
+#endif /* MULTI_FN_SUPPORTED */
 };
 
 struct cperf_test_vector*

@@ -12,6 +12,10 @@
 #ifdef RTE_LIBRTE_PMD_CRYPTO_SCHEDULER
 #include <rte_cryptodev_scheduler.h>
 #endif
+#ifdef MULTI_FN_SUPPORTED
+#include <rte_rawdev.h>
+#include <rte_multi_fn.h>
+#endif /* MULTI_FN_SUPPORTED */
 
 #include "cperf.h"
 #include "cperf_options.h"
@@ -39,8 +43,18 @@ const char *cperf_op_type_strs[] = {
 	[CPERF_CIPHER_THEN_AUTH] = "cipher-then-auth",
 	[CPERF_AUTH_THEN_CIPHER] = "auth-then-cipher",
 	[CPERF_AEAD] = "aead",
-	[CPERF_PDCP] = "pdcp"
+	[CPERF_PDCP] = "pdcp",
+#ifdef MULTI_FN_SUPPORTED
+	[CPERF_MULTI_FN] = "multi-fn"
+#endif /* MULTI_FN_SUPPORTED */
 };
+
+#ifdef MULTI_FN_SUPPORTED
+const char *cperf_multi_fn_ops_strs[] = {
+	[CPERF_MULTI_FN_OPS_DOCSIS_CIPHER_CRC] = "docsis-cipher-crc",
+	[CPERF_MULTI_FN_OPS_PON_CIPHER_CRC_BIP] = "pon-cipher-crc-bip"
+};
+#endif /* MULTI_FN_SUPPORTED */
 
 const struct cperf_test cperf_testmap[] = {
 		[CPERF_TEST_TYPE_THROUGHPUT] = {
@@ -294,7 +308,7 @@ cperf_initialize_cryptodev(struct cperf_options *opts, uint8_t *enabled_cdevs)
 }
 
 static int
-cperf_verify_devices_capabilities(struct cperf_options *opts,
+cperf_verify_crypto_devices_capabilities(struct cperf_options *opts,
 		uint8_t *enabled_cdevs, uint8_t nb_cryptodevs)
 {
 	struct rte_cryptodev_sym_capability_idx cap_idx;
@@ -369,8 +383,136 @@ cperf_verify_devices_capabilities(struct cperf_options *opts,
 		}
 	}
 
+#ifdef MULTI_FN_SUPPORTED
+	if (opts->op_type == CPERF_MULTI_FN)
+		return -1;
+#endif /* MULTI_FN_SUPPORTED */
+
 	return 0;
 }
+
+#ifdef MULTI_FN_SUPPORTED
+static uint8_t
+cperf_get_rawdevs(const char *driver_name, uint8_t *devices,
+		uint8_t nb_devices)
+{
+	struct rte_rawdev_info rdev_info;
+	uint8_t i, count = 0;
+
+	for (i = 0; i < RTE_RAWDEV_MAX_DEVS && count < nb_devices; i++) {
+		memset(&rdev_info, 0, sizeof(struct rte_rawdev_info));
+		if (!rte_rawdev_info_get(i, &rdev_info) &&
+			!strncmp(rdev_info.driver_name,
+					driver_name,
+					strlen(driver_name) + 1))
+			devices[count++] = i;
+	}
+
+	return count;
+}
+
+static int
+cperf_initialize_rawdev(struct cperf_options *opts, uint8_t *enabled_rdevs)
+{
+	uint8_t enabled_rdev_count = 0, nb_lcores, rdev_id;
+	unsigned int i, j;
+	int ret;
+
+	enabled_rdev_count = cperf_get_rawdevs(opts->device_type,
+			enabled_rdevs, RTE_RAWDEV_MAX_DEVS);
+	if (enabled_rdev_count == 0) {
+		printf("No raw devices type %s available\n",
+				opts->device_type);
+		return -EINVAL;
+	}
+
+	nb_lcores = rte_lcore_count() - 1;
+
+	if (nb_lcores < 1) {
+		RTE_LOG(ERR, USER1,
+			"Number of enabled cores need to be higher than 1\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * Calculate number of needed queue pairs, based on the amount
+	 * of available number of logical cores and crypto devices.
+	 * For instance, if there are 4 cores and 2 crypto devices,
+	 * 2 queue pairs will be set up per device.
+	 */
+	opts->nb_qps = (nb_lcores % enabled_rdev_count) ?
+				(nb_lcores / enabled_rdev_count) + 1 :
+				nb_lcores / enabled_rdev_count;
+
+	for (i = 0; i < enabled_rdev_count &&
+			i < RTE_RAWDEV_MAX_DEVS; i++) {
+		rdev_id = enabled_rdevs[i];
+
+		struct rte_rawdev_info rdev_info = {0};
+		struct rte_multi_fn_dev_info mf_info  = {0};
+		struct rte_multi_fn_dev_config mf_dev_conf = {0};
+		struct rte_multi_fn_qp_config qp_conf = {0};
+		uint8_t socket_id = rte_cryptodev_socket_id(rdev_id);
+
+		/*
+		 * Range check the socket_id - negative values become big
+		 * positive ones due to use of unsigned value
+		 */
+		if (socket_id >= RTE_MAX_NUMA_NODES)
+			socket_id = 0;
+
+		rdev_info.dev_private = &mf_info;
+		rte_rawdev_info_get(rdev_id, &rdev_info);
+		if (opts->nb_qps > mf_info.max_nb_queues) {
+			printf("Number of needed queue pairs is higher "
+				"than the maximum number of queue pairs "
+				"per device.\n");
+			printf("Lower the number of cores or increase "
+				"the number of raw devices\n");
+			return -EINVAL;
+		}
+
+		mf_dev_conf.nb_queues = opts->nb_qps;
+		rdev_info.dev_private = &mf_dev_conf;
+		qp_conf.nb_descriptors = opts->nb_descriptors;
+
+		ret = rte_rawdev_configure(rdev_id, &rdev_info);
+		if (ret < 0) {
+			printf("Failed to configure rawdev %u", rdev_id);
+			return -EINVAL;
+		}
+
+		for (j = 0; j < opts->nb_qps; j++) {
+			ret = rte_rawdev_queue_setup(rdev_id, j, &qp_conf);
+			if (ret < 0) {
+				printf("Failed to setup queue pair %u on "
+					"rawdev %u", j, rdev_id);
+				return -EINVAL;
+			}
+		}
+
+		ret = rte_rawdev_start(rdev_id);
+		if (ret < 0) {
+			printf("Failed to start raw device %u: error %d\n",
+				rdev_id, ret);
+			return -EPERM;
+		}
+	}
+
+	return enabled_rdev_count;
+}
+
+static int
+cperf_verify_raw_devices_capabilities(struct cperf_options *opts,
+		__rte_unused uint8_t *enabled_rdevs,
+		__rte_unused uint8_t nb_rawdevs)
+{
+	if (opts->op_type != CPERF_MULTI_FN)
+		return -1;
+
+	return 0;
+}
+#endif /* MULTI_FN_SUPPORTED */
 
 static int
 cperf_check_test_vector(struct cperf_options *opts,
@@ -499,10 +641,16 @@ main(int argc, char **argv)
 	struct cperf_test_vector *t_vec = NULL;
 	struct cperf_op_fns op_fns;
 	void *ctx[RTE_MAX_LCORE] = { };
-	int nb_cryptodevs = 0;
+	int nb_devs = 0;
 	uint16_t total_nb_qps = 0;
-	uint8_t cdev_id, i;
-	uint8_t enabled_cdevs[RTE_CRYPTO_MAX_DEVS] = { 0 };
+	uint8_t dev_id, i;
+#ifndef MULTI_FN_SUPPORTED
+	uint8_t enabled_devs[RTE_CRYPTO_MAX_DEVS] = { 0 };
+#else
+	uint8_t max_devs = RTE_MAX(RTE_CRYPTO_MAX_DEVS, RTE_RAWDEV_MAX_DEVS);
+	uint8_t enabled_devs[max_devs];
+	memset(enabled_devs, 0x0, max_devs);
+#endif /* MULTI_FN_SUPPORTED */
 
 	uint8_t buffer_size_idx = 0;
 
@@ -531,24 +679,49 @@ main(int argc, char **argv)
 		goto err;
 	}
 
-	nb_cryptodevs = cperf_initialize_cryptodev(&opts, enabled_cdevs);
+#ifdef MULTI_FN_SUPPORTED
+	if (opts.op_type == CPERF_MULTI_FN) {
+		nb_devs = cperf_initialize_rawdev(&opts, enabled_devs);
 
-	if (!opts.silent)
-		cperf_options_dump(&opts);
+		if (!opts.silent)
+			cperf_options_dump(&opts);
 
-	if (nb_cryptodevs < 1) {
-		RTE_LOG(ERR, USER1, "Failed to initialise requested crypto "
-				"device type\n");
-		nb_cryptodevs = 0;
-		goto err;
-	}
+		if (nb_devs < 1) {
+			RTE_LOG(ERR, USER1, "Failed to initialise requested "
+					"raw device type\n");
+			nb_devs = 0;
+			goto err;
+		}
 
-	ret = cperf_verify_devices_capabilities(&opts, enabled_cdevs,
-			nb_cryptodevs);
-	if (ret) {
-		RTE_LOG(ERR, USER1, "Crypto device type does not support "
-				"capabilities requested\n");
-		goto err;
+		ret = cperf_verify_raw_devices_capabilities(&opts,
+				enabled_devs, nb_devs);
+		if (ret) {
+			RTE_LOG(ERR, USER1, "Raw device type does not "
+					"support capabilities requested\n");
+			goto err;
+		}
+	} else
+#endif /* MULTI_FN_SUPPORTED */
+	{
+		nb_devs = cperf_initialize_cryptodev(&opts, enabled_devs);
+
+		if (!opts.silent)
+			cperf_options_dump(&opts);
+
+		if (nb_devs < 1) {
+			RTE_LOG(ERR, USER1, "Failed to initialise requested "
+					"crypto device type\n");
+			nb_devs = 0;
+			goto err;
+		}
+
+		ret = cperf_verify_crypto_devices_capabilities(&opts,
+				enabled_devs, nb_devs);
+		if (ret) {
+			RTE_LOG(ERR, USER1, "Crypto device type does not "
+					"support capabilities requested\n");
+			goto err;
+		}
 	}
 
 	if (opts.test_file != NULL) {
@@ -585,23 +758,29 @@ main(int argc, char **argv)
 	if (!opts.silent)
 		show_test_vector(t_vec);
 
-	total_nb_qps = nb_cryptodevs * opts.nb_qps;
+	total_nb_qps = nb_devs * opts.nb_qps;
 
 	i = 0;
-	uint8_t qp_id = 0, cdev_index = 0;
+	uint8_t qp_id = 0, dev_index = 0;
 	RTE_LCORE_FOREACH_SLAVE(lcore_id) {
 
 		if (i == total_nb_qps)
 			break;
 
-		cdev_id = enabled_cdevs[cdev_index];
+		dev_id = enabled_devs[dev_index];
 
-		uint8_t socket_id = rte_cryptodev_socket_id(cdev_id);
+		uint8_t socket_id;
+#ifdef MULTI_FN_SUPPORTED
+		if (opts.op_type == CPERF_MULTI_FN)
+			socket_id = rte_rawdev_socket_id(dev_id);
+		else
+#endif /* MULTI_FN_SUPPORTED */
+			socket_id = rte_cryptodev_socket_id(dev_id);
 
 		ctx[i] = cperf_testmap[opts.test].constructor(
 				session_pool_socket[socket_id].sess_mp,
 				session_pool_socket[socket_id].priv_mp,
-				cdev_id, qp_id,
+				dev_id, qp_id,
 				&opts, t_vec, &op_fns);
 		if (ctx[i] == NULL) {
 			RTE_LOG(ERR, USER1, "Test run constructor failed\n");
@@ -609,7 +788,7 @@ main(int argc, char **argv)
 		}
 		qp_id = (qp_id + 1) % opts.nb_qps;
 		if (qp_id == 0)
-			cdev_index++;
+			dev_index++;
 		i++;
 	}
 
@@ -726,9 +905,15 @@ main(int argc, char **argv)
 		i++;
 	}
 
-	for (i = 0; i < nb_cryptodevs &&
-			i < RTE_CRYPTO_MAX_DEVS; i++)
-		rte_cryptodev_stop(enabled_cdevs[i]);
+	for (i = 0; i < nb_devs &&
+			i < RTE_DIM(enabled_devs); i++) {
+#ifdef MULTI_FN_SUPPORTED
+		if (opts.op_type == CPERF_MULTI_FN)
+			rte_rawdev_stop(enabled_devs[i]);
+		else
+#endif /* MULTI_FN_SUPPORTED */
+			rte_cryptodev_stop(enabled_devs[i]);
+	}
 
 	free_test_vector(t_vec, &opts);
 
@@ -746,9 +931,15 @@ err:
 		i++;
 	}
 
-	for (i = 0; i < nb_cryptodevs &&
-			i < RTE_CRYPTO_MAX_DEVS; i++)
-		rte_cryptodev_stop(enabled_cdevs[i]);
+	for (i = 0; i < nb_devs &&
+			i < RTE_DIM(enabled_devs); i++) {
+#ifdef MULTI_FN_SUPPORTED
+		if (opts.op_type == CPERF_MULTI_FN)
+			rte_rawdev_stop(enabled_devs[i]);
+		else
+#endif /* MULTI_FN_SUPPORTED */
+			rte_cryptodev_stop(enabled_devs[i]);
+	}
 	rte_free(opts.imix_buffer_sizes);
 	free_test_vector(t_vec, &opts);
 
