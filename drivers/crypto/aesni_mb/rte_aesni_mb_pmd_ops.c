@@ -319,8 +319,14 @@ static const struct rte_cryptodev_capabilities aesni_mb_pmd_capabilities[] = {
 				},
 				.iv_size = {
 					.min = 16,
+#if IMB_VERSION_NUM >= IMB_VERSION(0, 53, 3)
+					.max = 32,
+					.increment = 16
+#else
 					.max = 16,
 					.increment = 0
+#endif
+
 				}
 			}, }
 		}, }
