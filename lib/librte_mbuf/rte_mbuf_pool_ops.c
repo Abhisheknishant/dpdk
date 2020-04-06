@@ -13,7 +13,8 @@ int
 rte_mbuf_set_platform_mempool_ops(const char *ops_name)
 {
 	const struct rte_memzone *mz;
-
+	if (strlen(ops_name) == 0)
+		return -1;
 	if (strlen(ops_name) >= RTE_MEMPOOL_OPS_NAMESIZE)
 		return -ENAMETOOLONG;
 
@@ -50,7 +51,8 @@ int
 rte_mbuf_set_user_mempool_ops(const char *ops_name)
 {
 	const struct rte_memzone *mz;
-
+	if (strlen(ops_name) == 0)
+		return -1;
 	if (strlen(ops_name) >= RTE_MEMPOOL_OPS_NAMESIZE)
 		return -ENAMETOOLONG;
 
