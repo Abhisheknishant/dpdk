@@ -1718,6 +1718,20 @@ virtio_init_device(struct rte_eth_dev *eth_dev, uint64_t req_features)
 		     hw->mac_addr[0], hw->mac_addr[1], hw->mac_addr[2],
 		     hw->mac_addr[3], hw->mac_addr[4], hw->mac_addr[5]);
 
+	if (vtpci_with_feature(hw, VIRTIO_NET_F_SPEED_DUPLEX)) {
+		config = &local_config;
+		/* if speed is not specified in devargs */
+		if (hw->speed == ETH_SPEED_NUM_UNKNOWN) {
+			vtpci_read_dev_config(hw,
+				offsetof(struct virtio_net_config, speed),
+				&config->speed, sizeof(config->speed));
+			hw->speed = config->speed;
+		}
+	}
+
+	PMD_INIT_LOG(DEBUG, "link speed = %u%s",
+		hw->speed, hw->speed == ETH_SPEED_NUM_UNKNOWN ?
+		"(UNKNOWN)" : "");
 	if (vtpci_with_feature(hw, VIRTIO_NET_F_CTRL_VQ)) {
 		config = &local_config;
 
@@ -1865,7 +1879,7 @@ int
 eth_virtio_dev_init(struct rte_eth_dev *eth_dev)
 {
 	struct virtio_hw *hw = eth_dev->data->dev_private;
-	uint32_t speed = ETH_SPEED_NUM_10G;
+	uint32_t speed = ETH_SPEED_NUM_UNKNOWN;
 	int ret;
 
 	if (sizeof(struct virtio_net_hdr_mrg_rxbuf) > RTE_PKTMBUF_HEADROOM) {

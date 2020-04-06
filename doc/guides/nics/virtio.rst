@@ -361,7 +361,7 @@ Below devargs are supported by the PCI virtio driver:
     It is used to specify link speed of virtio device, in units of 1Mb.
     Link speed is a part of link status structure. It could be requested
     by application using rte_eth_link_get_nowait function.
-    (Default: 10000 (10G))
+    (Default: 0xffffffff (unknown))
 
 Below devargs are supported by the virtio-user vdev:
 
@@ -415,7 +415,7 @@ Below devargs are supported by the virtio-user vdev:
     It is used to specify link speed of virtio device, in units of 1Mb.
     Link speed is a part of link status structure. It could be requested
     by application using rte_eth_link_get_nowait function.
-    (Default: 10000 (10G))
+    (Default: 0xffffffff (unknown))
 
 
 Virtio paths Selection and Usage
