@@ -321,13 +321,19 @@ set_non_numa_pages()
 	echo -n "Number of pages: "
 	read Pages
 
-	echo "echo $Pages > /sys/kernel/mm/hugepages/hugepages-${HUGEPGSZ}/nr_hugepages" > .echo_tmp
 
-	echo "Reserving hugepages"
-	sudo sh .echo_tmp
-	rm -f .echo_tmp
+	numeric="^[[:digit:]]+$"
+	PG_PATH="/sys/kernel/mm/hugepages/hugepages-${HUGEPGSZ}"
+    	if [[ $Pages =~ $numeric ]]; then
+		echo "echo $Pages > $PG_PATH/nr_hugepages" > .echo_tmp
+		echo "Reserving hugepages"
+		sudo sh .echo_tmp
+		rm -f .echo_tmp
 
-	create_mnt_huge
+		create_mnt_huge
+	else
+		echo "Please enter a numeric value"
+	fi
 }
 
 #
@@ -343,10 +349,17 @@ set_numa_pages()
 	echo "  enter '64' to reserve 64 * 2MB pages on each node"
 
 	echo > .echo_tmp
+	numeric="^[[:digit:]]+$"
 	for d in /sys/devices/system/node/node? ; do
 		node=$(basename $d)
 		echo -n "Number of pages for $node: "
 		read Pages
+		while [[ ! "$Pages" =~ $numeric ]]; do
+			echo "Please enter a numeric value"
+			echo -n "Number of pages for $node: "
+			read Pages
+		done
+
 		echo "echo $Pages > $d/hugepages/hugepages-${HUGEPGSZ}/nr_hugepages" >> .echo_tmp
 	done
 	echo "Reserving hugepages"
