@@ -397,6 +397,7 @@ pfe_eth_exit(struct rte_eth_dev *dev, struct pfe *pfe)
 	pfe_eth_close_cdev(dev->data->dev_private);
 
 	rte_free(dev->data->mac_addrs);
+	dev->data->mac_addrs = NULL;
 	rte_eth_dev_release_port(dev);
 	pfe->nb_devs--;
 }
