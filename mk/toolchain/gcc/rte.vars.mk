@@ -100,5 +100,8 @@ endif
 # disable packed member unalign warnings
 WERROR_FLAGS += -Wno-address-of-packed-member
 
+# disable stringop-overflow warnings
+WERROR_FLAGS += -Wno-stringop-overflow
+
 export CC AS AR LD OBJCOPY OBJDUMP STRIP READELF
 export TOOLCHAIN_CFLAGS TOOLCHAIN_LDFLAGS TOOLCHAIN_ASFLAGS
