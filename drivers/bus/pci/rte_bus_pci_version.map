@@ -16,3 +16,8 @@ DPDK_20.0 {
 
 	local: *;
 };
+
+EXPERIMENTAL {
+	# added in 20.05
+	pci_addr_ignore_device;
+};
