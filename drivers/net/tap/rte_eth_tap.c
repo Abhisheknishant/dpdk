@@ -2468,12 +2468,12 @@ rte_pmd_tap_remove(struct rte_vdev_device *dev)
 	if (tap_devices_count == 1)
 		rte_mp_action_unregister(TAP_MP_KEY);
 	tap_devices_count--;
-	rte_eth_dev_release_port(eth_dev);
 
 	if (internals->ka_fd != -1) {
 		close(internals->ka_fd);
 		internals->ka_fd = -1;
 	}
+	rte_eth_dev_release_port(eth_dev);
 	return 0;
 }
 
