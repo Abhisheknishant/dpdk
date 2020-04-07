@@ -3759,8 +3759,6 @@ flow_dv_modify_hdr_resource_register
 	return 0;
 }
 
-#define MLX5_CNT_CONTAINER_RESIZE 64
-
 /**
  * Get or create a flow counter.
  *
