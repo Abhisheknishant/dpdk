@@ -2442,7 +2442,7 @@ rte_pmd_tap_remove(struct rte_vdev_device *dev)
 	TAP_LOG(DEBUG, "Closing %s Ethernet device on numa %u",
 		tuntap_types[internals->type], rte_socket_id());
 
-	if (internals->nlsk_fd) {
+	if (internals->nlsk_fd >= 0) {
 		tap_flow_flush(eth_dev, NULL);
 		tap_flow_implicit_flush(internals, NULL);
 		tap_nl_final(internals->nlsk_fd);
