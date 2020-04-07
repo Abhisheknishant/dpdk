@@ -300,6 +300,7 @@ struct rte_eth_stats {
 #define ETH_SPEED_NUM_50G      50000 /**<  50 Gbps */
 #define ETH_SPEED_NUM_56G      56000 /**<  56 Gbps */
 #define ETH_SPEED_NUM_100G    100000 /**< 100 Gbps */
+#define ETH_SPEED_NUM_UNKNOWN UINT32_MAX /**< Unknown */
 
 /**
  * A structure used to retrieve link-level information of an Ethernet port.
@@ -2245,15 +2246,16 @@ int rte_eth_allmulticast_disable(uint16_t port_id);
 int rte_eth_allmulticast_get(uint16_t port_id);
 
 /**
- * Retrieve the status (ON/OFF), the speed (in Mbps) and the mode (HALF-DUPLEX
- * or FULL-DUPLEX) of the physical link of an Ethernet device. It might need
- * to wait up to 9 seconds in it.
+ * Retrieve the link status (up/down), the duplex mode (half/full),
+ * the negotiation (auto/fixed), and if available, the speed (Mbps).
+ *
+ * It might need to wait up to 9 seconds.
+ * @see rte_eth_link_get_nowait.
  *
  * @param port_id
  *   The port identifier of the Ethernet device.
  * @param link
- *   A pointer to an *rte_eth_link* structure to be filled with
- *   the status, the speed and the mode of the Ethernet device link.
+ *   Link informations written back.
  * @return
  *   - (0) if successful.
  *   - (-ENOTSUP) if the function is not supported in PMD driver.
@@ -2262,15 +2264,13 @@ int rte_eth_allmulticast_get(uint16_t port_id);
 int rte_eth_link_get(uint16_t port_id, struct rte_eth_link *link);
 
 /**
- * Retrieve the status (ON/OFF), the speed (in Mbps) and the mode (HALF-DUPLEX
- * or FULL-DUPLEX) of the physical link of an Ethernet device. It is a no-wait
- * version of rte_eth_link_get().
+ * Retrieve the link status (up/down), the duplex mode (half/full),
+ * the negotiation (auto/fixed), and if available, the speed (Mbps).
  *
  * @param port_id
  *   The port identifier of the Ethernet device.
  * @param link
- *   A pointer to an *rte_eth_link* structure to be filled with
- *   the status, the speed and the mode of the Ethernet device link.
+ *   Link informations written back.
  * @return
  *   - (0) if successful.
  *   - (-ENOTSUP) if the function is not supported in PMD driver.
