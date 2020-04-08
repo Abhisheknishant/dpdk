@@ -19,6 +19,7 @@ LDLIBS += -lexecinfo
 LDLIBS += -lpthread
 LDLIBS += -lgcc_s
 LDLIBS += -lrte_kvargs
+LDLIBS += -lrte_telemetry
 
 EXPORT_MAP := ../rte_eal_version.map
 

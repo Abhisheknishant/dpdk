@@ -9,12 +9,8 @@ LIB = librte_rawdev.a
 # build flags
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
-LDLIBS += -lrte_eal
-
-ifeq ($(CONFIG_RTE_LIBRTE_TELEMETRY),y)
 CFLAGS += -DALLOW_EXPERIMENTAL_API
-LDLIBS += -lrte_telemetry
-endif
+LDLIBS += -lrte_eal -lrte_telemetry
 
 # library source files
 SRCS-y += rte_rawdev.c

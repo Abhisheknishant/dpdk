@@ -20,6 +20,7 @@ LDLIBS += -lpthread
 LDLIBS += -lgcc_s
 LDLIBS += -lrt
 LDLIBS += -lrte_kvargs
+LDLIBS += -lrte_telemetry
 ifeq ($(CONFIG_RTE_EAL_NUMA_AWARE_HUGEPAGES),y)
 LDLIBS += -lnuma
 endif
