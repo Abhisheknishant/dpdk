@@ -6,6 +6,8 @@ EXPERIMENTAL {
 	rte_telemetry_parse;
 	rte_telemetry_selftest;
 	rte_telemetry_set_metrics_fns;
+	rte_telemetry_new_init;
+	rte_telemetry_register_cmd;
 
 	local: *;
 };

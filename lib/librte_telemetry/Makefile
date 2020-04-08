@@ -10,6 +10,9 @@ CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS) -I$(SRCDIR)
 CFLAGS += -DALLOW_EXPERIMENTAL_API
 CFLAGS += -I$(RTE_SDK)/lib/librte_metrics/
+CFLAGS += -I$(RTE_SDK)/lib/librte_eal/include
+CFLAGS += -I$(RTE_SDK)/lib/librte_eal/$(ARCH_DIR)/include
+CFLAGS += -pthread
 
 LDLIBS += -lrte_eal
 LDLIBS += -lrte_metrics
@@ -22,6 +25,7 @@ EXPORT_MAP := rte_telemetry_version.map
 SRCS-$(CONFIG_RTE_LIBRTE_TELEMETRY) := rte_telemetry.c
 SRCS-$(CONFIG_RTE_LIBRTE_TELEMETRY) += rte_telemetry_parser.c
 SRCS-$(CONFIG_RTE_LIBRTE_TELEMETRY) += rte_telemetry_parser_test.c
+SRCS-$(CONFIG_RTE_LIBRTE_TELEMETRY) += telemetry.c
 
 # export include files
 SYMLINK-$(CONFIG_RTE_LIBRTE_TELEMETRY)-include := rte_telemetry.h
