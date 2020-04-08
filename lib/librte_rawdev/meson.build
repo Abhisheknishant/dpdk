@@ -3,3 +3,8 @@
 
 sources = files('rte_rawdev.c')
 headers = files('rte_rawdev.h', 'rte_rawdev_pmd.h')
+
+if dpdk_conf.has('RTE_LIBRTE_TELEMETRY')
+	allow_experimental_apis = true
+	deps += ['telemetry']
+endif
