@@ -48,7 +48,7 @@ DIRS-$(CONFIG_RTE_LIBRTE_VHOST) += librte_vhost
 DEPDIRS-librte_vhost := librte_eal librte_mempool librte_mbuf librte_ethdev \
 			librte_net librte_hash librte_cryptodev
 DIRS-$(CONFIG_RTE_LIBRTE_HASH) += librte_hash
-DEPDIRS-librte_hash := librte_eal librte_ring
+DEPDIRS-librte_hash := librte_eal librte_ring librte_mempool
 DIRS-$(CONFIG_RTE_LIBRTE_EFD) += librte_efd
 DEPDIRS-librte_efd := librte_eal librte_ring librte_hash
 DIRS-$(CONFIG_RTE_LIBRTE_RIB) += librte_rib
