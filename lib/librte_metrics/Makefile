@@ -22,6 +22,7 @@ SYMLINK-$(CONFIG_RTE_LIBRTE_METRICS)-include += rte_metrics_telemetry.h
 LDLIBS += -lrte_ethdev
 LDLIBS += -ljansson
 
+CFLAGS += -I$(RTE_SDK)/lib/librte_telemetry/
 endif
 
 # Install header file

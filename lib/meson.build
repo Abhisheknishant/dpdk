@@ -11,6 +11,7 @@
 libraries = [
 	'kvargs', # eal depends on kvargs
 	'eal', # everything depends on eal
+	'telemetry',
 	'ring', 'mempool', 'mbuf', 'net', 'meter', 'ethdev', 'pci', # core
 	'cmdline',
 	'metrics', # bitrate/latency stats depends on this
@@ -30,7 +31,7 @@ libraries = [
 	# add pkt framework libs which use other libs from above
 	'port', 'table', 'pipeline',
 	# flow_classify lib depends on pkt framework table lib
-	'flow_classify', 'bpf', 'telemetry']
+	'flow_classify', 'bpf']
 
 if is_windows
 	libraries = ['kvargs','eal'] # only supported libraries for windows
