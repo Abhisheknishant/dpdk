@@ -1,5 +1,14 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright(c) 2017 Intel Corporation
 
+allow_experimental_apis = true
 sources = files('rte_metrics.c')
 headers = files('rte_metrics.h')
+
+jansson = dependency('jansson', required: false)
+if jansson.found()
+	ext_deps += jansson
+	sources += files('rte_metrics_telemetry.c')
+	headers = files('rte_metrics_telemetry.h')
+	deps += ['ethdev']
+endif
