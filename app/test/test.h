@@ -22,7 +22,9 @@
 # define TEST_TRACE_FAILURE(_file, _line, _func)
 #endif
 
-#define RTE_TEST_TRACE_FAILURE TEST_TRACE_FAILURE
+#ifndef RTE_TEST_TRACE_FAILURE
+# define RTE_TEST_TRACE_FAILURE TEST_TRACE_FAILURE
+#endif
 
 #include <rte_test.h>
 
