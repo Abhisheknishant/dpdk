@@ -482,41 +482,26 @@ Running the ABI Validator
 -------------------------
 
 The ``devtools`` directory in the DPDK source tree contains a utility program,
-``validate-abi.sh``, for validating the DPDK ABI based on the Linux `ABI
-Compliance Checker
-<http://ispras.linuxbase.org/index.php/ABI_compliance_checker>`_.
+``check-abi.sh``, for validating the DPDK ABI based on the libabigail abidiff
+utility:
+https://sourceware.org/libabigail/manual/abidiff.html 
 
-This has a dependency on the ``abi-compliance-checker`` and ``and abi-dumper``
-utilities which can be installed via a package manager. For example::
+The syntax of the ``check-abi.sh`` utility is::
 
-   sudo yum install abi-compliance-checker
-   sudo yum install abi-dumper
+   ./devtools/check-abi.sh <refdir> <newdir>
 
-The syntax of the ``validate-abi.sh`` utility is::
+Where <refdir> specifies the directory housing the reference build of dpdk, and
+<newdir> specifies the dpdk build directory to check the abi of
 
-   ./devtools/validate-abi.sh <REV1> <REV2>
-
-Where ``REV1`` and ``REV2`` are valid gitrevisions(7)
-https://www.kernel.org/pub/software/scm/git/docs/gitrevisions.html
-on the local repo.
-
-For example::
-
-   # Check between the previous and latest commit:
-   ./devtools/validate-abi.sh HEAD~1 HEAD
-
-   # Check on a specific compilation target:
-   ./devtools/validate-abi.sh -t x86_64-native-linux-gcc HEAD~1 HEAD
-
-   # Check between two tags:
-   ./devtools/validate-abi.sh v2.0.0 v2.1.0
-
-   # Check between git master and local topic-branch "vhost-hacking":
-   ./devtools/validate-abi.sh master vhost-hacking
-
-After the validation script completes (it can take a while since it need to
-compile both tags) it will create compatibility reports in the
-``./abi-check/compat_report`` directory. Listed incompatibilities can be found
-as follows::
-
-  grep -lr Incompatible abi-check/compat_reports/
+Example:
+        # To compare your build branch to the ABI of the master branch
+        # after you have built your branch
+        $ cd <path to dpdk src tree>
+        $ mkdir ~/ref
+        $ git clone --local --no-hardlinks --single-branch -b master . ~/ref 
+        $ cd ~/ref
+        $ cp <path to dpdk src tree from above>/.config ./.config
+        $ make defconfig
+        $ make
+        $ <path to dpdk src tree>/devtools/check-abi.sh ~/ref <path to dpdk src tree>
+        
