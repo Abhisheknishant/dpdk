@@ -62,6 +62,21 @@ New Features
 
   * Added support for matching on IPv4 Time To Live and IPv6 Hop Limit.
 
+* **Updated Telemetry Library.**
+
+  The updated Telemetry library has many improvements on the original version
+  to make it more accessible and scalable:
+
+  * It enables DPDK libraries and applications provide their own specific
+    telemetry information, rather than being limited to what could be reported
+    through the metrics library.
+
+  * It is no longer dependent on the external Jansson library, which allows
+    Telemetry be enabled by default.
+
+  * The socket handling has been simplified making it easier for clients to
+    connect and retrieve information.
+
 
 Removed Items
 -------------
