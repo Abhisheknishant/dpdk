@@ -695,6 +695,7 @@ CONFIG_RTE_LIBRTE_PMD_NITROX=y
 # Compile generic security library
 #
 CONFIG_RTE_LIBRTE_SECURITY=y
+CONFIG_RTE_LIBRTE_SECURITY_DEBUG=n
 
 #
 # Compile generic compression device library
