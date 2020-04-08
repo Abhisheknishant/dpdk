@@ -9,6 +9,8 @@
 
 #define MIN_DATA_SIZE (RTE_CACHE_LINE_SIZE)
 
+#define MALLOC_TRACKING_MAX (1 << 29)
+
 /* dummy definition of struct so we can use pointers to it in malloc_elem struct */
 struct malloc_heap;
 
@@ -27,7 +29,9 @@ struct malloc_elem {
 	LIST_ENTRY(malloc_elem) free_list;
 	/**< list of free elements in heap */
 	struct rte_memseg_list *msl;
-	volatile enum elem_state state;
+	volatile uint32_t state:2;
+	volatile uint32_t log:1;		/* Element logged. */
+	volatile uint32_t log_index:29;		/* Element log index. */
 	uint32_t pad;
 	size_t size;
 	struct malloc_elem *orig_elem;

@@ -508,7 +508,44 @@ rte_malloc_heap_socket_is_external(int socket_id);
  *   to dump all objects.
  */
 void
-rte_malloc_dump_stats(FILE *f, const char *type);
+rte_malloc_dump_stats(FILE *out, const char *type);
+
+/**
+ * Initialize malloc tracking log buffer.
+ *
+ * @param count
+ *   Max count of tracking log entries, range (1 : 1 << 29)
+ * @return
+ *   0 on success, negative errno otherwise
+ */
+__rte_experimental
+int
+rte_malloc_log_init(uint32_t count);
+
+/**
+ * Stop malloc tracking log.
+ *
+ * @return
+ *   0 on success, negative errno otherwise
+ */
+__rte_experimental
+int
+rte_malloc_log_stop(void);
+
+/**
+ * Dump malloc tracking log to output.
+ *
+ * @param out
+ *   output file handle
+ * @param detail
+ *   detail level of output
+ *   0: summary
+ *   1: potential leaks - allocated without free
+ *   2: all entries
+ */
+__rte_experimental
+void
+rte_malloc_log_dump(FILE *out, uint32_t detail);
 
 /**
  * Dump contents of all malloc heaps to a file.

@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include <sys/queue.h>
 
 #include <rte_errno.h>
@@ -29,12 +30,243 @@
 #include "eal_private.h"
 
 
+const char *rte_malloc_log_type_name[] = { "malloc", "realloc", "free" };
+
+/*
+ * Track and log memory allocation information.
+ */
+static void
+rte_malloc_log(const char *type, size_t size, unsigned int align,
+	       void *addr)
+{
+	struct rte_malloc_log *log;
+	struct malloc_elem *elem = malloc_elem_from_data(addr);
+	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
+
+	if (!addr || !elem || !mcfg->malloc_log_max ||
+	    mcfg->malloc_log_max == mcfg->malloc_log_count)
+		return;
+
+	log = &mcfg->malloc_logs[mcfg->malloc_log_count];
+	if (type)
+		strncpy(log->name, type, sizeof(log->name) - 1);
+	log->req_size = size;
+	log->pad = elem->pad;
+	log->size = elem->size + elem->pad;
+	align = align ? align : 1;
+	log->align = RTE_CACHE_LINE_ROUNDUP(align);
+	log->addr = addr;
+	log->socket = elem->heap->socket_id;
+	elem->log = 1;
+	elem->log_index = mcfg->malloc_log_count++;
+}
+
+/*
+ * track and log memory realloc
+ */
+static void
+rte_realloc_log(uint32_t pref_malloc, uint32_t prev_index,
+		void *new_addr, size_t size, unsigned int align)
+{
+	struct rte_malloc_log *prev_log;
+	struct rte_malloc_log *log;
+	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
+	struct malloc_elem *elem = malloc_elem_from_data(new_addr);
+
+	if (!mcfg->malloc_log_max || !elem)
+		return;
+	if (pref_malloc) {
+		prev_log = &mcfg->malloc_logs[prev_index];
+		prev_log->paired = 1;
+	}
+	if (mcfg->malloc_log_max == mcfg->malloc_log_count)
+		return;
+	log = &mcfg->malloc_logs[mcfg->malloc_log_count++];
+	log->addr = new_addr;
+	log->type = rte_malloc_log_realloc;
+	log->req_size = size;
+	if (pref_malloc)
+		strncpy(log->name, prev_log->name, sizeof(log->name));
+	log->pad = elem->pad;
+	log->size = elem->size + elem->pad;
+	align = align ? align : 1;
+	log->align = RTE_CACHE_LINE_ROUNDUP(align);
+	log->socket = elem->heap->socket_id;
+	elem->log = 1;
+	elem->log_index = mcfg->malloc_log_count++;
+}
+
+/*
+ * track and log memory free
+ */
+static void
+rte_free_log(void *addr, uint32_t log_malloc, uint32_t log_index, size_t size)
+{
+	struct rte_malloc_log *alloc_log;
+	struct rte_malloc_log *log;
+	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
+
+	if (!addr || !mcfg->malloc_log_max)
+		return;
+	if (log_malloc) {
+		alloc_log = &mcfg->malloc_logs[log_index];
+		alloc_log->paired = 1;
+	}
+	if (mcfg->malloc_log_max == mcfg->malloc_log_count)
+		return;
+	log = &mcfg->malloc_logs[mcfg->malloc_log_count++];
+	log->addr = addr;
+	log->type = rte_malloc_log_free;
+	log->size = size;
+	if (log_malloc) {
+		strncpy(log->name, alloc_log->name, sizeof(log->name));
+		log->req_size = alloc_log->req_size;
+		log->align = alloc_log->align;
+		log->socket = alloc_log->socket;
+		log->pad = alloc_log->pad;
+		log->paired = 1;
+	}
+}
+
+/*
+ * Initialize malloc tracking with max count of log entries
+ */
+int
+rte_malloc_log_init(uint32_t count)
+{
+	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
+
+	if (mcfg->malloc_log_max) {
+		RTE_LOG(ERR, EAL, "malloc tracking started\n");
+		return -EINVAL;
+	}
+	if (!count || count > MALLOC_TRACKING_MAX) {
+		RTE_LOG(ERR, EAL, "invalid malloc tracking log number\n");
+		return -EINVAL;
+	}
+
+	/* allocate logs. */
+	mcfg->malloc_logs = rte_calloc("malloc_logs", count,
+				       sizeof(*mcfg->malloc_logs), 0);
+	if (!mcfg->malloc_logs)
+		return -ENOMEM;
+
+	mcfg->malloc_log_count = 0;
+	mcfg->malloc_log_max = count;
+	return 0;
+}
+
+/*
+ * Initialize malloc tracking with max count of log entries
+ */
+int
+rte_malloc_log_stop(void)
+{
+	struct malloc_elem *elem;
+	int i;
+	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
+	struct rte_malloc_log *log;
+
+	if (!mcfg->malloc_log_max) {
+		RTE_LOG(ERR, EAL, "malloc tracking not started\n");
+		return -EINVAL;
+	}
+
+	/* release all logs. */
+	for (i = 0; i < mcfg->malloc_log_count; i++) {
+		log = &mcfg->malloc_logs[i];
+		/* clear log info from malloc elem. */
+		if (log->type)
+			continue;
+		elem = malloc_elem_from_data(log->addr);
+		if (elem) {
+			elem->log = 0;
+			elem->log_index = 0;
+		}
+	}
+
+	rte_free(mcfg->malloc_logs);
+	mcfg->malloc_logs = NULL;
+	mcfg->malloc_log_max = 0;
+	mcfg->malloc_log_count = 0;
+
+	return 0;
+}
+
+/*
+ * Dump malloc tracking
+ */
+void
+rte_malloc_log_dump(FILE *out, uint32_t detail)
+{
+	struct rte_malloc_log *log;
+	int i;
+	int n_alloc_free = 0;
+	int n_alloc = 0;
+	int n_free_alloc = 0;
+	int n_free = 0;
+	size_t alloc_leak = 0;
+	size_t free_leak = 0;
+	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
+
+	if (!mcfg->malloc_log_max || !mcfg->malloc_logs) {
+		RTE_LOG(ERR, EAL, "malloc tracking not started\n");
+		return;
+	}
+	if (detail)
+		fprintf(out, "Socket  Action Paired            Address    Size Align Mgmt   Pad Total Type\n");
+	for (i = 0; i < mcfg->malloc_log_count; i++) {
+		log = &mcfg->malloc_logs[i];
+		if (detail > 1 ||
+		    (detail == 1 && !log->paired &&
+		     log->type != rte_malloc_log_free))
+			fprintf(out, "%6d %7s %6s %18p %7lu %5lu %4d %3u %7lu %s\n",
+				log->socket,
+				rte_malloc_log_type_name[log->type],
+				log->paired ? "y" : "n",
+				log->addr, log->req_size, log->align,
+				MALLOC_ELEM_OVERHEAD,
+				log->pad,
+				log->size,
+				log->name);
+		if (log->type == rte_malloc_log_free) {
+			n_free++;
+			if (log->paired)
+				n_free_alloc++;
+			else
+				free_leak += log->size;
+		} else {
+			n_alloc++;
+			if (log->paired)
+				n_alloc_free++;
+			else
+				alloc_leak += log->size;
+		}
+	}
+	fprintf(out, "Total rte_malloc and rte_realloc: %d/%d leak %zu(B), rte_free: %d/%d leak: %zu(B)\n",
+		n_alloc_free, n_alloc, alloc_leak,
+		n_free_alloc, n_free, free_leak);
+	if (mcfg->malloc_log_count == mcfg->malloc_log_max)
+		fprintf(out, "Warning: log full, please consider larger log buffer\n");
+}
+
 /* Free the memory space back to heap */
 void rte_free(void *addr)
 {
+	struct malloc_elem *elem = malloc_elem_from_data(addr);
+	uint32_t log_malloc, log_index;
+	size_t size;
+
 	if (addr == NULL) return;
-	if (malloc_heap_free(malloc_elem_from_data(addr)) < 0)
+	if (elem) {
+		log_malloc = elem->log;
+		log_index = elem->log_index;
+		size = elem->size + elem->pad;
+	}
+	if (malloc_heap_free(elem) < 0)
 		RTE_LOG(ERR, EAL, "Error: Invalid memory\n");
+	else
+		rte_free_log(addr, log_malloc, log_index, size);
 }
 
 /*
@@ -44,6 +276,8 @@ void *
 rte_malloc_socket(const char *type, size_t size, unsigned int align,
 		int socket_arg)
 {
+	void *ret;
+
 	/* return NULL if size is 0 or alignment is not power-of-2 */
 	if (size == 0 || (align && !rte_is_power_of_2(align)))
 		return NULL;
@@ -57,8 +291,13 @@ rte_malloc_socket(const char *type, size_t size, unsigned int align,
 				!rte_eal_has_hugepages())
 		socket_arg = SOCKET_ID_ANY;
 
-	return malloc_heap_alloc(type, size, socket_arg, 0,
+	ret = malloc_heap_alloc(type, size, socket_arg, 0,
 			align == 0 ? 1 : align, 0, false);
+
+	if (ret)
+		rte_malloc_log(type, size, align == 0 ? 1 : align, ret);
+
+	return ret;
 }
 
 /*
@@ -123,10 +362,12 @@ rte_calloc(const char *type, size_t num, size_t size, unsigned align)
 void *
 rte_realloc_socket(void *ptr, size_t size, unsigned int align, int socket)
 {
+	struct malloc_elem *elem = malloc_elem_from_data(ptr);
+	uint32_t log_malloc, log_index;
+
 	if (ptr == NULL)
 		return rte_malloc_socket(NULL, size, align, socket);
 
-	struct malloc_elem *elem = malloc_elem_from_data(ptr);
 	if (elem == NULL) {
 		RTE_LOG(ERR, EAL, "Error: memory corruption detected\n");
 		return NULL;
@@ -139,9 +380,15 @@ rte_realloc_socket(void *ptr, size_t size, unsigned int align, int socket)
 	 */
 	if ((socket == SOCKET_ID_ANY ||
 	     (unsigned int)socket == elem->heap->socket_id) &&
-			RTE_PTR_ALIGN(ptr, align) == ptr &&
-			malloc_heap_resize(elem, size) == 0)
-		return ptr;
+	    RTE_PTR_ALIGN(ptr, align) == ptr) {
+		log_malloc = elem->log;
+		log_index = elem->log_index;
+		if (malloc_heap_resize(elem, size) == 0) {
+			rte_realloc_log(log_malloc, log_index, ptr, size,
+					align);
+			return ptr;
+		}
+	}
 
 	/* either requested socket id doesn't match, alignment is off
 	 * or we have no room to expand,

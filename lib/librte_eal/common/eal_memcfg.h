@@ -14,6 +14,28 @@
 
 #include "malloc_heap.h"
 
+
+enum rte_malloc_log_type {
+	rte_malloc_log_malloc,
+	rte_malloc_log_realloc,
+	rte_malloc_log_free,
+};
+
+/**
+ * Memory allocation and free tracking log
+ */
+struct rte_malloc_log {
+	int socket;
+	void *addr;
+	size_t req_size; /* requested size */
+	size_t size; /* outer element and pad */
+	size_t align;
+	uint32_t pad;
+	uint32_t type:2; /* log entry type. */
+	uint32_t paired:1; /* allocation and free both tracked. */
+	char name[64]; /* name may come from stack, copy. */
+};
+
 /**
  * Memory configuration shared across multiple processes.
  */
@@ -73,6 +95,10 @@ struct rte_mem_config {
 	/**< TSC rate */
 
 	uint8_t dma_maskbits; /**< Keeps the more restricted dma mask. */
+
+	struct rte_malloc_log *malloc_logs; /**< Log entries. */
+	int malloc_log_max; /**< Max number of logs to write. */
+	int malloc_log_count; /**< count of logs written. */
 };
 
 /* update internal config from shared mem config */

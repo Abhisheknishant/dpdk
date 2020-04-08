@@ -338,4 +338,7 @@ EXPERIMENTAL {
 
 	# added in 20.05
 	rte_log_can_log;
+    rte_malloc_log_init;
+    rte_malloc_log_dump;
+    rte_malloc_log_stop;
 };
