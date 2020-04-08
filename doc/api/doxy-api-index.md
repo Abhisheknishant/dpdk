@@ -121,6 +121,7 @@ The public API headers are grouped by topics:
   [jhash]              (@ref rte_jhash.h),
   [thash]              (@ref rte_thash.h),
   [FBK hash]           (@ref rte_fbk_hash.h),
+  [K32V64 hash]        (@ref rte_k32v64_hash.h),
   [CRC hash]           (@ref rte_hash_crc.h)
 
 - **classification**
