@@ -1,8 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright(c) 2018 Luca Boccassi <bluca@debian.org>
 
-includes += include_directories('.')
-
 arch_headers = files(
 	'rte_atomic.h',
 	'rte_byteorder.h',
