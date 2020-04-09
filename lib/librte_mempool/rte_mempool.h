@@ -50,6 +50,7 @@
 #include <rte_ring.h>
 #include <rte_memcpy.h>
 #include <rte_common.h>
+#include <rte_init.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -678,7 +679,6 @@ struct rte_mempool_ops {
  */
 struct rte_mempool_ops_table {
 	rte_spinlock_t sl;     /**< Spinlock for add/delete. */
-	uint32_t num_ops;      /**< Number of used ops structs in the table. */
 	/**
 	 * Storage for all possible ops structs.
 	 */
@@ -910,6 +910,30 @@ rte_mempool_set_ops_byname(struct rte_mempool *mp, const char *name,
  */
 int rte_mempool_register_ops(const struct rte_mempool_ops *ops);
 
+struct rte_mempool_shared_ops {
+	size_t num_mempool_ops;
+	struct {
+		char name[RTE_MEMPOOL_OPS_NAMESIZE];
+	} mempool_ops[RTE_MEMPOOL_MAX_OPS_IDX];
+
+	rte_spinlock_t mempool;
+};
+
+static inline int
+mempool_ops_register_cb(const void *arg)
+{
+	const struct rte_mempool_ops *h = (const struct rte_mempool_ops *)arg;
+
+	return rte_mempool_register_ops(h);
+}
+
+static inline void
+mempool_ops_register(const struct rte_mempool_ops *ops)
+{
+	rte_init_register(mempool_ops_register_cb, (const void *)ops,
+			  RTE_INIT_PRE);
+}
+
 /**
  * Macro to statically register the ops of a mempool handler.
  * Note that the rte_mempool_register_ops fails silently here when
@@ -918,7 +942,7 @@ int rte_mempool_register_ops(const struct rte_mempool_ops *ops);
 #define MEMPOOL_REGISTER_OPS(ops)				\
 	RTE_INIT(mp_hdlr_init_##ops)				\
 	{							\
-		rte_mempool_register_ops(&ops);			\
+		mempool_ops_register(&ops);			\
 	}
 
 /**
