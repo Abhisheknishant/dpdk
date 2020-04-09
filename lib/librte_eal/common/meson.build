@@ -43,6 +43,7 @@ sources += files(
 	'eal_common_thread.c',
 	'eal_common_timer.c',
 	'eal_common_uuid.c',
+	'eal_common_init.c',
 	'hotplug_mp.c',
 	'malloc_elem.c',
 	'malloc_heap.c',
