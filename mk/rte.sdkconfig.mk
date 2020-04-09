@@ -62,6 +62,10 @@ else
 config: $(RTE_OUTPUT)/include/rte_config.h $(RTE_OUTPUT)/Makefile
 	@echo "Configuration done using" \
 		$(patsubst defconfig_%,%,$(notdir $(RTE_CONFIG_TEMPLATE)))
+	@echo "==== NOTE ===="
+	@echo "It is recommended to build DPDK using 'meson' and 'ninja'"
+	@echo "Building DPDK with 'make' will be deprecated in a future release"
+	@echo "=============="
 endif
 
 $(RTE_OUTPUT):
