@@ -44,6 +44,7 @@
 #include <rte_option.h>
 #include <rte_atomic.h>
 #include <malloc_heap.h>
+#include <rte_last_init.h>
 
 #include "eal_private.h"
 #include "eal_thread.h"
@@ -873,6 +874,12 @@ rte_eal_init(int argc, char **argv)
 	}
 
 	eal_check_mem_on_local_socket();
+
+	if (rte_last_init_run() < 0) {
+		rte_eal_init_alert("Cannot init objects in last-init queue");
+		rte_errno = EFAULT;
+		return -1;
+	}
 
 	eal_thread_init_master(rte_config.master_lcore);
 
