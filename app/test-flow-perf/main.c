@@ -49,29 +49,119 @@
 #include <rte_cycles.h>
 #include <rte_memory.h>
 
+#include "flow_gen.h"
 #include "user_parameters.h"
 
-static uint32_t nb_lcores;
+#define MAX_ITERATIONS 100
+
+struct rte_flow *flow;
+static uint8_t flow_group;
+
+static uint16_t flow_items;
+static uint16_t flow_actions;
+static uint8_t flow_attrs;
+static volatile bool force_quit;
+static volatile bool dump_iterations;
 static struct rte_mempool *mbuf_mp;
+static uint32_t nb_lcores;
+static uint32_t flows_count;
+static uint32_t iterations_number;
 
 static void usage(char *progname)
 {
 	printf("\nusage: %s", progname);
+	printf("\nControl configurations:\n");
+	printf("  --flows-count=N: to set the number of needed"
+		" flows to insert, default is 4,000,000\n");
+	printf("  --dump-iterations: To print rates for each"
+		" iteration\n");
+
+	printf("To set flow attributes:\n");
+	printf("  --ingress: set ingress attribute in flows\n");
+	printf("  --egress: set egress attribute in flows\n");
+	printf("  --transfer: set transfer attribute in flows\n");
+	printf("  --group=N: set group for all flows,"
+		" default is 0\n");
+
+	printf("To set flow items:\n");
+	printf("  --ether: add ether layer in flow items\n");
+	printf("  --vlan: add vlan layer in flow items\n");
+	printf("  --ipv4: add ipv4 layer in flow items\n");
+	printf("  --ipv6: add ipv6 layer in flow items\n");
+	printf("  --tcp: add tcp layer in flow items\n");
+	printf("  --udp: add udp layer in flow items\n");
+	printf("  --vxlan: add vxlan layer in flow items\n");
+	printf("  --vxlan-gpe: add vxlan-gpe layer in flow items\n");
+	printf("  --gre: add gre layer in flow items\n");
+	printf("  --geneve: add geneve layer in flow items\n");
+	printf("  --gtp: add gtp layer in flow items\n");
+	printf("  --meta: add meta layer in flow items\n");
+	printf("  --tag: add tag layer in flow items\n");
+
+	printf("To set flow actions:\n");
+	printf("  --port-id: add port-id action in flow actions\n");
+	printf("  --rss: add rss action in flow actions\n");
+	printf("  --queue: add queue action in flow actions\n");
+	printf("  --jump: add jump action in flow actions\n");
+	printf("  --mark: add mark action in flow actions\n");
+	printf("  --count: add count action in flow actions\n");
+	printf("  --set-meta: add set meta action in flow actions\n");
+	printf("  --set-tag: add set tag action in flow actions\n");
+	printf("  --drop: add drop action in flow actions\n");
+	printf("  --hairpin-queue: add hairpin-queue action in flow actions\n");
+	printf("  --hairpin-rss: add hairping-rss action in flow actions\n");
 }
 
 static void
 args_parse(int argc, char **argv)
 {
 	char **argvopt;
-	int opt;
+	int n, opt;
 	int opt_idx;
 	static struct option lgopts[] = {
 		/* Control */
 		{ "help",                       0, 0, 0 },
+		{ "flows-count",                1, 0, 0 },
+		{ "dump-iterations",            0, 0, 0 },
+		/* Attributes */
+		{ "ingress",                    0, 0, 0 },
+		{ "egress",                     0, 0, 0 },
+		{ "transfer",                   0, 0, 0 },
+		{ "group",                      1, 0, 0 },
+		/* Items */
+		{ "ether",                      0, 0, 0 },
+		{ "vlan",                       0, 0, 0 },
+		{ "ipv4",                       0, 0, 0 },
+		{ "ipv6",                       0, 0, 0 },
+		{ "tcp",                        0, 0, 0 },
+		{ "udp",                        0, 0, 0 },
+		{ "vxlan",                      0, 0, 0 },
+		{ "vxlan-gpe",                  0, 0, 0 },
+		{ "gre",                        0, 0, 0 },
+		{ "geneve",                     0, 0, 0 },
+		{ "gtp",                        0, 0, 0 },
+		{ "meta",                       0, 0, 0 },
+		{ "tag",                        0, 0, 0 },
+		/* Actions */
+		{ "port-id",                    0, 0, 0 },
+		{ "rss",                        0, 0, 0 },
+		{ "queue",                      0, 0, 0 },
+		{ "jump",                       0, 0, 0 },
+		{ "mark",                       0, 0, 0 },
+		{ "count",                      0, 0, 0 },
+		{ "set-meta",                   0, 0, 0 },
+		{ "set-tag",                    0, 0, 0 },
+		{ "drop",                       0, 0, 0 },
+		{ "hairpin-queue",              0, 0, 0 },
+		{ "hairpin-rss",                0, 0, 0 },
 	};
 
+	flow_items = 0;
+	flow_actions = 0;
+	flow_attrs = 0;
 	argvopt = argv;
 
+	printf(":: Flow -> ");
 	while ((opt = getopt_long(argc, argvopt, "",
 				lgopts, &opt_idx)) != EOF) {
 		switch (opt) {
@@ -80,6 +170,140 @@ args_parse(int argc, char **argv)
 				usage(argv[0]);
 				rte_exit(EXIT_SUCCESS, "Displayed help\n");
 			}
+			/* Attributes */
+			if (!strcmp(lgopts[opt_idx].name, "ingress")) {
+				flow_attrs |= INGRESS;
+				printf("ingress ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "egress")) {
+				flow_attrs |= EGRESS;
+				printf("egress ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "transfer")) {
+				flow_attrs |= TRANSFER;
+				printf("transfer ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "group")) {
+				n = atoi(optarg);
+				if (n >= 0)
+					flow_group = n;
+				else
+					rte_exit(EXIT_SUCCESS,
+						"flow group should be >= 0");
+				printf("group %d ", flow_group);
+			}
+			/* Items */
+			if (!strcmp(lgopts[opt_idx].name, "ether")) {
+				flow_items |= ETH_ITEM;
+				printf("ether / ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "ipv4")) {
+				flow_items |= IPV4_ITEM;
+				printf("ipv4 / ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "vlan")) {
+				flow_items |= VLAN_ITEM;
+				printf("vlan / ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "ipv6")) {
+				flow_items |= IPV6_ITEM;
+				printf("ipv6 / ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "tcp")) {
+				flow_items |= TCP_ITEM;
+				printf("tcp / ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "udp")) {
+				flow_items |= UDP_ITEM;
+				printf("udp / ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "vxlan")) {
+				flow_items |= VXLAN_ITEM;
+				printf("vxlan / ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "vxlan-gpe")) {
+				flow_items |= VXLAN_GPE_ITEM;
+				printf("vxlan-gpe / ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "gre")) {
+				flow_items |= GRE_ITEM;
+				printf("gre / ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "geneve")) {
+				flow_items |= GENEVE_ITEM;
+				printf("geneve / ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "gtp")) {
+				flow_items |= GTP_ITEM;
+				printf("gtp / ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "meta")) {
+				flow_items |= META_ITEM;
+				printf("meta / ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "tag")) {
+				flow_items |= TAG_ITEM;
+				printf("tag / ");
+			}
+			/* Actions */
+			if (!strcmp(lgopts[opt_idx].name, "port-id")) {
+				flow_actions |= PORT_ID_ACTION;
+				printf("port-id / ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "rss")) {
+				flow_actions |= RSS_ACTION;
+				printf("rss / ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "hairpin-rss")) {
+				flow_actions |= HAIRPIN_RSS_ACTION;
+				printf("hairpin-rss / ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "queue")) {
+				flow_actions |= QUEUE_ACTION;
+				printf("queue / ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "hairpin-queue")) {
+				flow_actions |= HAIRPIN_QUEUE_ACTION;
+				printf("hairpin-queue / ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "jump")) {
+				flow_actions |= JUMP_ACTION;
+				printf("jump / ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "mark")) {
+				flow_actions |= MARK_ACTION;
+				printf("mark / ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "count")) {
+				flow_actions |= COUNT_ACTION;
+				printf("count / ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "set-meta")) {
+				flow_actions |= META_ACTION;
+				printf("set-meta / ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "set-tag")) {
+				flow_actions |= TAG_ACTION;
+				printf("set-tag / ");
+			}
+			if (!strcmp(lgopts[opt_idx].name, "drop")) {
+				flow_actions |= DROP_ACTION;
+				printf("drop / ");
+			}
+
+			/* Control */
+			if (!strcmp(lgopts[opt_idx].name, "flows-count")) {
+				n = atoi(optarg);
+				if (n > (int) iterations_number)
+					flows_count = n;
+				else {
+					printf("\n\nflows_count should be > %d",
+						iterations_number);
+					rte_exit(EXIT_SUCCESS, " ");
+				}
+			}
+			if (!strcmp(lgopts[opt_idx].name, "dump-iterations"))
+				dump_iterations = true;
 			break;
 		default:
 			usage(argv[0]);
@@ -87,6 +311,127 @@ args_parse(int argc, char **argv)
 			rte_exit(EXIT_SUCCESS, "Invalid option\n");
 			break;
 		}
+	}
+	printf("end_flow\n");
+}
+
+static void
+print_flow_error(struct rte_flow_error error)
+{
+	printf("Flow can't be created %d message: %s\n",
+		error.type,
+		error.message ? error.message : "(no stated reason)");
+}
+
+static inline void
+flows_handler(void)
+{
+	struct rte_flow_error error;
+	clock_t start_iter, end_iter;
+	double cpu_time_used = 0;
+	double flows_rate;
+	double cpu_time_per_iter[MAX_ITERATIONS];
+	double delta;
+	uint16_t nr_ports;
+	uint32_t i;
+	int port_id;
+	int iter_id;
+	uint32_t eagain_counter = 0;
+
+	nr_ports = rte_eth_dev_count_avail();
+
+	for (i = 0; i < MAX_ITERATIONS; i++)
+		cpu_time_per_iter[i] = -1;
+
+	if (iterations_number > flows_count)
+		iterations_number = flows_count;
+
+	printf(":: Flows Count per port: %d\n", flows_count);
+
+	for (port_id = 0; port_id < nr_ports; port_id++) {
+		if (flow_group > 0) {
+			/*
+			 * Create global rule to jumo into flow_group
+			 * This way the app will avoid the default rules
+			 *
+			 * Golbal rule:
+			 * group 0 eth / end actions jump group <flow_group>
+			 *
+			 */
+			flow = generate_flow(port_id, 0, flow_attrs, ETH_ITEM,
+				JUMP_ACTION, flow_group, 0, &error);
+
+			if (!flow) {
+				print_flow_error(error);
+				rte_exit(EXIT_FAILURE, "error in creating flow");
+			}
+		}
+
+		/* Insertion Rate */
+		printf("Flows insertion on port = %d\n", port_id);
+		start_iter = clock();
+		for (i = 0; i < flows_count; i++) {
+			do {
+				rte_errno = 0;
+				flow = generate_flow(port_id, flow_group,
+					flow_attrs, flow_items, flow_actions,
+					JUMP_ACTION_TABLE, i,  &error);
+				if (!flow)
+					eagain_counter++;
+			} while (rte_errno == EAGAIN);
+
+			if (force_quit)
+				i = flows_count;
+
+			if (!flow) {
+				print_flow_error(error);
+				rte_exit(EXIT_FAILURE, "error in creating flow");
+			}
+
+			if (i && !((i + 1) % iterations_number)) {
+				/* Save the insertion rate of each iter */
+				end_iter = clock();
+				delta = (double) (end_iter - start_iter);
+				iter_id = ((i + 1) / iterations_number) - 1;
+				cpu_time_per_iter[iter_id] =
+					delta / CLOCKS_PER_SEC;
+				cpu_time_used += cpu_time_per_iter[iter_id];
+				start_iter = clock();
+			}
+		}
+
+		/* Iteration rate per iteration */
+		if (dump_iterations)
+			for (i = 0; i < MAX_ITERATIONS; i++) {
+				if (cpu_time_per_iter[i] == -1)
+					continue;
+				delta = (double)(iterations_number /
+					cpu_time_per_iter[i]);
+				flows_rate = delta / 1000;
+				printf(":: Iteration #%d: %d flows "
+					"in %f sec[ Rate = %f K/Sec ]\n",
+					i, iterations_number,
+					cpu_time_per_iter[i], flows_rate);
+			}
+
+		/* Insertion rate for all flows */
+		flows_rate = ((double) (flows_count / cpu_time_used) / 1000);
+		printf("\n:: Total flow insertion rate -> %f K/Sec\n",
+						flows_rate);
+		printf(":: The time for creating %d in flows %f seconds\n",
+						flows_count, cpu_time_used);
+		printf(":: EAGAIN counter = %d\n", eagain_counter);
+	}
+}
+
+static void
+signal_handler(int signum)
+{
+	if (signum == SIGINT || signum == SIGTERM) {
+		printf("\n\nSignal %d received, preparing to exit...\n",
+					signum);
+		printf("Error: Stats are wrong due to sudden signal!\n\n");
+		force_quit = true;
 	}
 }
 
@@ -96,6 +441,8 @@ init_port(void)
 	int ret;
 	uint16_t i, j;
 	uint16_t port_id;
+	uint16_t nr_queues;
+	bool hairpin_flag = false;
 	uint16_t nr_ports = rte_eth_dev_count_avail();
 	struct rte_eth_hairpin_conf hairpin_conf = {
 			.peer_count = 1,
@@ -114,6 +461,13 @@ init_port(void)
 	struct rte_eth_txconf txq_conf;
 	struct rte_eth_rxconf rxq_conf;
 	struct rte_eth_dev_info dev_info;
+
+	nr_queues = RXQs;
+	if (flow_actions & HAIRPIN_QUEUE_ACTION ||
+		flow_actions & HAIRPIN_RSS_ACTION) {
+		nr_queues = RXQs + HAIRPIN_QUEUES;
+		hairpin_flag = true;
+	}
 
 	if (nr_ports == 0)
 		rte_exit(EXIT_FAILURE, "Error: no port detected\n");
@@ -134,8 +488,8 @@ init_port(void)
 
 		port_conf.txmode.offloads &= dev_info.tx_offload_capa;
 		printf(":: initializing port: %d\n", port_id);
-		ret = rte_eth_dev_configure(port_id, RXQs + HAIRPIN_QUEUES,
-				TXQs + HAIRPIN_QUEUES, &port_conf);
+		ret = rte_eth_dev_configure(port_id, nr_queues,
+				nr_queues, &port_conf);
 		if (ret < 0)
 			rte_exit(EXIT_FAILURE,
 					":: cannot configure device: err=%d, port=%u\n",
@@ -173,26 +527,30 @@ init_port(void)
 					":: promiscuous mode enable failed: err=%s, port=%u\n",
 					rte_strerror(-ret), port_id);
 
-		for (i = RXQs, j = 0; i < RXQs + HAIRPIN_QUEUES; i++, j++) {
-			hairpin_conf.peers[0].port = port_id;
-			hairpin_conf.peers[0].queue = j + TXQs;
-			ret = rte_eth_rx_hairpin_queue_setup(port_id, i,
-							NR_RXD, &hairpin_conf);
-			if (ret != 0)
-				rte_exit(EXIT_FAILURE,
-					":: Hairpin rx queue setup failed: err=%d, port=%u\n",
-					ret, port_id);
-		}
+		if (hairpin_flag) {
+			for (i = RXQs, j = 0;
+					i < RXQs + HAIRPIN_QUEUES; i++, j++) {
+				hairpin_conf.peers[0].port = port_id;
+				hairpin_conf.peers[0].queue = j + TXQs;
+				ret = rte_eth_rx_hairpin_queue_setup(port_id, i,
+					NR_RXD, &hairpin_conf);
+				if (ret != 0)
+					rte_exit(EXIT_FAILURE,
+						":: Hairpin rx queue setup failed: err=%d, port=%u\n",
+						ret, port_id);
+			}
 
-		for (i = TXQs, j = 0; i < TXQs + HAIRPIN_QUEUES; i++, j++) {
-			hairpin_conf.peers[0].port = port_id;
-			hairpin_conf.peers[0].queue = j + RXQs;
-			ret = rte_eth_tx_hairpin_queue_setup(port_id, i,
-							NR_TXD, &hairpin_conf);
-			if (ret != 0)
-				rte_exit(EXIT_FAILURE,
-					":: Hairpin tx queue setup failed: err=%d, port=%u\n",
-					ret, port_id);
+			for (i = TXQs, j = 0;
+					i < TXQs + HAIRPIN_QUEUES; i++, j++) {
+				hairpin_conf.peers[0].port = port_id;
+				hairpin_conf.peers[0].queue = j + RXQs;
+				ret = rte_eth_tx_hairpin_queue_setup(port_id, i,
+					NR_TXD, &hairpin_conf);
+				if (ret != 0)
+					rte_exit(EXIT_FAILURE,
+						":: Hairpin tx queue setup failed: err=%d, port=%u\n",
+						ret, port_id);
+			}
 		}
 
 		ret = rte_eth_dev_start(port_id);
@@ -219,6 +577,15 @@ main(int argc, char **argv)
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "EAL init failed\n");
 
+	force_quit = false;
+	dump_iterations = false;
+	flows_count = 4000000;
+	iterations_number = 100000;
+	flow_group = 0;
+
+	signal(SIGINT, signal_handler);
+	signal(SIGTERM, signal_handler);
+
 	argc -= ret;
 	argv += ret;
 
@@ -231,6 +598,8 @@ main(int argc, char **argv)
 
 	if (nb_lcores <= 1)
 		rte_exit(EXIT_FAILURE, "This app needs at least two cores\n");
+
+	flows_handler();
 
 	RTE_LCORE_FOREACH_SLAVE(lcore_id)
 
