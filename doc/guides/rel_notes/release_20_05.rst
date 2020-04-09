@@ -62,6 +62,13 @@ New Features
 
   * Added support for matching on IPv4 Time To Live and IPv6 Hop Limit.
 
+* **Updated Intel fm10k driver.**
+
+  Updated Intel fm10k driver with new features and improvements, including:
+
+  * Added support for switch management.
+  * Added support for flow operation.
+  * Added support for mirror operation.
 
 Removed Items
 -------------
