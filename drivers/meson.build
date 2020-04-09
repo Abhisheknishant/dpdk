@@ -71,6 +71,14 @@ foreach class:dpdk_driver_classes
 				reason = 'Explicitly disabled via build config'
 			endif
 		endforeach
+		if fmt_name == ''
+			fmt_name = name
+		endif
+		conf_flag = config_flag_fmt.format(fmt_name.to_upper())
+		if dpdk_conf.has(conf_flag) and not dpdk_conf.get(conf_flag)
+			build = false
+                        reason = 'Explicitly disabled via build config'
+		endif
 		if build
 			# get dependency objs from strings
 			shared_deps = ext_deps
@@ -100,10 +108,7 @@ foreach class:dpdk_driver_classes
 		else
 			class_drivers += name
 
-			if fmt_name == ''
-				fmt_name = name
-			endif
-			dpdk_conf.set(config_flag_fmt.format(fmt_name.to_upper()),1)
+			dpdk_conf.set(conf_flag, true)
 			lib_name = driver_name_fmt.format(fmt_name)
 
 			if allow_experimental_apis

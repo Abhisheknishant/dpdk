@@ -348,7 +348,7 @@ endif
 if dpdk_conf.has('RTE_LIBRTE_POWER')
 	test_deps += 'power'
 endif
-if dpdk_conf.has('RTE_LIBRTE_KNI')
+if dpdk_conf.has('RTE_LIBRTE_KNI') and dpdk_conf.get('RTE_LIBRTE_KNI')
 	test_deps += 'kni'
 endif
 if dpdk_conf.has('RTE_LIBRTE_PDUMP')

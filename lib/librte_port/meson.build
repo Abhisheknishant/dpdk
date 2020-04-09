@@ -28,7 +28,7 @@ if dpdk_conf.has('RTE_PORT_PCAP')
 	ext_deps += pcap_dep # dependency provided in config/meson.build
 endif
 
-if dpdk_conf.has('RTE_LIBRTE_KNI')
+if dpdk_conf.has('RTE_LIBRTE_KNI') and dpdk_conf.get('RTE_LIBRTE_KNI')
 	sources += files('rte_port_kni.c')
 	headers += files('rte_port_kni.h')
 	deps += 'kni'

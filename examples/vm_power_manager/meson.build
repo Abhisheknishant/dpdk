@@ -17,11 +17,11 @@ if dpdk_conf.has('RTE_LIBRTE_BNXT_PMD')
 	deps += ['pmd_bnxt']
 endif
 
-if dpdk_conf.has('RTE_LIBRTE_I40E_PMD')
+if dpdk_conf.has('RTE_LIBRTE_I40E_PMD') and dpdk_conf.get('RTE_LIBRTE_I40E_PMD')
 	deps += ['pmd_i40e']
 endif
 
-if dpdk_conf.has('RTE_LIBRTE_IXGBE_PMD')
+if dpdk_conf.has('RTE_LIBRTE_IXGBE_PMD') and dpdk_conf.get('RTE_LIBRTE_IXGBE_PMD')
 	deps += ['pmd_ixgbe']
 endif
 

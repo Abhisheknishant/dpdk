@@ -34,6 +34,11 @@ flags_generic = [
 	['RTE_MAX_LCORE', 256],
 	['RTE_USE_C11_MEM_MODEL', true],
 	['RTE_CACHE_LINE_SIZE', 128]]
+flags_generic_arm32 = [
+	['RTE_MACHINE', '"armv7a"'],
+	['RTE_MAX_LCORE', 128],
+	['RTE_USE_C11_MEM_MODEL', false],
+	['RTE_CACHE_LINE_SIZE', 64]]
 flags_arm = [
 	['RTE_MACHINE', '"armv8a"'],
 	['RTE_MAX_LCORE', 16],
@@ -63,6 +68,32 @@ flags_armada = [
 	['RTE_MAX_LCORE', 16]]
 
 flags_default_extra = []
+flags_default_arm32_extra = [
+        ['RTE_ARCH_ARM_NEON_MEMCPY', false],
+        ['RTE_FORCE_INTRINSICS', true],
+        ['RTE_ARCH_STRICT_ALIGN', true],
+        ['RTE_EAL_NUMA_AWARE_HUGEPAGES', false],
+        ['RTE_LIBRTE_VHOST_NUMA', false],
+        ['RTE_LIBRTE_EAL_VMWARE_TSC_MAP_SUPPORT', false],
+        ['RTE_LIBRTE_KNI', false],
+        ['RTE_LIBRTE_ARK_PMD', false],
+        ['RTE_LIBRTE_EM_PMD', false],
+        ['RTE_LIBRTE_IGB_PMD', false],
+        ['RTE_LIBRTE_CXGBE_PMD', false],
+        ['RTE_LIBRTE_E1000_PMD', false],
+        ['RTE_LIBRTE_ENIC_PMD', false],
+        ['RTE_LIBRTE_FM10K_PMD', false],
+        ['RTE_LIBRTE_I40E_PMD', false],
+        ['RTE_LIBRTE_IXGBE_PMD', false],
+        ['RTE_LIBRTE_VMXNET3_PMD', false],
+        ['RTE_LIBRTE_QEDE_PMD', false],
+        ['RTE_LIBRTE_SFC_EFX_PMD', false],
+        ['RTE_LIBRTE_AVP_PMD', false],
+        ['RTE_LIBRTE_NFP_PMD', false],
+        ['RTE_LIBRTE_HINIC_PMD', false],
+        ['RTE_LIBRTE_HNS3_PMD', false],
+        ['RTE_LIBRTE_PMD_IOAT_RAWDEV', false],
+        ['RTE_LIBRTE_IONIC_PMD', false]]
 flags_n1sdp_extra = [
 	['RTE_MACHINE', '"n1sdp"'],
 	['RTE_MAX_NUMA_NODES', 1],
@@ -99,6 +130,9 @@ machine_args_generic = [
 	['0xd0b', ['-mcpu=cortex-a76']],
 	['0xd0c', ['-march=armv8.2-a+crc+crypto', '-mcpu=neoverse-n1'], flags_n1sdp_extra]]
 
+machine_args_generic_arm32 = [
+        ['default_arm32', ['-march=armv7-a', '-mtune=cortex-a9', '-mfpu=neon'], flags_default_arm32_extra]]
+
 machine_args_cavium = [
 	['default', ['-march=armv8-a+crc+crypto','-mcpu=thunderx']],
 	['native', ['-march=native']],
@@ -114,6 +148,7 @@ machine_args_emag = [
 
 ## Arm implementer ID (ARM DDI 0487C.a, Section G7.2.106, Page G7-5321)
 impl_generic = ['Generic armv8', flags_generic, machine_args_generic]
+impl_generic_arm32 = ['Generic armv7', flags_generic_arm32, machine_args_generic_arm32]
 impl_0x41 = ['Arm', flags_arm, machine_args_generic]
 impl_0x42 = ['Broadcom', flags_generic, machine_args_generic]
 impl_0x43 = ['Cavium', flags_cavium, machine_args_cavium]
@@ -136,74 +171,74 @@ if not dpdk_conf.get('RTE_ARCH_64')
 	dpdk_conf.set('RTE_ARCH_ARMv7', 1)
 	# the minimum architecture supported, armv7-a, needs the following,
 	# mk/machine/armv7a/rte.vars.mk sets it too
-	machine_args += '-mfpu=neon'
 else
 	dpdk_conf.set('RTE_CACHE_LINE_SIZE', 128)
 	dpdk_conf.set('RTE_ARCH_ARM64', 1)
-
-	machine = []
-	cmd_generic = ['generic', '', '', 'default', '']
-	cmd_output = cmd_generic # Set generic by default
-	machine_args = [] # Clear previous machine args
-	if arm_force_default_march and not meson.is_cross_build()
-		machine = impl_generic
-		impl_pn = 'default'
-	elif not meson.is_cross_build()
-		# The script returns ['Implementer', 'Variant', 'Architecture',
-		# 'Primary Part number', 'Revision']
-		detect_vendor = find_program(join_paths(
-				meson.current_source_dir(), 'armv8_machine.py'))
-		cmd = run_command(detect_vendor.path())
-		if cmd.returncode() == 0
-			cmd_output = cmd.stdout().to_lower().strip().split(' ')
-		endif
-		# Set to generic if variable is not found
-		machine = get_variable('impl_' + cmd_output[0], ['generic'])
-		if machine[0] == 'generic'
-			machine = impl_generic
-			cmd_output = cmd_generic
-		endif
-		impl_pn = cmd_output[3]
-		if arm_force_native_march == true
-			impl_pn = 'native'
-		endif
-	else
-		impl_id = meson.get_cross_property('implementor_id', 'generic')
-		impl_pn = meson.get_cross_property('implementor_pn', 'default')
-		machine = get_variable('impl_' + impl_id)
-	endif
-
-	# Apply Common Defaults. These settings may be overwritten by machine
-	# settings later.
-	foreach flag: flags_common_default
-		if flag.length() > 0
-			dpdk_conf.set(flag[0], flag[1])
-		endif
-	endforeach
-
-	message('Implementer : ' + machine[0])
-	foreach flag: machine[1]
-		if flag.length() > 0
-			dpdk_conf.set(flag[0], flag[1])
-		endif
-	endforeach
-
-	foreach marg: machine[2]
-		if marg[0] == impl_pn
-			foreach flag: marg[1]
-				if cc.has_argument(flag)
-					machine_args += flag
-				endif
-			endforeach
-			# Apply any extra machine specific flags.
-			foreach flag: marg.get(2, flags_default_extra)
-				if flag.length() > 0
-					dpdk_conf.set(flag[0], flag[1])
-				endif
-			endforeach
-		endif
-	endforeach
 endif
+
+machine = []
+machine_args = [] # Clear previous machine args
+cmd_generic = ['generic', '', '', 'default', '']
+cmd_output = cmd_generic # Set generic by default
+if arm_force_default_march and not meson.is_cross_build()
+	machine = impl_generic
+	impl_pn = 'default'
+elif not meson.is_cross_build()
+	# The script returns ['Implementer', 'Variant', 'Architecture',
+	# 'Primary Part number', 'Revision']
+	detect_vendor = find_program(join_paths(
+			meson.current_source_dir(), 'armv8_machine.py'))
+	cmd = run_command(detect_vendor.path())
+	if cmd.returncode() == 0
+		cmd_output = cmd.stdout().to_lower().strip().split(' ')
+	endif
+	# Set to generic if variable is not found
+	machine = get_variable('impl_' + cmd_output[0], ['generic'])
+	if machine[0] == 'generic'
+		machine = impl_generic
+		cmd_output = cmd_generic
+	endif
+	impl_pn = cmd_output[3]
+	if arm_force_native_march == true
+		impl_pn = 'native'
+	endif
+else
+	impl_id = meson.get_cross_property('implementor_id', 'generic')
+	impl_pn = meson.get_cross_property('implementor_pn', 'default')
+	machine = get_variable('impl_' + impl_id)
+endif
+
+# Apply Common Defaults. These settings may be overwritten by machine
+# settings later.
+foreach flag: flags_common_default
+	if flag.length() > 0
+		dpdk_conf.set(flag[0], flag[1])
+	endif
+endforeach
+
+message('Implementer : ' + machine[0])
+foreach flag: machine[1]
+	if flag.length() > 0
+		dpdk_conf.set(flag[0], flag[1])
+	endif
+endforeach
+
+foreach marg: machine[2]
+	if marg[0] == impl_pn
+		foreach flag: marg[1]
+			if cc.has_argument(flag)
+				machine_args += flag
+			endif
+		endforeach
+		# Apply any extra machine specific flags.
+		foreach flag: marg.get(2, flags_default_extra)
+			if flag.length() > 0
+				dpdk_conf.set(flag[0], flag[1])
+                                message('Setting flag: @0@: @1@'.format(flag[0], flag[1]))
+			endif
+		endforeach
+	endif
+endforeach
 message(machine_args)
 
 if (cc.get_define('__ARM_NEON', args: machine_args) != '' or
