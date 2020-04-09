@@ -415,4 +415,7 @@ def setup(app):
         # Process the numref references once the doctree has been created.
         app.connect('doctree-resolved', process_numref)
 
-    app.add_stylesheet('css/custom.css')
+    try:
+        app.add_css_file('css/custom.css')
+    except:
+        app.add_stylesheet('css/custom.css')
