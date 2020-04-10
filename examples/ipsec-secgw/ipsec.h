@@ -384,4 +384,7 @@ int
 create_inline_session(struct socket_ctx *skt_ctx, struct ipsec_sa *sa,
 		struct rte_ipsec_session *ips);
 
+uint32_t
+get_nb_crypto_sessions(void);
+
 #endif /* __IPSEC_H__ */

@@ -58,7 +58,6 @@
 
 #define CDEV_QUEUE_DESC 2048
 #define CDEV_MAP_ENTRIES 16384
-#define CDEV_MP_NB_OBJS 1024
 #define CDEV_MP_CACHE_SZ 64
 #define MAX_QUEUE_PAIRS 1
 
@@ -1916,10 +1915,11 @@ cryptodevs_init(void)
 		dev_conf.ff_disable = RTE_CRYPTODEV_FF_ASYMMETRIC_CRYPTO;
 
 		uint32_t dev_max_sess = cdev_info.sym.max_nb_sessions;
-		if (dev_max_sess != 0 && dev_max_sess < CDEV_MP_NB_OBJS)
+		if (dev_max_sess != 0 &&
+				dev_max_sess < get_nb_crypto_sessions())
 			rte_exit(EXIT_FAILURE,
 				"Device does not support at least %u "
-				"sessions", CDEV_MP_NB_OBJS);
+				"sessions", get_nb_crypto_sessions());
 
 		if (rte_cryptodev_configure(cdev_id, &dev_conf))
 			rte_panic("Failed to initialize cryptodev %u\n",
@@ -2175,7 +2175,8 @@ session_pool_init(struct socket_ctx *ctx, int32_t socket_id, size_t sess_sz)
 	snprintf(mp_name, RTE_MEMPOOL_NAMESIZE,
 			"sess_mp_%u", socket_id);
 	sess_mp = rte_cryptodev_sym_session_pool_create(
-			mp_name, CDEV_MP_NB_OBJS,
+			mp_name, get_nb_crypto_sessions() +
+			CDEV_MP_CACHE_SZ * rte_lcore_count(),
 			sess_sz, CDEV_MP_CACHE_SZ, 0,
 			socket_id);
 	ctx->session_pool = sess_mp;
@@ -2197,7 +2198,8 @@ session_priv_pool_init(struct socket_ctx *ctx, int32_t socket_id,
 	snprintf(mp_name, RTE_MEMPOOL_NAMESIZE,
 			"sess_mp_priv_%u", socket_id);
 	sess_mp = rte_mempool_create(mp_name,
-			CDEV_MP_NB_OBJS,
+			get_nb_crypto_sessions() +
+			CDEV_MP_CACHE_SZ * rte_lcore_count(),
 			sess_sz,
 			CDEV_MP_CACHE_SZ,
 			0, NULL, NULL, NULL,
