@@ -819,6 +819,11 @@ CONFIG_RTE_LIBRTE_PMD_OCTEONTX2_EP_RAWDEV=y
 CONFIG_RTE_LIBRTE_PMD_NTB_RAWDEV=y
 
 #
+# Compile multi-fn raw device interface
+#
+CONFIG_RTE_LIBRTE_MULTI_FN_COMMON=y
+
+#
 # Compile librte_ring
 #
 CONFIG_RTE_LIBRTE_RING=y
