@@ -336,61 +336,23 @@ get_mem_amount(uint64_t page_sz, uint64_t max_mem)
 	return RTE_ALIGN(area_sz, page_sz);
 }
 
-#define MEMSEG_LIST_FMT "memseg-%" PRIu64 "k-%i-%i"
 static int
-alloc_memseg_list(struct rte_memseg_list *msl, uint64_t page_sz,
+memseg_list_alloc(struct rte_memseg_list *msl, uint64_t page_sz,
 		int n_segs, int socket_id, int type_msl_idx)
 {
-	char name[RTE_FBARRAY_NAME_LEN];
-
-	snprintf(name, sizeof(name), MEMSEG_LIST_FMT, page_sz >> 10, socket_id,
-		 type_msl_idx);
-	if (rte_fbarray_init(&msl->memseg_arr, name, n_segs,
-			sizeof(struct rte_memseg))) {
-		RTE_LOG(ERR, EAL, "Cannot allocate memseg list: %s\n",
-			rte_strerror(rte_errno));
-		return -1;
-	}
-
-	msl->page_sz = page_sz;
-	msl->socket_id = socket_id;
-	msl->base_va = NULL;
-
-	RTE_LOG(DEBUG, EAL, "Memseg list allocated: 0x%zxkB at socket %i\n",
-			(size_t)page_sz >> 10, socket_id);
-
-	return 0;
+	return eal_alloc_memseg_list(
+		msl, page_sz, n_segs, socket_id, type_msl_idx, false);
 }
 
 static int
-alloc_va_space(struct rte_memseg_list *msl)
+memseg_list_reserve(struct rte_memseg_list *msl)
 {
-	uint64_t page_sz;
-	size_t mem_sz;
-	void *addr;
-	int flags = 0;
+	enum eal_reserve_flags flags = 0;
 
 #ifdef RTE_ARCH_PPC_64
-	flags |= MAP_HUGETLB;
+	flags |= EAL_RESERVE_HUGEPAGES;
 #endif
-
-	page_sz = msl->page_sz;
-	mem_sz = page_sz * msl->memseg_arr.len;
-
-	addr = eal_get_virtual_area(msl->base_va, &mem_sz, page_sz, 0, flags);
-	if (addr == NULL) {
-		if (rte_errno == EADDRNOTAVAIL)
-			RTE_LOG(ERR, EAL, "Could not mmap %llu bytes at [%p] - "
-				"please use '--" OPT_BASE_VIRTADDR "' option\n",
-				(unsigned long long)mem_sz, msl->base_va);
-		else
-			RTE_LOG(ERR, EAL, "Cannot reserve memory\n");
-		return -1;
-	}
-	msl->base_va = addr;
-	msl->len = mem_sz;
-
-	return 0;
+	return eal_reserve_memseg_list(msl, flags);
 }
 
 
@@ -479,7 +441,7 @@ memseg_primary_init(void)
 					cur_max_mem);
 			n_segs = cur_mem / hugepage_sz;
 
-			if (alloc_memseg_list(msl, hugepage_sz, n_segs,
+			if (memseg_list_alloc(msl, hugepage_sz, n_segs,
 					0, type_msl_idx))
 				return -1;
 
