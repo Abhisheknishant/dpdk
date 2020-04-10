@@ -226,8 +226,8 @@ enum eal_mem_reserve_flags {
  *   Page size on which to align requested virtual area.
  * @param flags
  *   EAL_VIRTUAL_AREA_* flags.
- * @param mmap_flags
- *   Extra flags passed directly to mmap().
+ * @param reserve_flags
+ *   Extra flags passed directly to rte_mem_reserve().
  *
  * @return
  *   Virtual area address if successful.
@@ -244,7 +244,7 @@ enum eal_mem_reserve_flags {
 /**< immediately unmap reserved virtual area. */
 void *
 eal_get_virtual_area(void *requested_addr, size_t *size, size_t page_sz,
-	int flags, int mmap_flags);
+	int flags, enum eal_mem_reserve_flags reserve_flags);
 
 /**
  * Reserve VA space for a memory segment list.

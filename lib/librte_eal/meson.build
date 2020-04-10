@@ -11,6 +11,7 @@ if not is_windows
 endif
 
 dpdk_conf.set('RTE_EXEC_ENV_' + exec_env.to_upper(), 1)
+dpdk_conf.set10('RTE_EAL_NUMA_AWARE_HUGEPAGES', true)
 subdir(exec_env)
 
 subdir(arch_subdir)

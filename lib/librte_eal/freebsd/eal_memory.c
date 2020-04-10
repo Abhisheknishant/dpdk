@@ -355,7 +355,6 @@ memseg_list_reserve(struct rte_memseg_list *msl)
 	return eal_reserve_memseg_list(msl, flags);
 }
 
-
 static int
 memseg_primary_init(void)
 {

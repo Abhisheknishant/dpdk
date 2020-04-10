@@ -270,7 +270,7 @@ if is_windows
 		add_project_link_arguments('-lmincore', language: 'c')
 	endif
 
-	add_project_link_arguments('-ladvapi32', language: 'c')
+	add_project_link_arguments('-ladvapi32', '-lsetupapi', language: 'c')
 endif
 
 if get_option('b_lto')

@@ -27,6 +27,36 @@ See `Large-Page Support`_ in MSDN for details.
 .. _Large-page Support: https://docs.microsoft.com/en-us/windows/win32/memory/large-page-support
 
 
+Load virt2phys Driver
+---------------------
+
+Access to physical addresses is provided by a kernel-mode driver, virt2phys.
+It is mandatory at least for using hardware PMDs, but may also be required
+for mempools.
+
+This driver is not signed, so signature checking must be disabled to load it.
+Refer to documentation in ``dpdk-kmods`` repository for details on system
+setup, driver build and installation.
+
+Compiled package, consisting of ``virt2phys.inf``, ``virt2phys.cat``,
+and ``virt2phys.sys``, is installed as follows (from Elevated Command Line):
+
+.. code-block:: console
+
+    pnputil /add-driver virt2phys.inf /install
+
+When loaded successfully, the driver is shown in *Device Manager* as *Virtual
+to physical address translator* device under *Kernel bypass* category.
+
+If DPDK is unable to communicate with the driver, a warning is printed
+on initialization (debug-level logs provide more details):
+
+.. code-block:: text
+
+    EAL: Cannot open virt2phys driver interface
+
+
+
 Run the ``helloworld`` Example
 ------------------------------
 
