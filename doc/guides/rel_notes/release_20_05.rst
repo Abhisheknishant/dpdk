@@ -62,6 +62,12 @@ New Features
 
   * Added support for matching on IPv4 Time To Live and IPv6 Hop Limit.
 
+* **Added AES-NI MB Multi-Function rawdev PMD.**
+
+  Added a new AESNI-MB Multi-Function raw device PMD for utilizing
+  multi-function capabilities of the Intel IPSec Multi Buffer library. See
+  the :doc:`../rawdevs/aesni_mb_mfn` guide for more details on this new PMD.
+
 
 Removed Items
 -------------

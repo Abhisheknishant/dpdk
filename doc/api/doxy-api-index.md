@@ -49,7 +49,8 @@ The public API headers are grouped by topics:
   [dpaa2_mempool]      (@ref rte_dpaa2_mempool.h),
   [dpaa2_cmdif]        (@ref rte_pmd_dpaa2_cmdif.h),
   [dpaa2_qdma]         (@ref rte_pmd_dpaa2_qdma.h),
-  [crypto_scheduler]   (@ref rte_cryptodev_scheduler.h)
+  [crypto_scheduler]   (@ref rte_cryptodev_scheduler.h),
+  [multi_fn]           (@ref rte_multi_fn.h)
 
 - **memory**:
   [memseg]             (@ref rte_memory.h),

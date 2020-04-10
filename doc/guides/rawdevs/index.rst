@@ -18,3 +18,4 @@ application through rawdev API.
     ntb
     octeontx2_dma
     octeontx2_ep
+    aesni_mb_mfn
