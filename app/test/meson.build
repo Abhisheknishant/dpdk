@@ -393,7 +393,7 @@ dpdk_test = executable('dpdk-test',
 	test_sources,
 	link_whole: link_libs,
 	dependencies: test_dep_objs,
-	c_args: [cflags, '-DALLOW_EXPERIMENTAL_API'],
+	c_args: [cflags, default_cflags],
 	install_rpath: driver_install_path,
 	install: true)
 
