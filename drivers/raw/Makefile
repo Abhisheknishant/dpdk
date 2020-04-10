@@ -15,5 +15,7 @@ DIRS-$(CONFIG_RTE_LIBRTE_PMD_NTB_RAWDEV) += ntb
 DIRS-$(CONFIG_RTE_LIBRTE_PMD_OCTEONTX2_DMA_RAWDEV) += octeontx2_dma
 DIRS-$(CONFIG_RTE_LIBRTE_PMD_OCTEONTX2_EP_RAWDEV) += octeontx2_ep
 DIRS-y += common
+DIRS-$(CONFIG_RTE_LIBRTE_PMD_AESNI_MB_MFN_RAWDEV) += aesni_mb_mfn
+DEPDIRS-aesni_mb_mfn := common
 
 include $(RTE_SDK)/mk/rte.subdir.mk

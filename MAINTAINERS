@@ -1213,6 +1213,13 @@ F: doc/guides/rawdevs/ntb.rst
 F: examples/ntb/
 F: doc/guides/sample_app_ug/ntb.rst
 
+Intel AES-NI MB Multi-Function - EXPERIMENTAL
+M: David Coyle <david.coyle@intel.com>
+M: Mairtin o Loingsigh <mairtin.oloingsigh@intel.com>
+F: drivers/raw/common/multi_fn/
+F: drivers/raw/aesni_mb_mfn/
+F: doc/guides/rawdevs/aesni_mb_mfn.rst
+
 
 Packet processing
 -----------------
