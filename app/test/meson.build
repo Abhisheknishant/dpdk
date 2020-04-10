@@ -399,12 +399,8 @@ dpdk_test = executable('dpdk-test',
 
 has_hugepage = true
 if is_linux
-	check_hugepage = run_command('cat',
-				     '/proc/sys/vm/nr_hugepages')
-	if (check_hugepage.returncode() != 0 or
-	    check_hugepage.stdout().strip() == '0')
-		has_hugepage = false
-	endif
+	check_hugepage = find_program('has-hugepage.sh')
+	has_hugepage = run_command(check_hugepage).stdout().strip() != '0'
 endif
 message('hugepage availability: @0@'.format(has_hugepage))
 
