@@ -4147,11 +4147,9 @@ static void
 ixgbe_dev_cancel_link_thread(struct rte_eth_dev *dev)
 {
 	struct ixgbe_adapter *ad = dev->data->dev_private;
-	void *retval;
 
 	if (rte_atomic32_read(&ad->link_thread_running)) {
 		pthread_cancel(ad->link_thread_tid);
-		pthread_join(ad->link_thread_tid, &retval);
 		rte_atomic32_clear(&ad->link_thread_running);
 	}
 }
@@ -4167,6 +4165,7 @@ ixgbe_dev_setup_link_thread_handler(void *param)
 	u32 speed;
 	bool autoneg = false;
 
+	pthread_detach(pthread_self());
 	speed = hw->phy.autoneg_advertised;
 	if (!speed)
 		ixgbe_get_link_capabilities(hw, &speed, &autoneg);
