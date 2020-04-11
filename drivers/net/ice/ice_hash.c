@@ -25,6 +25,9 @@
 #include "ice_ethdev.h"
 #include "ice_generic_flow.h"
 
+#define	GTP_EH_PDU_LINK_UP	1
+#define	GTP_EH_PDU_LINK_DWN	0
+
 struct rss_type_match_hdr {
 	uint32_t hdr_mask;
 	uint64_t eth_rss_hint;
@@ -95,7 +98,7 @@ struct rss_type_match_hdr hint_7 = {
 struct rss_type_match_hdr hint_8 = {
 	ICE_FLOW_SEG_HDR_IPV6 | ICE_FLOW_SEG_HDR_SCTP, ETH_RSS_NONFRAG_IPV6_SCTP};
 struct rss_type_match_hdr hint_9 = {
-	ICE_FLOW_SEG_HDR_GTPU_IP,	ETH_RSS_IPV4};
+	ICE_FLOW_SEG_HDR_GTPU_IP, ETH_RSS_NONFRAG_IPV4_UDP};
 struct rss_type_match_hdr hint_10 = {
 	ICE_FLOW_SEG_HDR_PPPOE,	ETH_RSS_IPV4};
 struct rss_type_match_hdr hint_11 = {
@@ -148,9 +151,13 @@ struct ice_hash_match_type ice_hash_type_list[] = {
 	{ETH_RSS_IPV4,								ICE_FLOW_HASH_IPV4},
 	{ETH_RSS_NONFRAG_IPV4_UDP | ETH_RSS_L3_SRC_ONLY | ETH_RSS_L4_SRC_ONLY,	BIT_ULL(ICE_FLOW_FIELD_IDX_IPV4_SA) | BIT_ULL(ICE_FLOW_FIELD_IDX_UDP_SRC_PORT)},
 	{ETH_RSS_NONFRAG_IPV4_UDP | ETH_RSS_L3_SRC_ONLY | ETH_RSS_L4_DST_ONLY,	BIT_ULL(ICE_FLOW_FIELD_IDX_IPV4_SA) | BIT_ULL(ICE_FLOW_FIELD_IDX_UDP_DST_PORT)},
+	{ETH_RSS_NONFRAG_IPV4_UDP | ETH_RSS_L3_SRC_ONLY | ETH_RSS_GTPU,
+		BIT_ULL(ICE_FLOW_FIELD_IDX_IPV4_SA)},
 	{ETH_RSS_NONFRAG_IPV4_UDP | ETH_RSS_L3_SRC_ONLY,			BIT_ULL(ICE_FLOW_FIELD_IDX_IPV4_SA)},
 	{ETH_RSS_NONFRAG_IPV4_UDP | ETH_RSS_L3_DST_ONLY | ETH_RSS_L4_SRC_ONLY,	BIT_ULL(ICE_FLOW_FIELD_IDX_IPV4_DA) | BIT_ULL(ICE_FLOW_FIELD_IDX_UDP_SRC_PORT)},
 	{ETH_RSS_NONFRAG_IPV4_UDP | ETH_RSS_L3_DST_ONLY | ETH_RSS_L4_DST_ONLY,	BIT_ULL(ICE_FLOW_FIELD_IDX_IPV4_DA) | BIT_ULL(ICE_FLOW_FIELD_IDX_UDP_DST_PORT)},
+	{ETH_RSS_NONFRAG_IPV4_UDP | ETH_RSS_L3_DST_ONLY | ETH_RSS_GTPU,
+		BIT_ULL(ICE_FLOW_FIELD_IDX_IPV4_DA)},
 	{ETH_RSS_NONFRAG_IPV4_UDP | ETH_RSS_L3_DST_ONLY,			BIT_ULL(ICE_FLOW_FIELD_IDX_IPV4_DA)},
 	{ETH_RSS_NONFRAG_IPV4_UDP | ETH_RSS_L4_SRC_ONLY,			BIT_ULL(ICE_FLOW_FIELD_IDX_UDP_SRC_PORT)},
 	{ETH_RSS_NONFRAG_IPV4_UDP | ETH_RSS_L4_DST_ONLY,			BIT_ULL(ICE_FLOW_FIELD_IDX_UDP_DST_PORT)},
@@ -266,21 +273,44 @@ ice_hash_check_inset(const struct rte_flow_item pattern[],
 					"Not support range");
 			return -rte_errno;
 		}
-
-		/* Ignore spec and mask. */
-		if (item->spec || item->mask) {
-			rte_flow_error_set(error, EINVAL,
-					RTE_FLOW_ERROR_TYPE_ITEM, item,
-					"Invalid spec/mask.");
-			return -rte_errno;
-		}
 	}
 
 	return 0;
 }
 
+static uint64_t
+ice_rss_hf_refine(uint64_t rss_hf, const struct rte_flow_item pattern[],
+		  const struct rte_flow_action *action,
+		  struct rte_flow_error *error)
+{
+	const struct rte_flow_item *item;
+
+	for (item = pattern; item->type != RTE_FLOW_ITEM_TYPE_END; item++) {
+		if (item->type == RTE_FLOW_ITEM_TYPE_GTP_PSC) {
+			const struct rte_flow_action_rss *rss = action->conf;
+			const struct rte_flow_item_gtp_psc *psc = item->spec;
+
+			if (psc && ((psc->pdu_type == GTP_EH_PDU_LINK_UP &&
+				     (rss->types & ETH_RSS_L3_SRC_ONLY)) ||
+				    (!psc->pdu_type &&
+				     (rss->types & ETH_RSS_L3_DST_ONLY)))) {
+				rss_hf |= ETH_RSS_GTPU;
+			} else {
+				rte_flow_error_set(error, EINVAL,
+						   RTE_FLOW_ERROR_TYPE_ITEM_SPEC,
+						   pattern,
+						   "Invalid input set");
+				return -rte_errno;
+			}
+		}
+	}
+
+	return rss_hf;
+}
+
 static int
 ice_hash_parse_action(struct ice_pattern_match_item *pattern_match_item,
+		const struct rte_flow_item pattern[],
 		const struct rte_flow_action actions[],
 		void **meta,
 		struct rte_flow_error *error)
@@ -309,6 +339,13 @@ ice_hash_parse_action(struct ice_pattern_match_item *pattern_match_item,
 			 * of the same level.
 			 */
 			rss_hf = rte_eth_rss_hf_refine(rss_hf);
+
+			/**
+			 * Check the item spec with the rss action and
+			 * refine rss hash field.
+			 */
+			rss_hf = ice_rss_hf_refine(rss_hf, pattern, action,
+						   error);
 
 			/* Check if pattern is empty. */
 			if (pattern_match_item->pattern_list !=
@@ -438,7 +475,7 @@ ice_hash_parse_pattern_action(__rte_unused struct ice_adapter *ad,
 		(pattern_match_item->meta))->hdr_mask;
 
 	/* Check rss action. */
-	ret = ice_hash_parse_action(pattern_match_item, actions,
+	ret = ice_hash_parse_action(pattern_match_item, pattern, actions,
 				    (void **)&rss_meta_ptr, error);
 
 error:
