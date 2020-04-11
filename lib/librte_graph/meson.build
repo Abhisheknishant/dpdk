@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright(C) 2020 Marvell International Ltd.
+#
+
+name = 'graph'
+
+sources = files('graph.c')
+headers = files('rte_graph.h')
+allow_experimental_apis = true
+
+deps += ['eal']
