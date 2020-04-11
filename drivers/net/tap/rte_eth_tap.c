@@ -339,6 +339,19 @@ tap_rx_offload_get_queue_capa(void)
 	       DEV_RX_OFFLOAD_TCP_CKSUM;
 }
 
+static void
+tap_rxq_pool_free(struct rte_mbuf *pool)
+{
+	struct rte_mbuf *next;
+
+	while (pool) {
+		next = pool->next;
+		pool->next = NULL;
+		rte_pktmbuf_free(pool);
+		pool = next;
+	}
+}
+
 /* Callback to handle the rx burst of packets to the correct interface and
  * file descriptor(s) in a multi-queue setup.
  */
@@ -389,7 +402,7 @@ pmd_rx_burst(void *queue, struct rte_mbuf **bufs, uint16_t nb_pkts)
 					goto end;
 
 				seg->next = NULL;
-				rte_pktmbuf_free(mbuf);
+				tap_rxq_pool_free(mbuf);
 
 				goto end;
 			}
@@ -1038,7 +1051,7 @@ tap_dev_close(struct rte_eth_dev *dev)
 			rxq = &internals->rxq[i];
 			close(process_private->rxq_fds[i]);
 			process_private->rxq_fds[i] = -1;
-			rte_pktmbuf_free(rxq->pool);
+			tap_rxq_pool_free(rxq->pool);
 			rte_free(rxq->iovecs);
 			rxq->pool = NULL;
 			rxq->iovecs = NULL;
@@ -1077,7 +1090,7 @@ tap_rx_queue_release(void *queue)
 	if (process_private->rxq_fds[rxq->queue_id] > 0) {
 		close(process_private->rxq_fds[rxq->queue_id]);
 		process_private->rxq_fds[rxq->queue_id] = -1;
-		rte_pktmbuf_free(rxq->pool);
+		tap_rxq_pool_free(rxq->pool);
 		rte_free(rxq->iovecs);
 		rxq->pool = NULL;
 		rxq->iovecs = NULL;
@@ -1485,7 +1498,7 @@ tap_rx_queue_setup(struct rte_eth_dev *dev,
 	return 0;
 
 error:
-	rte_pktmbuf_free(rxq->pool);
+	tap_rxq_pool_free(rxq->pool);
 	rxq->pool = NULL;
 	rte_free(rxq->iovecs);
 	rxq->iovecs = NULL;
