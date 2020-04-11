@@ -4,7 +4,7 @@
 
 name = 'graph'
 
-sources = files('node.c', 'graph.c', 'graph_debug.c')
+sources = files('node.c', 'graph.c', 'graph_ops.c', 'graph_debug.c')
 headers = files('rte_graph.h')
 allow_experimental_apis = true
 
