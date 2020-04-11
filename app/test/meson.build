@@ -154,7 +154,8 @@ test_deps = ['acl',
 	'ring',
 	'stack',
 	'timer',
-	'graph'
+	'graph',
+	'node'
 ]
 
 # Each test is marked with flag true/false
@@ -390,13 +391,15 @@ endforeach
 test_dep_objs += cc.find_library('execinfo', required: false)
 
 link_libs = []
+link_nodes = []
 if get_option('default_library') == 'static'
 	link_libs = dpdk_drivers
+	link_nodes = dpdk_graph_nodes
 endif
 
 dpdk_test = executable('dpdk-test',
 	test_sources,
-	link_whole: link_libs,
+	link_whole: link_libs + link_nodes,
 	dependencies: test_dep_objs,
 	c_args: [cflags, '-DALLOW_EXPERIMENTAL_API'],
 	install_rpath: driver_install_path,
