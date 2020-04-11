@@ -250,6 +250,23 @@ struct rte_tm_capabilities {
 	 */
 	uint64_t shaper_private_rate_max;
 
+	/** Shaper private packet mode supported. When non-zero, this parameter
+	 * indicates that there is atleast one node that can be configured
+	 * with packet mode in it's private shaper. When shaper is configured
+	 * in packet mode, committed/peak rate provided is interpreted
+	 * in packets per second.
+	 */
+	int shaper_private_packet_mode_supported;
+
+	/** Shaper private byte mode supported. When non-zero, this parameter
+	 * indicates that there is atleast one node that can be configured
+	 * with byte mode in it's private shaper. When shaper is configured
+	 * in byte mode, committed/peak rate provided is interpreted in
+	 * bytes per second.
+	 */
+	int shaper_private_byte_mode_supported;
+
+
 	/** Maximum number of shared shapers. The value of zero indicates that
 	 * shared shapers are not supported.
 	 */
@@ -283,6 +300,21 @@ struct rte_tm_capabilities {
 	 * shaper. Only valid when shared shapers are supported.
 	 */
 	uint64_t shaper_shared_rate_max;
+
+	/** Shaper shared packet mode supported. When non-zero, this parameter
+	 * indicates a shared shaper can be configured with packet mode.
+	 * When shared shaper is configured in packet mode, committed/peak rate
+	 * provided is interpreted in packets per second.
+	 */
+	int shaper_shared_packet_mode_supported;
+
+	/** Shaper shared byte mode supported. When non-zero, this parameter
+	 * indicates that a shared shaper can be configured with byte mode.
+	 * When shared shaper is configured in byte mode, committed/peak rate
+	 * provided is interpreted in bytes per second.
+	 */
+	int shaper_shared_byte_mode_supported;
+
 
 	/** Minimum value allowed for packet length adjustment for any private
 	 * or shared shaper.
@@ -338,6 +370,22 @@ struct rte_tm_capabilities {
 	 * with same priority have the same WFQ weight, so WFQ is reduced to FQ.
 	 */
 	uint32_t sched_wfq_weight_max;
+
+	/** WFQ packet mode supported. When non-zero, this parameter indicates
+	 * that there is at least one non-leaf node that supports packet mode
+	 * for WFQ among its children. WFQ weights will be applied against
+	 * packet count for scheduling children when a non-leaf node
+	 * is configured appropriately.
+	 */
+	int sched_wfq_packet_mode_supported;
+
+	/** WFQ byte mode supported. When non-zero, this parameter indicates
+	 * that there is at least one non-leaf node that supports byte mode
+	 * for WFQ among its children. WFQ weights will be applied against
+	 * bytes for scheduling children when a non-leaf node is configured
+	 * appropriately.
+	 */
+	int sched_wfq_byte_mode_supported;
 
 	/** WRED packet mode support. When non-zero, this parameter indicates
 	 * that there is at least one leaf node that supports the WRED packet
@@ -485,6 +533,24 @@ struct rte_tm_level_capabilities {
 			 */
 			uint64_t shaper_private_rate_max;
 
+			/** Shaper private packet mode supported. When non-zero,
+			 * this parameter indicates there is atleast one
+			 * non-leaf node at this level that can be configured
+			 * with packet mode in its private shaper. When private
+			 * shaper is configured in packet mode, committed/peak
+			 * rate provided is interpreted in packets per second.
+			 */
+			int shaper_private_packet_mode_supported;
+
+			/** Shaper private byte mode supported. When non-zero,
+			 * this parameter indicates there is atleast one
+			 * non-leaf node at this level that can be configured
+			 * with byte mode in its private shaper. When private
+			 * shaper is configured in byte mode, committed/peak
+			 * rate provided is interpreted in bytes per second.
+			 */
+			int shaper_private_byte_mode_supported;
+
 			/** Maximum number of shared shapers that any non-leaf
 			 * node on this level can be part of. The value of zero
 			 * indicates that shared shapers are not supported by
@@ -554,6 +620,25 @@ struct rte_tm_level_capabilities {
 			 */
 			uint32_t sched_wfq_weight_max;
 
+			/** WFQ packet mode supported. When non-zero, this
+			 * parameter indicates that there is at least one
+			 * non-leaf node at this level that supports packet
+			 * mode for WFQ among its children. WFQ weights will
+			 * be applied against packet count for scheduling
+			 * children when a non-leaf node is configured
+			 * appropriately.
+			 */
+			int sched_wfq_packet_mode_supported;
+
+			/** WFQ byte mode supported. When non-zero, this
+			 * parameter indicates that there is at least one
+			 * non-leaf node at this level that supports byte
+			 * mode for WFQ among its children. WFQ weights will
+			 * be applied against bytes for scheduling children
+			 * when a non-leaf node is configured appropriately.
+			 */
+			int sched_wfq_byte_mode_supported;
+
 			/** Mask of statistics counter types supported by the
 			 * non-leaf nodes on this level. Every supported
 			 * statistics counter type is supported by at least one
@@ -595,6 +680,24 @@ struct rte_tm_level_capabilities {
 			 * leaf nodes on this level.
 			 */
 			uint64_t shaper_private_rate_max;
+
+			/** Shaper private packet mode supported. When non-zero,
+			 * this parameter indicates there is atleast one leaf
+			 * node at this level that can be configured with
+			 * packet mode in its private shaper. When private
+			 * shaper is configured in packet mode, committed/peak
+			 * rate provided is interpreted in packets per second.
+			 */
+			int shaper_private_packet_mode_supported;
+
+			/** Shaper private byte mode supported. When non-zero,
+			 * this parameter indicates there is atleast one leaf
+			 * node at this level that can be configured with
+			 * byte mode in its private shaper. When private shaper
+			 * is configured in byte mode, committed/peak rate
+			 * provided is interpreted in bytes per second.
+			 */
+			int shaper_private_byte_mode_supported;
 
 			/** Maximum number of shared shapers that any leaf node
 			 * on this level can be part of. The value of zero
@@ -686,6 +789,20 @@ struct rte_tm_node_capabilities {
 	 */
 	uint64_t shaper_private_rate_max;
 
+	/** Shaper private packet mode supported. When non-zero, this parameter
+	 * indicates private shaper of current node can be configured with
+	 * packet mode. When configured in packet mode, committed/peak rate
+	 * provided is interpreted in packets per second.
+	 */
+	int shaper_private_packet_mode_supported;
+
+	/** Shaper private byte mode supported. When non-zero, this parameter
+	 * indicates private shaper of current node can be configured with
+	 * byte mode. When configured in byte mode, committed/peak rate
+	 * provided is interpreted in bytes per second.
+	 */
+	int shaper_private_byte_mode_supported;
+
 	/** Maximum number of shared shapers the current node can be part of.
 	 * The value of zero indicates that shared shapers are not supported by
 	 * the current node.
@@ -735,6 +852,23 @@ struct rte_tm_node_capabilities {
 			 * WFQ weight, so WFQ is reduced to FQ.
 			 */
 			uint32_t sched_wfq_weight_max;
+
+			/** WFQ packet mode supported. When non-zero, this
+			 * parameter indicates that current node supports packet
+			 * mode for WFQ among its children. WFQ weights will be
+			 * applied against packet count for scheduling children
+			 * when configured appropriately.
+			 */
+			int sched_wfq_packet_mode_supported;
+
+			/** WFQ byte mode supported. When non-zero, this
+			 * parameter indicates that current node supports byte
+			 * mode for WFQ among its children. WFQ weights will be
+			 * applied against  bytes for scheduling children when
+			 * configured appropriately.
+			 */
+			int sched_wfq_byte_mode_supported;
+
 		} nonleaf;
 
 		/** Items valid only for leaf nodes. */
@@ -836,10 +970,10 @@ struct rte_tm_wred_params {
  * Token bucket
  */
 struct rte_tm_token_bucket {
-	/** Token bucket rate (bytes per second) */
+	/** Token bucket rate (bytes per second or packets per second) */
 	uint64_t rate;
 
-	/** Token bucket size (bytes), a.k.a. max burst size */
+	/** Token bucket size (bytes or packets), a.k.a. max burst size */
 	uint64_t size;
 };
 
@@ -860,6 +994,11 @@ struct rte_tm_token_bucket {
  * Dual rate shapers use both the committed and the peak token buckets. The
  * rate of the peak bucket has to be bigger than zero, as well as greater than
  * or equal to the rate of the committed bucket.
+ *
+ * @see struct rte_tm_capabilities::shaper_private_packet_mode_supported
+ * @see struct rte_tm_capabilities::shaper_private_byte_mode_supported
+ * @see struct rte_tm_capabilities::shaper_shared_packet_mode_supported
+ * @see struct rte_tm_capabilities::shaper_shared_byte_mode_supported
  */
 struct rte_tm_shaper_params {
 	/** Committed token bucket */
@@ -874,6 +1013,17 @@ struct rte_tm_shaper_params {
 	 * RTE_TM_ETH_FRAMING_OVERHEAD_FCS).
 	 */
 	int32_t pkt_length_adjust;
+
+	/** When zero, the private or shared shaper that is associated to this
+	 * profile works in byte mode and hence *rate* and *size* fields in
+	 * both token bucket configurations are specified in bytes per second
+	 * and bytes respectively.
+	 * When non-zero, that private or shared shaper works in packet mode and
+	 * hence *rate* and *size* fields in both token bucket configurations
+	 * are specified in packets per second and packets respectively. In
+	 * packet mode, *pkt_length_adjust* is ignored.
+	 */
+	int packet_mode;
 };
 
 /**
@@ -925,6 +1075,8 @@ struct rte_tm_node_params {
 			 * When non-NULL, it points to a pre-allocated array of
 			 * *n_sp_priorities* values, with non-zero value for
 			 * byte-mode and zero for packet-mode.
+			 * @see struct rte_tm_node_capabilities::sched_wfq_packet_mode_supported
+			 * @see struct rte_tm_node_capabilities::sched_wfq_byte_mode_supported
 			 */
 			int *wfq_weight_mode;
 
