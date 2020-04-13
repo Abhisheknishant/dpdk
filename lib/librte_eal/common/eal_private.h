@@ -11,6 +11,7 @@
 
 #include <rte_dev.h>
 #include <rte_lcore.h>
+#include <rte_init.h>
 
 /**
  * Structure storing internal configuration (per-lcore)
@@ -58,6 +59,28 @@ struct rte_config {
 	 */
 	struct rte_mem_config *mem_config;
 } __attribute__((__packed__));
+
+/**
+ * A structure describing a generic initialization.
+ */
+struct rte_init {
+	TAILQ_ENTRY(rte_init) next;
+	enum rte_init_type type;
+	rte_init_cb_t cb;
+	const void *arg;
+};
+
+/** Double linked list of rte_init. */
+TAILQ_HEAD(rte_init_list, rte_init);
+
+/**
+ * Run the callback registered in the global double linked list.
+ *
+ * @return
+ *   - 0 on success
+ *   - Negative on error
+ */
+int eal_rte_init_run(void);
 
 /**
  * Get the global configuration structure.

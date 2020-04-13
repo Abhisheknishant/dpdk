@@ -148,6 +148,7 @@ SRCS-y += test_alarm.c
 SRCS-y += test_interrupts.c
 SRCS-y += test_version.c
 SRCS-y += test_func_reentrancy.c
+SRCS-y += test_rte_init.c
 
 SRCS-y += test_service_cores.c
 

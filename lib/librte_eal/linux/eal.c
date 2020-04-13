@@ -1203,6 +1203,12 @@ rte_eal_init(int argc, char **argv)
 
 	eal_check_mem_on_local_socket();
 
+	if (eal_rte_init_run() < 0) {
+		rte_eal_init_alert("Cannot init objects in rte-init queue");
+		rte_errno = EFAULT;
+		return -1;
+	}
+
 	eal_thread_init_master(rte_config.master_lcore);
 
 	ret = eal_thread_dump_affinity(cpuset, sizeof(cpuset));

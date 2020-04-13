@@ -267,6 +267,12 @@ parallel_test_list = [
         "Report":  None,
     },
     {
+        "Name":    "RTE INIT autotest",
+        "Command": "rte_init_autotest",
+        "Func":    default_autotest,
+        "Report":  None,
+    },
+    {
         "Name":    "Atomics autotest",
         "Command": "atomic_autotest",
         "Func":    default_autotest,
