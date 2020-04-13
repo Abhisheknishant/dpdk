@@ -68,6 +68,8 @@
 
 #define KERNEL_IOMMU_GROUPS_PATH "/sys/kernel/iommu_groups"
 
+#define THREAD_STACK_SIZE_DEFAULT (4ULL * 1024ULL * 1024ULL)
+#include <rte_memzone.h>
 /* Allow the application to print its usage message too if set */
 static rte_usage_hook_t	rte_application_usage_hook = NULL;
 
@@ -1223,6 +1225,24 @@ rte_eal_init(int argc, char **argv)
 			rte_panic("Cannot create pipe\n");
 
 		lcore_config[i].state = WAIT;
+
+		pthread_attr_t attr;
+		pthread_attr_init(&attr);
+		size_t thread_stack_size = THREAD_STACK_SIZE_DEFAULT;
+		char thread_stack_name[64];
+		snprintf(thread_stack_name, sizeof thread_stack_name, "rte:lcore:%s:%d:threadstack", rte_eal_process_type() == RTE_PROC_PRIMARY ? "p" : "s", i);
+		const struct rte_memzone *mz = rte_memzone_lookup(thread_stack_name);
+		if (mz == NULL) {
+			if ((mz = rte_memzone_reserve(thread_stack_name, thread_stack_size, lcore_config[i].socket_id, 0)) == NULL) {
+				rte_panic("Cannot allocate memzone for thread stack");
+			}
+		}
+		void *thread_stack = mz->addr;
+
+		if (pthread_attr_setstack(&attr, thread_stack, thread_stack_size) < 0) {
+			rte_panic("Cannot set thread stack\n");
+		}
+		RTE_LOG(DEBUG, EAL, "Thread stack for lcore %d on socket %d set to %p\n", i, lcore_config[i].socket_id, thread_stack);
 
 		/* create a thread for each lcore */
 		ret = pthread_create(&lcore_config[i].thread_id, NULL,
