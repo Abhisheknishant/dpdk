@@ -1004,6 +1004,28 @@ struct bnxt_ulp_mapper_ident_info ulp_ident_list[] = {
 	}
 };
 
+struct bnxt_ulp_mapper_tbl_list_info ulp_act_tmpl_list[] = {
+	[((0 << BNXT_ULP_LOG2_MAX_NUM_DEV) | BNXT_ULP_DEVICE_ID_WH_PLUS)] = {
+	.device_name = BNXT_ULP_DEVICE_ID_WH_PLUS,
+	.num_tbls = 1,
+	.start_tbl_idx = 0
+	}
+};
+
+struct bnxt_ulp_mapper_act_tbl_info ulp_act_tbl_list[] = {
+	{
+	.resource_func = BNXT_ULP_RESOURCE_FUNC_INDEX_TABLE,
+	.table_type = TF_TBL_TYPE_EXT,
+	.direction = TF_DIR_RX,
+	.srch_b4_alloc = BNXT_ULP_SEARCH_BEFORE_ALLOC_NO,
+	.result_start_idx = 0,
+	.result_bit_size = 128,
+	.result_num_fields = 26,
+	.encap_num_fields = 0,
+	.regfile_wr_idx = BNXT_ULP_REGFILE_INDEX_ACTION_PTR_MAIN
+	}
+};
+
 struct bnxt_ulp_mapper_result_field_info ulp_act_result_field_list[] = {
 	{
 	.field_bit_size = 14,
