@@ -12,6 +12,7 @@
 #include "tfp.h"
 #include "bitalloc.h"
 #include "bnxt.h"
+#include "rand.h"
 
 static inline uint32_t SWAP_WORDS32(uint32_t val32)
 {
