@@ -11,6 +11,7 @@
 #include <sys/mman.h>
 #include <stdbool.h>
 
+#include <rte_devargs.h>
 #include <rte_log.h>
 #include <rte_pci.h>
 #include <rte_bus_pci.h>
@@ -644,11 +645,59 @@ pci_vfio_msix_is_mappable(int vfio_dev_fd, int msix_region)
 	return ret;
 }
 
+static void
+vfio_pci_vf_token_arg(struct rte_devargs *devargs, rte_uuid_t uu)
+{
+#define VF_TOKEN_ARG "vf_token="
+	char c, *p, *vf_token;
+
+	if (devargs == NULL)
+		return;
+
+	p = strstr(devargs->args, VF_TOKEN_ARG);
+	if (!p)
+		return;
+
+	vf_token = p + strlen(VF_TOKEN_ARG);
+	if (strlen(vf_token) < (RTE_UUID_STRLEN - 1))
+		return;
+
+	c = vf_token[RTE_UUID_STRLEN - 1];
+	if (c != '\0' && c != ',')
+		return;
+
+	vf_token[RTE_UUID_STRLEN - 1] = '\0';
+	if (rte_uuid_parse(vf_token, uu)) {
+		RTE_LOG(ERR, EAL,
+			"The VF token is not a valid uuid : %s\n", vf_token);
+		vf_token[RTE_UUID_STRLEN - 1] = c;
+		return;
+	}
+
+	RTE_LOG(DEBUG, EAL,
+		"The VF token is found : %s\n", vf_token);
+
+	vf_token[RTE_UUID_STRLEN - 1] = c;
+
+	/* Purge this vfio-pci specific token from the device arguments */
+	if (c != '\0') {
+		/* 1. Handle the case : 'vf_token=uuid,arg1=val1' */
+		memmove(p, vf_token + RTE_UUID_STRLEN,
+			strlen(vf_token + RTE_UUID_STRLEN) + 1);
+	} else {
+		/* 2. Handle the case : 'arg1=val1,vf_token=uuid' */
+		if (p != devargs->args)
+			p--;
+
+		*p = '\0';
+	}
+}
 
 static int
 pci_vfio_map_resource_primary(struct rte_pci_device *dev)
 {
 	struct vfio_device_info device_info = { .argsz = sizeof(device_info) };
+	rte_uuid_t vf_token = RTE_UUID_INIT(0, 0, 0, 0, 0ULL);
 	char pci_addr[PATH_MAX] = {0};
 	int vfio_dev_fd;
 	struct rte_pci_addr *loc = &dev->addr;
@@ -668,8 +717,9 @@ pci_vfio_map_resource_primary(struct rte_pci_device *dev)
 	snprintf(pci_addr, sizeof(pci_addr), PCI_PRI_FMT,
 			loc->domain, loc->bus, loc->devid, loc->function);
 
+	vfio_pci_vf_token_arg(dev->device.devargs, vf_token);
 	ret = rte_vfio_setup_device(rte_pci_get_sysfs_path(), pci_addr,
-					&vfio_dev_fd, &device_info);
+					&vfio_dev_fd, &device_info, vf_token);
 	if (ret)
 		return ret;
 
@@ -797,6 +847,7 @@ static int
 pci_vfio_map_resource_secondary(struct rte_pci_device *dev)
 {
 	struct vfio_device_info device_info = { .argsz = sizeof(device_info) };
+	rte_uuid_t vf_token = RTE_UUID_INIT(0, 0, 0, 0, 0ULL);
 	char pci_addr[PATH_MAX] = {0};
 	int vfio_dev_fd;
 	struct rte_pci_addr *loc = &dev->addr;
@@ -830,8 +881,9 @@ pci_vfio_map_resource_secondary(struct rte_pci_device *dev)
 		return -1;
 	}
 
+	vfio_pci_vf_token_arg(dev->device.devargs, vf_token);
 	ret = rte_vfio_setup_device(rte_pci_get_sysfs_path(), pci_addr,
-					&vfio_dev_fd, &device_info);
+					&vfio_dev_fd, &device_info, vf_token);
 	if (ret)
 		return ret;
 
