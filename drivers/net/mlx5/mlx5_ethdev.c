@@ -463,7 +463,7 @@ mlx5_dev_configure_rss_reta(struct rte_eth_dev *dev)
 	unsigned int *rss_queue_arr = NULL;
 	unsigned int rss_queue_n = 0;
 
-	if (priv->skip_default_rss_reta)
+	if (priv->skip_default_rss_reta || !rxqs_n)
 		return ret;
 	rss_queue_arr = rte_malloc("", rxqs_n * sizeof(unsigned int), 0);
 	if (!rss_queue_arr) {
