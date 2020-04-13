@@ -702,7 +702,8 @@ rte_vfio_clear_group(int vfio_group_fd)
 
 int
 rte_vfio_setup_device(const char *sysfs_base, const char *dev_addr,
-		int *vfio_dev_fd, struct vfio_device_info *device_info)
+		int *vfio_dev_fd, struct vfio_device_info *device_info,
+		rte_uuid_t vf_token)
 {
 	struct vfio_group_status group_status = {
 			.argsz = sizeof(group_status)
@@ -712,6 +713,7 @@ rte_vfio_setup_device(const char *sysfs_base, const char *dev_addr,
 	int vfio_container_fd;
 	int vfio_group_fd;
 	int iommu_group_num;
+	char dev[PATH_MAX];
 	int i, ret;
 
 	/* get group number */
@@ -895,8 +897,19 @@ rte_vfio_setup_device(const char *sysfs_base, const char *dev_addr,
 				t->type_id, t->name);
 	}
 
+	if (!rte_uuid_is_null(vf_token)) {
+		char vf_token_str[RTE_UUID_STRLEN];
+
+		rte_uuid_unparse(vf_token, vf_token_str, sizeof(vf_token_str));
+		snprintf(dev, sizeof(dev),
+			 "%s vf_token=%s", dev_addr, vf_token_str);
+	} else {
+		snprintf(dev, sizeof(dev),
+			 "%s", dev_addr);
+	}
+
 	/* get a file descriptor for the device */
-	*vfio_dev_fd = ioctl(vfio_group_fd, VFIO_GROUP_GET_DEVICE_FD, dev_addr);
+	*vfio_dev_fd = ioctl(vfio_group_fd, VFIO_GROUP_GET_DEVICE_FD, dev);
 	if (*vfio_dev_fd < 0) {
 		/* if we cannot get a device fd, this implies a problem with
 		 * the VFIO group or the container not having IOMMU configured.
@@ -2081,7 +2094,8 @@ int
 rte_vfio_setup_device(__rte_unused const char *sysfs_base,
 		__rte_unused const char *dev_addr,
 		__rte_unused int *vfio_dev_fd,
-		__rte_unused struct vfio_device_info *device_info)
+		__rte_unused struct vfio_device_info *device_info
+		__rte_unused rte_uuid_t vf_token)
 {
 	return -1;
 }
