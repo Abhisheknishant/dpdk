@@ -128,6 +128,7 @@ sanity_test(struct worker_params *wp, struct rte_mempool *p)
 		printf("Line %d: Error, not all packets flushed. "
 				"Expected %u, got %u\n",
 				__LINE__, BURST, total_packet_count());
+		rte_mempool_put_bulk(p, (void *)bufs, BURST);
 		return -1;
 	}
 
@@ -153,6 +154,7 @@ sanity_test(struct worker_params *wp, struct rte_mempool *p)
 			printf("Line %d: Error, not all packets flushed. "
 					"Expected %u, got %u\n",
 					__LINE__, BURST, total_packet_count());
+			rte_mempool_put_bulk(p, (void *)bufs, BURST);
 			return -1;
 		}
 
@@ -179,6 +181,7 @@ sanity_test(struct worker_params *wp, struct rte_mempool *p)
 		printf("Line %d: Error, not all packets flushed. "
 				"Expected %u, got %u\n",
 				__LINE__, BURST, total_packet_count());
+		rte_mempool_put_bulk(p, (void *)bufs, BURST);
 		return -1;
 	}
 
@@ -233,6 +236,7 @@ sanity_test(struct worker_params *wp, struct rte_mempool *p)
 	if (num_returned != BIG_BATCH) {
 		printf("line %d: Missing packets, expected %d\n",
 				__LINE__, num_returned);
+		rte_mempool_put_bulk(p, (void *)many_bufs, BIG_BATCH);
 		return -1;
 	}
 
@@ -247,6 +251,7 @@ sanity_test(struct worker_params *wp, struct rte_mempool *p)
 
 		if (j == BIG_BATCH) {
 			printf("Error: could not find source packet #%u\n", i);
+			rte_mempool_put_bulk(p, (void *)many_bufs, BIG_BATCH);
 			return -1;
 		}
 	}
@@ -327,10 +332,12 @@ sanity_test_with_mbuf_alloc(struct worker_params *wp, struct rte_mempool *p)
 		printf("Line %u: Packet count is incorrect, %u, expected %u\n",
 				__LINE__, total_packet_count(),
 				(1<<ITER_POWER));
+		rte_mempool_put_bulk(p, (void *)bufs, BURST);
 		return -1;
 	}
 
 	printf("Sanity test with mbuf alloc/free passed\n\n");
+	rte_mempool_put_bulk(p, (void *)bufs, BURST);
 	return 0;
 }
 
@@ -450,10 +457,14 @@ sanity_test_with_worker_shutdown(struct worker_params *wp,
 		printf("Line %d: Error, not all packets flushed. "
 				"Expected %u, got %u\n",
 				__LINE__, BURST * 2, total_packet_count());
+		for (i = 0; i < 2; i++)
+			rte_mempool_put_bulk(p, (void *)bufs, BURST);
 		return -1;
 	}
 
 	printf("Sanity test with worker shutdown passed\n\n");
+	for (i = 0; i < 2; i++)
+		rte_mempool_put_bulk(p, (void *)bufs, BURST);
 	return 0;
 }
 
@@ -503,10 +514,12 @@ test_flush_with_worker_shutdown(struct worker_params *wp,
 		printf("Line %d: Error, not all packets flushed. "
 				"Expected %u, got %u\n",
 				__LINE__, BURST, total_packet_count());
+		rte_mempool_put_bulk(p, (void *)bufs, BURST);
 		return -1;
 	}
 
 	printf("Flush test with worker shutdown passed\n\n");
+	rte_mempool_put_bulk(p, (void *)bufs, BURST);
 	return 0;
 }
 
