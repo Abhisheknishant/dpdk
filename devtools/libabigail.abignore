@@ -11,3 +11,6 @@
         type_kind = enum
         name = rte_crypto_asym_xform_type
         changed_enumerators = RTE_CRYPTO_ASYM_XFORM_TYPE_LIST_END
+; Ignore this function which is only relevant to linux for driver
+[suppress_type]
+	name = rte_vfio_setup_device
