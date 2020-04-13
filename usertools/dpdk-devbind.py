@@ -257,7 +257,7 @@ def get_device_details(devices_type):
             # Clear previous device's data
             dev = {}
         else:
-            name, value = dev_line.decode().split("\t", 1)
+            name, value = dev_line.decode("utf8").split("\t", 1)
             value_list = value.rsplit(' ', 1)
             if len(value_list) > 1:
                 # String stored in <name>_str
