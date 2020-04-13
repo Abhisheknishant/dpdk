@@ -17,6 +17,7 @@ endif
 SRCS-y += mlx5_devx_cmds.c
 SRCS-y += mlx5_common.c
 SRCS-y += mlx5_nl.c
+SRCS-y += mlx5_common_mp.c
 ifeq ($(CONFIG_RTE_IBVERBS_LINK_DLOPEN),y)
 INSTALL-y-lib += $(LIB_GLUE)
 endif
@@ -46,7 +47,7 @@ endif
 LDLIBS += -lrte_eal -lrte_pci -lrte_kvargs -lrte_net
 
 # A few warnings cannot be avoided in external headers.
-CFLAGS += -Wno-error=cast-qual -UPEDANTIC
+CFLAGS += -Wno-error=cast-qual  -UPEDANTIC -DALLOW_EXPERIMENTAL_API
 
 EXPORT_MAP := rte_common_mlx5_version.map
 
