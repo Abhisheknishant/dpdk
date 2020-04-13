@@ -16,6 +16,8 @@ extern "C" {
 
 #include <stdint.h>
 
+#include <rte_uuid.h>
+
 /*
  * determine if VFIO is present on the system
  */
@@ -102,13 +104,17 @@ struct vfio_device_info;
  * @param device_info
  *   Device information.
  *
+ * @param vf_token
+ *   VF token.
+ *
  * @return
  *   0 on success.
  *   <0 on failure.
  *   >1 if the device cannot be managed this way.
  */
 int rte_vfio_setup_device(const char *sysfs_base, const char *dev_addr,
-		int *vfio_dev_fd, struct vfio_device_info *device_info);
+		int *vfio_dev_fd, struct vfio_device_info *device_info,
+		rte_uuid_t vf_token);
 
 /**
  * Release a device mapped to a VFIO-managed I/O MMU group.
