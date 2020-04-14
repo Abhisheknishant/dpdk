@@ -1661,7 +1661,9 @@ virtio_configure_intr(struct rte_eth_dev *dev)
 
 /* reset device and renegotiate features if needed */
 static int
-virtio_init_device(struct rte_eth_dev *eth_dev, uint64_t req_features)
+virtio_init_device(struct rte_eth_dev *eth_dev,
+		   uint64_t req_features,
+		   bool reinit)
 {
 	struct virtio_hw *hw = eth_dev->data->dev_private;
 	struct virtio_net_config *config;
@@ -1672,7 +1674,7 @@ virtio_init_device(struct rte_eth_dev *eth_dev, uint64_t req_features)
 	/* Reset the device although not necessary at startup */
 	vtpci_reset(hw);
 
-	if (hw->vqs) {
+	if (hw->vqs && !reinit) {
 		virtio_dev_free_mbufs(eth_dev);
 		virtio_free_queues(hw);
 	}
@@ -1785,9 +1787,11 @@ virtio_init_device(struct rte_eth_dev *eth_dev, uint64_t req_features)
 			VLAN_TAG_LEN - hw->vtnet_hdr_size;
 	}
 
-	ret = virtio_alloc_queues(eth_dev);
-	if (ret < 0)
-		return ret;
+	if (!reinit) {
+		ret = virtio_alloc_queues(eth_dev);
+		if (ret < 0)
+			return ret;
+	}
 
 	if (eth_dev->data->dev_conf.intr_conf.rxq) {
 		if (virtio_configure_intr(eth_dev) < 0) {
@@ -1916,7 +1920,8 @@ eth_virtio_dev_init(struct rte_eth_dev *eth_dev)
 	rte_spinlock_init(&hw->state_lock);
 
 	/* reset device and negotiate default features */
-	ret = virtio_init_device(eth_dev, VIRTIO_PMD_DEFAULT_GUEST_FEATURES);
+	ret = virtio_init_device(eth_dev, VIRTIO_PMD_DEFAULT_GUEST_FEATURES,
+			false);
 	if (ret < 0)
 		goto err_virtio_init;
 
@@ -2082,12 +2087,6 @@ virtio_dev_configure(struct rte_eth_dev *dev)
 		return -EINVAL;
 	}
 
-	if (dev->data->dev_conf.intr_conf.rxq) {
-		ret = virtio_init_device(dev, hw->req_guest_features);
-		if (ret < 0)
-			return ret;
-	}
-
 	if (rxmode->max_rx_pkt_len > hw->max_mtu + ether_hdr_len)
 		req_features &= ~(1ULL << VIRTIO_NET_F_MTU);
 
@@ -2111,7 +2110,7 @@ virtio_dev_configure(struct rte_eth_dev *dev)
 
 	/* if request features changed, reinit the device */
 	if (req_features != hw->req_guest_features) {
-		ret = virtio_init_device(dev, req_features);
+		ret = virtio_negotiate_features(hw, req_features);
 		if (ret < 0)
 			return ret;
 	}
@@ -2197,6 +2196,11 @@ virtio_dev_start(struct rte_eth_dev *dev)
 	struct virtnet_tx *txvq __rte_unused;
 	struct virtio_hw *hw = dev->data->dev_private;
 	int ret;
+
+	/* reinit the device */
+	ret = virtio_init_device(dev, hw->req_guest_features, true);
+	if (ret < 0)
+		return ret;
 
 	/* Finish the initialization of the queues */
 	for (i = 0; i < dev->data->nb_rx_queues; i++) {
