@@ -34,8 +34,14 @@ enum rte_page_sizes {
 	RTE_PGSIZE_256M  = 1ULL << 28,
 	RTE_PGSIZE_512M  = 1ULL << 29,
 	RTE_PGSIZE_1G    = 1ULL << 30,
+/* Work around Clang on Windows being limited to 32-bit underlying type. */
+#if !defined(RTE_CC_CLANG) || !defined(RTE_EXEC_ENV_WINDOWS)
 	RTE_PGSIZE_4G    = 1ULL << 32,
 	RTE_PGSIZE_16G   = 1ULL << 34,
+#else
+#define RTE_PGSIZE_4G  (1ULL << 32)
+#define RTE_PGSIZE_16G (1ULL << 34)
+#endif
 };
 
 #define SOCKET_ID_ANY -1                    /**< Any NUMA socket. */
