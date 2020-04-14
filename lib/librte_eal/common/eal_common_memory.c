@@ -25,6 +25,7 @@
 #include "eal_private.h"
 #include "eal_internal_cfg.h"
 #include "eal_memcfg.h"
+#include "eal_options.h"
 #include "malloc_heap.h"
 
 /*
@@ -180,6 +181,59 @@ eal_get_virtual_area(void *requested_addr, size_t *size,
 	}
 
 	return aligned_addr;
+}
+
+int
+eal_reserve_memseg_list(struct rte_memseg_list *msl,
+		enum eal_mem_reserve_flags flags)
+{
+	uint64_t page_sz;
+	size_t mem_sz;
+	void *addr;
+
+	page_sz = msl->page_sz;
+	mem_sz = page_sz * msl->memseg_arr.len;
+
+	addr = eal_get_virtual_area(msl->base_va, &mem_sz, page_sz, 0, flags);
+	if (addr == NULL) {
+		if (rte_errno == EADDRNOTAVAIL)
+			RTE_LOG(ERR, EAL, "Cannot reserve %llu bytes at [%p] - "
+				"please use '--" OPT_BASE_VIRTADDR "' option\n",
+				(unsigned long long)mem_sz, msl->base_va);
+		else
+			RTE_LOG(ERR, EAL, "Cannot reserve memory\n");
+		return -1;
+	}
+	msl->base_va = addr;
+	msl->len = mem_sz;
+
+	return 0;
+}
+
+int
+eal_alloc_memseg_list(struct rte_memseg_list *msl, uint64_t page_sz,
+		int n_segs, int socket_id, int type_msl_idx, bool heap)
+{
+	char name[RTE_FBARRAY_NAME_LEN];
+
+	snprintf(name, sizeof(name), MEMSEG_LIST_FMT, page_sz >> 10, socket_id,
+		 type_msl_idx);
+	if (rte_fbarray_init(&msl->memseg_arr, name, n_segs,
+			sizeof(struct rte_memseg))) {
+		RTE_LOG(ERR, EAL, "Cannot allocate memseg list: %s\n",
+			rte_strerror(rte_errno));
+		return -1;
+	}
+
+	msl->page_sz = page_sz;
+	msl->socket_id = socket_id;
+	msl->base_va = NULL;
+	msl->heap = heap;
+
+	RTE_LOG(DEBUG, EAL, "Memseg list allocated: 0x%zxkB at socket %i\n",
+			(size_t)page_sz >> 10, socket_id);
+
+	return 0;
 }
 
 static struct rte_memseg *
