@@ -1044,6 +1044,7 @@ i40evf_add_vlan(struct rte_eth_dev *dev, uint16_t vlanid)
 {
 	struct i40e_vf *vf = I40EVF_DEV_PRIVATE_TO_VF(dev->data->dev_private);
 	struct virtchnl_vlan_filter_list *vlan_list;
+	struct rte_eth_conf *dev_conf = &dev->data->dev_conf;
 	uint8_t cmd_buffer[sizeof(struct virtchnl_vlan_filter_list) +
 							sizeof(uint16_t)];
 	int err;
@@ -1060,8 +1061,21 @@ i40evf_add_vlan(struct rte_eth_dev *dev, uint16_t vlanid)
 	args.out_buffer = vf->aq_resp;
 	args.out_size = I40E_AQ_BUF_SZ;
 	err = i40evf_execute_vf_cmd(dev, &args);
-	if (err)
+	if (err) {
 		PMD_DRV_LOG(ERR, "fail to execute command OP_ADD_VLAN");
+		return err;
+	}
+	/*
+	 * In linux kernel driver on receiving ADD_VLAN it enables
+	 * VLAN_STRIP by default. So disable it if app confifured
+	 * it that way.
+	 */
+	if (!(dev_conf->rxmode.offloads & DEV_RX_OFFLOAD_VLAN_STRIP)) {
+		err = i40evf_disable_vlan_strip(dev);
+		if (err)
+			PMD_DRV_LOG(ERR, "fail to execute command disable_vlan_strip "
+				"as a part of OP_ADD_VLAN");
+	}
 
 	return err;
 }
