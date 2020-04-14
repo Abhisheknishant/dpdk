@@ -36,4 +36,71 @@ int eal_thread_create(pthread_t *thread);
  */
 unsigned int eal_socket_numa_node(unsigned int socket_id);
 
+/**
+ * Locate Win32 memory management routines in system libraries.
+ *
+ * @return 0 on success, (-1) on failure.
+ */
+int eal_mem_win32api_init(void);
+
+/**
+ * Allocate a contiguous chunk of virtual memory.
+ *
+ * Use eal_mem_free() to free allocated memory.
+ *
+ * @param size
+ *  Number of bytes to allocate.
+ * @param page_size
+ *  If non-zero, means memory must be allocated in hugepages
+ *  of the specified size. The @code size @endcode parameter
+ *  must then be a multiple of the largest hugepage size requested.
+ * @return
+ *  Address of allocated memory or NULL on failure (rte_errno is set).
+ */
+void *eal_mem_alloc(size_t size, enum rte_page_sizes page_size);
+
+/**
+ * Allocate new memory in hugepages on the specified NUMA node.
+ *
+ * @param size
+ *  Number of bytes to allocate. Must be a multiple of huge page size.
+ * @param socket_id
+ *  Socket ID.
+ * @return
+ *  Address of the memory allocated on success or NULL on failure.
+ */
+void *eal_mem_alloc_socket(size_t size, int socket_id);
+
+/**
+ * Commit memory previously reserved with @ref eal_mem_reserve()
+ * or decommitted from hugepages by @ref eal_mem_decommit().
+ *
+ * @param requested_addr
+ *  Address within a reserved region. Must not be NULL.
+ * @param size
+ *  Number of bytes to commit. Must be a multiple of page size.
+ * @param socket_id
+ *  Socket ID to allocate on. Can be SOCKET_ID_ANY.
+ * @return
+ *  On success, address of the committed memory, that is, requested_addr.
+ *  On failure, NULL and @code rte_errno @endcode is set.
+ */
+void *eal_mem_commit(void *requested_addr, size_t size, int socket_id);
+
+/**
+ * Put allocated or committed memory back into reserved state.
+ *
+ * @param addr
+ *  Address of the region to decommit.
+ * @param size
+ *  Number of bytes to decommit.
+ *
+ * The @code addr @endcode and @code param @endcode must match
+ * location and size of previously allocated or committed region.
+ *
+ * @return
+ *  0 on success, (-1) on failure.
+ */
+int eal_mem_decommit(void *addr, size_t size);
+
 #endif /* _EAL_WINDOWS_H_ */

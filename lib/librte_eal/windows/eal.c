@@ -339,6 +339,12 @@ rte_eal_init(int argc, char **argv)
 			internal_config.memory = MEMSIZE_IF_NO_HUGE_PAGE;
 	}
 
+	if (eal_mem_win32api_init() < 0) {
+		rte_eal_init_alert("Cannot access Win32 memory management");
+		rte_errno = ENOTSUP;
+		return -1;
+	}
+
 	eal_thread_init_master(rte_config.master_lcore);
 
 	RTE_LCORE_FOREACH_SLAVE(i) {
