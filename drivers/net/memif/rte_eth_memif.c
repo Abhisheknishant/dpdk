@@ -1418,6 +1418,20 @@ memif_rx_queue_intr_disable(struct rte_eth_dev *dev, uint16_t qid __rte_unused)
 	return 0;
 }
 
+static int
+memif_promisc_enable(struct rte_eth_dev *dev __rte_unused)
+{
+	/* memif works in promisc mode only */
+	return 0;
+}
+
+static int
+memif_promisc_disable(struct rte_eth_dev *dev __rte_unused)
+{
+	/* memif works in promisc mode only */
+	return 0;
+}
+
 static const struct eth_dev_ops ops = {
 	.dev_start = memif_dev_start,
 	.dev_close = memif_dev_close,
@@ -1432,6 +1446,8 @@ static const struct eth_dev_ops ops = {
 	.link_update = memif_link_update,
 	.stats_get = memif_stats_get,
 	.stats_reset = memif_stats_reset,
+	.promiscuous_enable = memif_promisc_enable,
+	.promiscuous_disable = memif_promisc_disable,
 };
 
 static int
