@@ -729,6 +729,7 @@ malloc_heap_alloc(const char *type, size_t size, int socket_arg,
 		if (ret != NULL)
 			return ret;
 	}
+
 	return NULL;
 }
 
