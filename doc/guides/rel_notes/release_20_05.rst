@@ -81,6 +81,11 @@ New Features
   by making use of the event device capabilities. The event mode currently supports
   only inline IPsec protocol offload.
 
+* **Updated the AESNI MB PMD.**
+
+  Updated the AESNI PMD with additional DOCSIS algorithm
+
+  * Added support for AES-256 DOCSIS
 
 Removed Items
 -------------
