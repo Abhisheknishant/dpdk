@@ -99,6 +99,18 @@ parallel_test_list = [
         "Report":  None,
     },
     {
+        "Name":    "K32V64 hash autotest",
+        "Command": "k32v64_hash_autotest",
+        "Func":    default_autotest,
+        "Report":  None,
+    },
+    {
+        "Name":    "K32V64 hash autotest",
+        "Command": "k32v64_hash_slow_autotest",
+        "Func":    default_autotest,
+        "Report":  None,
+    },
+    {
         "Name":    "LPM autotest",
         "Command": "lpm_autotest",
         "Func":    default_autotest,
