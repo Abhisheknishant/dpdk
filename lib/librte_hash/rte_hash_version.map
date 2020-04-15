@@ -34,5 +34,9 @@ EXPERIMENTAL {
 
 	rte_hash_free_key_with_position;
 	rte_hash_max_key_id;
-
+	rte_k32v64_hash_create;
+	rte_k32v64_hash_find_existing;
+	rte_k32v64_hash_free;
+	rte_k32v64_hash_add;
+	rte_k32v64_hash_delete;
 };
