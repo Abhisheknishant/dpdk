@@ -1226,6 +1226,7 @@ F: app/test/test_crc.c
 IP fragmentation & reassembly
 M: Konstantin Ananyev <konstantin.ananyev@intel.com>
 F: lib/librte_ip_frag/
+F: app/test/test_ipfrag.c
 F: doc/guides/prog_guide/ip_fragment_reassembly_lib.rst
 F: examples/ip_fragmentation/
 F: doc/guides/sample_app_ug/ip_frag.rst
