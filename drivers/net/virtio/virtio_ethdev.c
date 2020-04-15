@@ -1547,7 +1547,7 @@ set_rxtx_funcs(struct rte_eth_dev *eth_dev)
 			eth_dev->rx_pkt_burst = &virtio_recv_pkts_packed;
 		}
 	} else {
-		if (hw->use_simple_rx) {
+		if (hw->use_vec_rx) {
 			PMD_INIT_LOG(INFO, "virtio: using simple Rx path on port %u",
 				eth_dev->data->port_id);
 			eth_dev->rx_pkt_burst = virtio_recv_pkts_vec;
@@ -2157,33 +2157,31 @@ virtio_dev_configure(struct rte_eth_dev *dev)
 			return -EBUSY;
 		}
 
-	hw->use_simple_rx = 1;
-
 	if (vtpci_with_feature(hw, VIRTIO_F_IN_ORDER)) {
 		hw->use_inorder_tx = 1;
 		hw->use_inorder_rx = 1;
-		hw->use_simple_rx = 0;
+		hw->use_vec_rx = 0;
 	}
 
 	if (vtpci_packed_queue(hw)) {
-		hw->use_simple_rx = 0;
+		hw->use_vec_rx = 0;
 		hw->use_inorder_rx = 0;
 	}
 
 #if defined RTE_ARCH_ARM64 || defined RTE_ARCH_ARM
 	if (!rte_cpu_get_flag_enabled(RTE_CPUFLAG_NEON)) {
-		hw->use_simple_rx = 0;
+		hw->use_vec_rx = 0;
 	}
 #endif
 	if (vtpci_with_feature(hw, VIRTIO_NET_F_MRG_RXBUF)) {
-		 hw->use_simple_rx = 0;
+		 hw->use_vec_rx = 0;
 	}
 
 	if (rx_offloads & (DEV_RX_OFFLOAD_UDP_CKSUM |
 			   DEV_RX_OFFLOAD_TCP_CKSUM |
 			   DEV_RX_OFFLOAD_TCP_LRO |
 			   DEV_RX_OFFLOAD_VLAN_STRIP))
-		hw->use_simple_rx = 0;
+		hw->use_vec_rx = 0;
 
 	return 0;
 }
