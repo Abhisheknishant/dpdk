@@ -73,7 +73,7 @@ New Features
 
   Supported large size code blocks which does not fit in one mbuf segment.
 
-* **Added event mode to ipsec-secgw application.**
+* **Updated ipsec-secgw application.**
 
   Updated ipsec-secgw application to add event based packet processing. The worker
   thread(s) would receive events and submit them back to the event device after
@@ -81,6 +81,8 @@ New Features
   by making use of the event device capabilities. The event mode currently supports
   only inline IPsec protocol offload.
 
+  Added IPsec inbound load-distribution support for ipsec-secgw application using NIC
+  load distribution feature(Flow Director).
 
 Removed Items
 -------------

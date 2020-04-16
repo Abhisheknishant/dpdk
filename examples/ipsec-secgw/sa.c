@@ -271,6 +271,7 @@ parse_sa_tokens(char **tokens, uint32_t n_tokens,
 	uint32_t type_p = 0;
 	uint32_t portid_p = 0;
 	uint32_t fallback_p = 0;
+	int16_t status_p = 0;
 
 	if (strcmp(tokens[0], "in") == 0) {
 		ri = &nb_sa_in;
@@ -295,6 +296,7 @@ parse_sa_tokens(char **tokens, uint32_t n_tokens,
 	if (atoi(tokens[1]) == INVALID_SPI)
 		return;
 	rule->spi = atoi(tokens[1]);
+	rule->portid = UINT16_MAX;
 	ips = ipsec_get_primary_session(rule);
 
 	for (ti = 2; ti < n_tokens; ti++) {
@@ -636,9 +638,14 @@ parse_sa_tokens(char **tokens, uint32_t n_tokens,
 			INCREMENT_TOKEN_INDEX(ti, n_tokens, status);
 			if (status->status < 0)
 				return;
-			rule->portid = atoi(tokens[ti]);
-			if (status->status < 0)
+			if (rule->portid == UINT16_MAX)
+				rule->portid = atoi(tokens[ti]);
+			else if (rule->portid != atoi(tokens[ti])) {
+				APP_CHECK(0, status,
+					"portid %s not matching with already assigned portid %u",
+					tokens[ti], rule->portid);
 				return;
+			}
 			portid_p = 1;
 			continue;
 		}
@@ -683,6 +690,46 @@ parse_sa_tokens(char **tokens, uint32_t n_tokens,
 			fallback_p = 1;
 			continue;
 		}
+		if (strcmp(tokens[ti], "flow-direction") == 0) {
+			switch (ips->type) {
+			case RTE_SECURITY_ACTION_TYPE_NONE:
+			case RTE_SECURITY_ACTION_TYPE_CPU_CRYPTO:
+				rule->fdir_flag = 1;
+				INCREMENT_TOKEN_INDEX(ti, n_tokens, status);
+				if (status->status < 0)
+					return;
+				if (rule->portid == UINT16_MAX)
+					rule->portid = atoi(tokens[ti]);
+				else if (rule->portid != atoi(tokens[ti])) {
+					APP_CHECK(0, status,
+						"portid %s not matching with already assigned portid %u",
+						tokens[ti], rule->portid);
+					return;
+				}
+				INCREMENT_TOKEN_INDEX(ti, n_tokens, status);
+				if (status->status < 0)
+					return;
+				rule->fdir_qid = atoi(tokens[ti]);
+				/* validating portid and queueid */
+				status_p = check_flow_params(rule->portid,
+						rule->fdir_qid);
+				if (status_p < 0) {
+					printf("port id %u / queue id %u is "
+						"not valid\n", rule->portid,
+						 rule->fdir_qid);
+				}
+				break;
+			case RTE_SECURITY_ACTION_TYPE_INLINE_CRYPTO:
+			case RTE_SECURITY_ACTION_TYPE_INLINE_PROTOCOL:
+			case RTE_SECURITY_ACTION_TYPE_LOOKASIDE_PROTOCOL:
+			default:
+				APP_CHECK(0, status,
+					"flow director not supported for security session type %d",
+					ips->type);
+				return;
+			}
+			continue;
+		}
 
 		/* unrecognizeable input */
 		APP_CHECK(0, status, "unrecognized input \"%s\"",
@@ -721,7 +768,6 @@ parse_sa_tokens(char **tokens, uint32_t n_tokens,
 	if (!type_p || (!portid_p && ips->type !=
 			RTE_SECURITY_ACTION_TYPE_CPU_CRYPTO)) {
 		ips->type = RTE_SECURITY_ACTION_TYPE_NONE;
-		rule->portid = -1;
 	}
 
 	*ri = *ri + 1;
@@ -806,7 +852,7 @@ print_one_sa_rule(const struct ipsec_sa *sa, int inbound)
 		printf("lookaside-protocol-offload ");
 		break;
 	case RTE_SECURITY_ACTION_TYPE_CPU_CRYPTO:
-		printf("cpu-crypto-accelerated");
+		printf("cpu-crypto-accelerated ");
 		break;
 	}
 
@@ -825,6 +871,10 @@ print_one_sa_rule(const struct ipsec_sa *sa, int inbound)
 			break;
 		}
 	}
+	if (sa->fdir_flag == 1)
+		printf("flow-direction port %d queue %d", sa->portid,
+				sa->fdir_qid);
+
 	printf("\n");
 }
 
@@ -1143,6 +1193,13 @@ sa_add_rules(struct sa_ctx *sa_ctx, const struct ipsec_sa entries[],
 			}
 		}
 
+		if (sa->fdir_flag && inbound) {
+			rc = create_ipsec_esp_flow(sa);
+			if (rc != 0)
+				RTE_LOG(ERR, IPSEC_ESP,
+					"create_ipsec_esp_flow() failed %s\n",
+					strerror(rc));
+		}
 		print_one_sa_rule(sa, inbound);
 	}
 
