@@ -81,6 +81,11 @@ New Features
   by making use of the event device capabilities. The event mode currently supports
   only inline IPsec protocol offload.
 
+* **Added plain SHA-1,224,256,384,512 support to QAT PMD.**
+
+  Added support for plain SHA-1, SHA-224, SHA-256, SHA-384 and SHA-512 hashes
+  to QAT PMD.
+
 
 Removed Items
 -------------
