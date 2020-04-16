@@ -2371,7 +2371,7 @@ virtio_dev_link_update(struct rte_eth_dev *dev, __rte_unused int wait_to_complet
 
 	memset(&link, 0, sizeof(link));
 	link.link_duplex = ETH_LINK_FULL_DUPLEX;
-	link.link_speed  = ETH_SPEED_NUM_10G;
+	link.link_speed  = ETH_SPEED_NUM_UNKNOWN;
 	link.link_autoneg = ETH_LINK_FIXED;
 
 	if (!hw->started) {
@@ -2427,7 +2427,7 @@ virtio_dev_info_get(struct rte_eth_dev *dev, struct rte_eth_dev_info *dev_info)
 	uint64_t tso_mask, host_features;
 	struct virtio_hw *hw = dev->data->dev_private;
 
-	dev_info->speed_capa = ETH_LINK_SPEED_10G; /* fake value */
+	dev_info->speed_capa = ETH_LINK_SPEED_AUTONEG; /* fake value */
 
 	dev_info->max_rx_queues =
 		RTE_MIN(hw->max_queue_pairs, VIRTIO_MAX_RX_QUEUES);

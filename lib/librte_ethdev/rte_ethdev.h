@@ -287,19 +287,20 @@ struct rte_eth_stats {
 /**
  * Ethernet numeric link speeds in Mbps
  */
-#define ETH_SPEED_NUM_NONE         0 /**< Not defined */
-#define ETH_SPEED_NUM_10M         10 /**<  10 Mbps */
-#define ETH_SPEED_NUM_100M       100 /**< 100 Mbps */
-#define ETH_SPEED_NUM_1G        1000 /**<   1 Gbps */
-#define ETH_SPEED_NUM_2_5G      2500 /**< 2.5 Gbps */
-#define ETH_SPEED_NUM_5G        5000 /**<   5 Gbps */
-#define ETH_SPEED_NUM_10G      10000 /**<  10 Gbps */
-#define ETH_SPEED_NUM_20G      20000 /**<  20 Gbps */
-#define ETH_SPEED_NUM_25G      25000 /**<  25 Gbps */
-#define ETH_SPEED_NUM_40G      40000 /**<  40 Gbps */
-#define ETH_SPEED_NUM_50G      50000 /**<  50 Gbps */
-#define ETH_SPEED_NUM_56G      56000 /**<  56 Gbps */
-#define ETH_SPEED_NUM_100G    100000 /**< 100 Gbps */
+#define ETH_SPEED_NUM_NONE             0 /**< Not defined */
+#define ETH_SPEED_NUM_10M             10 /**<  10 Mbps */
+#define ETH_SPEED_NUM_100M           100 /**< 100 Mbps */
+#define ETH_SPEED_NUM_1G            1000 /**<   1 Gbps */
+#define ETH_SPEED_NUM_2_5G          2500 /**< 2.5 Gbps */
+#define ETH_SPEED_NUM_5G            5000 /**<   5 Gbps */
+#define ETH_SPEED_NUM_10G          10000 /**<  10 Gbps */
+#define ETH_SPEED_NUM_20G          20000 /**<  20 Gbps */
+#define ETH_SPEED_NUM_25G          25000 /**<  25 Gbps */
+#define ETH_SPEED_NUM_40G          40000 /**<  40 Gbps */
+#define ETH_SPEED_NUM_50G          50000 /**<  50 Gbps */
+#define ETH_SPEED_NUM_56G          56000 /**<  56 Gbps */
+#define ETH_SPEED_NUM_100G        100000 /**< 100 Gbps */
+#define ETH_SPEED_NUM_UNKNOWN 0xffffffff /**< Unknown */
 
 /**
  * A structure used to retrieve link-level information of an Ethernet port.
