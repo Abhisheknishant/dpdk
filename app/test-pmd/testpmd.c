@@ -1156,6 +1156,177 @@ check_nb_txq(queueid_t txq)
 }
 
 /*
+ * Get the allowed maximum number of RXDs of every rx queue.
+ * *pid return the port id which has minimal value of
+ * max_rxd in all queues of all ports.
+ */
+static uint16_t
+get_allowed_max_nb_rxd(portid_t *pid)
+{
+	uint16_t allowed_max_rxd = UINT16_MAX;
+	portid_t pi;
+	struct rte_eth_dev_info dev_info;
+
+	RTE_ETH_FOREACH_DEV(pi) {
+		if (eth_dev_info_get_print_err(pi, &dev_info) != 0)
+			continue;
+
+		if (dev_info.rx_desc_lim.nb_max < allowed_max_rxd) {
+			allowed_max_rxd = dev_info.rx_desc_lim.nb_max;
+			*pid = pi;
+		}
+	}
+	return allowed_max_rxd;
+}
+
+/*
+ * Get the allowed minimal number of RXDs of every rx queue.
+ * *pid return the port id which has minimal value of
+ * min_rxd in all queues of all ports.
+ */
+static uint16_t
+get_allowed_min_nb_rxd(portid_t *pid)
+{
+	uint16_t allowed_min_rxd = 0;
+	portid_t pi;
+	struct rte_eth_dev_info dev_info;
+
+	RTE_ETH_FOREACH_DEV(pi) {
+		if (eth_dev_info_get_print_err(pi, &dev_info) != 0)
+			continue;
+
+		if (dev_info.rx_desc_lim.nb_min > allowed_min_rxd) {
+			allowed_min_rxd = dev_info.rx_desc_lim.nb_min;
+			*pid = pi;
+		}
+	}
+
+	return allowed_min_rxd;
+}
+
+/*
+ * Check input rxd is valid or not.
+ * If input rxd is not greater than any of maximum number
+ * of RXDs of every Rx queues and is not less than any of
+ * minimal number of RXDs of every Rx queues, it is valid.
+ * if valid, return 0, else return -1
+ */
+int
+check_nb_rxd(queueid_t rxd)
+{
+	uint16_t allowed_max_rxd;
+	uint16_t allowed_min_rxd;
+	portid_t pid = 0;
+
+	allowed_max_rxd = get_allowed_max_nb_rxd(&pid);
+	if (rxd > allowed_max_rxd) {
+		printf("Fail: input rxd (%u) can't be greater "
+		       "than max_rxds (%u) of port %u\n",
+		       rxd,
+		       allowed_max_rxd,
+		       pid);
+		return -1;
+	}
+
+	allowed_min_rxd = get_allowed_min_nb_rxd(&pid);
+	if (rxd < allowed_min_rxd) {
+		printf("Fail: input rxd (%u) can't be less "
+		       "than min_rxds (%u) of port %u\n",
+		       rxd,
+		       allowed_min_rxd,
+		       pid);
+		return -1;
+	}
+
+	return 0;
+}
+
+/*
+ * Get the allowed maximum number of TXDs of every rx queues.
+ * *pid return the port id which has minimal value of
+ * max_txd in every tx queue.
+ */
+static uint16_t
+get_allowed_max_nb_txd(portid_t *pid)
+{
+	uint16_t allowed_max_txd = UINT16_MAX;
+	portid_t pi;
+	struct rte_eth_dev_info dev_info;
+
+	RTE_ETH_FOREACH_DEV(pi) {
+		if (eth_dev_info_get_print_err(pi, &dev_info) != 0)
+			continue;
+
+		if (dev_info.tx_desc_lim.nb_max < allowed_max_txd) {
+			allowed_max_txd = dev_info.tx_desc_lim.nb_max;
+			*pid = pi;
+		}
+	}
+	return allowed_max_txd;
+}
+
+/*
+ * Get the allowed maximum number of TXDs of every tx queues.
+ * *pid return the port id which has minimal value of
+ * min_txd in every tx queue.
+ */
+static uint16_t
+get_allowed_min_nb_txd(portid_t *pid)
+{
+	uint16_t allowed_min_txd = 0;
+	portid_t pi;
+	struct rte_eth_dev_info dev_info;
+
+	RTE_ETH_FOREACH_DEV(pi) {
+		if (eth_dev_info_get_print_err(pi, &dev_info) != 0)
+			continue;
+
+		if (dev_info.tx_desc_lim.nb_min > allowed_min_txd) {
+			allowed_min_txd = dev_info.tx_desc_lim.nb_min;
+			*pid = pi;
+		}
+	}
+
+	return allowed_min_txd;
+}
+
+/*
+ * Check input txd is valid or not.
+ * If input txd is not greater than any of maximum number
+ * of TXDs of every Rx queues, it is valid.
+ * if valid, return 0, else return -1
+ */
+int
+check_nb_txd(queueid_t txd)
+{
+	uint16_t allowed_max_txd;
+	uint16_t allowed_min_txd;
+	portid_t pid = 0;
+
+	allowed_max_txd = get_allowed_max_nb_txd(&pid);
+	if (txd > allowed_max_txd) {
+		printf("Fail: input txd (%u) can't be greater "
+		       "than max_txds (%u) of port %u\n",
+		       txd,
+		       allowed_max_txd,
+		       pid);
+		return -1;
+	}
+
+	allowed_min_txd = get_allowed_min_nb_txd(&pid);
+	if (txd < allowed_min_txd) {
+		printf("Fail: input txd (%u) can't be less "
+		       "than min_txds (%u) of port %u\n",
+		       txd,
+		       allowed_min_txd,
+		       pid);
+		return -1;
+	}
+	return 0;
+}
+
+
+/*
  * Get the allowed maximum number of hairpin queues.
  * *pid return the port id which has minimal value of
  * max_hairpin_queues in all ports.
@@ -1212,6 +1383,8 @@ init_config(void)
 	lcoreid_t  lc_id;
 	uint8_t port_per_socket[RTE_MAX_NUMA_NODES];
 	struct rte_gro_param gro_param;
+	uint16_t allowed_max_rxd;
+	uint16_t allowed_max_txd;
 	uint32_t gso_types;
 	uint16_t data_size;
 	bool warning = 0;
@@ -1238,6 +1411,9 @@ init_config(void)
 		}
 		fwd_lcores[lc_id]->cpuid_idx = lc_id;
 	}
+
+	allowed_max_rxd = RTE_TEST_RX_DESC_MAX;
+	allowed_max_txd = RTE_TEST_RX_DESC_MAX;
 
 	RTE_ETH_FOREACH_DEV(pid) {
 		port = &ports[pid];
@@ -1299,6 +1475,13 @@ init_config(void)
 				warning = 1;
 			}
 		}
+
+		/* Get the maximum number of txd and rxd per queue. */
+		if (port->dev_info.tx_desc_lim.nb_max > allowed_max_rxd)
+			allowed_max_txd = port->dev_info.tx_desc_lim.nb_max;
+
+		if (port->dev_info.rx_desc_lim.nb_max > allowed_max_txd)
+			allowed_max_rxd = port->dev_info.rx_desc_lim.nb_max;
 	}
 
 	if (warning)
@@ -1317,9 +1500,9 @@ init_config(void)
 	if (param_total_num_mbufs)
 		nb_mbuf_per_pool = param_total_num_mbufs;
 	else {
-		nb_mbuf_per_pool = RTE_TEST_RX_DESC_MAX +
+		nb_mbuf_per_pool = allowed_max_rxd +
 			(nb_lcores * mb_mempool_cache) +
-			RTE_TEST_TX_DESC_MAX + MAX_PKT_BURST;
+			allowed_max_txd + MAX_PKT_BURST;
 		nb_mbuf_per_pool *= RTE_MAX_ETHPORTS;
 	}
 
