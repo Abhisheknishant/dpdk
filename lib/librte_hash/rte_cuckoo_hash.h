@@ -20,7 +20,7 @@
 #endif
 
 /* Macro to enable/disable run-time checking of function parameters */
-#if defined(RTE_LIBRTE_HASH_DEBUG)
+#ifdef RTE_DEBUG
 #define RETURN_IF_TRUE(cond, retval) do { \
 	if (cond) \
 		return retval; \
@@ -29,7 +29,7 @@
 #define RETURN_IF_TRUE(cond, retval)
 #endif
 
-#if defined(RTE_LIBRTE_HASH_DEBUG)
+#ifdef RTE_DEBUG
 #define ERR_IF_TRUE(cond, fmt, args...) do { \
 	if (cond) { \
 		RTE_LOG(ERR, HASH, fmt, ##args); \

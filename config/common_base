@@ -877,7 +877,6 @@ CONFIG_RTE_LIBRTE_CMDLINE=y
 # Compile librte_hash
 #
 CONFIG_RTE_LIBRTE_HASH=y
-CONFIG_RTE_LIBRTE_HASH_DEBUG=n
 
 #
 # Compile librte_efd
