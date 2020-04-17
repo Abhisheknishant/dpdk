@@ -930,7 +930,6 @@ CONFIG_RTE_LIBRTE_RIB=y
 # Compile librte_fib
 #
 CONFIG_RTE_LIBRTE_FIB=y
-CONFIG_RTE_LIBRTE_FIB_DEBUG=n
 
 #
 # Compile librte_lpm

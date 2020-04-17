@@ -28,7 +28,7 @@ EAL_REGISTER_TAILQ(rte_fib6_tailq)
 /* Maximum length of a FIB name. */
 #define FIB6_NAMESIZE	64
 
-#if defined(RTE_LIBRTE_FIB_DEBUG)
+#ifdef RTE_DEBUG
 #define FIB6_RETURN_IF_TRUE(cond, retval) do {		\
 	if (cond)					\
 		return retval;				\
