@@ -1332,7 +1332,7 @@ __rte_event_enqueue_burst(uint8_t dev_id, uint8_t port_id,
 {
 	const struct rte_eventdev *dev = &rte_eventdevs[dev_id];
 
-#ifdef RTE_LIBRTE_EVENTDEV_DEBUG
+#ifdef RTE_DEBUG
 	if (dev_id >= RTE_EVENT_MAX_DEVS || !rte_eventdevs[dev_id].attached) {
 		rte_errno = EINVAL;
 		return 0;
@@ -1609,7 +1609,7 @@ rte_event_dequeue_burst(uint8_t dev_id, uint8_t port_id, struct rte_event ev[],
 {
 	struct rte_eventdev *dev = &rte_eventdevs[dev_id];
 
-#ifdef RTE_LIBRTE_EVENTDEV_DEBUG
+#ifdef RTE_DEBUG
 	if (dev_id >= RTE_EVENT_MAX_DEVS || !rte_eventdevs[dev_id].attached) {
 		rte_errno = EINVAL;
 		return 0;

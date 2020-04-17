@@ -575,7 +575,7 @@ rte_event_timer_arm_burst(const struct rte_event_timer_adapter *adapter,
 			  struct rte_event_timer **evtims,
 			  uint16_t nb_evtims)
 {
-#ifdef RTE_LIBRTE_EVENTDEV_DEBUG
+#ifdef RTE_DEBUG
 	ADAPTER_VALID_OR_ERR_RET(adapter, -EINVAL);
 	FUNC_PTR_OR_ERR_RET(adapter->arm_burst, -EINVAL);
 #endif
@@ -618,7 +618,7 @@ rte_event_timer_arm_tmo_tick_burst(
 			const uint64_t timeout_ticks,
 			const uint16_t nb_evtims)
 {
-#ifdef RTE_LIBRTE_EVENTDEV_DEBUG
+#ifdef RTE_DEBUG
 	ADAPTER_VALID_OR_ERR_RET(adapter, -EINVAL);
 	FUNC_PTR_OR_ERR_RET(adapter->arm_tmo_tick_burst, -EINVAL);
 #endif
@@ -651,7 +651,7 @@ rte_event_timer_cancel_burst(const struct rte_event_timer_adapter *adapter,
 			     struct rte_event_timer **evtims,
 			     uint16_t nb_evtims)
 {
-#ifdef RTE_LIBRTE_EVENTDEV_DEBUG
+#ifdef RTE_DEBUG
 	ADAPTER_VALID_OR_ERR_RET(adapter, -EINVAL);
 	FUNC_PTR_OR_ERR_RET(adapter->cancel_burst, -EINVAL);
 #endif

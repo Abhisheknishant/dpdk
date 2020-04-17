@@ -357,7 +357,7 @@ rte_event_eth_tx_adapter_enqueue(uint8_t dev_id,
 {
 	const struct rte_eventdev *dev = &rte_eventdevs[dev_id];
 
-#ifdef RTE_LIBRTE_EVENTDEV_DEBUG
+#ifdef RTE_DEBUG
 	if (dev_id >= RTE_EVENT_MAX_DEVS ||
 		!rte_eventdevs[dev_id].attached) {
 		rte_errno = EINVAL;

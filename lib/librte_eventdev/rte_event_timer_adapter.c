@@ -43,7 +43,7 @@ static const struct rte_event_timer_adapter_ops swtim_ops;
 
 #define EVTIM_LOG_ERR(...) EVTIM_LOG(ERR, evtim_logtype, __VA_ARGS__)
 
-#ifdef RTE_LIBRTE_EVENTDEV_DEBUG
+#ifdef RTE_DEBUG
 #define EVTIM_LOG_DBG(...) \
 	EVTIM_LOG(DEBUG, evtim_logtype, __VA_ARGS__)
 #define EVTIM_BUF_LOG_DBG(...) \
@@ -1008,7 +1008,7 @@ __swtim_arm_burst(const struct rte_event_timer_adapter *adapter,
 	struct rte_timer *tim, *tims[nb_evtims];
 	uint64_t cycles;
 
-#ifdef RTE_LIBRTE_EVENTDEV_DEBUG
+#ifdef RTE_DEBUG
 	/* Check that the service is running. */
 	if (rte_service_runstate_get(adapter->data->service_id) != 1) {
 		rte_errno = EINVAL;
@@ -1114,7 +1114,7 @@ swtim_cancel_burst(const struct rte_event_timer_adapter *adapter,
 	uint64_t opaque;
 	struct swtim *sw = swtim_pmd_priv(adapter);
 
-#ifdef RTE_LIBRTE_EVENTDEV_DEBUG
+#ifdef RTE_DEBUG
 	/* Check that the service is running. */
 	if (rte_service_runstate_get(adapter->data->service_id) != 1) {
 		rte_errno = EINVAL;

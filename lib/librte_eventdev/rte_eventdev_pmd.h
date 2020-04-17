@@ -34,7 +34,7 @@ extern "C" {
 		RTE_FMT("%s() line %u: " RTE_FMT_HEAD(__VA_ARGS__,) "\n", \
 			__func__, __LINE__, RTE_FMT_TAIL(__VA_ARGS__,)))
 
-#ifdef RTE_LIBRTE_EVENTDEV_DEBUG
+#ifdef RTE_DEBUG
 #define RTE_EDEV_LOG_DEBUG(...) \
 	RTE_LOG(DEBUG, EVENTDEV, \
 		RTE_FMT("%s() line %u: " RTE_FMT_HEAD(__VA_ARGS__,) "\n", \
