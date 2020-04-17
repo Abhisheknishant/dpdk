@@ -287,7 +287,7 @@ rule_add(struct rte_lpm *lpm, uint32_t ip_masked, uint8_t depth,
 			if (lpm->rules_tbl[rule_index].ip == ip_masked) {
 				lpm->rules_tbl[rule_index].next_hop = next_hop;
 
-				return rule_index;
+				return -EEXIST;
 			}
 		}
 
@@ -673,6 +673,10 @@ rte_lpm_add(struct rte_lpm *lpm, uint32_t ip, uint8_t depth,
 
 	/* Add the rule to the rule table. */
 	rule_index = rule_add(lpm, ip_masked, depth, next_hop);
+
+	/* Skip table entries update if rule is found in rule table */
+	if (rule_index == -EEXIST)
+		return 0;
 
 	/* If the is no space available for new rule return error. */
 	if (rule_index < 0) {
