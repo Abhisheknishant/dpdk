@@ -520,7 +520,7 @@ extern int vhost_data_log_level;
 		"VHOST_DATA : " fmt, ##args) :			\
 	 0)
 
-#ifdef RTE_LIBRTE_VHOST_DEBUG
+#ifdef RTE_DEBUG
 #define VHOST_MAX_PRINT_BUFF 6072
 #define PRINT_PACKET(device, addr, size, header) do { \
 	char *pkt_addr = (char *)(addr); \

@@ -967,7 +967,7 @@ add_guest_pages(struct virtio_net *dev, struct rte_vhost_mem_region *reg,
 	return 0;
 }
 
-#ifdef RTE_LIBRTE_VHOST_DEBUG
+#ifdef RTE_DEBUG
 /* TODO: enable it only in debug mode? */
 static void
 dump_guest_pages(struct virtio_net *dev)

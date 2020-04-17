@@ -16,7 +16,7 @@
 #define IV_OFFSET		(sizeof(struct rte_crypto_op) + \
 				sizeof(struct rte_crypto_sym_op))
 
-#ifdef RTE_LIBRTE_VHOST_DEBUG
+#ifdef RTE_DEBUG
 #define VC_LOG_ERR(fmt, args...)				\
 	RTE_LOG(ERR, USER1, "[%s] %s() line %u: " fmt "\n",	\
 		"Vhost-Crypto",	__func__, __LINE__, ## args)
