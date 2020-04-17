@@ -8,11 +8,11 @@
 #include "rte_ip_frag.h"
 
 /* logging macros. */
-#ifdef RTE_LIBRTE_IP_FRAG_DEBUG
+#ifdef RTE_DEBUG
 #define	IP_FRAG_LOG(lvl, fmt, args...)	RTE_LOG(lvl, USER1, fmt, ##args)
 #else
 #define	IP_FRAG_LOG(lvl, fmt, args...)	do {} while(0)
-#endif /* IP_FRAG_DEBUG */
+#endif /* RTE_DEBUG */
 
 #define IPV4_KEYLEN 1
 #define IPV6_KEYLEN 4
