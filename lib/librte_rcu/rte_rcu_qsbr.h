@@ -45,7 +45,7 @@ extern int rte_rcu_log_type;
 #define __RTE_RCU_DP_LOG(level, fmt, args...)
 #endif
 
-#if defined(RTE_LIBRTE_RCU_DEBUG)
+#ifdef RTE_DEBUG
 #define __RTE_RCU_IS_LOCK_CNT_ZERO(v, thread_id, level, fmt, args...) do {\
 	if (v->qsbr_cnt[thread_id].lock_cnt) \
 		rte_log(RTE_LOG_ ## level, rte_rcu_log_type, \
@@ -78,7 +78,7 @@ struct rte_rcu_qsbr_cnt {
 	 *   changes to various APIs.
 	 */
 	uint32_t lock_cnt;
-	/**< Lock counter. Used when CONFIG_RTE_LIBRTE_RCU_DEBUG is enabled */
+	/**< Lock counter. Used when RTE_DEBUG is enabled */
 } __rte_cache_aligned;
 
 #define __RTE_QSBR_CNT_THR_OFFLINE 0
@@ -323,11 +323,11 @@ rte_rcu_qsbr_thread_offline(struct rte_rcu_qsbr *v, unsigned int thread_id)
  * This API is provided to aid debugging. This should be called before
  * accessing a shared data structure.
  *
- * When CONFIG_RTE_LIBRTE_RCU_DEBUG is enabled a lock counter is incremented.
+ * When RTE_DEBUG is enabled a lock counter is incremented.
  * Similarly rte_rcu_qsbr_unlock will decrement the counter. When the
  * rte_rcu_qsbr_check API will verify that this counter is 0.
  *
- * When CONFIG_RTE_LIBRTE_RCU_DEBUG is disabled, this API will do nothing.
+ * When RTE_DEBUG is disabled, this API will do nothing.
  *
  * @param v
  *   QS variable
@@ -341,7 +341,7 @@ rte_rcu_qsbr_lock(__rte_unused struct rte_rcu_qsbr *v,
 {
 	RTE_ASSERT(v != NULL && thread_id < v->max_threads);
 
-#if defined(RTE_LIBRTE_RCU_DEBUG)
+#ifdef RTE_DEBUG
 	/* Increment the lock counter */
 	__atomic_fetch_add(&v->qsbr_cnt[thread_id].lock_cnt,
 				1, __ATOMIC_ACQUIRE);
@@ -360,11 +360,11 @@ rte_rcu_qsbr_lock(__rte_unused struct rte_rcu_qsbr *v,
  * This API is provided to aid debugging. This should be called after
  * accessing a shared data structure.
  *
- * When CONFIG_RTE_LIBRTE_RCU_DEBUG is enabled, rte_rcu_qsbr_unlock will
+ * When RTE_DEBUG is enabled, rte_rcu_qsbr_unlock will
  * decrement a lock counter. rte_rcu_qsbr_check API will verify that this
  * counter is 0.
  *
- * When CONFIG_RTE_LIBRTE_RCU_DEBUG is disabled, this API will do nothing.
+ * When RTE_DEBUG is disabled, this API will do nothing.
  *
  * @param v
  *   QS variable
@@ -378,7 +378,7 @@ rte_rcu_qsbr_unlock(__rte_unused struct rte_rcu_qsbr *v,
 {
 	RTE_ASSERT(v != NULL && thread_id < v->max_threads);
 
-#if defined(RTE_LIBRTE_RCU_DEBUG)
+#ifdef RTE_DEBUG
 	/* Decrement the lock counter */
 	__atomic_fetch_sub(&v->qsbr_cnt[thread_id].lock_cnt,
 				1, __ATOMIC_RELEASE);

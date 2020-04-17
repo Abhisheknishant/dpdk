@@ -915,7 +915,6 @@ CONFIG_RTE_LIBRTE_TELEMETRY=n
 # Compile librte_rcu
 #
 CONFIG_RTE_LIBRTE_RCU=y
-CONFIG_RTE_LIBRTE_RCU_DEBUG=n
 
 #
 # Compile librte_rib

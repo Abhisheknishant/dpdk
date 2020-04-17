@@ -186,7 +186,7 @@ they entered a quiescent state. This API checks if a writer has triggered a
 quiescent state query and update the state accordingly.
 
 The ``rte_rcu_qsbr_lock()`` and ``rte_rcu_qsbr_unlock()`` are empty functions.
-However, when ``CONFIG_RTE_LIBRTE_RCU_DEBUG`` is enabled, these APIs aid
-in debugging issues. One can mark the access to shared data structures on the
-reader side using these APIs. The ``rte_rcu_qsbr_quiescent()`` will check if
-all the locks are unlocked.
+However, when ``RTE_DEBUG`` is enabled, these APIs aid in debugging issues.
+One can mark the access to shared data structures on the reader side using
+these APIs. The ``rte_rcu_qsbr_quiescent()`` will check if all the locks
+are unlocked.
