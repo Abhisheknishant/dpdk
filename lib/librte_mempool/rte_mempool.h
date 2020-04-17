@@ -59,7 +59,7 @@ extern "C" {
 #define RTE_MEMPOOL_HEADER_COOKIE2  0xf2eef2eedadd2e55ULL /**< Header cookie. */
 #define RTE_MEMPOOL_TRAILER_COOKIE  0xadd2e55badbadbadULL /**< Trailer cookie.*/
 
-#ifdef RTE_LIBRTE_MEMPOOL_DEBUG
+#ifdef RTE_DEBUG
 /**
  * A structure that stores the mempool statistics (per-lcore).
  */
@@ -141,7 +141,7 @@ struct rte_mempool_objhdr {
 		rte_iova_t iova;         /**< IO address of the object. */
 		phys_addr_t physaddr;    /**< deprecated - Physical address of the object. */
 	};
-#ifdef RTE_LIBRTE_MEMPOOL_DEBUG
+#ifdef RTE_DEBUG
 	uint64_t cookie;                 /**< Debug cookie. */
 #endif
 };
@@ -151,7 +151,7 @@ struct rte_mempool_objhdr {
  */
 STAILQ_HEAD(rte_mempool_objhdr_list, rte_mempool_objhdr);
 
-#ifdef RTE_LIBRTE_MEMPOOL_DEBUG
+#ifdef RTE_DEBUG
 
 /**
  * Mempool object trailer structure
@@ -254,7 +254,7 @@ struct rte_mempool {
 	uint32_t nb_mem_chunks;          /**< Number of memory chunks */
 	struct rte_mempool_memhdr_list mem_list; /**< List of memory chunks */
 
-#ifdef RTE_LIBRTE_MEMPOOL_DEBUG
+#ifdef RTE_DEBUG
 	/** Per-lcore statistics. */
 	struct rte_mempool_debug_stats stats[RTE_MAX_LCORE];
 #endif
@@ -279,7 +279,7 @@ struct rte_mempool {
  * @param n
  *   Number to add to the object-oriented statistics.
  */
-#ifdef RTE_LIBRTE_MEMPOOL_DEBUG
+#ifdef RTE_DEBUG
 #define __MEMPOOL_STAT_ADD(mp, name, n) do {                    \
 		unsigned __lcore_id = rte_lcore_id();           \
 		if (__lcore_id < RTE_MAX_LCORE) {               \
@@ -357,12 +357,12 @@ static inline struct rte_mempool_objtlr *__mempool_get_trailer(void *obj)
 void rte_mempool_check_cookies(const struct rte_mempool *mp,
 	void * const *obj_table_const, unsigned n, int free);
 
-#ifdef RTE_LIBRTE_MEMPOOL_DEBUG
+#ifdef RTE_DEBUG
 #define __mempool_check_cookies(mp, obj_table_const, n, free) \
 	rte_mempool_check_cookies(mp, obj_table_const, n, free)
 #else
 #define __mempool_check_cookies(mp, obj_table_const, n, free) do {} while(0)
-#endif /* RTE_LIBRTE_MEMPOOL_DEBUG */
+#endif /* RTE_DEBUG */
 
 /**
  * @warning
@@ -385,7 +385,7 @@ void rte_mempool_check_cookies(const struct rte_mempool *mp,
 void rte_mempool_contig_blocks_check_cookies(const struct rte_mempool *mp,
 	void * const *first_obj_table_const, unsigned int n, int free);
 
-#ifdef RTE_LIBRTE_MEMPOOL_DEBUG
+#ifdef RTE_DEBUG
 #define __mempool_contig_blocks_check_cookies(mp, first_obj_table_const, n, \
 					      free) \
 	rte_mempool_contig_blocks_check_cookies(mp, first_obj_table_const, n, \
@@ -394,7 +394,7 @@ void rte_mempool_contig_blocks_check_cookies(const struct rte_mempool *mp,
 #define __mempool_contig_blocks_check_cookies(mp, first_obj_table_const, n, \
 					      free) \
 	do {} while (0)
-#endif /* RTE_LIBRTE_MEMPOOL_DEBUG */
+#endif /* RTE_DEBUG */
 
 #define RTE_MEMPOOL_OPS_NAMESIZE 32 /**< Max length of ops struct name. */
 
@@ -1337,7 +1337,7 @@ __mempool_generic_put(struct rte_mempool *mp, void * const *obj_table,
 ring_enqueue:
 
 	/* push remaining objects in ring */
-#ifdef RTE_LIBRTE_MEMPOOL_DEBUG
+#ifdef RTE_DEBUG
 	if (rte_mempool_ops_enqueue_bulk(mp, obj_table, n) < 0)
 		rte_panic("cannot put objects in mempool\n");
 #else

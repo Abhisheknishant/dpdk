@@ -17,14 +17,15 @@ This library is used by the :ref:`Mbuf Library <Mbuf_Library>`.
 Cookies
 -------
 
-In debug mode (CONFIG_RTE_LIBRTE_MEMPOOL_DEBUG is enabled), cookies are added at the beginning and end of allocated blocks.
+In debug mode (RTE_DEBUG is enabled), cookies are added at the beginning and end of allocated blocks.
 The allocated objects then contain overwrite protection fields to help debugging buffer overflows.
+The RTE_DEBUG flag can be enabled using meson "debug" option.
 
 Stats
 -----
 
-In debug mode (CONFIG_RTE_LIBRTE_MEMPOOL_DEBUG is enabled),
-statistics about get from/put in the pool are stored in the mempool structure.
+In debug mode (RTE_DEBUG is enabled), statistics about get from/put in the pool
+are stored in the mempool structure.
 Statistics are per-lcore to avoid concurrent access to statistics counters.
 
 Memory Alignment Constraints on x86 architecture

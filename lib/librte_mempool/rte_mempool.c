@@ -164,7 +164,7 @@ mempool_add_elem(struct rte_mempool *mp, __rte_unused void *opaque,
 	STAILQ_INSERT_TAIL(&mp->elt_list, hdr, next);
 	mp->populated_size++;
 
-#ifdef RTE_LIBRTE_MEMPOOL_DEBUG
+#ifdef RTE_DEBUG
 	hdr->cookie = RTE_MEMPOOL_HEADER_COOKIE2;
 	tlr = __mempool_get_trailer(obj);
 	tlr->cookie = RTE_MEMPOOL_TRAILER_COOKIE;
@@ -219,7 +219,7 @@ rte_mempool_calc_obj_size(uint32_t elt_size, uint32_t flags,
 		sz->header_size = RTE_ALIGN_CEIL(sz->header_size,
 			RTE_MEMPOOL_ALIGN);
 
-#ifdef RTE_LIBRTE_MEMPOOL_DEBUG
+#ifdef RTE_DEBUG
 	sz->trailer_size = sizeof(struct rte_mempool_objtlr);
 #else
 	sz->trailer_size = 0;
@@ -806,7 +806,7 @@ rte_mempool_create_empty(const char *name, unsigned n, unsigned elt_size,
 			  RTE_CACHE_LINE_MASK) != 0);
 	RTE_BUILD_BUG_ON((sizeof(struct rte_mempool_cache) &
 			  RTE_CACHE_LINE_MASK) != 0);
-#ifdef RTE_LIBRTE_MEMPOOL_DEBUG
+#ifdef RTE_DEBUG
 	RTE_BUILD_BUG_ON((sizeof(struct rte_mempool_debug_stats) &
 			  RTE_CACHE_LINE_MASK) != 0);
 	RTE_BUILD_BUG_ON((offsetof(struct rte_mempool, stats) &
@@ -1033,7 +1033,7 @@ rte_mempool_dump_cache(FILE *f, const struct rte_mempool *mp)
 void rte_mempool_check_cookies(const struct rte_mempool *mp,
 	void * const *obj_table_const, unsigned n, int free)
 {
-#ifdef RTE_LIBRTE_MEMPOOL_DEBUG
+#ifdef RTE_DEBUG
 	struct rte_mempool_objhdr *hdr;
 	struct rte_mempool_objtlr *tlr;
 	uint64_t cookie;
@@ -1102,7 +1102,7 @@ void
 rte_mempool_contig_blocks_check_cookies(const struct rte_mempool *mp,
 	void * const *first_obj_table_const, unsigned int n, int free)
 {
-#ifdef RTE_LIBRTE_MEMPOOL_DEBUG
+#ifdef RTE_DEBUG
 	struct rte_mempool_info info;
 	const size_t total_elt_sz =
 		mp->header_size + mp->elt_size + mp->trailer_size;
@@ -1128,7 +1128,7 @@ rte_mempool_contig_blocks_check_cookies(const struct rte_mempool *mp,
 #endif
 }
 
-#ifdef RTE_LIBRTE_MEMPOOL_DEBUG
+#ifdef RTE_DEBUG
 static void
 mempool_obj_audit(struct rte_mempool *mp, __rte_unused void *opaque,
 	void *obj, __rte_unused unsigned idx)
@@ -1192,7 +1192,7 @@ rte_mempool_audit(struct rte_mempool *mp)
 void
 rte_mempool_dump(FILE *f, struct rte_mempool *mp)
 {
-#ifdef RTE_LIBRTE_MEMPOOL_DEBUG
+#ifdef RTE_DEBUG
 	struct rte_mempool_info info;
 	struct rte_mempool_debug_stats sum;
 	unsigned lcore_id;
@@ -1234,7 +1234,7 @@ rte_mempool_dump(FILE *f, struct rte_mempool *mp)
 	fprintf(f, "  common_pool_count=%u\n", common_count);
 
 	/* sum and dump statistics */
-#ifdef RTE_LIBRTE_MEMPOOL_DEBUG
+#ifdef RTE_DEBUG
 	rte_mempool_ops_get_info(mp, &info);
 	memset(&sum, 0, sizeof(sum));
 	for (lcore_id = 0; lcore_id < RTE_MAX_LCORE; lcore_id++) {
