@@ -81,6 +81,14 @@ New Features
   by making use of the event device capabilities. The event mode currently supports
   only inline IPsec protocol offload.
 
+* **Updated Broadcom bnxt driver.**
+
+  Updated Broadcom bnxt driver with new features and improvements, including:
+
+  * Added support for host based flow table management
+  * Added flow counters to extended stats
+  * Added PCI function stats to extended stats
+
 
 Removed Items
 -------------
