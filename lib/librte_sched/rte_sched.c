@@ -1482,7 +1482,7 @@ rte_sched_queue_read_stats(struct rte_sched_port *port,
 	return 0;
 }
 
-#ifdef RTE_SCHED_DEBUG
+#ifdef RTE_DEBUG
 
 static inline int
 rte_sched_port_queue_is_empty(struct rte_sched_subport *subport,
@@ -1493,7 +1493,7 @@ rte_sched_port_queue_is_empty(struct rte_sched_subport *subport,
 	return queue->qr == queue->qw;
 }
 
-#endif /* RTE_SCHED_DEBUG */
+#endif /* RTE_DEBUG */
 
 #ifdef RTE_SCHED_COLLECT_STATS
 
@@ -1627,7 +1627,7 @@ static inline int rte_sched_port_red_drop(struct rte_sched_port *port __rte_unus
 
 #endif /* RTE_SCHED_RED */
 
-#ifdef RTE_SCHED_DEBUG
+#ifdef RTE_DEBUG
 
 static inline void
 debug_check_queue_slab(struct rte_sched_subport *subport, uint32_t bmp_pos,
@@ -1654,7 +1654,7 @@ debug_check_queue_slab(struct rte_sched_subport *subport, uint32_t bmp_pos,
 			bmp_slab, bmp_pos);
 }
 
-#endif /* RTE_SCHED_DEBUG */
+#endif /* RTE_DEBUG */
 
 static inline struct rte_sched_subport *
 rte_sched_port_subport(struct rte_sched_port *port,
@@ -2404,7 +2404,7 @@ grinder_next_pipe(struct rte_sched_port *port,
 		if (unlikely(rte_bitmap_scan(subport->bmp, &bmp_pos, &bmp_slab) <= 0))
 			return 0;
 
-#ifdef RTE_SCHED_DEBUG
+#ifdef RTE_DEBUG
 		debug_check_queue_slab(subport, bmp_pos, bmp_slab);
 #endif
 
