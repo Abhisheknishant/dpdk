@@ -714,8 +714,9 @@ manual for more information.
 Cookies
 ~~~~~~~
 
-When CONFIG_RTE_MALLOC_DEBUG is enabled, the allocated memory contains
-overwrite protection fields to help identify buffer overflows.
+When RTE_DEBUG is enabled (e.g. by enabling "debug" option in meson setup,
+the allocated memory contains overwrite protection fields to help identify
+buffer overflows.
 
 Alignment and NUMA Constraints
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

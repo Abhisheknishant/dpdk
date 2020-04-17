@@ -641,7 +641,7 @@ test_rte_malloc_validate(void)
 	const size_t request_size = 1024;
 	size_t allocated_size;
 	char *data_ptr = rte_malloc(NULL, request_size, RTE_CACHE_LINE_SIZE);
-#ifdef RTE_MALLOC_DEBUG
+#ifdef RTE_DEBUG
 	int retval;
 	char *over_write_vals = NULL;
 #endif
@@ -663,7 +663,7 @@ test_rte_malloc_validate(void)
 	if (allocated_size < request_size)
 		err_return();
 
-#ifdef RTE_MALLOC_DEBUG
+#ifdef RTE_DEBUG
 
 	/****** change the header to be bad */
 	char save_buf[64];

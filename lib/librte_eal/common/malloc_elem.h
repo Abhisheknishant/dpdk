@@ -32,13 +32,13 @@ struct malloc_elem {
 	size_t size;
 	struct malloc_elem *orig_elem;
 	size_t orig_size;
-#ifdef RTE_MALLOC_DEBUG
+#ifdef RTE_DEBUG
 	uint64_t header_cookie;         /* Cookie marking start of data */
 	                                /* trailer cookie at start + size */
 #endif
 } __rte_cache_aligned;
 
-#ifndef RTE_MALLOC_DEBUG
+#ifndef RTE_DEBUG
 static const unsigned MALLOC_ELEM_TRAILER_LEN = 0;
 
 /* dummy function - just check if pointer is non-null */

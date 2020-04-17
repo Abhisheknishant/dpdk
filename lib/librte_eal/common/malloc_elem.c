@@ -28,7 +28,7 @@
  * to catch buggy programs. Otherwise, freed memory is set to zero
  * to avoid having to zero in zmalloc
  */
-#ifdef RTE_MALLOC_DEBUG
+#ifdef RTE_DEBUG
 #define MALLOC_POISON	       0x6b
 #else
 #define MALLOC_POISON	       0
