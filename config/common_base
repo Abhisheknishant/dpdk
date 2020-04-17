@@ -859,7 +859,6 @@ CONFIG_RTE_PKTMBUF_HEADROOM=128
 # Compile librte_timer
 #
 CONFIG_RTE_LIBRTE_TIMER=y
-CONFIG_RTE_LIBRTE_TIMER_DEBUG=n
 
 #
 # Compile librte_cfgfile

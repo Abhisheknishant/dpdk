@@ -73,7 +73,7 @@ union rte_timer_status {
 	uint32_t u32;            /**< To atomic-set status + owner. */
 };
 
-#ifdef RTE_LIBRTE_TIMER_DEBUG
+#ifdef RTE_DEBUG
 /**
  * A structure that stores the timer statistics (per-lcore).
  */

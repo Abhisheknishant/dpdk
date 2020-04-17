@@ -48,7 +48,7 @@ struct priv_timer {
 	/** running timer on this lcore now */
 	struct rte_timer *running_tim;
 
-#ifdef RTE_LIBRTE_TIMER_DEBUG
+#ifdef RTE_DEBUG
 	/** per-lcore statistics */
 	struct rte_timer_debug_stats stats;
 #endif
@@ -68,7 +68,7 @@ static const uint32_t default_data_id;
 static uint32_t rte_timer_subsystem_initialized;
 
 /* when debug is enabled, store some statistics */
-#ifdef RTE_LIBRTE_TIMER_DEBUG
+#ifdef RTE_DEBUG
 #define __TIMER_STAT_ADD(priv_timer, name, n) do {			\
 		unsigned __lcore_id = rte_lcore_id();			\
 		if (__lcore_id < RTE_MAX_LCORE)				\
@@ -302,7 +302,7 @@ timer_set_running_state(struct rte_timer *tim)
 static uint32_t
 timer_get_skiplist_level(unsigned curr_depth)
 {
-#ifdef RTE_LIBRTE_TIMER_DEBUG
+#ifdef RTE_DEBUG
 	static uint32_t i, count = 0;
 	static uint32_t levels[MAX_SKIPLIST_DEPTH] = {0};
 #endif
@@ -321,7 +321,7 @@ timer_get_skiplist_level(unsigned curr_depth)
 		level = curr_depth;
 	if (level >= MAX_SKIPLIST_DEPTH)
 		level = MAX_SKIPLIST_DEPTH-1;
-#ifdef RTE_LIBRTE_TIMER_DEBUG
+#ifdef RTE_DEBUG
 	count ++;
 	levels[level]++;
 	if (count % 10000 == 0)
@@ -1008,7 +1008,7 @@ rte_timer_next_ticks(void)
 static void
 __rte_timer_dump_stats(struct rte_timer_data *timer_data __rte_unused, FILE *f)
 {
-#ifdef RTE_LIBRTE_TIMER_DEBUG
+#ifdef RTE_DEBUG
 	struct rte_timer_debug_stats sum;
 	unsigned lcore_id;
 	struct priv_timer *priv_timer = timer_data->priv_timer;
@@ -1026,7 +1026,7 @@ __rte_timer_dump_stats(struct rte_timer_data *timer_data __rte_unused, FILE *f)
 	fprintf(f, "  manage = %"PRIu64"\n", sum.manage);
 	fprintf(f, "  pending = %"PRIu64"\n", sum.pending);
 #else
-	fprintf(f, "No timer statistics, RTE_LIBRTE_TIMER_DEBUG is disabled\n");
+	fprintf(f, "No timer statistics, RTE_DEBUG is disabled\n");
 #endif
 }
 

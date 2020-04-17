@@ -158,7 +158,7 @@ test_timer_secondary(void)
 		test_info->exit_flag = 1;
 		rte_eal_wait_lcore(*mgr_lcorep);
 
-#ifdef RTE_LIBRTE_TIMER_DEBUG
+#ifdef RTE_DEBUG
 		rte_timer_alt_dump_stats(test_info->timer_data_id, stdout);
 #endif
 
