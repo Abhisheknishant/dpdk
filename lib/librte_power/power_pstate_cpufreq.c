@@ -23,7 +23,7 @@
 #include "power_common.h"
 
 
-#ifdef RTE_LIBRTE_POWER_DEBUG
+#ifdef RTE_DEBUG
 #define POWER_DEBUG_TRACE(fmt, args...) do { \
 		RTE_LOG(ERR, POWER, "%s: " fmt, __func__, ## args); \
 } while (0)
