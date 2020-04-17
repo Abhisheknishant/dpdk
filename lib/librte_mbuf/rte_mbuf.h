@@ -341,17 +341,17 @@ rte_pktmbuf_priv_flags(struct rte_mempool *mp)
 #define RTE_MBUF_HAS_PINNED_EXTBUF(mb) \
 	(rte_pktmbuf_priv_flags(mb->pool) & RTE_PKTMBUF_POOL_F_PINNED_EXT_BUF)
 
-#ifdef RTE_LIBRTE_MBUF_DEBUG
+#ifdef RTE_DEBUG
 
 /**  check mbuf type in debug mode */
 #define __rte_mbuf_sanity_check(m, is_h) rte_mbuf_sanity_check(m, is_h)
 
-#else /*  RTE_LIBRTE_MBUF_DEBUG */
+#else /*  RTE_DEBUG */
 
 /**  check mbuf type in debug mode */
 #define __rte_mbuf_sanity_check(m, is_h) do { } while (0)
 
-#endif /*  RTE_LIBRTE_MBUF_DEBUG */
+#endif /*  RTE_DEBUG */
 
 #ifdef RTE_MBUF_REFCNT_ATOMIC
 
