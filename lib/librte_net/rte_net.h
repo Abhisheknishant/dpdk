@@ -120,7 +120,7 @@ rte_net_intel_cksum_flags_prepare(struct rte_mbuf *m, uint64_t ol_flags)
 	struct rte_udp_hdr *udp_hdr;
 	uint64_t inner_l3_offset = m->l2_len;
 
-#ifdef RTE_LIBRTE_ETHDEV_DEBUG
+#ifdef RTE_DEBUG
 	/*
 	 * Does packet set any of available offloads?
 	 * Mainly it is required to avoid fragmented headers check if
@@ -133,7 +133,7 @@ rte_net_intel_cksum_flags_prepare(struct rte_mbuf *m, uint64_t ol_flags)
 	if (ol_flags & (PKT_TX_OUTER_IPV4 | PKT_TX_OUTER_IPV6))
 		inner_l3_offset += m->outer_l2_len + m->outer_l3_len;
 
-#ifdef RTE_LIBRTE_ETHDEV_DEBUG
+#ifdef RTE_DEBUG
 	/*
 	 * Check if headers are fragmented.
 	 * The check could be less strict depending on which offloads are

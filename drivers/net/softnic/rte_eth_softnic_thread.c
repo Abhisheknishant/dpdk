@@ -3093,7 +3093,7 @@ rte_pmd_softnic_run(uint16_t port_id)
 {
 	struct rte_eth_dev *dev = &rte_eth_devices[port_id];
 
-#ifdef RTE_LIBRTE_ETHDEV_DEBUG
+#ifdef RTE_DEBUG
 	RTE_ETH_VALID_PORTID_OR_ERR_RET(port_id, 0);
 #endif
 

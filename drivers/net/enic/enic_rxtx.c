@@ -414,7 +414,7 @@ uint16_t enic_prep_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
 			rte_errno = ENOTSUP;
 			return i;
 		}
-#ifdef RTE_LIBRTE_ETHDEV_DEBUG
+#ifdef RTE_DEBUG
 		ret = rte_validate_tx_offload(m);
 		if (ret != 0) {
 			rte_errno = -ret;

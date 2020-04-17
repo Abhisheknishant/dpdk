@@ -804,7 +804,7 @@ hinic_tx_offload_pkt_prepare(struct rte_mbuf *m,
 	    !(ol_flags & PKT_TX_TUNNEL_VXLAN))
 		return -ENOTSUP;
 
-#ifdef RTE_LIBRTE_ETHDEV_DEBUG
+#ifdef RTE_DEBUG
 	if (rte_validate_tx_offload(m) != 0)
 		return -EINVAL;
 #endif

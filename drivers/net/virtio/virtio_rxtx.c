@@ -1979,7 +1979,7 @@ virtio_xmit_pkts_prepare(void *tx_queue __rte_unused, struct rte_mbuf **tx_pkts,
 	for (nb_tx = 0; nb_tx < nb_pkts; nb_tx++) {
 		struct rte_mbuf *m = tx_pkts[nb_tx];
 
-#ifdef RTE_LIBRTE_ETHDEV_DEBUG
+#ifdef RTE_DEBUG
 		error = rte_validate_tx_offload(m);
 		if (unlikely(error)) {
 			rte_errno = -error;
