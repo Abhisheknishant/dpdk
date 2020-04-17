@@ -872,7 +872,6 @@ CONFIG_RTE_LIBRTE_CFGFILE=y
 # Compile librte_cmdline
 #
 CONFIG_RTE_LIBRTE_CMDLINE=y
-CONFIG_RTE_LIBRTE_CMDLINE_DEBUG=n
 
 #
 # Compile librte_hash

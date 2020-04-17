@@ -16,7 +16,7 @@
 #include "cmdline_parse.h"
 #include "cmdline_parse_num.h"
 
-#ifdef RTE_LIBRTE_CMDLINE_DEBUG
+#ifdef RTE_DEBUG
 #define debug_printf(args...) printf(args)
 #else
 #define debug_printf(args...) do {} while(0)

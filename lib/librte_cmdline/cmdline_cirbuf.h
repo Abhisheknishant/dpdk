@@ -24,7 +24,7 @@ struct cirbuf {
 	char *buf;
 };
 
-#ifdef RTE_LIBRTE_CMDLINE_DEBUG
+#ifdef RTE_DEBUG
 #define dprintf_(fmt, ...) printf("line %3.3d - " fmt "%.0s", __LINE__, __VA_ARGS__)
 #define dprintf(...) dprintf_(__VA_ARGS__, "dummy")
 #else

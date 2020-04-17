@@ -20,7 +20,7 @@
 #include "cmdline_parse.h"
 #include "cmdline.h"
 
-#ifdef RTE_LIBRTE_CMDLINE_DEBUG
+#ifdef RTE_DEBUG
 #define debug_printf printf
 #else
 #define debug_printf(args...) do {} while(0)
