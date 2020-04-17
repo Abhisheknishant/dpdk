@@ -234,7 +234,7 @@ test4(void)
 int32_t
 test5(void)
 {
-#if defined(RTE_LIBRTE_LPM_DEBUG)
+#ifdef RTE_DEBUG
 	struct rte_lpm *lpm = NULL;
 	struct rte_lpm_config config;
 

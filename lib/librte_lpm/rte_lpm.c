@@ -40,7 +40,7 @@ enum valid_flag {
 };
 
 /* Macro to enable/disable run-time checks. */
-#if defined(RTE_LIBRTE_LPM_DEBUG)
+#ifdef RTE_DEBUG
 #include <rte_debug.h>
 #define VERIFY_DEPTH(depth) do {                                \
 	if ((depth == 0) || (depth > RTE_LPM_MAX_DEPTH))        \

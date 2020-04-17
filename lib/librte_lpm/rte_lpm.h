@@ -48,7 +48,7 @@ extern "C" {
 					RTE_LPM_TBL8_GROUP_NUM_ENTRIES)
 
 /** @internal Macro to enable/disable run-time checks. */
-#if defined(RTE_LIBRTE_LPM_DEBUG)
+#ifdef RTE_DEBUG
 #define RTE_LPM_RETURN_IF_TRUE(cond, retval) do { \
 	if (cond) return (retval);                \
 } while (0)
