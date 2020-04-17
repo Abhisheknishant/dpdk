@@ -81,6 +81,16 @@ New Features
   by making use of the event device capabilities. The event mode currently supports
   only inline IPsec protocol offload.
 
+* **Added QAT intermediate buffer too small handling in QAT compression PMD.**
+
+  Added a special way of buffer handling when internal QAT intermediate buffer
+  is too small for Huffman dynamic compression operation. Instead of falling
+  back to fixed compression, the operation is now split into multiple smaller
+  dynamic compression requests (possible to execute on QAT) and their results
+  are then combined and copied into the output buffer. This is not possible if
+  any checksum calculation was requested - in such case the code falls back to
+  fixed compression as before.
+
 
 Removed Items
 -------------
