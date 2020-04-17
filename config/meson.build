@@ -176,6 +176,10 @@ endif
 # add -include rte_config to cflags
 add_project_arguments('-include', 'rte_config.h', language: 'c')
 
+if get_option('debug')
+	dpdk_conf.set('RTE_DEBUG', 1)
+endif
+
 # enable extra warnings and disable any unwanted warnings
 warning_flags = [
 	# -Wall is added by meson by default, so add -Wextra only
