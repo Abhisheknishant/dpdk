@@ -77,6 +77,15 @@ rte_ipv4_fragment_packet(struct rte_mbuf *pkt_in,
 	uint16_t frag_bytes_remaining;
 
 	/*
+	 * Formal parameter checking.
+	 */
+	if (unlikely(pkt_in == NULL) || unlikely(pkts_out == NULL) ||
+	    unlikely(nb_pkts_out == 0) ||
+	    unlikely(pool_direct == NULL) || unlikely(pool_indirect == NULL) ||
+	    unlikely(mtu_size < 68))
+		return -EINVAL;
+
+	/*
 	 * Ensure the IP payload length of all fragments is aligned to a
 	 * multiple of 8 bytes as per RFC791 section 2.3.
 	 */
