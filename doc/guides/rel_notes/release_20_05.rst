@@ -81,6 +81,10 @@ New Features
   by making use of the event device capabilities. The event mode currently supports
   only inline IPsec protocol offload.
 
+* **Added Chacha20-Poly1305 algorithm to Cryptodev API.**
+
+  Chacha20-Poly1305 AEAD algorithm can now be supported in Cryptodev.
+
 
 Removed Items
 -------------
