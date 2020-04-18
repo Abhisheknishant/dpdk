@@ -72,11 +72,32 @@ Note that in order to use VFIO, your kernel must support it.
 VFIO kernel modules have been included in the Linux kernel since version 3.6.0 and are usually present by default,
 however please consult your distributions documentation to make sure that is the case.
 
+The Linux kernel since version 5.7 supports the creation of virtual functions, and by default this feature is off.
+After enabled, the PF needs the VF token in UUID format to setup the trust or collaboration between SR-IOV PF and VFs.
+The VFs created are bound to vfio-pci module automatically, and the VF also needs VF token to gain access to the device.
+DPDK will use the keyword ``vf_token`` as device argument to pass the VF token value to PF and its related VFs.
+
+.. code-block:: console
+
+    1. sudo modprobe vfio-pci enable_sriov=1
+
+    2. ./usertools/dpdk-devbind.py -b vfio-pci 0000:87:00.0
+
+    3. echo 2 > /sys/bus/pci/devices/0000:87:00.0/sriov_numvfs
+
+    4. Start the PF:
+        ./x86_64-native-linux-gcc/app/testpmd -l 22-25 -n 4 -w 87:00.0,vf_token=2ab74924-c335-45f4-9b16-8569e5b08258 \
+            --file-prefix=pf -- -i
+
+    5. Start the VF:
+        ./x86_64-native-linux-gcc/app/testpmd -l 26-29 -n 4 -w 87:02.0,vf_token=2ab74924-c335-45f4-9b16-8569e5b08258 \
+            --file-prefix=vf0 -- -i
+
 Also, to use VFIO, both kernel and BIOS must support and be configured to use IO virtualization (such as Intel® VT-d).
 
 .. note::
 
-    ``vfio-pci`` module doesn't support the creation of virtual functions.
+    ``vfio-pci`` module doesn't support the creation of virtual functions before Linux version 5.7.
 
 For proper operation of VFIO when running DPDK applications as a non-privileged user, correct permissions should also be set up.
 This can be done by using the DPDK setup script (called dpdk-setup.sh and located in the usertools directory).
