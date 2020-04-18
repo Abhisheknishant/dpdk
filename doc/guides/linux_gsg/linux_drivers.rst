@@ -72,11 +72,47 @@ Note that in order to use VFIO, your kernel must support it.
 VFIO kernel modules have been included in the Linux kernel since version 3.6.0 and are usually present by default,
 however please consult your distributions documentation to make sure that is the case.
 
+The ``vfio-pci`` module since Linux version 5.7 supports the creation of virtual functions, this feature is disabled
+by default. When enabled, the PF needs a shared VF token (UUID) to setup the trust between SR-IOV PF and VFs. The VF
+token is any kind of valid UUID value selected by the user. When the PF device is bound to ``vfio-pci`` module, it should
+not have any VFs created, this is consistent as before for security reason.
+
+Some use cases about how to use the VF token:
+
+ - The user just uses PF only for DPDK, then no VF token is required to start the PF device.
+
+ - The user wants to creat SR-IOV VFs on the PF device which is bound to ``vfio-pci`` module, then the user needs to select
+   a valid UUID type VF token to start the PF device; after the VFs are created, this VF token is also required to access each
+   VF device.
+
+ - If the DPDK application that runs on PF device exits, and the user wants to start it with another different VF token
+   value, it will be OK if no application (DPDP or KVM) runs on VF, otherwise, it will fail to start with a kernel message
+   "[19145.688094] vfio-pci 0000:87:00.0: Incorrect VF token provided for device" shown. When all of the VFs are free, the
+   user can select a new VF token to start the PF device.
+
+The VFs created are bound to ``vfio-pci`` module automatically. DPDK will use the keyword ``vf_token`` as the device argument
+to pass the VF token value to PF and its related VFs, the PMD should not use it, and this argument will be pruned from the
+device argument list, so the PMD can parse its own valid device arguments successfully without seeing it.
+
+.. code-block:: console
+
+    1. sudo modprobe vfio-pci enable_sriov=1
+
+    2. ./usertools/dpdk-devbind.py -b vfio-pci 0000:87:00.0
+
+    3. echo 2 > /sys/bus/pci/devices/0000:87:00.0/sriov_numvfs
+
+    4. Start the PF:
+        ./x86_64-native-linux-gcc/app/testpmd -l 22-25 -n 4 -w 87:00.0,vf_token=2ab74924-c335-45f4-9b16-8569e5b08258 --file-prefix=pf -- -i
+
+    5. Start the VF:
+        ./x86_64-native-linux-gcc/app/testpmd -l 26-29 -n 4 -w 87:02.0,vf_token=2ab74924-c335-45f4-9b16-8569e5b08258 --file-prefix=vf0 -- -i
+
 Also, to use VFIO, both kernel and BIOS must support and be configured to use IO virtualization (such as Intel® VT-d).
 
 .. note::
 
-    ``vfio-pci`` module doesn't support the creation of virtual functions.
+    ``vfio-pci`` module doesn't support the creation of virtual functions before Linux version 5.7.
 
 For proper operation of VFIO when running DPDK applications as a non-privileged user, correct permissions should also be set up.
 This can be done by using the DPDK setup script (called dpdk-setup.sh and located in the usertools directory).

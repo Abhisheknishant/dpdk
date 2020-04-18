@@ -81,6 +81,11 @@ New Features
   by making use of the event device capabilities. The event mode currently supports
   only inline IPsec protocol offload.
 
+* **Added the support for vfio-pci new VF token interface.**
+
+  Since Linux version 5.7, vfio-pci supports a shared VF token (UUID) to represent
+  the trust between SR-IOV PF and the created VFs. Update the method to gain access
+  to the device by appending the VF token.
 
 Removed Items
 -------------
