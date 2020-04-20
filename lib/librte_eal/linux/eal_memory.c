@@ -91,11 +91,11 @@ uint64_t eal_get_baseaddr(void)
 
 /*
  * Get physical address of any mapped virtual address in the current process.
+ * fd is used to avoid open/close pagemap repeatly.
  */
 phys_addr_t
-rte_mem_virt2phy(const void *virtaddr)
-{
-	int fd, retval;
+rte_mem_virt2phy_with_fd(int fd, const void *virtaddr) {
+	int retval;
 	uint64_t page, physaddr;
 	unsigned long virt_pfn;
 	int page_size;
@@ -107,24 +107,10 @@ rte_mem_virt2phy(const void *virtaddr)
 	/* standard page size */
 	page_size = getpagesize();
 
-	fd = open("/proc/self/pagemap", O_RDONLY);
-	if (fd < 0) {
-		RTE_LOG(INFO, EAL, "%s(): cannot open /proc/self/pagemap: %s\n",
-			__func__, strerror(errno));
-		return RTE_BAD_IOVA;
-	}
-
 	virt_pfn = (unsigned long)virtaddr / page_size;
 	offset = sizeof(uint64_t) * virt_pfn;
-	if (lseek(fd, offset, SEEK_SET) == (off_t) -1) {
-		RTE_LOG(INFO, EAL, "%s(): seek error in /proc/self/pagemap: %s\n",
-				__func__, strerror(errno));
-		close(fd);
-		return RTE_BAD_IOVA;
-	}
 
-	retval = read(fd, &page, PFN_MASK_SIZE);
-	close(fd);
+	retval = pread(fd, &page, PFN_MASK_SIZE, offset);
 	if (retval < 0) {
 		RTE_LOG(INFO, EAL, "%s(): cannot read /proc/self/pagemap: %s\n",
 				__func__, strerror(errno));
@@ -147,6 +133,33 @@ rte_mem_virt2phy(const void *virtaddr)
 		+ ((unsigned long)virtaddr % page_size);
 
 	return physaddr;
+}
+
+/*
+ * Get physical address of any mapped virtual address in the current process.
+ */
+phys_addr_t
+rte_mem_virt2phy(const void *virtaddr)
+{
+	uint64_t physaddr;
+	int fd;
+	fd = open("/proc/self/pagemap", O_RDONLY);
+	if (fd < 0) {
+		RTE_LOG(INFO, EAL, "%s(): cannot open /proc/self/pagemap: %s\n",
+			__func__, strerror(errno));
+		return RTE_BAD_IOVA;
+	}
+	physaddr = rte_mem_virt2phy_with_fd(fd, virtaddr);
+	close(fd);
+	return physaddr;
+}
+
+rte_iova_t
+rte_mem_virt2iova_with_fd(int fd, const void *virtaddr)
+{
+	if (rte_eal_iova_mode() == RTE_IOVA_VA)
+		return (uintptr_t)virtaddr;
+	return rte_mem_virt2phy_with_fd(fd, virtaddr);
 }
 
 rte_iova_t

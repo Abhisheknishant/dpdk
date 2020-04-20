@@ -338,4 +338,7 @@ EXPERIMENTAL {
 
 	# added in 20.05
 	rte_log_can_log;
+
+	rte_mem_virt2iova_with_fd;
+	rte_mem_virt2phy_with_fd;
 };

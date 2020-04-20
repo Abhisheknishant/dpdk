@@ -44,10 +44,28 @@ rte_mem_virt2phy(const void *virtaddr)
 	(void)virtaddr;
 	return RTE_BAD_IOVA;
 }
+
 rte_iova_t
 rte_mem_virt2iova(const void *virtaddr)
 {
 	return rte_mem_virt2phy(virtaddr);
+}
+
+phys_addr_t
+rte_mem_virt2phy_with_fd(int fd, const void *virtaddr)
+{
+	/*
+	 * XXX not implemented. This function is only used by
+	 * rte_mempool_virt2iova_with_fd() when hugepages are disabled.
+	 */
+	(void)virtaddr;
+	return RTE_BAD_IOVA;
+}
+
+rte_iova_t
+rte_mem_virt2iova_with_fd(int fd, const void *virtaddr)
+{
+	return rte_mem_virt2phy_with_fd(fd, virtaddr);
 }
 
 int

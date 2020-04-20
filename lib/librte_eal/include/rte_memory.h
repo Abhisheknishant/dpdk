@@ -108,6 +108,23 @@ int rte_mem_lock_page(const void *virt);
 phys_addr_t rte_mem_virt2phy(const void *virt);
 
 /**
+ * Get physical address of any mapped virtual address in the current process.
+ * It is found by reading fd which is the opened /proc/self/pagemap special file
+ * descriptor. This is a optimization of rte_mem_virt2phy when the
+ * rte_mem_virt2phy is needed to be called many times.
+ * The page must be locked.
+ *
+ * @param fd
+ *   The opened fd of /proc/self/pagemap.
+ * @param virt
+ *   The virtual address.
+ * @return
+ *   The physical address or RTE_BAD_IOVA on error.
+ */
+__rte_experimental
+phys_addr_t rte_mem_virt2phy_with_fd(int fd, const void *virt);
+
+/**
  * Get IO virtual address of any mapped virtual address in the current process.
  *
  * @note This function will not check internal page table. Instead, in IOVA as
@@ -121,6 +138,25 @@ phys_addr_t rte_mem_virt2phy(const void *virt);
  *   The IO address or RTE_BAD_IOVA on error.
  */
 rte_iova_t rte_mem_virt2iova(const void *virt);
+
+/**
+ * Get IO virtual address of any mapped virtual address in the current process.
+ *
+ * @note This function will not check internal page table. Instead, in IOVA as
+ *       PA mode, it will fall back to getting real physical address (which may
+ *       not match the expected IOVA, such as what was specified for external
+ *       memory).
+ *
+ * @param virt
+ *   The virtual address.
+ * @param fd
+ *   The opened fd of /proc/self/pagemap.
+ * @return
+ *   The IO address or RTE_BAD_IOVA on error.
+ */
+__rte_experimental
+rte_iova_t rte_mem_virt2iova_with_fd(int fd, const void *virt);
+
 
 /**
  * Get virtual memory address corresponding to iova address.
