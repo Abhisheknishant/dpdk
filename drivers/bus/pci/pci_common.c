@@ -589,6 +589,40 @@ pci_dma_unmap(struct rte_device *dev, void *addr, uint64_t iova, size_t len)
 	return -1;
 }
 
+static struct rte_devargs *
+pci_addr_devargs_lookup(const struct rte_pci_addr *pci_addr)
+{
+	struct rte_devargs *devargs;
+	struct rte_pci_addr addr;
+
+	RTE_EAL_DEVARGS_FOREACH("pci", devargs) {
+		devargs->bus->parse(devargs->name, &addr);
+		if (!rte_pci_addr_cmp(pci_addr, &addr))
+			return devargs;
+	}
+	return NULL;
+}
+
+bool
+pci_addr_ignore_device(const struct rte_pci_addr *pci_addr)
+{
+	struct rte_devargs *devargs = pci_addr_devargs_lookup(pci_addr);
+
+	switch (rte_pci_bus.bus.conf.scan_mode) {
+	case RTE_BUS_SCAN_WHITELIST:
+		if (devargs && devargs->policy == RTE_DEV_WHITELISTED)
+			return false;
+		break;
+	case RTE_BUS_SCAN_UNDEFINED:
+	case RTE_BUS_SCAN_BLACKLIST:
+		if (devargs == NULL ||
+		    devargs->policy != RTE_DEV_BLACKLISTED)
+			return false;
+		break;
+	}
+	return true;
+}
+
 static bool
 pci_ignore_device(const struct rte_pci_device *dev)
 {
