@@ -2,7 +2,7 @@
  * Copyright(c) 2019 Ericsson AB
  */
 
-#ifdef RTE_MACHINE_CPUFLAG_RDSEED
+#if defined(RTE_ARCH_X86)
 #include <x86intrin.h>
 #endif
 #include <stdlib.h>
@@ -188,14 +188,17 @@ __rte_random_initial_seed(void)
 	if (ge_rc == 0)
 		return ge_seed;
 #endif
-#ifdef RTE_MACHINE_CPUFLAG_RDSEED
-	unsigned int rdseed_low;
-	unsigned int rdseed_high;
-
+#if defined(RTE_ARCH_X86)
 	/* first fallback: rdseed instruction, if available */
-	if (_rdseed32_step(&rdseed_low) == 1 &&
-	    _rdseed32_step(&rdseed_high) == 1)
-		return (uint64_t)rdseed_low | ((uint64_t)rdseed_high << 32);
+	if (rte_cpu_get_flag_enabled(RTE_CPUFLAG_RDSEED)) {
+		unsigned int rdseed_low;
+		unsigned int rdseed_high;
+
+		if (_rdseed32_step(&rdseed_low) == 1 &&
+		    _rdseed32_step(&rdseed_high) == 1)
+			return (uint64_t)rdseed_low |
+				((uint64_t)rdseed_high << 32);
+	}
 #endif
 	/* second fallback: seed using rdtsc */
 	return rte_get_tsc_cycles();
