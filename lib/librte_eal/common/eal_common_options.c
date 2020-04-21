@@ -1714,5 +1714,4 @@ eal_common_usage(void)
 	       "  --"OPT_NO_HPET"           Disable HPET\n"
 	       "  --"OPT_NO_SHCONF"         No shared config (mmap'd files)\n"
 	       "\n", RTE_MAX_LCORE);
-	rte_option_usage();
 }
