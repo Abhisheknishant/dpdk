@@ -5,7 +5,7 @@ includes = [global_inc]
 
 sources = files('rte_telemetry.c', 'rte_telemetry_parser.c', 'rte_telemetry_parser_test.c',
 	'telemetry.c')
-headers = files('rte_telemetry.h', 'rte_telemetry_internal.h', 'rte_telemetry_parser.h')
+headers = files('rte_telemetry.h', 'rte_telemetry_internal.h', 'rte_telemetry_parser.h', 'rte_telemetry_json.h')
 includes += include_directories('../librte_metrics')
 
 jansson = dependency('jansson', required: false)

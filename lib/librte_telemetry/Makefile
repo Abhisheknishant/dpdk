@@ -27,5 +27,6 @@ SRCS-$(CONFIG_RTE_LIBRTE_TELEMETRY) += telemetry.c
 
 # export include files
 SYMLINK-$(CONFIG_RTE_LIBRTE_TELEMETRY)-include := rte_telemetry.h
+SYMLINK-$(CONFIG_RTE_LIBRTE_TELEMETRY)-include += rte_telemetry_json.h
 
 include $(RTE_SDK)/mk/rte.lib.mk

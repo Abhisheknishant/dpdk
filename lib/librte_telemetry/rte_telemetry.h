@@ -4,6 +4,7 @@
 
 #include <stdint.h>
 #include <rte_compat.h>
+#include <rte_telemetry_json.h>
 
 #ifndef _RTE_TELEMETRY_H_
 #define _RTE_TELEMETRY_H_
