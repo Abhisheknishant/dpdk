@@ -10,8 +10,8 @@
 # core libs which are widely reused, so their deps are kept to a minimum.
 libraries = [
 	'kvargs', # eal depends on kvargs
+	'telemetry', # basic info querying capability about dpdk processes
 	'eal', # everything depends on eal
-	'telemetry',
 	'ring', 'mempool', 'mbuf', 'net', 'meter', 'ethdev', 'pci', # core
 	'cmdline',
 	'metrics', # bitrate/latency stats depends on this
