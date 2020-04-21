@@ -1,86 +1,80 @@
 ..  SPDX-License-Identifier: BSD-3-Clause
-    Copyright(c) 2018 Intel Corporation.
+    Copyright(c) 2020 Intel Corporation.
 
-DPDK Telemetry API User Guide
+
+DPDK Telemetry User Guide
 ==============================
 
-This document describes how the Data Plane Development Kit(DPDK) Telemetry API
-is used for querying port statistics from incoming traffic.
+The Telemetry library provides users with the ability to query DPDK for
+telemetry information, currently including information such as ethdev stats,
+ethdev port list, and eal parameters.
 
-Introduction
-------------
+.. Note::
 
-The ``librte_telemetry`` provides the functionality so that users may query
-metrics from incoming port traffic and global stats(application stats).
-The application which initializes packet forwarding will act as the server,
-sending metrics to the requesting application which acts as the client.
+   This library is experimental and the output format may change in the future.
 
 
-In DPDK, applications are used to initialize the ``telemetry``. To view incoming
-traffic on featured ports, the application should be run first (ie. after ports
-are configured). Once the application is running, the service assurance agent
-(for example the collectd plugin) should be run to begin querying the API.
+Telemetry Interface
+-------------------
 
-A client connects their Service Assurance application to the DPDK application
-via a UNIX socket. Once a connection is established, a client can send JSON
-messages to the DPDK application requesting metrics via another UNIX client.
-This request is then handled and parsed if valid. The response is then
-formatted in JSON and sent back to the requesting client.
+The :ref:`librte_telemetry <telemetry_library>` opens a socket with path
+*<runtime_directory>/dpdk_telemetry.<version>*. The version represents the
+telemetry version, the latest is v2. For example, a client would connect to a
+socket with path  */var/run/dpdk/\*/dpdk_telemetry.v2* (when the primary process
+is run by a root user).
 
-Pre-requisites
-~~~~~~~~~~~~~~
 
-* Python >= 2.5
+Telemetry Initialization
+------------------------
 
-* Jansson library for JSON serialization
+The library is enabled by default, however an EAL flag to enable the library
+exists, to provide backward compatibility for the previous telemetry library
+interface.
 
-Test Environment
-----------------
+.. code-block:: console
 
-``telemetry`` offers a range of selftests that a client can run within
-the DPDK application.
+    --telemetry
 
-Selftests are disabled by default. They can be enabled by setting the 'selftest'
-variable to 1 in rte_telemetry_initial_accept().
+A flag exists to disable Telemetry also.
 
-Note: this 'hardcoded' value is temporary.
+.. code-block:: console
 
-Configuration
--------------
+    --no-telemetry
 
-Enable the telemetry API by modifying the following config option before
-building DPDK::
 
-        CONFIG_RTE_LIBRTE_TELEMETRY=y
+Running Telemetry
+-----------------
 
-Note: Meson will pick this up automatically if ``libjansson`` is available.
+The following steps show how to run an application with telemetry support,
+and query information using the telemetry client python script.
 
-Running the Application
------------------------
+#. Launch testpmd as the primary application with telemetry.
 
-The following steps demonstrate how to run the ``telemetry`` API  to query all
-statistics on all active ports, using the ``telemetry_client`` python script
-to query.
-Note: This guide assumes packet generation is applicable and the user is
-testing with testpmd as a DPDK primary application to forward packets, although
-any DPDK application is applicable.
+   .. code-block:: console
 
-#. Launch testpmd as the primary application with ``telemetry``.::
+        ./app/dpdk-testpmd
 
-        ./app/testpmd --telemetry
+#. Launch the telemetry client script.
 
-#. Launch the ``telemetry`` python script with a client filepath.::
+   .. code-block:: console
 
-        python usertools/telemetry_client.py /var/run/some_client
+        python usertools/dpdk-telemetry.py
 
-   The client filepath is going to be used to setup our UNIX connection with the
-   DPDK primary application, in this case ``testpmd``
-   This will initialize a menu where a client can proceed to recursively query
-   statistics, request statistics once or unregister the file_path, thus exiting
-   the menu.
+#. When connected, the script displays the following, waiting for user input.
 
-#. Send traffic to any or all available ports from a traffic generator.
-   Select a query option(recursive or singular polling or global stats).
-   The metrics will then be displayed on the client terminal in JSON format.
+   .. code-block:: console
 
-#. Once finished, unregister the client using the menu command.
+        Connecting to /var/run/dpdk/rte/dpdk_telemetry.v2
+        {"pid": 60285, "version": "DPDK 20.05.0-rc0", "max_output_len": 16384}
+        -->
+
+#. The user can now input commands to send across the socket, and receive the
+   response.
+
+   .. code-block:: console
+
+        --> /
+        {"/": ["/", "/eal/app_params", "/eal/params", "/ethdev/list",
+        "/ethdev/link_status", "/ethdev/xstats", "/info"]}
+        --> /ethdev/list
+        {"/ethdev/list": [0, 1]}
