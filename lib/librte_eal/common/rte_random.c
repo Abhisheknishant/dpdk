@@ -7,6 +7,7 @@
 #endif
 #include <stdlib.h>
 #include <unistd.h>
+#include <dlfcn.h>
 
 #include <rte_branch_prediction.h>
 #include <rte_cycles.h>
@@ -176,18 +177,38 @@ rte_rand_max(uint64_t upper_bound)
 	return res;
 }
 
+/* Try to use the getentropy() function from glibc >= 2.25 */
+static int
+__rte_getentropy(uint64_t *ge_seed)
+{
+	void *handle = NULL;
+	void **sym;
+	int (*getentropy_p)(void *__buffer, size_t __length);
+	int gc_rc;
+
+	handle = dlopen("libc.so.6", RTLD_LAZY);
+	if (!handle)
+		return -1;
+
+	sym = dlsym(handle, "getentropy");
+	if (!sym || !*sym)
+		/* Cannot resolve getentropy */
+		return -1;
+
+	getentropy_p = (int (*)(void *, size_t)) sym;
+	gc_rc = (*getentropy_p)((void *)ge_seed, sizeof(*ge_seed));
+	dlclose(handle);
+	return gc_rc;
+}
+
 static uint64_t
 __rte_random_initial_seed(void)
 {
-#ifdef RTE_LIBEAL_USE_GETENTROPY
-	int ge_rc;
 	uint64_t ge_seed;
 
-	ge_rc = getentropy(&ge_seed, sizeof(ge_seed));
-
-	if (ge_rc == 0)
+	if (__rte_getentropy(&ge_seed) == 0)
 		return ge_seed;
-#endif
+
 #if defined(RTE_ARCH_X86)
 	/* first fallback: rdseed instruction, if available */
 	if (rte_cpu_get_flag_enabled(RTE_CPUFLAG_RDSEED)) {
