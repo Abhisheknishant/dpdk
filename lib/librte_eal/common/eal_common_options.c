@@ -29,6 +29,9 @@
 #include <rte_version.h>
 #include <rte_devargs.h>
 #include <rte_memcpy.h>
+#ifndef RTE_EXEC_ENV_WINDOWS
+#include <rte_telemetry.h>
+#endif
 
 #include "eal_internal_cfg.h"
 #include "eal_options.h"
@@ -131,6 +134,74 @@ TAILQ_HEAD_INITIALIZER(devopt_list);
 static int master_lcore_parsed;
 static int mem_parsed;
 static int core_parsed;
+
+#ifndef RTE_EXEC_ENV_WINDOWS
+static char **eal_args;
+static char **eal_app_args;
+
+#define EAL_PARAM_REQ "/eal/params"
+#define EAL_APP_PARAM_REQ "/eal/app_params"
+
+/* callback handler for telemetry library to report out EAL flags */
+int
+handle_eal_info_request(const char *cmd, const char *params __rte_unused,
+		char *buffer, int buf_len)
+{
+	char **args;
+	int used = 0;
+	int i = 0;
+
+	if (strcmp(cmd, EAL_PARAM_REQ) == 0)
+		args = eal_args;
+	else
+		args = eal_app_args;
+
+	if (args == NULL || args[0] == NULL)
+		return rte_tel_json_empty_array(buffer, buf_len, used);
+
+	for ( ; args[i] != NULL; i++)
+		used = rte_tel_json_add_array_string(buffer, buf_len, used,
+				args[i]);
+	return used;
+}
+
+int
+eal_save_args(int argc, char **argv)
+{
+	int i, j;
+
+	rte_telemetry_register_cmd(EAL_PARAM_REQ, handle_eal_info_request);
+	rte_telemetry_register_cmd(EAL_APP_PARAM_REQ, handle_eal_info_request);
+
+	/* clone argv to report out later. We overprovision, but
+	 * this does not waste huge amounts of memory
+	 */
+	eal_args = calloc(argc + 1, sizeof(*eal_args));
+	if (eal_args == NULL)
+		return -1;
+
+	for (i = 0; i < argc; i++) {
+		eal_args[i] = strdup(argv[i]);
+		if (strcmp(argv[i], "--") == 0)
+			break;
+	}
+	eal_args[i++] = NULL; /* always finish with NULL */
+
+	/* allow reporting of any app args we know about too */
+	if (i >= argc)
+		return 0;
+
+	eal_app_args = calloc(argc - i + 1, sizeof(*eal_args));
+	if (eal_app_args == NULL)
+		return -1;
+
+	for (j = 0; i < argc; j++, i++)
+		eal_app_args[j] = strdup(argv[i]);
+	eal_app_args[j] = NULL;
+
+	return 0;
+}
+#endif
 
 static int
 eal_option_device_add(enum rte_devtype type, const char *optarg)
