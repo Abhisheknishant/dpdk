@@ -81,6 +81,17 @@ New Features
   by making use of the event device capabilities. The event mode currently supports
   only inline IPsec protocol offload.
 
+* **Added flow Aging Support.**
+
+  Added flow Aging support to detect and report aged-out flows, including:
+
+  * Added new action: RTE_FLOW_ACTION_TYPE_AGE to set the timeout and the
+    application flow context for each flow.
+  * Added new event: RTE_ETH_EVENT_FLOW_AGED for the driver to report that
+    there are new aged-out flows.
+  * Added new API: rte_flow_get_aged_flows to get the aged-out flows contexts
+    from the port.
+
 
 Removed Items
 -------------

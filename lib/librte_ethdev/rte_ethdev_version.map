@@ -230,4 +230,7 @@ EXPERIMENTAL {
 
 	# added in 20.02
 	rte_flow_dev_dump;
+
+	# added in 20.05
+	rte_flow_get_aged_flows;
 };
