@@ -58,6 +58,8 @@ C_TO_O_DISP = $(if $(V),"$(C_TO_O_STR)","  CC $(@)")
 endif
 EXPERIMENTAL_CHECK = $(RTE_SDK)/buildtools/check-experimental-syms.sh
 CHECK_EXPERIMENTAL = $(EXPERIMENTAL_CHECK) $(SRCDIR)/$(EXPORT_MAP) $@
+INTERNAL_CHECK = $(RTE_SDK)/buildtools/check-internal-syms.sh
+CHECK_INTERNAL = $(INTERNAL_CHECK) $(SRCDIR)/$(EXPORT_MAP) $@
 
 PMDINFO_GEN = $(RTE_SDK_BIN)/app/dpdk-pmdinfogen $@ $@.pmd.c
 PMDINFO_CC = $(CC) $(CPPFLAGS) $(CFLAGS) $(EXTRA_CFLAGS) -c -o $@.pmd.o $@.pmd.c
@@ -76,6 +78,7 @@ C_TO_O_DO = @set -e; \
 	$(C_TO_O) && \
 	$(PMDINFO_TO_O) && \
 	$(CHECK_EXPERIMENTAL) && \
+	$(CHECK_INTERNAL) && \
 	echo $(C_TO_O_CMD) > $(call obj2cmd,$(@)) && \
 	sed 's,'$@':,dep_'$@' =,' $(call obj2dep,$(@)).tmp > $(call obj2dep,$(@)) && \
 	rm -f $(call obj2dep,$(@)).tmp
