@@ -90,6 +90,10 @@ foreach l:libraries
 		dpdk_conf.set('RTE_LIBRTE_' + name.to_upper(), 1)
 		install_headers(headers)
 
+		if get_option('rte_debug')
+			dpdk_conf.set('RTE_DEBUG_' + name.to_upper(), 1)
+		endif
+
 		libname = 'rte_' + name
 		includes += include_directories(dir_name)
 
