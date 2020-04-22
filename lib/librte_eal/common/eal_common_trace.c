@@ -38,6 +38,8 @@ trace_list_head_get(void)
 int
 eal_trace_init(void)
 {
+	uint8_t i;
+
 	/* Trace memory should start with 8B aligned for natural alignment */
 	RTE_BUILD_BUG_ON((offsetof(struct __rte_trace_header, mem) % 8) != 0);
 
@@ -47,7 +49,10 @@ eal_trace_init(void)
 		goto fail;
 	}
 
-	if (rte_trace_is_enabled() == false)
+	if (trace.args.nb_args)
+		trace.status = true;
+
+	if (!rte_trace_is_enabled())
 		return 0;
 
 	rte_spinlock_init(&trace.lock);
@@ -71,6 +76,10 @@ eal_trace_init(void)
 	if (trace_epoch_time_save() < 0)
 		goto fail;
 
+	/* Apply global configurations */
+	for (i = 0; i < trace.args.nb_args; i++)
+		trace_args_apply(trace.args.args[i]);
+
 	rte_trace_mode_set(trace.mode);
 
 	return 0;
@@ -89,6 +98,7 @@ eal_trace_fini(void)
 		return;
 	trace_mem_per_thread_free();
 	trace_metadata_destroy();
+	eal_trace_args_free();
 }
 
 bool
