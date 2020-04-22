@@ -91,6 +91,13 @@ check_for_rule_violations()
 		if [ "$ar" = "add" ]
 		then
 
+			if [ "$secname" = "INTERNAL" ]
+			then
+				# these are absolved from any further checking
+				echo "Skipping symbol $symname in INTERNAL"
+				continue
+			fi
+
 			if [ "$secname" = "unknown" ]
 			then
 				# Just inform the user of this occurrence, but
