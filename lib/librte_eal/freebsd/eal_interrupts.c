@@ -85,7 +85,7 @@ rte_intr_callback_register(const struct rte_intr_handle *intr_handle,
 {
 	struct rte_intr_callback *callback;
 	struct rte_intr_source *src;
-	int ret, add_event = 0;
+	int ret = 0, add_event = 0;
 
 	/* first do parameter checking */
 	if (intr_handle == NULL || intr_handle->fd < 0 || cb == NULL) {
