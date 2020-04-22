@@ -22,6 +22,7 @@ SRCS-y += rte_flow.c
 SRCS-y += rte_tm.c
 SRCS-y += rte_mtr.c
 SRCS-y += ethdev_profile.c
+SRCS-y += ethdev_trace_points.c
 
 #
 # Export include files
@@ -39,5 +40,7 @@ SYMLINK-y-include += rte_tm.h
 SYMLINK-y-include += rte_tm_driver.h
 SYMLINK-y-include += rte_mtr.h
 SYMLINK-y-include += rte_mtr_driver.h
+SYMLINK-y-include += rte_ethdev_trace.h
+SYMLINK-y-include += rte_ethdev_trace_fp.h
 
 include $(RTE_SDK)/mk/rte.lib.mk
