@@ -14,6 +14,27 @@ set -o | grep -q pipefail && set -o pipefail && PIPEFAIL=1
 srcdir=$(dirname $(readlink -f $0))/..
 . $srcdir/devtools/load-devel-config
 
+i686=false
+print_usage ()
+{
+    echo "Usage: ./$(basename $0) [-h] [OPTIONS]..."
+
+    echo '''
+    The script default build is 64-bits.
+
+    if you want to build 32-bits on x86_64, need to pass parameters of i686.
+
+    OPTIONS:
+
+        i686       build 32-bits on x86_64
+                       eg: ./devtools/test-meson-build.sh i686
+
+	-vv        meson build show more detail
+
+	-v         meson build show details
+    '''
+}
+
 MESON=${MESON:-meson}
 use_shared="--default-library=shared"
 builds_dir=${DPDK_BUILD_TEST_DIR:-.}
@@ -37,6 +58,36 @@ else
 	CCACHE=
 fi
 
+shift $(($OPTIND - 1))
+
+if [ "$#" -ge 1 ]; then
+  for i in $@; do
+     case "$i" in
+	     "i686")
+                     i686=true
+		     ;;
+	     "x86_64")
+		     echo "Use x86_64"
+		     ;;
+	     "-vv")
+		     TEST_MESON_BUILD_VERY_VERBOSE=1
+		     ;;
+	     "-v")
+		     TEST_MESON_BUILD_VERBOSE=1
+		     ;;
+	     "-h")
+		     print_usage
+		     exit 1
+		     ;;
+	     *)
+		     echo "Invalid mode: $1"
+		     print_usage
+		     exit 1
+		     ;;
+     esac
+  done
+fi
+
 default_path=$PATH
 default_pkgpath=$PKG_CONFIG_PATH
 default_cppflags=$CPPFLAGS
@@ -51,7 +102,13 @@ load_env () # <target compiler>
 	export CPPFLAGS=$default_cppflags
 	export CFLAGS=$default_cflags
 	export LDFLAGS=$default_ldflags
-	unset DPDK_MESON_OPTIONS
+	if [ "$i686" = "true" ]; then
+		CFLAGS='-m32'
+		export DPDK_MESON_OPTIONS="c_args=-m32 c_link_args=-m32"
+		export PKG_CONFIG_LIBDIR=$default_pkgpath
+	else
+		unset DPDK_MESON_OPTIONS
+	fi
 	command -v $targetcc >/dev/null 2>&1 || return 1
 	DPDK_TARGET=$($targetcc -v 2>&1 | sed -n 's,^Target: ,,p')
 	. $srcdir/devtools/load-devel-config
@@ -156,11 +213,6 @@ build () # <directory> <target compiler> <meson options>
 	fi
 }
 
-if [ "$1" = "-vv" ] ; then
-	TEST_MESON_BUILD_VERY_VERBOSE=1
-elif [ "$1" = "-v" ] ; then
-	TEST_MESON_BUILD_VERBOSE=1
-fi
 # we can't use plain verbose when we don't have pipefail option so up-level
 if [ -z "$PIPEFAIL" -a -n "$TEST_MESON_BUILD_VERBOSE" ] ; then
 	echo "# Missing pipefail shell option, changing VERBOSE to VERY_VERBOSE"
