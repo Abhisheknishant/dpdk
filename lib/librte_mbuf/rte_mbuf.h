@@ -35,6 +35,7 @@
 #include <rte_compat.h>
 #include <rte_common.h>
 #include <rte_config.h>
+#include <rte_log.h>
 #include <rte_mempool.h>
 #include <rte_memory.h>
 #include <rte_atomic.h>
@@ -341,17 +342,20 @@ rte_pktmbuf_priv_flags(struct rte_mempool *mp)
 #define RTE_MBUF_HAS_PINNED_EXTBUF(mb) \
 	(rte_pktmbuf_priv_flags(mb->pool) & RTE_PKTMBUF_POOL_F_PINNED_EXT_BUF)
 
-#ifdef RTE_LIBRTE_MBUF_DEBUG
+#ifdef RTE_DEBUG_MBUF
 
 /**  check mbuf type in debug mode */
-#define __rte_mbuf_sanity_check(m, is_h) rte_mbuf_sanity_check(m, is_h)
+#define __rte_mbuf_sanity_check(m, is_h) do {			\
+	if (rte_log_can_log(RTE_LOGTYPE_MBUF, RTE_LOG_DEBUG))	\
+		rte_mbuf_sanity_check(m, is_h);			\
+} while (0)
 
-#else /*  RTE_LIBRTE_MBUF_DEBUG */
+#else /*  RTE_DEBUG_MBUF */
 
 /**  check mbuf type in debug mode */
 #define __rte_mbuf_sanity_check(m, is_h) do { } while (0)
 
-#endif /*  RTE_LIBRTE_MBUF_DEBUG */
+#endif /*  RTE_DEBUG_MBUF */
 
 #ifdef RTE_MBUF_REFCNT_ATOMIC
 

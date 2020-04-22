@@ -994,7 +994,8 @@ test_pktmbuf_free_segment(struct rte_mempool *pktmbuf_pool)
 /*
  * Stress test for rte_mbuf atomic refcnt.
  * Implies that RTE_MBUF_REFCNT_ATOMIC is defined.
- * For more efficiency, recommended to run with RTE_LIBRTE_MBUF_DEBUG defined.
+ * For more efficiency, recommended to run with RTE_DEBUG_MBUF defined
+ * or using rte_debug meson build option.
  */
 
 #ifdef RTE_MBUF_REFCNT_ATOMIC
