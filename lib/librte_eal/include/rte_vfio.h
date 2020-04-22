@@ -16,6 +16,8 @@ extern "C" {
 
 #include <stdint.h>
 
+#include <rte_uuid.h>
+
 /*
  * determine if VFIO is present on the system
  */
@@ -102,13 +104,33 @@ struct vfio_device_info;
  * @param device_info
  *   Device information.
  *
+ * @param vf_token
+ *   Before linux 5.7, the PF bound to vfio-pci doesn't support SR-IOV to
+ *   create VFs for security reason. Now the VF token is introduced to work
+ *   as some degree of trust or collaboration between PF and VFs.
+ *
+ *   A). as VF device, if the PF is a vfio device and it is bound to the
+ *   vfio-pci driver, the user needs to provide a VF token to access the
+ *   device, in the form of appending a vf_token to the device name, for
+ *   example:
+ *     "-w 04:10.0,vf_token=bd8d9d2b-5a5f-4f5a-a211-f591514ba1f3"
+ *
+ *   B). as PF device, When presented with a PF which has VFs in use, the
+ *   user must also provide the current VF token to prove collaboration with
+ *   existing VF users.  If VFs are not in use, the VF token provided for the
+ *   PF device will act to set the VF token.
+ *
+ *   The vf_token can be zero uuid, which will be ignored to pass into the
+ *   vfio-pci module.
+ *
  * @return
  *   0 on success.
  *   <0 on failure.
  *   >1 if the device cannot be managed this way.
  */
 int rte_vfio_setup_device(const char *sysfs_base, const char *dev_addr,
-		int *vfio_dev_fd, struct vfio_device_info *device_info);
+		int *vfio_dev_fd, struct vfio_device_info *device_info,
+		rte_uuid_t vf_token);
 
 /**
  * Release a device mapped to a VFIO-managed I/O MMU group.

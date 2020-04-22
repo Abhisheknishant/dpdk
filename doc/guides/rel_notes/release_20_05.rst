@@ -135,6 +135,11 @@ New Features
   * Added IPsec inbound load-distribution support for ipsec-secgw application
     using NIC load distribution feature(Flow Director).
 
+* **Added the support for vfio-pci new VF token interface.**
+
+  Since Linux version 5.7, vfio-pci supports a shared VF token (UUID) to represent
+  the trust between SR-IOV PF and the created VFs. Update the method to gain access
+  to the device by appending the VF token.
 
 Removed Items
 -------------
