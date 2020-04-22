@@ -28,7 +28,7 @@
 
 
 /* Size of the buffer to receive kernel messages */
-#define MLX5_NL_BUF_SIZE (32 * 1024)
+#define MLX5_NL_BUF_SIZE 4096
 /* Send buffer size for the Netlink socket */
 #define MLX5_SEND_BUF_SIZE 32768
 /* Receive buffer size for the Netlink socket */
@@ -330,7 +330,7 @@ mlx5_nl_recv(int nlsk_fd, uint32_t sn, int (*cb)(struct nlmsghdr *, void *arg),
 	     void *arg)
 {
 	struct sockaddr_nl sa;
-	char buf[MLX5_RECV_BUF_SIZE];
+	char buf[MLX5_NL_BUF_SIZE];
 	struct iovec iov = {
 		.iov_base = buf,
 		.iov_len = sizeof(buf),
