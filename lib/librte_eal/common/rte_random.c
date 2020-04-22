@@ -7,6 +7,7 @@
 #endif
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include <rte_branch_prediction.h>
 #include <rte_cycles.h>
@@ -176,20 +177,61 @@ rte_rand_max(uint64_t upper_bound)
 	return res;
 }
 
+/* Emulate glibc getentropy() using /dev/urandom */
+static int
+__rte_getentropy(void *buffer, size_t length)
+{
+	uint8_t *start = buffer;
+	uint8_t *end;
+	ssize_t bytes;
+	int fd;
+	int rc = -1;
+
+	if (length > 256) {
+		errno = EIO;
+		return -1;
+	}
+
+	fd = open("/dev/urandom", O_RDONLY);
+	if (fd < 0) {
+		errno = ENODEV;
+		return -1;
+	}
+
+	end = start + length;
+	while (start < end) {
+		bytes = read(fd, start, end - start);
+		if (bytes < 0) {
+			if (errno == EINTR)
+				/* Supposedly cannot be interrupted by
+				 * a signal, but just in case...
+				 */
+				continue;
+			else
+				goto out;
+		}
+		if (bytes == 0) {
+			/* no more bytes available, should not happen under
+			 * normal circumstances.
+			 */
+			errno = EIO;
+			goto out;
+		}
+		start += bytes;
+	}
+	rc = 0;
+	errno = 0;
+out:
+	close(fd);
+	return rc;
+}
+
 static uint64_t
 __rte_random_initial_seed(void)
 {
-#ifdef RTE_LIBEAL_USE_GETENTROPY
-	int ge_rc;
 	uint64_t ge_seed;
 
-	ge_rc = getentropy(&ge_seed, sizeof(ge_seed));
-
-	if (ge_rc == 0)
-		return ge_seed;
-#endif
 #if defined(RTE_ARCH_X86)
-	/* first fallback: rdseed instruction, if available */
 	if (rte_cpu_get_flag_enabled(RTE_CPUFLAG_RDSEED)) {
 		unsigned int rdseed_low;
 		unsigned int rdseed_high;
@@ -200,6 +242,10 @@ __rte_random_initial_seed(void)
 				((uint64_t)rdseed_high << 32);
 	}
 #endif
+	/* first fallback: read from /dev/urandom.. */
+	if (__rte_getentropy(&ge_seed, sizeof(ge_seed)) == 0)
+		return ge_seed;
+
 	/* second fallback: seed using rdtsc */
 	return rte_get_tsc_cycles();
 }
