@@ -357,6 +357,8 @@ EXPERIMENTAL {
 	rte_trace_regexp;
 	rte_trace_save;
 
+	__rte_trace_lib_eal_alarm_cancel;
+	__rte_trace_lib_eal_alarm_set;
 	__rte_trace_lib_eal_generic_double;
 	__rte_trace_lib_eal_generic_float;
 	__rte_trace_lib_eal_generic_func;
