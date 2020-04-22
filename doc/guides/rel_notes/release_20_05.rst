@@ -135,6 +135,15 @@ New Features
   * Added IPsec inbound load-distribution support for ipsec-secgw application
     using NIC load distribution feature(Flow Director).
 
+* **Added Trace Library and Tracepoints**
+
+  A native implementation of ``common trace format(CTF)`` based trace library added
+  to provide the ability to add tracepoints in application/library to get runtime
+  trace/debug information for control and fast APIs with minimum impact on
+  fast path performance. Typical trace overhead is ~20 cycles and instrumentation
+  overhead is 1 cycle. Added tracepoints in ``EAL``, ``ethdev``, ``cryptodev``,
+  ``eventdev`` and ``mempool`` libraries for important functions.
+
 
 Removed Items
 -------------
