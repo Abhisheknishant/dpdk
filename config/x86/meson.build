@@ -20,15 +20,20 @@ if cc.get_define('__SSE4_2__', args: machine_args) == ''
 	machine_args += '-msse4'
 endif
 
+# set -mrdseed if necessary so _rdseed32_step compiles if the
+# compilation host does not support the RDSEED instruction.
+if cc.get_define('__RDSEED__', args: machine_args) == '' and cc.has_argument('-mrdseed')
+	machine_args += '-mrdseed'
+	message('RDSEED not enabled by default, explicitly setting -mrdseed')
+endif
+
 base_flags = ['SSE', 'SSE2', 'SSE3','SSSE3', 'SSE4_1', 'SSE4_2']
 foreach f:base_flags
 	dpdk_conf.set('RTE_MACHINE_CPUFLAG_' + f, 1)
 	compile_time_cpuflags += ['RTE_CPUFLAG_' + f]
 endforeach
 
-optional_flags = ['AES', 'PCLMUL',
-		'AVX', 'AVX2', 'AVX512F',
-		'RDRND', 'RDSEED']
+optional_flags = ['AES', 'PCLMUL', 'AVX', 'AVX2', 'AVX512F', 'RDRND']
 foreach f:optional_flags
 	if cc.get_define('__@0@__'.format(f), args: machine_args) == '1'
 		if f == 'PCLMUL' # special case flags with different defines
