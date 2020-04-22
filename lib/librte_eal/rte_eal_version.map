@@ -356,4 +356,21 @@ EXPERIMENTAL {
 	rte_trace_point_lookup;
 	rte_trace_regexp;
 	rte_trace_save;
+
+	__rte_trace_lib_eal_generic_double;
+	__rte_trace_lib_eal_generic_float;
+	__rte_trace_lib_eal_generic_func;
+	__rte_trace_lib_eal_generic_i16;
+	__rte_trace_lib_eal_generic_i32;
+	__rte_trace_lib_eal_generic_i64;
+	__rte_trace_lib_eal_generic_i8;
+	__rte_trace_lib_eal_generic_int;
+	__rte_trace_lib_eal_generic_long;
+	__rte_trace_lib_eal_generic_ptr;
+	__rte_trace_lib_eal_generic_str;
+	__rte_trace_lib_eal_generic_u16;
+	__rte_trace_lib_eal_generic_u32;
+	__rte_trace_lib_eal_generic_u64;
+	__rte_trace_lib_eal_generic_u8;
+	__rte_trace_lib_eal_generic_void;
 };
