@@ -375,4 +375,8 @@ EXPERIMENTAL {
 	__rte_trace_lib_eal_generic_u64;
 	__rte_trace_lib_eal_generic_u8;
 	__rte_trace_lib_eal_generic_void;
+	__rte_trace_lib_eal_mem_free;
+	__rte_trace_lib_eal_mem_malloc;
+	__rte_trace_lib_eal_mem_realloc;
+	__rte_trace_lib_eal_mem_zmalloc;
 };
