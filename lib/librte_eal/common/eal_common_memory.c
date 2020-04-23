@@ -177,6 +177,20 @@ eal_get_virtual_area(void *requested_addr, size_t *size,
 		after_len = RTE_PTR_DIFF(map_end, aligned_end);
 		if (after_len > 0)
 			munmap(aligned_end, after_len);
+
+		/*
+		 * Exclude this pages from a core dump.
+		 */
+		if (madvise(aligned_addr, *size, MADV_DONTDUMP) != 0)
+			RTE_LOG(WARNING, EAL, "Madvise with MADV_DONTDUMP failed: %s\n",
+				strerror(errno));
+	} else {
+		/*
+		 * Exclude this pages from a core dump.
+		 */
+		if (madvise(mapped_addr, map_sz, MADV_DONTDUMP) != 0)
+			RTE_LOG(WARNING, EAL, "Madvise with MADV_DONTDUMP failed: %s\n",
+				strerror(errno));
 	}
 
 	return aligned_addr;
