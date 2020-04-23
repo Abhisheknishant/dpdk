@@ -2,7 +2,6 @@
         symbol_version = EXPERIMENTAL
 [suppress_variable]
         symbol_version = EXPERIMENTAL
-
 ; Explicit ignore for driver-only ABI
 [suppress_type]
         name = rte_cryptodev_ops
@@ -18,3 +17,15 @@
 [suppress_type]
         type_kind = struct
         name = rte_event_ring
+; Explicit ignore ABI 20.0.1
+[suppress_function]
+        symbol_version = DPDK_20.0.1
+[suppress_variable]
+        symbol_version = DPDK_20.0.1
+; Explicit ignore of const lpm6_lookup change
+[suppress_function]
+        name = rte_lpm6_delete
+        parameter = '1 uint8_t*
+[suppress_function]
+        name = rte_lpm6_is_rule_present
+        parameter = '1 uint8_t*

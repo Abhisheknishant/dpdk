@@ -86,6 +86,8 @@ F: doc/
 ABI Policy
 M: Ray Kinsella <mdr@ashroe.eu>
 F: doc/guides/contributing/abi_*.rst
+F: drivers/*/*/*.map
+F: lib/*/*.map
 
 Developers and Maintainers Tools
 M: Thomas Monjalon <thomas@monjalon.net>
