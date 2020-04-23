@@ -6,3 +6,8 @@ sources = files('esp_inb.c', 'esp_outb.c', 'sa.c', 'ses.c', 'ipsec_sad.c')
 headers = files('rte_ipsec.h', 'rte_ipsec_group.h', 'rte_ipsec_sa.h', 'rte_ipsec_sad.h')
 
 deps += ['mbuf', 'net', 'cryptodev', 'security', 'hash']
+
+# for clang 32-bit compiles we need libatomic for 64-bit atomic ops
+if cc.get_id() == 'clang' and dpdk_conf.get('RTE_ARCH_64') == false
+    ext_deps += cc.find_library('atomic')
+endif

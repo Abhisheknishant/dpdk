@@ -120,7 +120,7 @@ struct rte_ipsec_sa {
 	 */
 	union {
 		union {
-			rte_atomic64_t atom;
+			uint64_t atom;
 			uint64_t raw;
 		} outb;
 		struct {
