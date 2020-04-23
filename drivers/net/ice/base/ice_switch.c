@@ -1928,6 +1928,13 @@ static void ice_fill_sw_info(struct ice_hw *hw, struct ice_fltr_info *fi)
 {
 	fi->lb_en = false;
 	fi->lan_en = false;
+
+	if ((fi->flag & ICE_FLTR_RX) &&
+	    (fi->fltr_act == ICE_FWD_TO_VSI ||
+	     fi->fltr_act == ICE_FWD_TO_VSI_LIST) &&
+	    fi->lkup_type == ICE_SW_LKUP_LAST)
+		fi->lan_en = true;
+
 	if ((fi->flag & ICE_FLTR_TX) &&
 	    (fi->fltr_act == ICE_FWD_TO_VSI ||
 	     fi->fltr_act == ICE_FWD_TO_VSI_LIST ||
@@ -6379,7 +6386,7 @@ ice_add_adv_rule(struct ice_hw *hw, struct ice_adv_lkup_elem *lkups,
 	s_rule = (struct ice_aqc_sw_rules_elem *)ice_malloc(hw, rule_buf_sz);
 	if (!s_rule)
 		return ICE_ERR_NO_MEMORY;
-	act |= ICE_SINGLE_ACT_LB_ENABLE | ICE_SINGLE_ACT_LAN_ENABLE;
+	act |= ICE_SINGLE_ACT_LAN_ENABLE;
 	switch (rinfo->sw_act.fltr_act) {
 	case ICE_FWD_TO_VSI:
 		act |= (rinfo->sw_act.fwd_id.hw_vsi_id <<
