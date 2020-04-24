@@ -133,12 +133,12 @@ The public API headers are grouped by topics:
   [BPF]                (@ref rte_bpf.h)
 
 - **containers**:
+  [bitmap]             (@ref rte_bitmap.h),
   [mbuf]               (@ref rte_mbuf.h),
   [mbuf pool ops]      (@ref rte_mbuf_pool_ops.h),
   [ring]               (@ref rte_ring.h),
   [stack]              (@ref rte_stack.h),
-  [tailq]              (@ref rte_tailq.h),
-  [bitmap]             (@ref rte_bitmap.h)
+  [tailq]              (@ref rte_tailq.h)
 
 - **packet framework**:
   * [port]             (@ref rte_port.h):
@@ -165,7 +165,8 @@ The public API headers are grouped by topics:
   [random]             (@ref rte_random.h),
   [config file]        (@ref rte_cfgfile.h),
   [key/value args]     (@ref rte_kvargs.h),
-  [string]             (@ref rte_string_fns.h)
+  [string]             (@ref rte_string_fns.h),
+  [bitops]             (@ref rte_bitops.h)
 
 - **debug**:
   [jobstats]           (@ref rte_jobstats.h),
