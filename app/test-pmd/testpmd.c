@@ -2418,6 +2418,7 @@ start_port(portid_t pid)
 				}
 			}
 			configure_rxtx_dump_callbacks(0);
+			configure_aging_event_callbacks(0);
 			printf("Configuring Port %d (socket %u)\n", pi,
 					port->socket_id);
 			if (nb_hairpinq > 0 &&
@@ -2527,6 +2528,7 @@ start_port(portid_t pid)
 				return -1;
 		}
 		configure_rxtx_dump_callbacks(verbose_level);
+		configure_aging_event_callbacks(verbose_level);
 		if (clear_ptypes) {
 			diag = rte_eth_dev_set_ptypes(pi, RTE_PTYPE_UNKNOWN,
 					NULL, 0);

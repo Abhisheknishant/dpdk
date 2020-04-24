@@ -146,6 +146,7 @@ struct fwd_stream {
 
 /** Descriptor for a single flow. */
 struct port_flow {
+	struct port_flow *prev; /**< Previous flow in list. */
 	struct port_flow *next; /**< Next flow in list. */
 	struct port_flow *tmp; /**< Temporary linking. */
 	uint32_t id; /**< Flow rule ID. */
@@ -747,12 +748,15 @@ int port_flow_create(portid_t port_id,
 		     const struct rte_flow_attr *attr,
 		     const struct rte_flow_item *pattern,
 		     const struct rte_flow_action *actions);
+void update_age_action_context(const struct rte_flow_action *actions,
+		     struct port_flow *pf);
 int port_flow_destroy(portid_t port_id, uint32_t n, const uint32_t *rule);
 int port_flow_flush(portid_t port_id);
 int port_flow_dump(portid_t port_id, const char *file_name);
 int port_flow_query(portid_t port_id, uint32_t rule,
 		    const struct rte_flow_action *action);
 void port_flow_list(portid_t port_id, uint32_t n, const uint32_t *group);
+void port_flow_aged(portid_t port_id, uint8_t destroy);
 int port_flow_isolate(portid_t port_id, int set);
 
 void rx_ring_desc_display(portid_t port_id, queueid_t rxq_id, uint16_t rxd_id);
@@ -895,6 +899,11 @@ void remove_rx_dump_callbacks(portid_t portid);
 void add_tx_dump_callbacks(portid_t portid);
 void remove_tx_dump_callbacks(portid_t portid);
 void configure_rxtx_dump_callbacks(uint16_t verbose);
+int aging_event_callback(uint16_t portid, enum rte_eth_event_type event,
+		      void *cb_arg, void *ret_param);
+void remove_aging_event_callbacks(portid_t portid);
+void add_aging_event_callbacks(portid_t portid);
+void configure_aging_event_callbacks(uint16_t verbose);
 
 uint16_t tx_pkt_set_md(uint16_t port_id, __rte_unused uint16_t queue,
 		       struct rte_mbuf *pkts[], uint16_t nb_pkts,

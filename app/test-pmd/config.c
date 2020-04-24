@@ -1367,6 +1367,26 @@ port_flow_validate(portid_t port_id,
 	return 0;
 }
 
+/** Update age action context by port_flow pointer. */
+void
+update_age_action_context(const struct rte_flow_action *actions,
+			struct port_flow *pf)
+{
+	struct rte_flow_action_age *age = NULL;
+
+	for (; actions->type != RTE_FLOW_ACTION_TYPE_END; actions++) {
+		switch (actions->type) {
+		case RTE_FLOW_ACTION_TYPE_AGE:
+			age = (struct rte_flow_action_age *)
+				(uintptr_t)actions->conf;
+			age->context = pf;
+			return;
+		default:
+			break;
+		}
+	}
+}
+
 /** Create flow rule. */
 int
 port_flow_create(portid_t port_id,
@@ -1377,32 +1397,34 @@ port_flow_create(portid_t port_id,
 	struct rte_flow *flow;
 	struct rte_port *port;
 	struct port_flow *pf;
-	uint32_t id;
+	uint32_t id = 0;
 	struct rte_flow_error error;
 
-	/* Poisoning to make sure PMDs update it in case of error. */
-	memset(&error, 0x22, sizeof(error));
-	flow = rte_flow_create(port_id, attr, pattern, actions, &error);
-	if (!flow)
-		return port_flow_complain(&error);
 	port = &ports[port_id];
 	if (port->flow_list) {
 		if (port->flow_list->id == UINT32_MAX) {
 			printf("Highest rule ID is already assigned, delete"
 			       " it first");
-			rte_flow_destroy(port_id, flow, NULL);
 			return -ENOMEM;
 		}
 		id = port->flow_list->id + 1;
-	} else
-		id = 0;
+	}
 	pf = port_flow_new(attr, pattern, actions, &error);
-	if (!pf) {
-		rte_flow_destroy(port_id, flow, NULL);
+	if (!pf)
+		return port_flow_complain(&error);
+	update_age_action_context(actions, pf);
+	/* Poisoning to make sure PMDs update it in case of error. */
+	memset(&error, 0x22, sizeof(error));
+	flow = rte_flow_create(port_id, attr, pattern, actions, &error);
+	if (!flow) {
+		free(pf);
 		return port_flow_complain(&error);
 	}
-	pf->next = port->flow_list;
 	pf->id = id;
+	pf->prev = NULL;
+	pf->next = port->flow_list;
+	if (pf->next)
+		pf->next->prev = pf;
 	pf->flow = flow;
 	port->flow_list = pf;
 	printf("Flow rule #%u created\n", pf->id);
@@ -1568,6 +1590,64 @@ port_flow_query(portid_t port_id, uint32_t rule,
 		break;
 	}
 	return 0;
+}
+
+/** List simply and destroy all aged flows. */
+void
+port_flow_aged(portid_t port_id, uint8_t destroy)
+{
+	int nb_context, total = 0, idx;
+	void **contexts;
+	struct rte_flow_error error;
+	struct port_flow *pf;
+
+	if (port_id_is_invalid(port_id, ENABLED_WARN) ||
+	    port_id == (portid_t)RTE_PORT_ALL)
+		return;
+	total = rte_flow_get_aged_flows(port_id, NULL, 0, &error);
+	printf("Port %u total aged flows: %d\n", port_id, total);
+	if (total <= 0)
+		return;
+	contexts = malloc(sizeof(void *) * total);
+	printf("ID\tGroup\tPrio\tAttr\n");
+	nb_context = rte_flow_get_aged_flows(port_id, contexts, total, &error);
+	if (nb_context != total) {
+		printf("Port:%d get aged flows count(%d) != total(%d)\n",
+			port_id, nb_context, total);
+		free(contexts);
+		return;
+	}
+	for (idx = 0; idx < nb_context; idx++) {
+		pf = (struct port_flow *)contexts[idx];
+		if (!pf) {
+			printf("Error: get Null context in port %u\n", port_id);
+			continue;
+		}
+		printf("%" PRIu32 "\t%" PRIu32 "\t%" PRIu32 "\t%c%c%c\t\n",
+		       pf->id,
+		       pf->rule.attr->group,
+		       pf->rule.attr->priority,
+		       pf->rule.attr->ingress ? 'i' : '-',
+		       pf->rule.attr->egress ? 'e' : '-',
+		       pf->rule.attr->transfer ? 't' : '-');
+		if (!destroy)
+			continue;
+		if (pf->next)
+			pf->next->prev = pf->prev;
+		if (pf->prev)
+			pf->prev->next = pf->next;
+		else
+			(&ports[port_id])->flow_list = pf->next;
+		/*
+		 * Poisoning to make sure PMDs update it in case
+		 * of error.
+		 */
+		memset(&error, 0x33, sizeof(error));
+		if (rte_flow_destroy(port_id, pf->flow, &error))
+			port_flow_complain(&error);
+		free(pf);
+	}
+	free(contexts);
 }
 
 /** List flow rules. */
@@ -3162,6 +3242,54 @@ configure_rxtx_dump_callbacks(uint16_t verbose)
 	}
 }
 
+int
+aging_event_callback(uint16_t portid,
+		enum rte_eth_event_type event __rte_unused,
+		void *cb_arg __rte_unused,
+		void *ret_param __rte_unused)
+{
+	printf("port %u RTE_ETH_EVENT_FLOW_AGED triggered\n", portid);
+	return 0;
+}
+
+void
+add_aging_event_callbacks(portid_t portid)
+{
+	if (rte_eth_dev_callback_register(portid,
+					  RTE_ETH_EVENT_FLOW_AGED,
+					  aging_event_callback,
+					  NULL))
+		printf("port %u register RTE_ETH_EVENT_FLOW_AGED fail\n",
+			portid);
+}
+
+void
+remove_aging_event_callbacks(portid_t portid)
+{
+	if (rte_eth_dev_callback_unregister(portid,
+					RTE_ETH_EVENT_FLOW_AGED,
+					aging_event_callback,
+					NULL))
+		printf("port %u unregister RTE_ETH_EVENT_FLOW_AGED fail\n",
+			portid);
+}
+
+void
+configure_aging_event_callbacks(uint16_t verbose)
+{
+	portid_t portid;
+
+	RTE_ETH_FOREACH_DEV(portid)
+	{
+		if (port_id_is_invalid(portid, ENABLED_WARN))
+			continue;
+		if (verbose)
+			add_aging_event_callbacks(portid);
+		else
+			remove_aging_event_callbacks(portid);
+	}
+}
+
 void
 set_verbose_level(uint16_t vb_level)
 {
@@ -3169,6 +3297,7 @@ set_verbose_level(uint16_t vb_level)
 	       (unsigned int) verbose_level, (unsigned int) vb_level);
 	verbose_level = vb_level;
 	configure_rxtx_dump_callbacks(verbose_level);
+	configure_aging_event_callbacks(verbose_level);
 }
 
 void
