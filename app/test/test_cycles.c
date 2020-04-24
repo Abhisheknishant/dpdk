@@ -30,6 +30,13 @@ check_wait_one_second(void)
 	uint64_t hz = rte_get_timer_hz();
 	uint64_t max_inc = (hz / 100); /* 10 ms max between 2 reads */
 
+#if defined(RTE_ARCH_ARM64)
+	/* When testing in containers, 'delay' could have less accuracy
+	 * if system is busy.
+	 */
+	max_inc = 3 * max_inc;
+#endif
+
 	/* check that waiting 1 second is precise */
 	prev_cycles = rte_get_timer_cycles();
 	rte_delay_us(1000000);
