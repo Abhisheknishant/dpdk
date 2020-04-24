@@ -42,6 +42,9 @@ static struct rte_tailq_elem rte_ring_tailq = {
 };
 EAL_REGISTER_TAILQ(rte_ring_tailq)
 
+/* mask of all valid flag values to ring_create() */
+#define RING_F_MASK	0x007F
+
 /* true if x is a power of 2 */
 #define POWEROF2(x) ((((x)-1) & (x)) == 0)
 
@@ -196,6 +199,13 @@ rte_ring_init(struct rte_ring *r, const char *name, unsigned count,
 		offsetof(struct rte_ring_rts_headtail, sync_type));
 	RTE_BUILD_BUG_ON(offsetof(struct rte_ring_headtail, tail) !=
 		offsetof(struct rte_ring_rts_headtail, tail.val.pos));
+
+	/* future proof flags, only allow supported values */
+	if (flags & ~RING_F_MASK) {
+		RTE_LOG(ERR, RING,
+			"Unsupported flags requested %#x\n", flags);
+		return -EINVAL;
+	}
 
 	/* init the ring structure */
 	memset(r, 0, sizeof(*r));
