@@ -17,6 +17,8 @@ EXPERIMENTAL {
 	rte_tel_data_start_array;
 	rte_tel_data_start_dict;
 	rte_tel_data_string;
+	rte_telemetry_legacy_init;
+	rte_telemetry_legacy_register;
 
 	local: *;
 };
