@@ -28,7 +28,7 @@
  * The rte_spinlock_t type.
  */
 typedef struct {
-	volatile int locked; /**< lock status 0 = unlocked, 1 = locked */
+	volatile uint32_t locked; /**< lock status 0 = unlocked, 1 = locked */
 } rte_spinlock_t;
 
 /**
@@ -65,8 +65,7 @@ rte_spinlock_lock(rte_spinlock_t *sl)
 
 	while (!__atomic_compare_exchange_n(&sl->locked, &exp, 1, 0,
 				__ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
-		while (__atomic_load_n(&sl->locked, __ATOMIC_RELAXED))
-			rte_pause();
+		rte_wait_until_equal_32(&sl->locked, 0, __ATOMIC_RELAXED);
 		exp = 0;
 	}
 }
