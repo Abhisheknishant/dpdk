@@ -234,10 +234,16 @@ nic_stats_display(portid_t port_id)
 void
 nic_stats_clear(portid_t port_id)
 {
+	struct rte_port *port;
+
 	if (port_id_is_invalid(port_id, ENABLED_WARN)) {
 		print_valid_ports();
 		return;
 	}
+
+	port = &ports[port_id];
+	/* clear last port statistics because eth stats reset */
+	memset(&port->stats, 0, sizeof(port->stats));
 	rte_eth_stats_reset(port_id);
 	printf("\n  NIC statistics for port %d cleared\n", port_id);
 }
@@ -308,12 +314,17 @@ nic_xstats_display(portid_t port_id)
 void
 nic_xstats_clear(portid_t port_id)
 {
+	struct rte_port *port;
 	int ret;
 
 	if (port_id_is_invalid(port_id, ENABLED_WARN)) {
 		print_valid_ports();
 		return;
 	}
+
+	port = &ports[port_id];
+	/* clear last port statistics because eth xstats(include stats) reset */
+	memset(&port->stats, 0, sizeof(port->stats));
 	ret = rte_eth_xstats_reset(port_id);
 	if (ret != 0) {
 		printf("%s: Error: failed to reset xstats (port %u): %s",
