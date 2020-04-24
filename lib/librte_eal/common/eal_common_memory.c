@@ -177,6 +177,32 @@ eal_get_virtual_area(void *requested_addr, size_t *size,
 		after_len = RTE_PTR_DIFF(map_end, aligned_end);
 		if (after_len > 0)
 			munmap(aligned_end, after_len);
+
+		/*
+		 * Exclude this pages from a core dump.
+		 */
+#ifdef RTE_EXEC_ENV_LINUX
+		if (madvise(aligned_addr, *size, MADV_DONTDUMP) != 0)
+			RTE_LOG(DEBUG, EAL, "madvise failed: %s\n",
+				strerror(errno));
+#elif RTE_EXEC_ENV_FREEBSD
+		if (madvise(aligned_addr, *size, MADV_NOCORE) != 0)
+			RTE_LOG(DEBUG, EAL, "madvise failed: %s\n",
+				strerror(errno));
+#endif
+	} else {
+		/*
+		 * Exclude this pages from a core dump.
+		 */
+#ifdef RTE_EXEC_ENV_LINUX
+		if (madvise(mapped_addr, map_sz, MADV_DONTDUMP) != 0)
+			RTE_LOG(DEBUG, EAL, "madvise failed: %s\n",
+				strerror(errno));
+#elif RTE_EXEC_ENV_FREEBSD
+		if (madvise(mapped_addr, map_sz, MADV_NOCORE) != 0)
+			RTE_LOG(DEBUG, EAL, "madvise failed: %s\n",
+				strerror(errno));
+#endif
 	}
 
 	return aligned_addr;

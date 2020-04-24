@@ -571,6 +571,9 @@ alloc_seg(struct rte_memseg *ms, void *addr, int socket_id,
 		goto resized;
 	}
 
+	if (madvise(addr, alloc_sz, MADV_DODUMP) != 0)
+		RTE_LOG(DEBUG, EAL, "madvise failed: %s\n", strerror(errno));
+
 	/* In linux, hugetlb limitations, like cgroup, are
 	 * enforced at fault time instead of mmap(), even
 	 * with the option of MAP_POPULATE. Kernel will send
@@ -686,6 +689,9 @@ free_seg(struct rte_memseg *ms, struct hugepage_info *hi,
 		RTE_LOG(DEBUG, EAL, "couldn't unmap page\n");
 		return -1;
 	}
+
+	if (madvise(ms->addr, ms->len, MADV_DONTDUMP) != 0)
+		RTE_LOG(DEBUG, EAL, "madvise failed: %s\n", strerror(errno));
 
 	exit_early = false;
 
