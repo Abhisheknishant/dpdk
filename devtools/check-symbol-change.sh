@@ -91,6 +91,13 @@ check_for_rule_violations()
 		if [ "$ar" = "add" ]
 		then
 
+			if [ "$secname" = "INTERNAL" ]
+			then
+				# these are absolved from any further checking
+				echo "Skipping symbol $symname in INTERNAL"
+				continue
+			fi
+
 			if [ "$secname" = "unknown" ]
 			then
 				# Just inform the user of this occurrence, but
@@ -148,6 +155,7 @@ check_for_rule_violations()
 		else
 
 			if ! grep -q "$mname $symname .* add" "$mapdb" && \
+			   [ "$secname" != "INTERNAL" ] && \
 			   [ "$secname" != "EXPERIMENTAL" ]
 			then
 				# Just inform users that non-experimenal
