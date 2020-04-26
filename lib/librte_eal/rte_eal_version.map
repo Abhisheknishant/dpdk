@@ -213,7 +213,6 @@ DPDK_20.0 {
 	rte_vfio_is_enabled;
 	rte_vfio_noiommu_is_enabled;
 	rte_vfio_release_device;
-	rte_vfio_setup_device;
 	rte_vlog;
 	rte_zmalloc;
 	rte_zmalloc_socket;
@@ -387,4 +386,11 @@ EXPERIMENTAL {
 	rte_trace_point_lookup;
 	rte_trace_regexp;
 	rte_trace_save;
+};
+
+INTERNAL {
+	global:
+
+	# added in 20.05
+	rte_vfio_setup_device;
 };

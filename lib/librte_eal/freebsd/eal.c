@@ -1005,7 +1005,8 @@ rte_eal_vfio_intr_mode(void)
 int rte_vfio_setup_device(__rte_unused const char *sysfs_base,
 		      __rte_unused const char *dev_addr,
 		      __rte_unused int *vfio_dev_fd,
-		      __rte_unused struct vfio_device_info *device_info)
+		      __rte_unused struct vfio_device_info *device_info,
+		      __rte_unused rte_uuid_t vf_token)
 {
 	return -1;
 }
