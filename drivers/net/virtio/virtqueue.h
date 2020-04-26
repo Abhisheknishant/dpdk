@@ -239,7 +239,8 @@ struct vq_desc_extra {
 	void *cookie;
 	uint16_t ndescs;
 	uint16_t next;
-};
+	uint8_t padding[4];
+} __rte_packed __rte_aligned(16);
 
 struct virtqueue {
 	struct virtio_hw  *hw; /**< virtio_hw structure pointer. */
