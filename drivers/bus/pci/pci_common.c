@@ -271,6 +271,8 @@ pci_probe_all_drivers(struct rte_pci_device *dev)
 		return -EINVAL;
 
 	FOREACH_DRIVER_ON_PCIBUS(dr) {
+		if (dev->kdrv == RTE_KDRV_NONE)
+			continue;
 		rc = rte_pci_probe_one_driver(dr, dev);
 		if (rc < 0)
 			/* negative value is an error */
