@@ -448,4 +448,30 @@ eal_malloc_no_trace(const char *type, size_t size, unsigned int align);
 
 void eal_free_no_trace(void *addr);
 
+/**
+ * Get absolute path to the directory where permanent data can be stored.
+ *
+ * @return
+ *  Statically allocated string on success, NULL on failure.
+ */
+const char *
+eal_permanent_data_path(void);
+
+/**
+ * Create a directory accessible to the current user only.
+ *
+ * This function does not create intermediate directories,
+ * thus only the last path component may be nonexistent.
+ *
+ * This function succeeds if path already exists and is a directory.
+ *
+ * Platform-independent code should use forward slash as path separator.
+ *
+ * @param path
+ *  Path to be created.
+ * @return
+ *  0 on success, (-1) on failure and rte_errno is set.
+ */
+int eal_dir_create(const char *path);
+
 #endif /* _EAL_PRIVATE_H_ */

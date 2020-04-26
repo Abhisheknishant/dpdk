@@ -46,15 +46,13 @@ extern "C" {
 typedef long long ssize_t;
 
 #ifndef RTE_TOOLCHAIN_GCC
+
 static inline int
-asprintf(char **buffer, const char *format, ...)
+vasprintf(char **buffer, const char *format, va_list arg)
 {
 	int size, ret;
-	va_list arg;
 
-	va_start(arg, format);
 	size = vsnprintf(NULL, 0, format, arg);
-	va_end(arg);
 	if (size < 0)
 		return -1;
 	size++;
@@ -63,16 +61,37 @@ asprintf(char **buffer, const char *format, ...)
 	if (*buffer == NULL)
 		return -1;
 
-	va_start(arg, format);
 	ret = vsnprintf(*buffer, size, format, arg);
-	va_end(arg);
 	if (ret != size - 1) {
 		free(*buffer);
 		return -1;
 	}
 	return ret;
 }
-#endif /* RTE_TOOLCHAIN_GCC */
+
+static inline int
+asprintf(char **buffer, const char *format, ...)
+{
+	int ret;
+	va_list arg;
+
+	va_start(arg, format);
+	ret = vasprintf(buffer, format, arg);
+	va_end(arg);
+
+	return ret;
+}
+
+#else /* RTE_TOOLCHAIN_GCC */
+
+/* value as in time.h from UCRT */
+#define TIME_UTC 1
+
+struct timespec;
+
+int timespec_get(struct timespec *ts, int base);
+
+#endif /* !RTE_TOOLCHAIN_GCC */
 
 #ifdef __cplusplus
 }

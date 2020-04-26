@@ -158,6 +158,15 @@ eal_thread_create(pthread_t *thread)
 }
 
 int
+rte_thread_getname(pthread_t id, char *name, size_t len)
+{
+	RTE_SET_USED(id);
+	RTE_SET_USED(name);
+	RTE_SET_USED(len);
+	return -ENOTSUP;
+}
+
+int
 rte_thread_setname(__rte_unused pthread_t id, __rte_unused const char *name)
 {
 	/* TODO */
