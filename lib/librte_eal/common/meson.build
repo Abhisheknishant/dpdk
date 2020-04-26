@@ -14,6 +14,11 @@ if is_windows
 		'eal_common_log.c',
 		'eal_common_options.c',
 		'eal_common_thread.c',
+		'eal_common_trace.c',
+		'eal_common_trace_ctf.c',
+		'eal_common_trace_utils.c',
+		'eal_common_string_fns.c',
+		'eal_common_uuid.c',
 		'rte_option.c',
 	)
 	subdir_done()

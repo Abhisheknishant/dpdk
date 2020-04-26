@@ -17,6 +17,7 @@
 #include <eal_filesystem.h>
 #include <eal_options.h>
 #include <eal_private.h>
+#include <eal_trace.h>
 
 #include "eal_windows.h"
 
@@ -208,6 +209,91 @@ eal_parse_args(int argc, char **argv)
 	return ret;
 }
 
+void *
+eal_malloc_no_trace(const char *type, size_t size, unsigned int align)
+{
+	/* Simulate failure, so that tracing falls back to malloc(). */
+	RTE_SET_USED(type);
+	RTE_SET_USED(size);
+	RTE_SET_USED(align);
+	return NULL;
+}
+
+void
+eal_free_no_trace(void *addr __rte_unused)
+{
+	/* Nothing to free. */
+}
+
+/* MinGW-w64 does not implement timespec_get(). */
+#ifdef RTE_TOOLCHAIN_GCC
+
+int
+timespec_get(struct timespec *ts, int base)
+{
+	static const uint64_t UNITS_PER_SEC = 10000000; /* 1 unit = 100 ns */
+
+	FILETIME ft;
+	ULARGE_INTEGER ui;
+
+	GetSystemTimePreciseAsFileTime(&ft);
+	ui.LowPart = ft.dwLowDateTime;
+	ui.HighPart = ft.dwHighDateTime;
+	ts->tv_sec = ui.QuadPart / UNITS_PER_SEC;
+	ts->tv_nsec = ui.QuadPart - (ts->tv_sec * UNITS_PER_SEC);
+	return base;
+}
+
+#endif /* RTE_TOOLCHAIN_GCC */
+
+uint64_t
+rte_get_tsc_hz(void)
+{
+	static LARGE_INTEGER freq; /* static so auto-zeroed */
+
+	if (freq.QuadPart != 0)
+		return freq.QuadPart;
+
+	QueryPerformanceFrequency(&freq);
+	return freq.QuadPart;
+}
+
+const char *
+eal_permanent_data_path(void)
+{
+	static char buffer[PATH_MAX]; /* static so auto-zeroed */
+
+	HRESULT ret;
+
+	if (buffer[0] != '\0')
+		return buffer;
+
+	ret = SHGetFolderPathA(
+		NULL, CSIDL_LOCAL_APPDATA, NULL, SHGFP_TYPE_CURRENT, buffer);
+	if (FAILED(ret)) {
+		RTE_LOG_WIN32_ERR("SHGetFolderPathA(CSIDL_LOCAL_APPDATA)");
+		return NULL;
+	}
+
+	return buffer;
+}
+
+int
+eal_dir_create(const char *path)
+{
+	/* CreateDirectoryA() fails if directory exists. */
+	if (PathIsDirectoryA(path))
+		return 0;
+
+	/* Default ACL already restricts access to creator and owner only. */
+	if (!CreateDirectoryA(path, NULL)) {
+		RTE_LOG_WIN32_ERR("CreateDirectoryA(\"%s\", NULL)", path);
+		rte_errno = EINVAL;
+		return -1;
+	}
+	return 0;
+}
+
 static int
 sync_func(void *arg __rte_unused)
 {
@@ -241,6 +327,12 @@ rte_eal_init(int argc, char **argv)
 	fctret = eal_parse_args(argc, argv);
 	if (fctret < 0)
 		exit(1);
+
+	if (eal_trace_init() < 0) {
+		rte_eal_init_alert("Cannot init trace");
+		rte_errno = EFAULT;
+		return -1;
+	}
 
 	eal_thread_init_master(rte_config.master_lcore);
 

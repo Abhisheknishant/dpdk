@@ -7,6 +7,7 @@
 
 #include <rte_common.h>
 #include <rte_errno.h>
+#include <rte_os.h>
 #include <rte_string_fns.h>
 
 #include "eal_filesystem.h"
@@ -300,7 +301,7 @@ trace_epoch_time_save(void)
 	uint64_t avg, start, end;
 
 	start = rte_get_tsc_cycles();
-	if (clock_gettime(CLOCK_REALTIME, &epoch) < 0) {
+	if (timespec_get(&epoch, TIME_UTC) < 0) {
 		trace_err("failed to get the epoch time");
 		return -1;
 	}

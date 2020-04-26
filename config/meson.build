@@ -267,6 +267,8 @@ if is_windows
 	# Minimum supported API is Windows 7.
 	add_project_arguments('-D_WIN32_WINNT=0x0601', language: 'c')
 
+	add_project_link_arguments(['-lshell32', '-lshlwapi'], language: 'c')
+
 	# Use MinGW-w64 stdio, because DPDK assumes ANSI-compliant formatting.
 	if cc.get_id() == 'gcc'
 		add_project_arguments('-D__USE_MINGW_ANSI_STDIO', language: 'c')

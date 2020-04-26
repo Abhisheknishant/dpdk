@@ -11,6 +11,9 @@
 
 #include <rte_windows.h>
 
+#include <shlobj.h>
+#include <shlwapi.h>
+
 /**
  * Create a map of processors and cores on the system.
  */
