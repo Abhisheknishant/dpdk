@@ -4,8 +4,8 @@
 
 /**
  * @file
- * Stores functions and path defines for files and directories
- * on the filesystem for Linux, that are used by the Linux EAL.
+ * Stores functions and path defines for files and directories used by DPDK.
+ * Parts of this file are Unix-specific for historical reasons.
  */
 
 #ifndef EAL_FILESYSTEM_H
@@ -27,6 +27,32 @@ eal_create_runtime_dir(void);
 
 int
 eal_clean_runtime_dir(void);
+
+/**
+ * Get absolute path to the directory where permanent data can be stored.
+ *
+ * @return
+ *  Statically allocated string on success, NULL on failure.
+ */
+const char *
+eal_permanent_data_path(void);
+
+/**
+ * Create a directory accessible to the current user only.
+ *
+ * This function does not create intermediate directories,
+ * thus only the last path component may be nonexistent.
+ *
+ * This function succeeds if path already exists and is a directory.
+ *
+ * Platform-independent code should use forward slash as path separator.
+ *
+ * @param path
+ *  Path to be created.
+ * @return
+ *  0 on success, (-1) on failure and rte_errno is set.
+ */
+int eal_dir_create(const char *path);
 
 /** Function to return hugefile prefix that's currently set up */
 const char *

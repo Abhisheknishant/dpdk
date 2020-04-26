@@ -3,8 +3,6 @@
  */
 
 #include <fnmatch.h>
-#include <pwd.h>
-#include <sys/stat.h>
 #include <time.h>
 
 #include <rte_common.h>
@@ -321,22 +319,14 @@ trace_dir_default_path_get(char *dir_path)
 {
 	struct trace *trace = trace_obj_get();
 	uint32_t size = sizeof(trace->dir);
-	struct passwd *pwd;
-	char *home_dir;
+	const char *perm_dir;
 
-	/* First check for shell environment variable */
-	home_dir = getenv("HOME");
-	if (home_dir == NULL) {
-		/* Fallback to password file entry */
-		pwd = getpwuid(getuid());
-		if (pwd == NULL)
-			return -EINVAL;
-
-		home_dir = pwd->pw_dir;
-	}
+	perm_dir = eal_permanent_data_path();
+	if (perm_dir == NULL)
+		return -EINVAL;
 
 	/* Append dpdk-traces to directory */
-	if (snprintf(dir_path, size, "%s/dpdk-traces/", home_dir) < 0)
+	if (snprintf(dir_path, size, "%s/dpdk-traces/", perm_dir) < 0)
 		return -ENAMETOOLONG;
 
 	return 0;
@@ -371,7 +361,7 @@ trace_mkdir(void)
 	}
 
 	/* Create the path if it t exist, no "mkdir -p" available here */
-	rc = mkdir(trace->dir, 0700);
+	rc = eal_dir_create(trace->dir);
 	if (rc < 0 && errno != EEXIST) {
 		trace_err("mkdir %s failed [%s]", trace->dir, strerror(errno));
 		rte_errno = errno;
@@ -385,7 +375,7 @@ trace_mkdir(void)
 	if (rc < 0)
 		return rc;
 
-	rc = mkdir(trace->dir, 0700);
+	rc = eal_dir_create(trace->dir);
 	if (rc < 0) {
 		trace_err("mkdir %s failed [%s]", trace->dir, strerror(errno));
 		rte_errno = errno;
