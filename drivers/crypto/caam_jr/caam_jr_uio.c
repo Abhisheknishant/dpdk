@@ -145,7 +145,7 @@ file_read_first_line(const char root[], const char subdir[],
 		 "%s/%s/%s", root, subdir, filename);
 
 	fd = open(absolute_file_name, O_RDONLY);
-	SEC_ASSERT(fd > 0, fd, "Error opening file %s",
+	SEC_ASSERT(fd >= 0, fd, "Error opening file %s",
 			absolute_file_name);
 
 	/* read UIO device name from first line in file */
@@ -389,7 +389,7 @@ uio_job_ring *config_job_ring(void)
 
 	/* Open device file */
 	job_ring->uio_fd = open(uio_device_file_name, O_RDWR);
-	SEC_ASSERT(job_ring->uio_fd > 0, NULL,
+	SEC_ASSERT(job_ring->uio_fd >= 0, NULL,
 		"Failed to open UIO device file for job ring %d",
 		job_ring->jr_id);
 
@@ -488,7 +488,7 @@ sec_cleanup(void)
 		/* I need to close the fd after shutdown UIO commands need to be
 		 * sent using the fd
 		 */
-		if (job_ring->uio_fd != 0) {
+		if (job_ring->uio_fd >= 0) {
 			CAAM_JR_INFO(
 			"Closed device file for job ring %d , fd = %d",
 			job_ring->jr_id, job_ring->uio_fd);
