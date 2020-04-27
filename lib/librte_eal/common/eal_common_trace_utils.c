@@ -227,15 +227,16 @@ int
 eal_trace_mode_args_save(const char *optarg)
 {
 	struct trace *trace = trace_obj_get();
-	size_t len = strlen(optarg);
 	unsigned long tmp;
 	char *pattern;
+	size_t len;
 
 	if (optarg == NULL) {
 		trace_err("no optarg is passed");
 		return -EINVAL;
 	}
 
+	len = strlen(optarg);
 	if (len == 0) {
 		trace_err("value is not provided with option");
 		return -EINVAL;
