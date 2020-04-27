@@ -212,6 +212,13 @@ New Features
   * Added IPsec inbound load-distribution support for ipsec-secgw application
     using NIC load distribution feature(Flow Director).
 
+* **Added --portmap command line parameter to l2fwd example.**
+
+  Added new command line option ``--portmap="(port, port)[,(port, port)]"`` to
+  pass forwarding port details.
+  See the :doc:`doc/guides/sample_app_ug/l2_forward_real_virtual` for more
+  details of this parameter usage.
+
 
 Removed Items
 -------------
