@@ -577,7 +577,7 @@ port_infos_display(portid_t port_id)
 		printf("\nmemory allocation on the socket: %u",port->socket_id);
 
 	printf("\nLink status: %s\n", (link.link_status) ? ("up") : ("down"));
-	printf("Link speed: %u Mbps\n", (unsigned) link.link_speed);
+	printf("Link speed: %u Mbps\n", link.link_speed);
 	printf("Link duplex: %s\n", (link.link_duplex == ETH_LINK_FULL_DUPLEX) ?
 	       ("full-duplex") : ("half-duplex"));
 
@@ -727,7 +727,7 @@ port_summary_display(portid_t port_id)
 		mac_addr.addr_bytes[2], mac_addr.addr_bytes[3],
 		mac_addr.addr_bytes[4], mac_addr.addr_bytes[5], name,
 		dev_info.driver_name, (link.link_status) ? ("up") : ("down"),
-		(unsigned int) link.link_speed);
+		link.link_speed);
 }
 
 void
