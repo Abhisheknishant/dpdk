@@ -325,8 +325,6 @@ thread_pipeline_enable(uint32_t thread_id,
 
 	/* Send request and wait for response */
 	rsp = thread_msg_send_recv(thread_id, req);
-	if (rsp == NULL)
-		return -1;
 
 	/* Read response */
 	status = rsp->status;
@@ -412,8 +410,6 @@ thread_pipeline_disable(uint32_t thread_id,
 
 	/* Send request and wait for response */
 	rsp = thread_msg_send_recv(thread_id, req);
-	if (rsp == NULL)
-		return -1;
 
 	/* Read response */
 	status = rsp->status;
