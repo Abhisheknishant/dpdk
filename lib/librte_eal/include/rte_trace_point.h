@@ -26,6 +26,12 @@ extern "C" {
 #include <rte_common.h>
 #include <rte_compat.h>
 
+#if defined(__PPC64__) && !defined(__APPLE_ALTIVEC__)
+#undef bool
+/* redefine as in stdbool.h */
+#define bool _Bool
+#endif
+
 /** The tracepoint object. */
 typedef uint64_t rte_trace_point_t;
 
