@@ -173,12 +173,14 @@ app_ports_check_link(void)
 			all_ports_up = 0;
 			continue;
 		}
-
-		RTE_LOG(INFO, USER1, "Port %u (%u Gbps) %s\n",
-			port,
-			link.link_speed / 1000,
-			link.link_status ? "UP" : "DOWN");
-
+		if (link.link_speed == UINT32_MAX)
+			RTE_LOG(INFO, USER1, "Port %u (UNKNOWN Gbps) %s\n",
+				port, link.link_status ? "UP" : "DOWN");
+		else
+			RTE_LOG(INFO, USER1, "Port %u (%u Gbps) %s\n",
+				port,
+				link.link_speed / 1000,
+				link.link_status ? "UP" : "DOWN");
 		if (link.link_status == ETH_LINK_DOWN)
 			all_ports_up = 0;
 	}

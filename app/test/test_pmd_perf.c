@@ -148,8 +148,10 @@ check_all_ports_link_status(uint16_t port_num, uint32_t port_mask)
 			if (print_flag == 1) {
 				if (link.link_status) {
 					printf(
-					"Port%d Link Up. Speed %u Mbps - %s\n",
+					"Port%d Link Up. Speed %u%s - %s\n",
 						portid, link.link_speed,
+				(link.link_speed == UINT32_MAX) ?
+					("(UNKNOWN)") : (" Mbps"),
 				(link.link_duplex == ETH_LINK_FULL_DUPLEX) ?
 					("full-duplex") : ("half-duplex"));
 					if (link_mbps == 0)
