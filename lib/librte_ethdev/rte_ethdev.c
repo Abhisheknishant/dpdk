@@ -1412,6 +1412,17 @@ rte_eth_dev_configure(uint16_t port_id, uint16_t nb_rx_q, uint16_t nb_tx_q,
 		goto rollback;
 	}
 
+	/* Check if Rx RSS distribution is enable but RSS hash is disabled. */
+	if (((dev_conf->rxmode.mq_mode & ETH_MQ_RX_RSS_FLAG) != 0) &&
+	    !(dev_conf->rxmode.offloads & DEV_RX_OFFLOAD_RSS_HASH)) {
+		RTE_ETHDEV_LOG(ERR,
+			"Ethdev port_id=%u config valid Rx mq_mode with RSS but %s offload is no-requested\n",
+			port_id,
+			rte_eth_dev_rx_offload_name(DEV_RX_OFFLOAD_RSS_HASH));
+		ret = -EINVAL;
+		goto rollback;
+	}
+
 	/*
 	 * Setup new number of RX/TX queues and reconfigure device.
 	 */
