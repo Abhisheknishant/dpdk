@@ -255,9 +255,9 @@ thread_msg_alloc(void)
 }
 
 static void
-thread_msg_free(struct thread_msg_rsp *rsp)
+thread_msg_free(void *msg)
 {
-	free(rsp);
+	free(msg);
 }
 
 static struct thread_msg_rsp *
@@ -359,8 +359,10 @@ softnic_thread_pipeline_enable(struct pmd_internals *softnic,
 
 	/* Send request and wait for response */
 	rsp = thread_msg_send_recv(softnic, thread_id, req);
-	if (rsp == NULL)
+	if (rsp == NULL) {
+		thread_msg_free(req);
 		return -1;
+	}
 
 	/* Read response */
 	status = rsp->status;
@@ -444,8 +446,10 @@ softnic_thread_pipeline_disable(struct pmd_internals *softnic,
 
 	/* Send request and wait for response */
 	rsp = thread_msg_send_recv(softnic, thread_id, req);
-	if (rsp == NULL)
+	if (rsp == NULL) {
+		thread_msg_free(req);
 		return -1;
+	}
 
 	/* Read response */
 	status = rsp->status;
