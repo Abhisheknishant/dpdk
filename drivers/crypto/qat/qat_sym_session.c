@@ -1902,8 +1902,7 @@ int qat_sym_session_aead_create_cd_auth(struct qat_sym_session *cdesc,
 			+ ICP_QAT_HW_ZUC_3G_EEA3_IV_SZ);
 
 		memcpy(cdesc->cd_cur_ptr + state1_size, authkey, authkeylen);
-		cdesc->cd_cur_ptr += state1_size + state2_size
-			+ ICP_QAT_HW_ZUC_3G_EEA3_IV_SZ;
+		cdesc->cd_cur_ptr += ICP_QAT_HW_ZUC_3G_EEA3_IV_SZ;
 		auth_param->hash_state_sz = ICP_QAT_HW_ZUC_3G_EEA3_IV_SZ >> 3;
 		cdesc->min_qat_dev_gen = QAT_GEN2;
 
