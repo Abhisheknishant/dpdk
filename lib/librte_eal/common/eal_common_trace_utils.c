@@ -276,7 +276,10 @@ eal_trace_dir_args_save(char const *optarg)
 		return -EINVAL;
 	}
 
-	if (strlen(optarg) >= size) {
+	/* the specified trace directory name cannot
+	 * exceed PATH_MAX-1.
+	 */
+	if (strlen(optarg) >= (size - 1)) {
 		trace_err("input string is too big");
 		return -ENAMETOOLONG;
 	}
