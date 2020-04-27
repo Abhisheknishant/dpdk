@@ -309,6 +309,11 @@ rte_hash_add_key_with_hash(const struct rte_hash *h, const void *key, hash_sig_t
 int32_t
 rte_hash_del_key(const struct rte_hash *h, const void *key);
 
+
+/* for without compact */
+int32_t
+rte_hash_del_key_fixed(const struct rte_hash *h, const void *key);
+
 /**
  * Remove a key from an existing hash table.
  * This operation is not multi-thread safe

@@ -1491,7 +1491,7 @@ search_and_remove(const struct rte_hash *h, const void *key,
 
 static inline int32_t
 __rte_hash_del_key_with_hash(const struct rte_hash *h, const void *key,
-						hash_sig_t sig)
+						hash_sig_t sig, uint8_t compact)
 {
 	uint32_t prim_bucket_idx, sec_bucket_idx;
 	struct rte_hash_bucket *prim_bkt, *sec_bkt, *prev_bkt, *last_bkt;
@@ -1509,7 +1509,8 @@ __rte_hash_del_key_with_hash(const struct rte_hash *h, const void *key,
 	/* look for key in primary bucket */
 	ret = search_and_remove(h, key, prim_bkt, short_sig, &pos);
 	if (ret != -1) {
-		__rte_hash_compact_ll(h, prim_bkt, pos);
+		if (compact)
+			__rte_hash_compact_ll(h, prim_bkt, pos);
 		last_bkt = prim_bkt->next;
 		prev_bkt = prim_bkt;
 		goto return_bkt;
@@ -1521,7 +1522,8 @@ __rte_hash_del_key_with_hash(const struct rte_hash *h, const void *key,
 	FOR_EACH_BUCKET(cur_bkt, sec_bkt) {
 		ret = search_and_remove(h, key, cur_bkt, short_sig, &pos);
 		if (ret != -1) {
-			__rte_hash_compact_ll(h, cur_bkt, pos);
+			if (compact)
+				__rte_hash_compact_ll(h, cur_bkt, pos);
 			last_bkt = sec_bkt->next;
 			prev_bkt = sec_bkt;
 			goto return_bkt;
@@ -1576,14 +1578,21 @@ rte_hash_del_key_with_hash(const struct rte_hash *h,
 			const void *key, hash_sig_t sig)
 {
 	RETURN_IF_TRUE(((h == NULL) || (key == NULL)), -EINVAL);
-	return __rte_hash_del_key_with_hash(h, key, sig);
+	return __rte_hash_del_key_with_hash(h, key, sig, 1);
 }
 
 int32_t
 rte_hash_del_key(const struct rte_hash *h, const void *key)
 {
 	RETURN_IF_TRUE(((h == NULL) || (key == NULL)), -EINVAL);
-	return __rte_hash_del_key_with_hash(h, key, rte_hash_hash(h, key));
+	return __rte_hash_del_key_with_hash(h, key, rte_hash_hash(h, key), 1);
+}
+
+int32_t
+rte_hash_del_key_fixed(const struct rte_hash *h, const void *key)
+{
+	RETURN_IF_TRUE(((h == NULL) || (key == NULL)), -EINVAL);
+	return __rte_hash_del_key_with_hash(h, key, rte_hash_hash(h, key), 0);
 }
 
 int

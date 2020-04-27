@@ -11,6 +11,7 @@ DPDK_20.0 {
 	rte_hash_count;
 	rte_hash_create;
 	rte_hash_del_key;
+	rte_hash_del_key_fixed;
 	rte_hash_del_key_with_hash;
 	rte_hash_find_existing;
 	rte_hash_free;
