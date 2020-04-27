@@ -815,8 +815,6 @@ pipeline_port_in_stats_read(const char *pipeline_name,
 
 	/* Send request and wait for response */
 	rsp = pipeline_msg_send_recv(p, req);
-	if (rsp == NULL)
-		return -1;
 
 	/* Read response */
 	status = rsp->status;
@@ -863,8 +861,6 @@ pipeline_port_in_enable(const char *pipeline_name,
 
 	/* Send request and wait for response */
 	rsp = pipeline_msg_send_recv(p, req);
-	if (rsp == NULL)
-		return -1;
 
 	/* Read response */
 	status = rsp->status;
@@ -909,8 +905,6 @@ pipeline_port_in_disable(const char *pipeline_name,
 
 	/* Send request and wait for response */
 	rsp = pipeline_msg_send_recv(p, req);
-	if (rsp == NULL)
-		return -1;
 
 	/* Read response */
 	status = rsp->status;
@@ -963,8 +957,6 @@ pipeline_port_out_stats_read(const char *pipeline_name,
 
 	/* Send request and wait for response */
 	rsp = pipeline_msg_send_recv(p, req);
-	if (rsp == NULL)
-		return -1;
 
 	/* Read response */
 	status = rsp->status;
@@ -1019,8 +1011,6 @@ pipeline_table_stats_read(const char *pipeline_name,
 
 	/* Send request and wait for response */
 	rsp = pipeline_msg_send_recv(p, req);
-	if (rsp == NULL)
-		return -1;
 
 	/* Read response */
 	status = rsp->status;
@@ -1436,10 +1426,6 @@ pipeline_table_rule_add(const char *pipeline_name,
 
 	/* Send request and wait for response */
 	rsp = pipeline_msg_send_recv(p, req);
-	if (rsp == NULL) {
-		free(rule);
-		return -1;
-	}
 
 	/* Read response */
 	status = rsp->status;
@@ -1538,10 +1524,6 @@ pipeline_table_rule_add_default(const char *pipeline_name,
 
 	/* Send request and wait for response */
 	rsp = pipeline_msg_send_recv(p, req);
-	if (rsp == NULL) {
-		free(rule);
-		return -1;
-	}
 
 	/* Read response */
 	status = rsp->status;
@@ -1655,10 +1637,6 @@ pipeline_table_rule_add_bulk(const char *pipeline_name,
 
 	/* Send request and wait for response */
 	rsp = pipeline_msg_send_recv(p, req);
-	if (rsp == NULL) {
-		table_rule_list_free(list);
-		return -ENOMEM;
-	}
 
 	/* Read response */
 	status = rsp->status;
@@ -1733,8 +1711,6 @@ pipeline_table_rule_delete(const char *pipeline_name,
 
 	/* Send request and wait for response */
 	rsp = pipeline_msg_send_recv(p, req);
-	if (rsp == NULL)
-		return -1;
 
 	/* Read response */
 	status = rsp->status;
@@ -1790,8 +1766,6 @@ pipeline_table_rule_delete_default(const char *pipeline_name,
 
 	/* Send request and wait for response */
 	rsp = pipeline_msg_send_recv(p, req);
-	if (rsp == NULL)
-		return -1;
 
 	/* Read response */
 	status = rsp->status;
@@ -1857,8 +1831,6 @@ pipeline_table_rule_stats_read(const char *pipeline_name,
 
 	/* Send request and wait for response */
 	rsp = pipeline_msg_send_recv(p, req);
-	if (rsp == NULL)
-		return -1;
 
 	/* Read response */
 	status = rsp->status;
@@ -1915,8 +1887,6 @@ pipeline_table_mtr_profile_add(const char *pipeline_name,
 
 	/* Send request and wait for response */
 	rsp = pipeline_msg_send_recv(p, req);
-	if (rsp == NULL)
-		return -1;
 
 	/* Read response */
 	status = rsp->status;
@@ -1967,8 +1937,6 @@ pipeline_table_mtr_profile_delete(const char *pipeline_name,
 
 	/* Send request and wait for response */
 	rsp = pipeline_msg_send_recv(p, req);
-	if (rsp == NULL)
-		return -1;
 
 	/* Read response */
 	status = rsp->status;
@@ -2037,8 +2005,6 @@ pipeline_table_rule_mtr_read(const char *pipeline_name,
 
 	/* Send request and wait for response */
 	rsp = pipeline_msg_send_recv(p, req);
-	if (rsp == NULL)
-		return -1;
 
 	/* Read response */
 	status = rsp->status;
@@ -2096,8 +2062,6 @@ pipeline_table_dscp_table_update(const char *pipeline_name,
 
 	/* Send request and wait for response */
 	rsp = pipeline_msg_send_recv(p, req);
-	if (rsp == NULL)
-		return -1;
 
 	/* Read response */
 	status = rsp->status;
@@ -2164,8 +2128,6 @@ pipeline_table_rule_ttl_read(const char *pipeline_name,
 
 	/* Send request and wait for response */
 	rsp = pipeline_msg_send_recv(p, req);
-	if (rsp == NULL)
-		return -1;
 
 	/* Read response */
 	status = rsp->status;
@@ -2229,8 +2191,6 @@ pipeline_table_rule_time_read(const char *pipeline_name,
 
 	/* Send request and wait for response */
 	rsp = pipeline_msg_send_recv(p, req);
-	if (rsp == NULL)
-		return -1;
 
 	/* Read response */
 	status = rsp->status;
