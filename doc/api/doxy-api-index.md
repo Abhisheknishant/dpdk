@@ -165,7 +165,8 @@ The public API headers are grouped by topics:
   [random]             (@ref rte_random.h),
   [config file]        (@ref rte_cfgfile.h),
   [key/value args]     (@ref rte_kvargs.h),
-  [string]             (@ref rte_string_fns.h)
+  [string]             (@ref rte_string_fns.h),
+  [bitops]             (@ref rte_bitops.h)
 
 - **debug**:
   [jobstats]           (@ref rte_jobstats.h),
