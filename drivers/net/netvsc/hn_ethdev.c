@@ -849,6 +849,9 @@ hn_dev_close(struct rte_eth_dev *dev)
 
 	hn_vf_close(dev);
 	hn_dev_free_queues(dev);
+
+	/* mac_addrs must not be freed alone because part of dev_private */
+	dev->data->mac_addrs = NULL;
 }
 
 static const struct eth_dev_ops hn_eth_dev_ops = {
