@@ -177,7 +177,8 @@ An example callback function that has been written as indicated below.
             printf("Failed to get port %d link status: %s\n\n",
                    port_id, rte_strerror(-ret));
         } else if (link.link_status) {
-            printf("Port %d Link Up - speed %u Mbps - %s\n\n", port_id, (unsigned)link.link_speed,
+            printf("Port %d Link Up - speed %u%s - %s\n\n", port_id, (unsigned)link.link_speed,
+                  (link.link_speed == UINT32_MAX) ? ("(UNKNOWN)") : (" Mbps"),
                   (link.link_duplex == ETH_LINK_FULL_DUPLEX) ? ("full-duplex") : ("half-duplex"));
         } else
             printf("Port %d Link Down\n\n", port_id);
