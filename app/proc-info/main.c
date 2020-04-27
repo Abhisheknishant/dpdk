@@ -685,7 +685,7 @@ show_port(void)
 			printf("Link get failed (port %u): %s\n",
 			       i, rte_strerror(-ret));
 		} else {
-			printf("\t  -- link speed %d duplex %d,"
+			printf("\t  -- link speed %u duplex %d,"
 					" auto neg %d status %d\n",
 					link.link_speed,
 					link.link_duplex,
