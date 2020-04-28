@@ -255,6 +255,42 @@ eal_get_virtual_area(void *requested_addr, size_t *size,
 		size_t page_sz, int flags, int reserve_flags);
 
 /**
+ * Initialize a memory segment list and create its backing storage.
+ *
+ * @param msl
+ *  Memory segment list to be filled.
+ * @param page_sz
+ *  Size of segment pages in the MSL.
+ * @param n_segs
+ *  Number of segments.
+ * @param socket_id
+ *  Socket ID. Must not be SOCKET_ID_ANY.
+ * @param type_msl_idx
+ *  Index of the MSL among other MSLs of the same socket and page size.
+ * @param heap
+ *  Mark MSL as pointing to a heap.
+ * @return
+ *  0 on success, (-1) on failure and rte_errno is set.
+ */
+int
+eal_memseg_list_init(struct rte_memseg_list *msl, uint64_t page_sz,
+	int n_segs, int socket_id, int type_msl_idx, bool heap);
+
+/**
+ * Reserve VA space for a memory segment list
+ * previously initialized with eal_memseg_list_init().
+ *
+ * @param msl
+ *  Memory segment list with page size defined.
+ * @param reserve_flags
+ *  Extra memory reservation flags. Can be 0 if unnecessary.
+ * @return
+ *  0 on success, (-1) on failure and rte_errno is set.
+ */
+int
+eal_memseg_list_alloc(struct rte_memseg_list *msl, int reserve_flags);
+
+/**
  * Get cpu core_id.
  *
  * This function is private to the EAL.
