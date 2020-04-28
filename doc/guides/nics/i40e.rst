@@ -747,6 +747,13 @@ Use 16 Bytes RX Descriptor Size
 As i40e PMD supports both 16 and 32 bytes RX descriptor sizes, and 16 bytes size can provide helps to high performance of small packets.
 Configuration of ``CONFIG_RTE_LIBRTE_I40E_16BYTE_RX_DESC`` in config files can be changed to use 16 bytes size RX descriptors.
 
+input set requirement of each pctype for FDIR
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Each pctype packet can only have one specific input set for FDIR, for example if you download 2 rte_flow rules of different input set for one specific pctype,
+it is will fail and return the info "Conflict with the first rule's input set", that means the first type of input set conflict with the current one,
+this limitaition is required by hardware.
+
 Example of getting best performance with l3fwd example
 ------------------------------------------------------
 
