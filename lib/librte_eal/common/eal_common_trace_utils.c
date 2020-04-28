@@ -268,7 +268,7 @@ eal_trace_dir_args_save(char const *optarg)
 {
 	struct trace *trace = trace_obj_get();
 	uint32_t size = sizeof(trace->dir);
-	char *dir_path = NULL;
+	char *dir_path;
 	int rc;
 
 	if (optarg == NULL) {
@@ -276,18 +276,20 @@ eal_trace_dir_args_save(char const *optarg)
 		return -EINVAL;
 	}
 
-	if (strlen(optarg) >= size) {
+	/* the specified trace directory name cannot
+	 * exceed PATH_MAX-1.
+	 */
+	if (strlen(optarg) >= (size - 1)) {
 		trace_err("input string is too big");
 		return -ENAMETOOLONG;
 	}
 
-	dir_path = (char *)calloc(1, size);
-	if (dir_path == NULL) {
-		trace_err("fail to allocate memory");
+	rc = asprintf(&dir_path, "%s/", optarg);
+	if (rc == -1) {
+		trace_err("failed to copy directory: %s", strerror(errno));
 		return -ENOMEM;
 	}
 
-	sprintf(dir_path, "%s/", optarg);
 	rc = trace_dir_update(dir_path);
 
 	free(dir_path);
