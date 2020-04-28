@@ -225,6 +225,8 @@ Removed Items
    Also, make sure to start the actual text at the margin.
    =========================================================
 
+* ``enum rte_page_sizes`` is removed, ``RTE_PGSIZE_*`` constants are kept.
+
 
 API Changes
 -----------
