@@ -1351,6 +1351,7 @@ rte_eal_cleanup(void)
 #endif
 	rte_eal_alarm_cleanup();
 	eal_mp_dev_hotplug_cleanup();
+	rte_eal_malloc_heap_cleanup();
 	rte_mp_channel_cleanup();
 	rte_trace_save();
 	eal_trace_fini();
