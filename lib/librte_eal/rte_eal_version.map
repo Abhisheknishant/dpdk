@@ -373,7 +373,11 @@ EXPERIMENTAL {
 	__rte_trace_point_register;
 	per_lcore_trace_mem;
 	per_lcore_trace_point_sz;
+	rte_get_page_size;
 	rte_log_can_log;
+	rte_mem_lock;
+	rte_mem_map;
+	rte_mem_unmap;
 	rte_thread_getname;
 	rte_trace_dump;
 	rte_trace_is_enabled;
