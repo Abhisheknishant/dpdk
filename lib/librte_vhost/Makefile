@@ -10,7 +10,7 @@ EXPORT_MAP := rte_vhost_version.map
 
 CFLAGS += $(WERROR_FLAGS) -I$(SRCDIR) -O3
 CFLAGS += -I vhost_user
-CFLAGS += -fno-strict-aliasing
+CFLAGS += -fno-strict-aliasing -Wno-maybe-uninitialized
 LDLIBS += -lpthread
 
 ifeq ($(RTE_TOOLCHAIN), gcc)
