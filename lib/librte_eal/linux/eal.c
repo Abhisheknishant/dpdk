@@ -1337,6 +1337,7 @@ rte_eal_cleanup(void)
 	rte_trace_save();
 	eal_trace_fini();
 	eal_cleanup_config(&internal_config);
+	rte_eal_log_cleanup();
 	return 0;
 }
 
