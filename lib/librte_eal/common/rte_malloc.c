@@ -20,7 +20,16 @@
 #include <rte_lcore.h>
 #include <rte_common.h>
 #include <rte_spinlock.h>
+
+#ifndef RTE_EXEC_ENV_WINDOWS
 #include <rte_eal_trace.h>
+#else
+/* Suppress -Wempty-body for tracepoints used as "if" body. */
+#define rte_eal_trace_mem_malloc(...) do {} while (0)
+#define rte_eal_trace_mem_zmalloc(...) do {} while (0)
+#define rte_eal_trace_mem_realloc(...) do {} while (0)
+#define rte_eal_trace_mem_free(...) do {} while (0)
+#endif
 
 #include <rte_malloc.h>
 #include "malloc_elem.h"

@@ -8,6 +8,11 @@ sources += files(
 	'eal_debug.c',
 	'eal_hugepages.c',
 	'eal_lcore.c',
+	'eal_memalloc.c',
+	'eal_memory.c',
+	'eal_mp.c',
 	'eal_thread.c',
 	'getopt.c',
 )
+
+dpdk_conf.set10('RTE_EAL_NUMA_AWARE_HUGEPAGES', true)

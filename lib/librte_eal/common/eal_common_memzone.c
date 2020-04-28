@@ -19,7 +19,14 @@
 #include <rte_errno.h>
 #include <rte_string_fns.h>
 #include <rte_common.h>
+
+#ifndef RTE_EXEC_ENV_WINDOWS
 #include <rte_eal_trace.h>
+#else
+#define rte_eal_trace_memzone_reserve(...)
+#define rte_eal_trace_memzone_lookup(...)
+#define rte_eal_trace_memzone_free(...)
+#endif
 
 #include "malloc_heap.h"
 #include "malloc_elem.h"
