@@ -1674,6 +1674,7 @@ virtio_dev_tx_split(struct virtio_net *dev, struct vhost_virtqueue *vq,
 {
 	uint16_t i;
 	uint16_t free_entries;
+	uint16_t dropped = 0;
 
 	if (unlikely(dev->dequeue_zero_copy)) {
 		struct zcopy_mbuf *zmbuf, *next;
@@ -1737,8 +1738,19 @@ virtio_dev_tx_split(struct virtio_net *dev, struct vhost_virtqueue *vq,
 			update_shadow_used_ring_split(vq, head_idx, 0);
 
 		pkts[i] = virtio_dev_pktmbuf_alloc(dev, mbuf_pool, buf_len);
-		if (unlikely(pkts[i] == NULL))
+		if (unlikely(pkts[i] == NULL)) {
+			/*
+			 * mbuf allocation fails for jumbo packets with
+			 * linear buffer flag set. Drop this packet and
+			 * proceed with the next available descriptor to
+			 * avoid HOL blocking
+			 */
+			VHOST_LOG_DATA(WARNING,
+				"Failed to allocate memory for mbuf. Packet dropped!\n");
+			dropped += 1;
+			i++;
 			break;
+		}
 
 		err = copy_desc_to_mbuf(dev, vq, buf_vec, nr_vec, pkts[i],
 				mbuf_pool);
@@ -1782,7 +1794,7 @@ virtio_dev_tx_split(struct virtio_net *dev, struct vhost_virtqueue *vq,
 		}
 	}
 
-	return i;
+	return (i - dropped);
 }
 
 static __rte_always_inline int
