@@ -8,13 +8,12 @@
 
 #include <stdint.h>
 #include <string.h>
-/*To include altivec.h, GCC version must  >= 4.8 */
-#include <altivec.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#include "rte_altivec.h"
 #include "generic/rte_memcpy.h"
 
 static inline void
