@@ -11,6 +11,10 @@
 /*To include altivec.h, GCC version must  >= 4.8 */
 #include <altivec.h>
 
+/* redefine as in stdbool.h after altivec.h */
+#undef bool
+#define bool _Bool
+
 #ifdef __cplusplus
 extern "C" {
 #endif
