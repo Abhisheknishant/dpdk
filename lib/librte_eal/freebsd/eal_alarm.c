@@ -61,6 +61,16 @@ rte_eal_alarm_init(void)
 	return 0;
 }
 
+void
+rte_eal_alarm_cleanup(void)
+{
+	if (intr_handle.fd == -1)
+		return;
+
+	close(intr_handle.fd);
+	intr_handle.fd = -1;
+}
+
 static inline int
 timespec_cmp(const struct timespec *now, const struct timespec *at)
 {
