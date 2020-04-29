@@ -21,6 +21,10 @@ _aarch64_packages: &aarch64_packages
   - *required_packages
   - [gcc-aarch64-linux-gnu, libc6-dev-arm64-cross, pkg-config-aarch64-linux-gnu]
 
+_arm_packages: &arm_packages
+  - *required_packages
+  - [gcc-arm-linux-gnueabihf, libc6-dev-armhf-cross, pkg-config-arm-linux-gnueabihf]
+
 _libabigail_build_packages: &libabigail_build_packages
   - [autoconf, automake, libtool, pkg-config, libxml2-dev, libdw-dev]
 
@@ -124,6 +128,21 @@ jobs:
         packages:
           - *required_packages
           - *libabigail_build_packages
+  # aarch64 cross-compiling arm jobs
+  - env: DEF_LIB="shared" ARM=1
+    arch: arm64
+    compiler: gcc
+    addons:
+      apt:
+        packages:
+          - *arm_packages
+  - env: DEF_LIB="static" ARM=1
+    arch: arm64
+    compiler: gcc
+    addons:
+      apt:
+        packages:
+          - *arm_packages
   # aarch64 clang jobs
   - env: DEF_LIB="static"
     arch: arm64
