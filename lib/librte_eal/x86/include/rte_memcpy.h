@@ -22,6 +22,10 @@
 extern "C" {
 #endif
 
+#ifdef __GNUC__
+#pragma GCC diagnostic ignored "-Wcast-align"
+#endif
+
 /**
  * Copy bytes from one location to another. The locations must not overlap.
  *
