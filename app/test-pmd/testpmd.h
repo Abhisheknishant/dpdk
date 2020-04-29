@@ -602,6 +602,9 @@ struct mplsoudp_decap_conf {
 };
 extern struct mplsoudp_decap_conf mplsoudp_decap_conf;
 
+/* RX mq mode parameter. */
+extern enum rte_eth_rx_mq_mode rx_mq_mode;
+
 static inline unsigned int
 lcore_num(void)
 {
