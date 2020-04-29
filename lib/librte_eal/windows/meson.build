@@ -9,5 +9,6 @@ sources += files(
 	'eal_lcore.c',
 	'eal_log.c',
 	'eal_thread.c',
+	'fnmatch.c',
 	'getopt.c',
 )
