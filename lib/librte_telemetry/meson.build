@@ -8,7 +8,6 @@ deps += ['metrics', 'ethdev']
 jansson = dependency('jansson', required: false)
 if jansson.found()
 	ext_deps += jansson
-	dpdk_app_link_libraries += ['telemetry']
 else
 	build = false
 	reason = 'missing dependency "jansson"'
