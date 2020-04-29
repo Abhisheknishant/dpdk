@@ -5,7 +5,7 @@ if not is_linux
 	build = false
 	reason = 'only supported on linux'
 endif
-if has_libnuma == 1
+if has_libnuma == 1 and not dpdk_conf.has('RTE_ARCH_ARMv7')
 	dpdk_conf.set10('RTE_LIBRTE_VHOST_NUMA', true)
 endif
 if (toolchain == 'gcc' and cc.version().version_compare('>=8.3.0'))
