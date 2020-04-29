@@ -227,6 +227,9 @@ rte_eal_init(int argc, char **argv)
 {
 	int i, fctret;
 
+	/* initialize all logs */
+	rte_eal_log_init(NULL, 0);
+
 	eal_log_level_parse(argc, argv);
 
 	/* create a map of all processors in the system */
