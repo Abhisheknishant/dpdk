@@ -212,6 +212,10 @@ New Features
   * Added IPsec inbound load-distribution support for ipsec-secgw application
     using NIC load distribution feature(Flow Director).
 
+* **Updated testpmd application.**
+
+  * Added a new cmdline option ``--rx-mq-mode`` which can be used to test PMD's
+    behaviour on handling Rx mq mode.
 
 Removed Items
 -------------
