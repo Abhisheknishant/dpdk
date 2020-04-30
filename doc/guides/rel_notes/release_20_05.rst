@@ -212,6 +212,10 @@ New Features
   * Added IPsec inbound load-distribution support for ipsec-secgw application
     using NIC load distribution feature(Flow Director).
 
+* **Added Chacha20-Poly1305 algorithm to Cryptodev API.**
+
+  Chacha20-Poly1305 AEAD algorithm can now be supported in Cryptodev.
+
 
 Removed Items
 -------------
