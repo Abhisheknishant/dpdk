@@ -1124,3 +1124,8 @@ CONFIG_RTE_APP_CRYPTO_PERF=y
 # Compile the eventdev application
 #
 CONFIG_RTE_APP_EVENTDEV=y
+
+#
+# Compile the rte flow perf application
+#
+CONFIG_RTE_TEST_FLOW_PERF=y
