@@ -18,7 +18,8 @@ give different flow each time, and all other items will have open masks.
 The current design have single core insertion rate. In the future we may
 have a multi core insertion rate measurement support in the app.
 
-The application also provide the ability to measure rte flow deletion rate.
+The application also provide the ability to measure rte flow deletion rate,
+in addition to memory consumption before and after the flows creation.
 
 
 Compiling the Application
@@ -93,6 +94,9 @@ The command line options are:
 
 *	``--deletion-rate``
 	Enable deletion rate calculations.
+
+*	``--dump-socket-mem``
+	Dump the memory stats for each socket before the insertion and after.
 
 Attributes:
 
