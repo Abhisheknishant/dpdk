@@ -29,3 +29,8 @@
         type_kind = enum
         name = rte_eth_event_type
         changed_enumerators = RTE_ETH_EVENT_MAX
+; Explicit ignore ABI 20.0.1
+[suppress_function]
+        symbol_version = DPDK_20.0.1
+[suppress_variable]
+        symbol_version = DPDK_20.0.1
