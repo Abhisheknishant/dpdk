@@ -18,6 +18,8 @@ give different flow each time, and all other items will have open masks.
 The current design have single core insertion rate. In the future we may
 have a multi core insertion rate measurement support in the app.
 
+The application also provide the ability to measure rte flow deletion rate.
+
 
 Compiling the Application
 =========================
@@ -89,6 +91,8 @@ The command line options are:
 	Print rates for each iteration of flows.
 	Default iteration is 1,00,000.
 
+*	``--deletion-rate``
+	Enable deletion rate calculations.
 
 Attributes:
 
