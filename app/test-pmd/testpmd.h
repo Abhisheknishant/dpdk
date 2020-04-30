@@ -747,14 +747,16 @@ int port_flow_create(portid_t port_id,
 		     const struct rte_flow_attr *attr,
 		     const struct rte_flow_item *pattern,
 		     const struct rte_flow_action *actions);
+void update_age_action_context(const struct rte_flow_action *actions,
+		     struct port_flow *pf);
 int port_flow_destroy(portid_t port_id, uint32_t n, const uint32_t *rule);
 int port_flow_flush(portid_t port_id);
 int port_flow_dump(portid_t port_id, const char *file_name);
 int port_flow_query(portid_t port_id, uint32_t rule,
 		    const struct rte_flow_action *action);
 void port_flow_list(portid_t port_id, uint32_t n, const uint32_t *group);
+void port_flow_aged(portid_t port_id, uint8_t destroy);
 int port_flow_isolate(portid_t port_id, int set);
-
 void rx_ring_desc_display(portid_t port_id, queueid_t rxq_id, uint16_t rxd_id);
 void tx_ring_desc_display(portid_t port_id, queueid_t txq_id, uint16_t txd_id);
 
@@ -895,6 +897,8 @@ void remove_rx_dump_callbacks(portid_t portid);
 void add_tx_dump_callbacks(portid_t portid);
 void remove_tx_dump_callbacks(portid_t portid);
 void configure_rxtx_dump_callbacks(uint16_t verbose);
+void update_aging_event_log_status(int enable);
+int aging_event_output(uint16_t portid);
 
 uint16_t tx_pkt_set_md(uint16_t port_id, __rte_unused uint16_t queue,
 		       struct rte_mbuf *pkts[], uint16_t nb_pkts,

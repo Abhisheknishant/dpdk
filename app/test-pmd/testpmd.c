@@ -3068,6 +3068,21 @@ rmv_port_callback(void *arg)
 		start_packet_forwarding(0);
 }
 
+static int aged_flow_event_enable;
+void update_aging_event_log_status(int enable)
+{
+	aged_flow_event_enable = enable;
+}
+
+int aging_event_output(uint16_t portid)
+{
+	if (aged_flow_event_enable) {
+		printf("port %u RTE_ETH_EVENT_FLOW_AGED triggered\n", portid);
+		fflush(stdout);
+	}
+	return 0;
+}
+
 /* This function is used by the interrupt thread */
 static int
 eth_event_callback(portid_t port_id, enum rte_eth_event_type type, void *param,
@@ -3098,6 +3113,8 @@ eth_event_callback(portid_t port_id, enum rte_eth_event_type type, void *param,
 				rmv_port_callback, (void *)(intptr_t)port_id))
 			fprintf(stderr, "Could not set up deferred device removal\n");
 		break;
+	case RTE_ETH_EVENT_FLOW_AGED:
+		aging_event_output(port_id);
 	default:
 		break;
 	}

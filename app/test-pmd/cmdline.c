@@ -738,6 +738,9 @@ static void cmd_help_long_parsed(void *parsed_result,
 			"show port (port_id) queue-region\n"
 			"    show all queue region related configuration info\n\n"
 
+			"set aged_flow_event_log (on|off)\n"
+			"	 Enable or disable aged flow event logging\n\n"
+
 			, list_pkt_forwarding_modes()
 		);
 	}
@@ -1123,6 +1126,10 @@ static void cmd_help_long_parsed(void *parsed_result,
 
 			"flow isolate {port_id} {boolean}\n"
 			"    Restrict ingress traffic to the defined"
+			" flow rules\n\n"
+
+			"flow aged {port_id} [destroy]\n"
+			"    List and destroy aged flows"
 			" flow rules\n\n"
 
 			"set vxlan ip-version (ipv4|ipv6) vni (vni) udp-src"
@@ -19387,6 +19394,44 @@ cmdline_parse_inst_t cmd_showport_macs = {
 	},
 };
 
+/* Enable/Disable flow aging event log */
+struct cmd_set_aged_flow_event_log_result {
+	cmdline_fixed_string_t set;
+	cmdline_fixed_string_t keyword;
+	cmdline_fixed_string_t enable;
+};
+cmdline_parse_token_string_t cmd_set_aged_flow_event_log_set =
+	TOKEN_STRING_INITIALIZER(struct cmd_set_aged_flow_event_log_result,
+		set, "set");
+cmdline_parse_token_string_t cmd_set_aged_flow_event_log_keyword =
+	TOKEN_STRING_INITIALIZER(struct cmd_set_aged_flow_event_log_result,
+		keyword, "aged_flow_event_log");
+cmdline_parse_token_string_t cmd_set_aged_flow_event_log_enable =
+	TOKEN_STRING_INITIALIZER(struct cmd_set_aged_flow_event_log_result,
+		enable, "on#off");
+
+static void
+cmd_set_aged_flow_event_log_parsed(void *parsed_result,
+				__rte_unused struct cmdline *cl,
+				__rte_unused void *data)
+{
+	struct cmd_set_aged_flow_event_log_result *res = parsed_result;
+	int enable = (strcmp(res->enable, "on") == 0) ? 1 : 0;
+	update_aging_event_log_status(enable);
+}
+
+cmdline_parse_inst_t cmd_set_aged_flow_event_log = {
+	.f = cmd_set_aged_flow_event_log_parsed,
+	.data = NULL,
+	.help_str = "set aged_flow_event_log on|off",
+	.tokens = {
+		(void *)&cmd_set_aged_flow_event_log_set,
+		(void *)&cmd_set_aged_flow_event_log_keyword,
+		(void *)&cmd_set_aged_flow_event_log_enable,
+		NULL,
+	},
+};
+
 /* ******************************************************************************** */
 
 /* list of instructions */
@@ -19684,6 +19729,7 @@ cmdline_parse_ctx_t main_ctx[] = {
 	(cmdline_parse_inst_t *)&cmd_show_set_raw,
 	(cmdline_parse_inst_t *)&cmd_show_set_raw_all,
 	(cmdline_parse_inst_t *)&cmd_config_tx_dynf_specific,
+	(cmdline_parse_inst_t *)&cmd_set_aged_flow_event_log,
 	NULL,
 };
 
