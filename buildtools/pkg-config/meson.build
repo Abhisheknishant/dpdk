@@ -23,7 +23,7 @@ Use libdpdk.pc instead of this file to query DPDK compile/link arguments''',
 	version: meson.project_version(),
 	subdirs: [get_option('include_subdir_arch'), '.'],
 	extra_cflags: pkg_extra_cflags,
-	libraries: dpdk_libraries,
+	libraries: ['-Wl,--as-needed'] + dpdk_libraries,
 	libraries_private: dpdk_extra_ldflags)
 
 pkg.generate(name: 'DPDK', # main DPDK pkgconfig file
