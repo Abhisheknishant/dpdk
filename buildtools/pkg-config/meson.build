@@ -1,10 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright(c) 2020 Intel Corporation
 
-# for static builds, include the drivers as libs and we need to "whole-archive"
-# them.
-dpdk_drivers = ['-Wl,--whole-archive'] + dpdk_drivers + ['-Wl,--no-whole-archive']
-
 pkg = import('pkgconfig')
 pkg_extra_cflags = ['-include', 'rte_config.h'] + machine_args
 if is_freebsd
@@ -38,6 +34,11 @@ Note that CFLAGS might contain an -march flag higher than typical baseline.
 This is required for a number of static inline functions in the public headers.''',
 	requires: ['libdpdk-libs', libbsd], # may need libbsd for string funcs
 	                  # if libbsd is not enabled, then this is blank
-	libraries_private: dpdk_drivers + dpdk_static_libraries +
-			['-Wl,-Bdynamic']
+	libraries_private: ['-Wl,--whole-archive'] +
+			dpdk_drivers + dpdk_static_libraries +
+			['-Wl,--no-whole-archive']
 )
+
+# the pkg-config file generated is not best tuned for static linking so
+# use a script to adjust the linker flags
+run_command(py3, 'set-static-linker-flags.py', check: true)
