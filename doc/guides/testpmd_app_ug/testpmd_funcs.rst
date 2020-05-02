@@ -632,6 +632,23 @@ Available levels are as following:
 * ``2`` fully verbose except for Rx packets.
 * ``> 2`` fully verbose.
 
+set event_verbose
+~~~~~~~~~~~~~~~~~
+
+Set the debug verbosity bitmaps for all events defined in enum rte_eth_event_type,
+the maximum bits of the bitmap is 32::
+
+   testpmd> set event_verbose (bitmap)
+
+For examine, to start the event:RTE_ETH_EVENT_FLOW_AGED log::
+
+   testpmd> set event_verbose 0x400
+   Change event verbose bitmap from 0x0 to 0x400
+
+When aged flow be checkout, there will be one output log for it::
+
+   testpmd> port 0 RTE_ETH_EVENT_FLOW_AGED triggered
+
 set log
 ~~~~~~~
 
@@ -3616,6 +3633,10 @@ following sections.
 
    flow dump {port_id} {output_file}
 
+- List and destroy aged flow rules::
+
+   flow aged {port_id} [destroy]
+
 Validating flow rules
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -4502,6 +4523,64 @@ If successful, it will show::
 Otherwise, it will complain error occurred::
 
    Caught error type [...] ([...]): [...]
+
+Listing and destroying aged flow rules
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``flow aged`` simply lists aged flow rules be get from api ``rte_flow_get_aged_flows``,
+and ``destroy`` parameter can be used to destroy those flow rules in PMD.
+
+   flow aged {port_id} [destroy]
+
+Listing current aged flow rules::
+
+   testpmd> flow aged 0
+   Port 0 total aged flows: 0
+   testpmd> flow create 0 ingress pattern eth / ipv4 src is 2.2.2.14 / end
+      actions age timeout 5 / queue index 0 /  end
+   Flow rule #0 created
+   testpmd> flow create 0 ingress pattern eth / ipv4 src is 2.2.2.15 / end
+      actions age timeout 4 / queue index 0 /  end
+   Flow rule #1 created
+   testpmd> flow create 0 ingress pattern eth / ipv4 src is 2.2.2.16 / end
+      actions age timeout 2 / queue index 0 /  end
+   Flow rule #2 created
+   testpmd> flow create 0 ingress pattern eth / ipv4 src is 2.2.2.17 / end
+      actions age timeout 3 / queue index 0 /  end
+   Flow rule #3 created
+
+
+Aged Rules are simply list as command ``flow list {port_id}``, but strip the detail rule
+information, all the aged flows are sorted by the longest timeout time. For example, if
+those rules be configured in the same time, ID 2 will be the first aged out rule, the next
+will be ID 3, ID 1, ID 0::
+
+   testpmd> flow aged 0
+   Port 0 total aged flows: 4
+   ID      Group   Prio    Attr
+   2       0       0       i--
+   3       0       0       i--
+   1       0       0       i--
+   0       0       0       i--
+
+If attach ``destroy`` parameter, the command will destroy all the list aged flow rules.
+
+   testpmd> flow aged 0 destroy
+   Port 0 total aged flows: 4
+   ID      Group   Prio    Attr
+   2       0       0       i--
+   3       0       0       i--
+   1       0       0       i--
+   0       0       0       i--
+
+   Flow rule #2 destroyed
+   Flow rule #3 destroyed
+   Flow rule #1 destroyed
+   Flow rule #0 destroyed
+   4 flows be destroyed
+   testpmd> flow aged 0
+   Port 0 total aged flows: 0
+
 
 Sample QinQ flow rules
 ~~~~~~~~~~~~~~~~~~~~~~

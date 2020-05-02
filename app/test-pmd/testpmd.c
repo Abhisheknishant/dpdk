@@ -81,6 +81,7 @@
 #define EXTBUF_ZONE_SIZE RTE_PGSIZE_2M
 
 uint16_t verbose_level = 0; /**< Silent by default. */
+uint32_t event_verbose_bitmap; /**< Verbose bitmap for all events */
 int testpmd_logtype; /**< Log type for testpmd logs */
 
 /* use master core for command line ? */
@@ -3068,6 +3069,15 @@ rmv_port_callback(void *arg)
 		start_packet_forwarding(0);
 }
 
+static void
+aging_event_output(uint16_t portid)
+{
+	if (event_verbose_bitmap & (1 << RTE_ETH_EVENT_FLOW_AGED)) {
+		printf("port %u RTE_ETH_EVENT_FLOW_AGED triggered\n", portid);
+		fflush(stdout);
+	}
+}
+
 /* This function is used by the interrupt thread */
 static int
 eth_event_callback(portid_t port_id, enum rte_eth_event_type type, void *param,
@@ -3098,6 +3108,8 @@ eth_event_callback(portid_t port_id, enum rte_eth_event_type type, void *param,
 				rmv_port_callback, (void *)(intptr_t)port_id))
 			fprintf(stderr, "Could not set up deferred device removal\n");
 		break;
+	case RTE_ETH_EVENT_FLOW_AGED:
+		aging_event_output(port_id);
 	default:
 		break;
 	}

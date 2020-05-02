@@ -263,6 +263,9 @@ static void cmd_help_long_parsed(void *parsed_result,
 			"set verbose (level)\n"
 			"    Set the debug verbosity level X.\n\n"
 
+			"set event_verbose (bitmap)\n"
+			"    Set the event debug verbose 32 bits bitmap X.\n\n"
+
 			"set log global|(type) (level)\n"
 			"    Set the log level.\n\n"
 
@@ -1123,6 +1126,10 @@ static void cmd_help_long_parsed(void *parsed_result,
 
 			"flow isolate {port_id} {boolean}\n"
 			"    Restrict ingress traffic to the defined"
+			" flow rules\n\n"
+
+			"flow aged {port_id} [destroy]\n"
+			"    List and destroy aged flows"
 			" flow rules\n\n"
 
 			"set vxlan ip-version (ipv4|ipv6) vni (vni) udp-src"
@@ -19387,6 +19394,47 @@ cmdline_parse_inst_t cmd_showport_macs = {
 	},
 };
 
+/* Set event verbose bitmap*/
+struct cmd_set_event_verbose_result {
+	cmdline_fixed_string_t set;
+	cmdline_fixed_string_t keyword;
+	uint32_t bitmap;
+};
+cmdline_parse_token_string_t cmd_set_event_verbose_set =
+	TOKEN_STRING_INITIALIZER(struct cmd_set_event_verbose_result,
+		set, "set");
+cmdline_parse_token_string_t cmd_set_event_verbose_keyword =
+	TOKEN_STRING_INITIALIZER(struct cmd_set_event_verbose_result,
+		keyword, "event_verbose");
+cmdline_parse_token_num_t cmd_set_event_verbose_bitmap =
+	TOKEN_NUM_INITIALIZER(struct cmd_set_event_verbose_result,
+		bitmap, UINT32);
+
+static void
+cmd_set_event_verbose_parsed(void *parsed_result,
+				__rte_unused struct cmdline *cl,
+				__rte_unused void *data)
+{
+	struct cmd_set_event_verbose_result *res = parsed_result;
+
+	printf("Change event verbose bitmap from 0x%x to 0x%x\n",
+	       (unsigned int) event_verbose_bitmap,
+	       (unsigned int) res->bitmap);
+	event_verbose_bitmap = res->bitmap;
+}
+
+cmdline_parse_inst_t cmd_set_event_verbose = {
+	.f = cmd_set_event_verbose_parsed,
+	.data = NULL,
+	.help_str = "set event_verbose (bitmap)",
+	.tokens = {
+		(void *)&cmd_set_event_verbose_set,
+		(void *)&cmd_set_event_verbose_keyword,
+		(void *)&cmd_set_event_verbose_bitmap,
+		NULL,
+	},
+};
+
 /* ******************************************************************************** */
 
 /* list of instructions */
@@ -19684,6 +19732,7 @@ cmdline_parse_ctx_t main_ctx[] = {
 	(cmdline_parse_inst_t *)&cmd_show_set_raw,
 	(cmdline_parse_inst_t *)&cmd_show_set_raw_all,
 	(cmdline_parse_inst_t *)&cmd_config_tx_dynf_specific,
+	(cmdline_parse_inst_t *)&cmd_set_event_verbose,
 	NULL,
 };
 
