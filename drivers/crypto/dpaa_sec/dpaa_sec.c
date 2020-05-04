@@ -2041,7 +2041,7 @@ dpaa_sec_cipher_init(struct rte_cryptodev *dev __rte_unused,
 		DPAA_SEC_ERR("Crypto: Undefined Cipher specified %u",
 			      xform->cipher.algo);
 		rte_free(session->cipher_key.data);
-		return -1;
+		return -ENOTSUP;
 	}
 	session->dir = (xform->cipher.op == RTE_CRYPTO_CIPHER_OP_ENCRYPT) ?
 			DIR_ENC : DIR_DEC;
@@ -2109,7 +2109,7 @@ dpaa_sec_auth_init(struct rte_cryptodev *dev __rte_unused,
 		DPAA_SEC_ERR("Crypto: Unsupported Auth specified %u",
 			      xform->auth.algo);
 		rte_free(session->auth_key.data);
-		return -1;
+		return -ENOTSUP;
 	}
 
 	session->dir = (xform->auth.op == RTE_CRYPTO_AUTH_OP_GENERATE) ?
@@ -2126,6 +2126,7 @@ dpaa_sec_chain_init(struct rte_cryptodev *dev __rte_unused,
 
 	struct rte_crypto_cipher_xform *cipher_xform;
 	struct rte_crypto_auth_xform *auth_xform;
+	int ret = 0;
 
 	session->ctxt = DPAA_SEC_CIPHER_HASH;
 	if (session->auth_cipher_text) {
@@ -2144,7 +2145,7 @@ dpaa_sec_chain_init(struct rte_cryptodev *dev __rte_unused,
 					       RTE_CACHE_LINE_SIZE);
 	if (session->cipher_key.data == NULL && cipher_xform->key.length > 0) {
 		DPAA_SEC_ERR("No Memory for cipher key");
-		return -1;
+		return -ENOMEM;
 	}
 	session->cipher_key.length = cipher_xform->key.length;
 	session->auth_key.data = rte_zmalloc(NULL, auth_xform->key.length,
@@ -2191,6 +2192,7 @@ dpaa_sec_chain_init(struct rte_cryptodev *dev __rte_unused,
 	default:
 		DPAA_SEC_ERR("Crypto: Unsupported Auth specified %u",
 			      auth_xform->algo);
+		ret = -ENOTSUP;
 		goto error_out;
 	}
 
@@ -2212,16 +2214,17 @@ dpaa_sec_chain_init(struct rte_cryptodev *dev __rte_unused,
 	default:
 		DPAA_SEC_ERR("Crypto: Undefined Cipher specified %u",
 			      cipher_xform->algo);
+		ret = -ENOTSUP;
 		goto error_out;
 	}
 	session->dir = (cipher_xform->op == RTE_CRYPTO_CIPHER_OP_ENCRYPT) ?
 				DIR_ENC : DIR_DEC;
-	return 0;
+	return ret;
 
 error_out:
 	rte_free(session->cipher_key.data);
 	rte_free(session->auth_key.data);
-	return -1;
+	return ret;
 }
 
 static int
@@ -2254,7 +2257,7 @@ dpaa_sec_aead_init(struct rte_cryptodev *dev __rte_unused,
 	default:
 		DPAA_SEC_ERR("unsupported AEAD alg %d", session->aead_alg);
 		rte_free(session->aead_key.data);
-		return -ENOMEM;
+		return -ENOTSUP;
 	}
 
 	session->dir = (xform->aead.op == RTE_CRYPTO_AEAD_OP_ENCRYPT) ?
@@ -2501,7 +2504,7 @@ dpaa_sec_ipsec_aead_init(struct rte_crypto_aead_xform *aead_xform,
 					       RTE_CACHE_LINE_SIZE);
 	if (session->aead_key.data == NULL && aead_xform->key.length > 0) {
 		DPAA_SEC_ERR("No Memory for aead key");
-		return -1;
+		return -ENOMEM;
 	}
 	memcpy(session->aead_key.data, aead_xform->key.data,
 	       aead_xform->key.length);
@@ -2524,7 +2527,7 @@ dpaa_sec_ipsec_aead_init(struct rte_crypto_aead_xform *aead_xform,
 		default:
 			DPAA_SEC_ERR("Crypto: Undefined GCM digest %d",
 				     session->digest_length);
-			return -1;
+			return -EINVAL;
 		}
 		if (session->dir == DIR_ENC) {
 			memcpy(session->encap_pdb.gcm.salt,
@@ -2539,7 +2542,7 @@ dpaa_sec_ipsec_aead_init(struct rte_crypto_aead_xform *aead_xform,
 	default:
 		DPAA_SEC_ERR("Crypto: Undefined AEAD specified %u",
 			      aead_xform->algo);
-		return -1;
+		return -ENOTSUP;
 	}
 	return 0;
 }
@@ -2636,11 +2639,11 @@ dpaa_sec_ipsec_proto_init(struct rte_crypto_cipher_xform *cipher_xform,
 	case RTE_CRYPTO_AUTH_ZUC_EIA3:
 		DPAA_SEC_ERR("Crypto: Unsupported auth alg %u",
 			      session->auth_alg);
-		return -1;
+		return -ENOTSUP;
 	default:
 		DPAA_SEC_ERR("Crypto: Undefined Auth specified %u",
 			      session->auth_alg);
-		return -1;
+		return -ENOTSUP;
 	}
 
 	switch (session->cipher_alg) {
@@ -2673,11 +2676,11 @@ dpaa_sec_ipsec_proto_init(struct rte_crypto_cipher_xform *cipher_xform,
 	case RTE_CRYPTO_CIPHER_KASUMI_F8:
 		DPAA_SEC_ERR("Crypto: Unsupported Cipher alg %u",
 			      session->cipher_alg);
-		return -1;
+		return -ENOTSUP;
 	default:
 		DPAA_SEC_ERR("Crypto: Undefined Cipher specified %u",
 			      session->cipher_alg);
-		return -1;
+		return -ENOTSUP;
 	}
 
 	return 0;
@@ -2893,7 +2896,7 @@ dpaa_sec_set_pdcp_session(struct rte_cryptodev *dev,
 		default:
 			DPAA_SEC_ERR("Crypto: Undefined Cipher specified %u",
 				      session->cipher_alg);
-			return -1;
+			return -EINVAL;
 		}
 
 		session->cipher_key.data = rte_zmalloc(NULL,
@@ -2944,7 +2947,7 @@ dpaa_sec_set_pdcp_session(struct rte_cryptodev *dev,
 			DPAA_SEC_ERR("Crypto: Unsupported auth alg %u",
 				      session->auth_alg);
 			rte_free(session->cipher_key.data);
-			return -1;
+			return -EINVAL;
 		}
 		session->auth_key.data = rte_zmalloc(NULL,
 						     auth_xform->key.length,
