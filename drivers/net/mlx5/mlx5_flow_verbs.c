@@ -1626,6 +1626,7 @@ flow_verbs_translate(struct rte_eth_dev *dev,
 		}
 	}
 	dev_flow->act_flags = action_flags;
+	dev_flow->hash_fields = 0;
 	for (; items->type != RTE_FLOW_ITEM_TYPE_END; items++) {
 		int tunnel = !!(item_flags & MLX5_FLOW_LAYER_TUNNEL);
 
