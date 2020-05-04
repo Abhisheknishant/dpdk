@@ -118,6 +118,8 @@ DIRS-$(CONFIG_RTE_LIBRTE_TELEMETRY) += librte_telemetry
 DEPDIRS-librte_telemetry := librte_eal librte_metrics librte_ethdev
 DIRS-$(CONFIG_RTE_LIBRTE_RCU) += librte_rcu
 DEPDIRS-librte_rcu := librte_eal librte_ring
+DIRS-$(CONFIG_RTE_LIBRTE_IF_PROXY) += librte_if_proxy
+DEPDIRS-librte_if_proxy := librte_eal librte_ethdev
 
 ifeq ($(CONFIG_RTE_EXEC_ENV_LINUX),y)
 DIRS-$(CONFIG_RTE_LIBRTE_KNI) += librte_kni
