@@ -369,6 +369,10 @@ endif
 if dpdk_conf.has('RTE_LIBRTE_PDUMP')
 	test_deps += 'pdump'
 endif
+if dpdk_conf.has('RTE_LIBRTE_IF_PROXY')
+       test_deps += 'if_proxy'
+       test_sources += 'test_if_proxy.c'
+endif
 
 if cc.has_argument('-Wno-format-truncation')
     cflags += '-Wno-format-truncation'

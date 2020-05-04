@@ -240,6 +240,11 @@ SRCS-$(CONFIG_RTE_LIBRTE_RCU) += test_rcu_qsbr.c test_rcu_qsbr_perf.c
 
 SRCS-$(CONFIG_RTE_LIBRTE_SECURITY) += test_security.c
 
+ifeq ($(CONFIG_RTE_LIBRTE_IF_PROXY),y)
+SRCS-y += test_if_proxy.c
+LDLIBS += -lrte_if_proxy
+endif
+
 SRCS-$(CONFIG_RTE_LIBRTE_IPSEC) += test_ipsec.c
 SRCS-$(CONFIG_RTE_LIBRTE_IPSEC) += test_ipsec_sad.c
 ifeq ($(CONFIG_RTE_LIBRTE_IPSEC),y)
