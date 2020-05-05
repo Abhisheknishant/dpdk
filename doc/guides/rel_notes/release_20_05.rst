@@ -245,6 +245,7 @@ API Changes
   ``rte_mempool_populate_virt()`` changed to return 0 instead of -EINVAL
   when there is not enough room to store one object.
 
+.. _20_05_abi_changes:
 
 ABI Changes
 -----------
@@ -260,6 +261,17 @@ ABI Changes
    This section is a comment. Do not overwrite or remove it.
    Also, make sure to start the actual text at the margin.
    =========================================================
+
+* The soname for each stable ABI version should be just the ABI version major
+  number without the minor number. Unfortunately both major and minor were used
+  in the v19.11 release, causing version v20.x releases to be incompatible with
+  ABI v20.0.
+
+  The `commit f26c2b3
+  <https://git.dpdk.org/dpdk/commit/?id=f26c2b39b271cdcd857ba518c5e48c78cb1c30af>`_
+  fixed the issue by switching from 2-part to 3-part ABI version numbers so that
+  we can keep v20.0 as soname and using the final digits to identify the DPDK
+  20.x releases which are ABI compatible.
 
 * No ABI change that would break compatibility with DPDK 20.02 and 19.11.
 
