@@ -1,4 +1,4 @@
-DPDK_20.0 {
+INTERNAL {
 	global:
 
 	dpaa2_affine_qbman_ethrx_swp;
@@ -101,7 +101,6 @@ DPDK_20.0 {
 	rte_fslmc_driver_unregister;
 	rte_fslmc_get_device_count;
 	rte_fslmc_object_register;
-	rte_fslmc_vfio_dmamap;
 	rte_global_active_dqs_list;
 	rte_mcp_ptr_list;
 
