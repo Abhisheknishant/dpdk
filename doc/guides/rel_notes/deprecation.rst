@@ -113,3 +113,10 @@ Deprecation Notices
   Python 2 support will be completely removed in 20.11.
   In 20.08, explicit deprecation warnings will be displayed when running
   scripts with Python 2.
+
+* traffic manager: All traffic manager API's in ``rte_tm.h`` were mistakenly made
+  abi stable in the v19.11 release. The TM maintainer and other contributor's have
+  agreed to keep the TM API's as experimental in expectation of additional spec
+  improvements. Therefore, all API's in ``rte_tm.h`` will be marked back as
+  experimental in v20.11 DPDK release. For more details, please see `the thread
+  <https://mails.dpdk.org/archives/dev/2020-April/164970.html>`_.
