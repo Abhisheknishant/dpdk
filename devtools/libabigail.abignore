@@ -35,3 +35,4 @@
         type_kind = enum
         name = rte_eth_event_type
         changed_enumerators = RTE_ETH_EVENT_MAX
+
