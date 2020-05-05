@@ -1002,6 +1002,11 @@ rte_eal_vfio_intr_mode(void)
 	return RTE_INTR_MODE_NONE;
 }
 
+void rte_eal_vfio_vf_token(rte_uuid_t vf_token)
+{
+	memset(vf_token, 0, sizeof(rte_uuid_t));
+}
+
 int rte_vfio_setup_device(__rte_unused const char *sysfs_base,
 		      __rte_unused const char *dev_addr,
 		      __rte_unused int *vfio_dev_fd,
