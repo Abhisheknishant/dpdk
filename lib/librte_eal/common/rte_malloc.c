@@ -392,6 +392,29 @@ find_named_heap(const char *name)
 	return NULL;
 }
 
+static int
+check_iova_addrs_dma_mask(rte_iova_t iova_addrs[], unsigned int n_pages,
+		size_t page_sz)
+{
+	unsigned int i, bits;
+	rte_iova_t max = 0;
+
+	/* we only care for the biggest address we will get */
+	for (i = 0; i < n_pages; i++) {
+		rte_iova_t first = iova_addrs[i];
+		rte_iova_t last = first + page_sz - 1;
+		max = RTE_MAX(last, max);
+	}
+
+	bits = rte_fls_u64(max);
+	if (rte_mem_check_dma_mask(bits) != 0) {
+		RTE_LOG(ERR, EAL, "IOVA 0x%zx does not fit into the DMA mask\n",
+				max);
+		return -1;
+	}
+	return 0;
+}
+
 int
 rte_malloc_heap_memory_add(const char *heap_name, void *va_addr, size_t len,
 		rte_iova_t iova_addrs[], unsigned int n_pages, size_t page_sz)
@@ -409,6 +432,12 @@ rte_malloc_heap_memory_add(const char *heap_name, void *va_addr, size_t len,
 			strnlen(heap_name, RTE_HEAP_NAME_MAX_LEN) == 0 ||
 			strnlen(heap_name, RTE_HEAP_NAME_MAX_LEN) ==
 				RTE_HEAP_NAME_MAX_LEN) {
+		rte_errno = EINVAL;
+		return -1;
+	}
+	/* check if all IOVA's fit into the DMA mask */
+	if (iova_addrs != NULL && check_iova_addrs_dma_mask(iova_addrs,
+			n_pages, page_sz) != 0) {
 		rte_errno = EINVAL;
 		return -1;
 	}
