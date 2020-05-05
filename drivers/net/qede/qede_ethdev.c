@@ -268,12 +268,18 @@ qede_interrupt_handler(void *param)
 }
 
 static void
-qede_assign_rxtx_handlers(struct rte_eth_dev *dev)
+qede_assign_rxtx_handlers(struct rte_eth_dev *dev, bool is_dummy)
 {
 	uint64_t tx_offloads = dev->data->dev_conf.txmode.offloads;
 	struct qede_dev *qdev = dev->data->dev_private;
 	struct ecore_dev *edev = &qdev->edev;
 	bool use_tx_offload = false;
+
+	if (is_dummy) {
+		dev->rx_pkt_burst = qede_rxtx_pkts_dummy;
+		dev->tx_pkt_burst = qede_rxtx_pkts_dummy;
+		return;
+	}
 
 	if (ECORE_IS_CMT(edev)) {
 		dev->rx_pkt_burst = qede_recv_pkts_cmt;
@@ -1118,7 +1124,9 @@ static int qede_dev_start(struct rte_eth_dev *eth_dev)
 	/* Start/resume traffic */
 	qede_fastpath_start(edev);
 
-	qede_assign_rxtx_handlers(eth_dev);
+	/* Assign I/O handlers */
+	qede_assign_rxtx_handlers(eth_dev, false);
+
 	DP_INFO(edev, "Device started\n");
 
 	return 0;
@@ -1133,6 +1141,11 @@ static void qede_dev_stop(struct rte_eth_dev *eth_dev)
 	struct ecore_dev *edev = QEDE_INIT_EDEV(qdev);
 
 	PMD_INIT_FUNC_TRACE(edev);
+
+	/* Replace I/O functions with dummy ones. It cannot
+	 * be set to NULL because rte_eth_rx_burst() doesn't check for NULL.
+	 */
+	qede_assign_rxtx_handlers(eth_dev, true);
 
 	/* Disable vport */
 	if (qede_activate_vport(eth_dev, false))
@@ -2284,11 +2297,6 @@ static int qede_set_mtu(struct rte_eth_dev *dev, uint16_t mtu)
 			dev->data->min_rx_buf_size);
 		return -EINVAL;
 	}
-	/* Temporarily replace I/O functions with dummy ones. It cannot
-	 * be set to NULL because rte_eth_rx_burst() doesn't check for NULL.
-	 */
-	dev->rx_pkt_burst = qede_rxtx_pkts_dummy;
-	dev->tx_pkt_burst = qede_rxtx_pkts_dummy;
 	if (dev->data->dev_started) {
 		dev->data->dev_started = 0;
 		qede_dev_stop(dev);
@@ -2327,15 +2335,6 @@ static int qede_set_mtu(struct rte_eth_dev *dev, uint16_t mtu)
 	/* update max frame size */
 	dev->data->dev_conf.rxmode.max_rx_pkt_len = max_rx_pkt_len;
 
-	/* Reassign back */
-	qede_assign_rxtx_handlers(dev);
-	if (ECORE_IS_CMT(edev)) {
-		dev->rx_pkt_burst = qede_recv_pkts_cmt;
-		dev->tx_pkt_burst = qede_xmit_pkts_cmt;
-	} else {
-		dev->rx_pkt_burst = qede_recv_pkts;
-		dev->tx_pkt_burst = qede_xmit_pkts;
-	}
 	return 0;
 }
 
@@ -2536,7 +2535,7 @@ static int qede_common_dev_init(struct rte_eth_dev *eth_dev, bool is_vf)
 	strncpy((char *)params.name, QEDE_PMD_VER_PREFIX,
 		QEDE_PMD_DRV_VER_STR_SIZE);
 
-	qede_assign_rxtx_handlers(eth_dev);
+	qede_assign_rxtx_handlers(eth_dev, true);
 	eth_dev->tx_pkt_prepare = qede_xmit_prep_pkts;
 
 	/* For CMT mode device do periodic polling for slowpath events.
