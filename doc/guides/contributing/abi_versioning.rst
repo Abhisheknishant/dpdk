@@ -271,7 +271,7 @@ available (DPDK_21), which contains the symbol rte_acl_create, and inherits
 the symbols from the DPDK_20 node. This list is directly translated into a
 list of exported symbols when DPDK is compiled as a shared library
 
-Next, we need to specify in the code which function map to the rte_acl_create
+Next, we need to specify in the code which function maps to the rte_acl_create
 symbol at which versions.  First, at the site of the initial symbol definition,
 we need to update the function so that it is uniquely named, and not in conflict
 with the public symbol name
@@ -289,7 +289,7 @@ with the public symbol name
 
 Note that the base name of the symbol was kept intact, as this is conducive to
 the macros used for versioning symbols and we have annotated the function as an
-implementation of versioned symbol.  That is our next step, mapping this new
+implementation of a versioned symbol.  That is our next step, mapping this new
 symbol name to the initial symbol name at version node 20.  Immediately after
 the function, we add this line of code
 
@@ -305,7 +305,7 @@ mapped the original rte_acl_create symbol to the original function (but with a
 new name).
 
 Next, we need to create the 21 version of the symbol. We create a new function
-name, with a different suffix, and implement it appropriately
+name, with the ``v21`` suffix, and implement it appropriately
 
 .. code-block:: c
 
@@ -320,27 +320,32 @@ name, with a different suffix, and implement it appropriately
    }
 
 This code serves as our new API call. Its the same as our old call, but adds the
-new parameter in place. Next we need to map this function to the symbol
-``rte_acl_create@DPDK_21``. To do this, we modify the public prototype of the
-call in the header file, adding the macro there to inform all including
-applications, that on re-link, the default rte_acl_create symbol should point to
-this function. Note that we could do this by simply naming the function above
-rte_acl_create, and the linker would chose the most recent version tag to apply
-in the version script, but we can also do this in the header file
+new parameter in place. Next we need to map this function to the default symbol
+``rte_acl_create@DPDK_21``. To do this, immediately after the function, we add
+this line of code
+
+.. code-block:: c
+
+   BIND_DEFAULT_SYMBOL(rte_acl_create, _v21, 21);
+
+Again remembering to also add the rte_function_versioning.h header to the
+requisite c file. The above macro instructs the linker to create the new default
+symbol ``rte_acl_create@DPDK_21``, which points to the above newly named
+function.
+
+We finally modify the prototype of the call in the public header file,
+such that it contains both versions of the symbol and the public api.
 
 .. code-block:: c
 
    struct rte_acl_ctx *
-   -rte_acl_create(const struct rte_acl_param *param);
-   +rte_acl_create_v21(const struct rte_acl_param *param, int debug);
-   +BIND_DEFAULT_SYMBOL(rte_acl_create, _v21, 21);
+   rte_acl_create(const struct rte_acl_param *param);
 
-The BIND_DEFAULT_SYMBOL macro explicitly tells applications that include this
-header, to link to the rte_acl_create_v21 function and apply the DPDK_21
-version node to it.  This method is more explicit and flexible than just
-re-implementing the exact symbol name, and allows for other features (such as
-linking to the old symbol version by default, when the new ABI is to be opt-in
-for a period.
+   struct rte_acl_ctx * __vsym
+   rte_acl_create_v20(const struct rte_acl_param *param)
+
+   struct rte_acl_ctx *
+   rte_acl_create_v21(const struct rte_acl_param *param, int debug);
 
 One last thing we need to do.  Note that we've taken what was a public symbol,
 and duplicated it into two uniquely and differently named symbols.  We've then
