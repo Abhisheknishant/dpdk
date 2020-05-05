@@ -245,6 +245,26 @@ static const struct eth_dev_ops ops = {
 };
 
 static int
+dev_name_cmp(const struct rte_device *dev, const void *_name)
+{
+	const char *name = _name;
+
+	return strcmp(dev->name, name);
+}
+
+static struct rte_device *
+ring_device_from_name(const char *name)
+{
+	struct rte_bus *vdev_bus;
+
+	vdev_bus = rte_bus_find_by_name("vdev");
+	if (vdev_bus == NULL)
+		return NULL;
+
+	return vdev_bus->find_device(NULL, dev_name_cmp, name);
+}
+
+static int
 do_eth_dev_ring_create(const char *name,
 		struct rte_ring * const rx_queues[],
 		const unsigned int nb_rx_queues,
@@ -294,6 +314,7 @@ do_eth_dev_ring_create(const char *name,
 	 * - store queue data in internals,
 	 * - store numa_node info in eth_dev_data
 	 * - point eth_dev_data to internals
+	 * - store EAL device in eth_dev,
 	 * - and point eth_dev structure to new eth_dev_data structure
 	 */
 
@@ -325,9 +346,16 @@ do_eth_dev_ring_create(const char *name,
 	data->kdrv = RTE_KDRV_NONE;
 	data->numa_node = numa_node;
 
-	/* finally assign rx and tx ops */
+	/* assign rx and tx ops */
 	eth_dev->rx_pkt_burst = eth_ring_rx;
 	eth_dev->tx_pkt_burst = eth_ring_tx;
+
+	/* finally set the rte_device pointer in eth_dev. */
+	eth_dev->device = ring_device_from_name(name);
+	if (eth_dev->device == NULL) {
+		rte_errno = ENODEV;
+		goto error;
+	}
 
 	rte_eth_dev_probing_finish(eth_dev);
 	*eth_dev_p = eth_dev;
@@ -584,9 +612,6 @@ rte_pmd_ring_probe(struct rte_vdev_device *dev)
 							  DEV_ATTACH, &eth_dev);
 			}
 
-			if (eth_dev)
-				eth_dev->device = &dev->device;
-
 			return ret;
 		}
 
@@ -643,9 +668,6 @@ rte_pmd_ring_probe(struct rte_vdev_device *dev)
 			}
 		}
 	}
-
-	if (eth_dev)
-		eth_dev->device = &dev->device;
 
 out_free:
 	rte_kvargs_free(kvlist);
