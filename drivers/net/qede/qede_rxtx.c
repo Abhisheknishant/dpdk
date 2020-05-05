@@ -151,6 +151,7 @@ qede_alloc_rx_queue_mem(struct rte_eth_dev *dev,
 	rxq->qdev = qdev;
 	rxq->mb_pool = mp;
 	rxq->nb_rx_desc = nb_desc;
+	qdev->num_rx_desc = rxq->nb_rx_desc;
 	rxq->queue_id = queue_idx;
 	rxq->port_id = dev->data->port_id;
 
@@ -405,6 +406,7 @@ qede_alloc_tx_queue_mem(struct rte_eth_dev *dev,
 	}
 
 	txq->nb_tx_desc = nb_desc;
+	qdev->num_tx_desc = txq->nb_tx_desc;
 	txq->qdev = qdev;
 	txq->port_id = dev->data->port_id;
 
@@ -443,6 +445,7 @@ qede_alloc_tx_queue_mem(struct rte_eth_dev *dev,
 
 	txq->nb_tx_avail = txq->nb_tx_desc;
 
+	qdev->tx_conf = tx_conf;
 	txq->tx_free_thresh =
 	    tx_conf->tx_free_thresh ? tx_conf->tx_free_thresh :
 	    (txq->nb_tx_desc - QEDE_DEFAULT_TX_FREE_THRESH);
@@ -593,7 +596,7 @@ qede_alloc_mem_sb(struct qede_dev *qdev, struct ecore_sb_info *sb_info,
 
 int qede_alloc_fp_resc(struct qede_dev *qdev)
 {
-	struct ecore_dev *edev = &qdev->edev;
+	struct ecore_dev *edev = QEDE_INIT_EDEV(qdev);
 	struct qede_fastpath *fp;
 	uint32_t num_sbs;
 	uint16_t sb_idx;
@@ -1005,8 +1008,28 @@ static int qede_tx_queue_stop(struct rte_eth_dev *eth_dev, uint16_t tx_queue_id)
 int qede_start_queues(struct rte_eth_dev *eth_dev)
 {
 	struct qede_dev *qdev = QEDE_INIT_QDEV(eth_dev);
+	struct ecore_dev *edev = QEDE_INIT_EDEV(qdev);
+	struct qede_tx_queue *txq;
+	struct qede_fastpath *fp;
 	uint8_t id;
 	int rc = -1;
+
+	/* Restore setup of Tx queues */
+	for (id = 0; id < qdev->num_tx_queues; id++) {
+		fp = &qdev->fp_array[id];
+		txq = fp->txq;
+
+		if (!txq) {
+			rc = qede_tx_queue_setup(eth_dev, id, qdev->num_tx_desc,
+						 eth_dev->data->numa_node,
+						 qdev->tx_conf);
+			if (rc != ECORE_SUCCESS) {
+				DP_ERR(edev, "TX queue %u not setup rc=%d\n",
+				       id, rc);
+				return -1;
+			}
+		}
+	}
 
 	for (id = 0; id < qdev->num_rx_queues; id++) {
 		rc = qede_rx_queue_start(eth_dev, id);

@@ -235,6 +235,9 @@ struct qede_dev {
 	bool enable_lro;
 	uint8_t num_rx_queues;
 	uint8_t num_tx_queues;
+	uint16_t num_rx_desc;
+	uint16_t num_tx_desc;
+	const struct rte_eth_txconf *tx_conf;
 	SLIST_HEAD(vlan_list_head, qede_vlan_entry)vlan_list_head;
 	uint16_t configured_vlans;
 	bool accept_any_vlan;
