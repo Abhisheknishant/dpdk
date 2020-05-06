@@ -335,7 +335,7 @@ pci_scan_one(const char *dirname, const struct rte_pci_addr *addr)
 
 	/* device is valid, add in list (sorted) */
 	if (TAILQ_EMPTY(&rte_pci_bus.device_list)) {
-		rte_pci_add_device(dev);
+		pci_add_device(dev);
 	} else {
 		struct rte_pci_device *dev2;
 		int ret;
@@ -346,7 +346,7 @@ pci_scan_one(const char *dirname, const struct rte_pci_addr *addr)
 				continue;
 
 			if (ret < 0) {
-				rte_pci_insert_device(dev2, dev);
+				pci_insert_device(dev2, dev);
 			} else { /* already registered */
 				if (!rte_dev_is_probed(&dev2->device)) {
 					dev2->kdrv = dev->kdrv;
@@ -388,7 +388,7 @@ pci_scan_one(const char *dirname, const struct rte_pci_addr *addr)
 			return 0;
 		}
 
-		rte_pci_add_device(dev);
+		pci_add_device(dev);
 	}
 
 	return 0;
@@ -457,7 +457,7 @@ error:
  * list
  */
 int
-rte_pci_scan(void)
+pci_scan(void)
 {
 	struct dirent *e;
 	DIR *dir;

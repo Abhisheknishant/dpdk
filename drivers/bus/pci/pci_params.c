@@ -55,9 +55,8 @@ pci_dev_match(const struct rte_device *dev,
 }
 
 void *
-rte_pci_dev_iterate(const void *start,
-		    const char *str,
-		    const struct rte_dev_iterator *it __rte_unused)
+pci_dev_iterate(const void *start, const char *str,
+		const struct rte_dev_iterator *it __rte_unused)
 {
 	rte_bus_find_device_t find_device;
 	struct rte_kvargs *kvargs = NULL;

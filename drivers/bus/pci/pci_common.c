@@ -81,8 +81,8 @@ pci_name_set(struct rte_pci_device *dev)
 /*
  * Match the PCI Driver and Device using the ID Table
  */
-int
-rte_pci_match(const struct rte_pci_driver *pci_drv,
+static int
+pci_match(const struct rte_pci_driver *pci_drv,
 	      const struct rte_pci_device *pci_dev)
 {
 	const struct rte_pci_id *id_table;
@@ -132,7 +132,7 @@ rte_pci_probe_one_driver(struct rte_pci_driver *dr,
 	loc = &dev->addr;
 
 	/* The device is not blacklisted; Check if driver supports it */
-	if (!rte_pci_match(dr, dev))
+	if (!pci_match(dr, dev))
 		/* Match of device and driver failed */
 		return 1;
 
@@ -388,14 +388,14 @@ rte_pci_unregister(struct rte_pci_driver *driver)
 
 /* Add a device to PCI bus */
 void
-rte_pci_add_device(struct rte_pci_device *pci_dev)
+pci_add_device(struct rte_pci_device *pci_dev)
 {
 	TAILQ_INSERT_TAIL(&rte_pci_bus.device_list, pci_dev, next);
 }
 
 /* Insert a device into a predefined position in PCI bus */
 void
-rte_pci_insert_device(struct rte_pci_device *exist_pci_dev,
+pci_insert_device(struct rte_pci_device *exist_pci_dev,
 		      struct rte_pci_device *new_pci_dev)
 {
 	TAILQ_INSERT_BEFORE(exist_pci_dev, new_pci_dev, next);
@@ -403,7 +403,7 @@ rte_pci_insert_device(struct rte_pci_device *exist_pci_dev,
 
 /* Remove a device from PCI bus */
 static void
-rte_pci_remove_device(struct rte_pci_device *pci_dev)
+pci_remove_device(struct rte_pci_device *pci_dev)
 {
 	TAILQ_REMOVE(&rte_pci_bus.device_list, pci_dev, next);
 }
@@ -536,7 +536,7 @@ pci_unplug(struct rte_device *dev)
 	pdev = RTE_DEV_TO_PCI(dev);
 	ret = rte_pci_detach_dev(pdev);
 	if (ret == 0) {
-		rte_pci_remove_device(pdev);
+		pci_remove_device(pdev);
 		rte_devargs_remove(dev->devargs);
 		free(pdev);
 	}
@@ -609,8 +609,8 @@ pci_ignore_device(const struct rte_pci_device *dev)
 	return true;
 }
 
-enum rte_iova_mode
-rte_pci_get_iommu_class(void)
+static enum rte_iova_mode
+pci_get_iommu_class(void)
 {
 	enum rte_iova_mode iova_mode = RTE_IOVA_DC;
 	const struct rte_pci_device *dev;
@@ -635,7 +635,7 @@ rte_pci_get_iommu_class(void)
 		FOREACH_DRIVER_ON_PCIBUS(drv) {
 			enum rte_iova_mode dev_iova_mode;
 
-			if (!rte_pci_match(drv, dev))
+			if (!pci_match(drv, dev))
 				continue;
 
 			dev_iova_mode = pci_device_iova_mode(drv, dev);
@@ -674,7 +674,7 @@ rte_pci_get_iommu_class(void)
 
 struct rte_pci_bus rte_pci_bus = {
 	.bus = {
-		.scan = rte_pci_scan,
+		.scan = pci_scan,
 		.probe = pci_probe,
 		.find_device = pci_find_device,
 		.plug = pci_plug,
@@ -682,8 +682,8 @@ struct rte_pci_bus rte_pci_bus = {
 		.parse = pci_parse,
 		.dma_map = pci_dma_map,
 		.dma_unmap = pci_dma_unmap,
-		.get_iommu_class = rte_pci_get_iommu_class,
-		.dev_iterate = rte_pci_dev_iterate,
+		.get_iommu_class = pci_get_iommu_class,
+		.dev_iterate = pci_dev_iterate,
 		.hot_unplug_handler = pci_hot_unplug_handler,
 		.sigbus_handler = pci_sigbus_handler,
 	},

@@ -24,7 +24,7 @@ extern struct rte_pci_bus rte_pci_bus;
  * @return
  *  0 on success, negative on error
  */
-int rte_pci_scan(void);
+int pci_scan(void);
 
 /**
  * Find the name of a PCI device.
@@ -41,7 +41,7 @@ pci_name_set(struct rte_pci_device *dev);
  *	PCI device to add
  * @return void
  */
-void rte_pci_add_device(struct rte_pci_device *pci_dev);
+void pci_add_device(struct rte_pci_device *pci_dev);
 
 /**
  * Insert a PCI device in the PCI Bus at a particular location in the device
@@ -54,7 +54,7 @@ void rte_pci_add_device(struct rte_pci_device *pci_dev);
  *	PCI device to be added before exist_pci_dev
  * @return void
  */
-void rte_pci_insert_device(struct rte_pci_device *exist_pci_dev,
+void pci_insert_device(struct rte_pci_device *exist_pci_dev,
 		struct rte_pci_device *new_pci_dev);
 
 /**
@@ -147,23 +147,8 @@ pci_uio_remap_resource(struct rte_pci_device *dev);
 int pci_uio_map_resource_by_index(struct rte_pci_device *dev, int res_idx,
 		struct mapped_pci_resource *uio_res, int map_idx);
 
-/*
- * Match the PCI Driver and Device using the ID Table
- *
- * @param pci_drv
- *      PCI driver from which ID table would be extracted
- * @param pci_dev
- *      PCI device to match against the driver
- * @return
- *      1 for successful match
- *      0 for unsuccessful match
- */
-int
-rte_pci_match(const struct rte_pci_driver *pci_drv,
-	      const struct rte_pci_device *pci_dev);
-
 /**
- * OS specific callbacks for rte_pci_get_iommu_class
+ * OS specific callbacks for pci_get_iommu_class
  *
  */
 bool
@@ -172,16 +157,6 @@ pci_device_iommu_support_va(const struct rte_pci_device *dev);
 enum rte_iova_mode
 pci_device_iova_mode(const struct rte_pci_driver *pci_drv,
 		     const struct rte_pci_device *pci_dev);
-
-/**
- * Get iommu class of PCI devices on the bus.
- * And return their preferred iova mapping mode.
- *
- * @return
- *   - enum rte_iova_mode.
- */
-enum rte_iova_mode
-rte_pci_get_iommu_class(void);
 
 /*
  * Iterate over internal devices,
@@ -202,8 +177,7 @@ rte_pci_get_iommu_class(void);
  *   NULL otherwise.
  */
 void *
-rte_pci_dev_iterate(const void *start,
-		    const char *str,
-		    const struct rte_dev_iterator *it);
+pci_dev_iterate(const void *start, const char *str,
+		const struct rte_dev_iterator *it);
 
 #endif /* _PCI_PRIVATE_H_ */

@@ -288,7 +288,7 @@ pci_scan_one(int dev_pci_fd, struct pci_conf *conf)
 
 	/* device is valid, add in list (sorted) */
 	if (TAILQ_EMPTY(&rte_pci_bus.device_list)) {
-		rte_pci_add_device(dev);
+		pci_add_device(dev);
 	}
 	else {
 		struct rte_pci_device *dev2 = NULL;
@@ -299,7 +299,7 @@ pci_scan_one(int dev_pci_fd, struct pci_conf *conf)
 			if (ret > 0)
 				continue;
 			else if (ret < 0) {
-				rte_pci_insert_device(dev2, dev);
+				pci_insert_device(dev2, dev);
 			} else { /* already registered */
 				dev2->kdrv = dev->kdrv;
 				dev2->max_vfs = dev->max_vfs;
@@ -311,7 +311,7 @@ pci_scan_one(int dev_pci_fd, struct pci_conf *conf)
 			}
 			return 0;
 		}
-		rte_pci_add_device(dev);
+		pci_add_device(dev);
 	}
 
 	return 0;
@@ -326,7 +326,7 @@ skipdev:
  * list. Call pci_scan_one() for each pci entry found.
  */
 int
-rte_pci_scan(void)
+pci_scan(void)
 {
 	int fd;
 	unsigned dev_count = 0;
