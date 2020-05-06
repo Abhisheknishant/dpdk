@@ -21,6 +21,18 @@ The basic compilation steps are:
 
         export RTE_TARGET=x86_64-native-linux-gcc
 
+##.  If required, enable configuration options. For example:
+
+    .. code-block:: console
+
+        cd to the top-level DPDK directory
+        sed -i 's,\(CONFIG_RTE_TEST_PMD_RECORD_CORE_CYCLES\)=n,\1=y,' config/common_base
+        sed -i 's,\(CONFIG_RTE_TEST_PMD_RECORD_BURST_STATS\)=n,\1=y,' config/common_base
+
+    Enabling CONFIG_RTE_TEST_PMD_RECORD_CORE_CYCLES enables measurement of CPU cycles.
+
+    Enabling CONFIG_RTE_TEST_PMD_RECORD_BURST_STATS enables display of RX and TX bursts.
+
 #.  Build the application:
 
     .. code-block:: console
