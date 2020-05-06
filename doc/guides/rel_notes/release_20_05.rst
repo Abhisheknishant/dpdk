@@ -66,6 +66,8 @@ New Features
   Added tracepoints in ``EAL``, ``ethdev``, ``cryptodev``, ``eventdev`` and
   ``mempool`` libraries for important functions.
 
+* **ethdev: Added a new value to link speed for 200Gbps **
+
 * **Added new API for rte_ring.**
 
   * New synchronization modes for rte_ring.
