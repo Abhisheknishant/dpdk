@@ -93,6 +93,12 @@ New Features
   * Added new query: ``rte_flow_get_aged_flows`` to get the aged-out flows
     contexts from the port.
 
+* **Added the support for vfio-pci new VF token interface.**
+
+  Since Linux version 5.7, vfio-pci supports a shared VF token (UUID) to represent
+  the trust between SR-IOV PF and the created VFs. Update the method to gain access
+  to the PF and VFs devices by appending the VF token parameter.
+
 * **Updated Amazon ena driver.**
 
   Updated ena PMD with new features and improvements, including:
