@@ -86,7 +86,7 @@ def pool_init(queue, result_queue):
         print("\n%s %s\n" % ("=" * 20, prefix), file=startuplog)
         print("\ncmdline=%s" % cmdline, file=startuplog)
 
-        pool_child = pexpect.spawn(cmdline, logfile=startuplog)
+        pool_child = pexpect.spawn(cmdline, logfile=startuplog, encoding='utf-8')
 
         # wait for target to boot
         if not wait_prompt(pool_child):
