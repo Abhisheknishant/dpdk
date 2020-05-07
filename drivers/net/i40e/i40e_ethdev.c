@@ -13180,7 +13180,7 @@ i40e_rss_config_hash_function(struct i40e_pf *pf,
 		}
 
 		for (j = I40E_FILTER_PCTYPE_INVALID + 1;
-		     j < I40E_FILTER_PCTYPE_MAX; j++) {
+		     j < I40E_FILTER_PCTYPE_MAX && i < UINT64_BIT; j++) {
 			if (pf->adapter->pctypes_tbl[i] & (1ULL << j))
 				i40e_write_global_rx_ctl(hw,
 					I40E_GLQF_HSYM(j),
@@ -13312,7 +13312,7 @@ i40e_rss_clear_hash_function(struct i40e_pf *pf,
 		}
 
 		for (j = I40E_FILTER_PCTYPE_INVALID + 1;
-		     j < I40E_FILTER_PCTYPE_MAX; j++) {
+		     j < I40E_FILTER_PCTYPE_MAX && i < UINT64_BIT; j++) {
 			if (pf->adapter->pctypes_tbl[i] & (1ULL << j))
 				i40e_write_global_rx_ctl(hw,
 					I40E_GLQF_HSYM(j),
