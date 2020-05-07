@@ -1,7 +1,9 @@
-DPDK_21 {
+INTERNAL {
 	global:
 
 	mlx5_class_get;
+
+	mlx5_dev_to_pci_addr;
 
 	mlx5_devx_cmd_create_cq;
 	mlx5_devx_cmd_create_qp;
@@ -26,8 +28,6 @@ DPDK_21 {
 	mlx5_devx_cmd_query_hca_attr;
 	mlx5_devx_cmd_query_virtq;
 	mlx5_devx_get_out_command_status;
-
-	mlx5_dev_to_pci_addr;
 
 	mlx5_nl_allmulti;
 	mlx5_nl_devlink_family_id_get;
