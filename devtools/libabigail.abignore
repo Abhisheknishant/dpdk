@@ -35,3 +35,10 @@
         type_kind = enum
         name = rte_eth_event_type
         changed_enumerators = RTE_ETH_EVENT_MAX
+
+; These functions were moved from stable to internal.
+; Avoid loading the symbols and comparing them.
+; This is a temporary exception till DPDK 20.11
+[suppress_file]
+	file_name_regexp = ^librte_common_mlx5\.
+
