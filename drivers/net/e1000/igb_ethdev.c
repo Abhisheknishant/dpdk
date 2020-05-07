@@ -47,6 +47,8 @@
 #define IGB_4_BIT_MASK   RTE_LEN2MASK(IGB_4_BIT_WIDTH, uint8_t)
 #define IGB_8_BIT_WIDTH  CHAR_BIT
 #define IGB_8_BIT_MASK   UINT8_MAX
+#define IGB_32_BIT_WIDTH (CHAR_BIT * 4)
+#define IGB_32_BIT_MASK  RTE_LEN2MASK(IGB_32_BIT_WIDTH, uint32_t)
 
 /* Additional timesync values. */
 #define E1000_CYCLECOUNTER_MASK      0xffffffffffffffffULL
@@ -263,9 +265,15 @@ static int igb_filter_restore(struct rte_eth_dev *dev);
  */
 #define UPDATE_VF_STAT(reg, last, cur)            \
 {                                                 \
-	u32 latest = E1000_READ_REG(hw, reg);     \
-	cur += (latest - last) & UINT_MAX;        \
-	last = latest;                            \
+	uint64_t latest = E1000_READ_REG(hw, reg);                 \
+	uint64_t stat = 0;                                         \
+	if (latest >= last)                                        \
+		stat = latest - last;                              \
+	else                                                       \
+		stat = (uint64_t)((latest +                        \
+			((uint64_t)1 << IGB_32_BIT_WIDTH)) - last);\
+	cur += stat & IGB_32_BIT_MASK;                             \
+	last = latest;                                             \
 }
 
 #define IGB_FC_PAUSE_TIME 0x0680
