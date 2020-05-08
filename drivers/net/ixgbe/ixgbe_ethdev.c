@@ -94,6 +94,10 @@
 #define IXGBE_4_BIT_MASK   RTE_LEN2MASK(IXGBE_4_BIT_WIDTH, uint8_t)
 #define IXGBE_8_BIT_WIDTH  CHAR_BIT
 #define IXGBE_8_BIT_MASK   UINT8_MAX
+#define IXGBE_32_BIT_WIDTH (CHAR_BIT * 4)
+#define IXGBE_32_BIT_MASK  RTE_LEN2MASK(IXGBE_32_BIT_WIDTH, uint32_t)
+#define IXGBE_36_BIT_WIDTH (CHAR_BIT * 4 + IXGBE_4_BIT_WIDTH)
+#define IXGBE_36_BIT_MASK  RTE_LEN2MASK(IXGBE_36_BIT_WIDTH, uint64_t)
 
 #define IXGBEVF_PMD_NAME "rte_ixgbevf_pmd" /* PMD name */
 
@@ -388,7 +392,13 @@ static int ixgbe_wait_for_link_up(struct ixgbe_hw *hw);
 #define UPDATE_VF_STAT(reg, last, cur)                          \
 {                                                               \
 	uint32_t latest = IXGBE_READ_REG(hw, reg);              \
-	cur += (latest - last) & UINT_MAX;                      \
+	u64 stat = 0;                                           \
+	if (latest >= last)                                     \
+		stat = latest - last;                           \
+	else                                                    \
+		stat = (u64)((latest +                          \
+			((u64)1 << IXGBE_32_BIT_WIDTH)) - last);\
+	cur += stat & IXGBE_32_BIT_MASK;                        \
 	last = latest;                                          \
 }
 
@@ -397,7 +407,13 @@ static int ixgbe_wait_for_link_up(struct ixgbe_hw *hw);
 	u64 new_lsb = IXGBE_READ_REG(hw, lsb);                   \
 	u64 new_msb = IXGBE_READ_REG(hw, msb);                   \
 	u64 latest = ((new_msb << 32) | new_lsb);                \
-	cur += (0x1000000000LL + latest - last) & 0xFFFFFFFFFLL; \
+	u64 stat = 0;                                            \
+	if (latest >= last)                                      \
+		stat = latest - last;                            \
+	else                                                     \
+		stat = (u64)((latest +                           \
+			((u64)1 << IXGBE_36_BIT_WIDTH)) - last); \
+	cur += stat & IXGBE_36_BIT_MASK;                         \
 	last = latest;                                           \
 }
 
