@@ -36,5 +36,9 @@ EXPERIMENTAL {
 	rte_hash_lookup_with_hash_bulk;
 	rte_hash_lookup_with_hash_bulk_data;
 	rte_hash_max_key_id;
-
+	rte_kv_hash_create;
+	rte_kv_hash_find_existing;
+	rte_kv_hash_free;
+	rte_kv_hash_add;
+	rte_kv_hash_delete;
 };
