@@ -45,6 +45,7 @@ test_sources = files('commands.c',
 	'test_eventdev.c',
 	'test_external_mem.c',
 	'test_fbarray.c',
+	'test_kv_hash.c',
 	'test_fib.c',
 	'test_fib_perf.c',
 	'test_fib6.c',
@@ -203,6 +204,7 @@ fast_tests = [
         ['hash_autotest', true],
         ['interrupt_autotest', true],
         ['ipfrag_autotest', false],
+        ['kv_hash_autotest', true],
         ['logs_autotest', true],
         ['lpm_autotest', true],
         ['lpm6_autotest', true],
@@ -291,6 +293,7 @@ perf_test_names = [
         'hash_readwrite_perf_autotest',
         'hash_readwrite_lf_perf_autotest',
         'trace_perf_autotest',
+	'kv_hash_slow_autotest',
 ]
 
 driver_test_names = [
