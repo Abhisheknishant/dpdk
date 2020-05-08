@@ -31,6 +31,7 @@ Programmer's Guide
     link_bonding_poll_mode_drv_lib
     timer_lib
     hash_lib
+    kv_hash_lib
     efd_lib
     member_lib
     lpm_lib
