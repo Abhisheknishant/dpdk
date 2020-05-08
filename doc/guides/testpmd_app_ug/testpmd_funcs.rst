@@ -351,26 +351,39 @@ Example for the io forwarding engine, with some packet drops on the tx side::
 
    testpmd> show fwd stats all
 
-     ------- Forward Stats for RX Port= 0/Queue= 0 -> TX Port= 1/Queue= 0 -------
-     RX-packets: 274293770      TX-packets: 274293642      TX-dropped: 128
+     ------- Forward Stats for RX Port= 0/Queue= 0 -> TX Port= 1/Queue= 0 -------
+     RX-packets: 43536504       TX-packets: 43536488       TX-dropped: 0
 
-     ------- Forward Stats for RX Port= 1/Queue= 0 -> TX Port= 0/Queue= 0 -------
-     RX-packets: 274301850      TX-packets: 274301850      TX-dropped: 0
+     ------- Forward Stats for RX Port= 1/Queue= 0 -> TX Port= 0/Queue= 0 -------
+     RX-packets: 149738504      TX-packets: 149738504      TX-dropped: 0
 
-     ---------------------- Forward statistics for port 0  ----------------------
-     RX-packets: 274293802      RX-dropped: 0             RX-total: 274293802
-     TX-packets: 274301862      TX-dropped: 0             TX-total: 274301862
-     ----------------------------------------------------------------------------
+     ------- Forward Stats for RX Port= 1/Queue= 1 -> TX Port= 0/Queue= 1 -------
+     RX-packets: 149753052      TX-packets: 149753052      TX-dropped: 0
 
-     ---------------------- Forward statistics for port 1  ----------------------
-     RX-packets: 274301894      RX-dropped: 0             RX-total: 274301894
-     TX-packets: 274293706      TX-dropped: 128           TX-total: 274293834
-     ----------------------------------------------------------------------------
+     ---------------------- Forward statistics for port 0  ----------------------
+     RX-packets: 43538881       RX-dropped: 72            RX-total: 43538953
+     TX-packets: 299491753      TX-dropped: 0             TX-total: 299491753
+     ----------------------------------------------------------------------------
 
-     +++++++++++++++ Accumulated forward statistics for all ports+++++++++++++++
-     RX-packets: 548595696      RX-dropped: 0             RX-total: 548595696
-     TX-packets: 548595568      TX-dropped: 128           TX-total: 548595696
-     ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+     ---------------------- Forward statistics for port 1  ----------------------
+     RX-packets: 299493085      RX-dropped: 8357          RX-total: 299501442
+     TX-packets: 43539683       TX-dropped: 0             TX-total: 43539683
+     ----------------------------------------------------------------------------
+
+     +++++++++++++++ Accumulated forward statistics for all ports+++++++++++++++
+     RX-packets: 343031966      RX-dropped: 8429          RX-total: 343040395
+     TX-packets: 343031436      TX-dropped: 0             TX-total: 343031436
+     ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+     CPU cycles/packet=14.28 (total cycles=4899533541 / total RX packets=343031966) at 200 MHz Clock
+
+.. note::
+
+   Measuring CPU cycles/packet requires enabling CONFIG_RTE_TEST_PMD_RECORD_CORE_TX_CYCLES
+   configuration option. On aarch64 platforms, by default, the cycles are counted using
+   generic counter which runs at a lower frequency than the CPU clock. To get the cycles/packet
+   at CPU clock frequency, please scale the cycles/packet to CPU clock frequency.
+   Alternatively, use the PMU based cycle counter.
 
 clear fwd
 ~~~~~~~~~
