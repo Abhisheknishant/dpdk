@@ -12,8 +12,10 @@
 #include <rte_hash_crc.h>
 #include <rte_jhash.h>
 #include <rte_fbk_hash.h>
+#include <rte_kv_hash.h>
 #include <rte_random.h>
 #include <rte_string_fns.h>
+#include <rte_hash_crc.h>
 
 #include "test.h"
 
@@ -28,6 +30,8 @@
 #define NUM_KEYSIZES 10
 #define NUM_SHUFFLES 10
 #define BURST_SIZE 16
+
+#define CRC_INIT_VAL	0xdeadbeef
 
 enum operations {
 	ADD = 0,
@@ -719,6 +723,110 @@ fbk_hash_perf_test(void)
 	return 0;
 }
 
+static uint32_t *
+shuf_arr(uint32_t *arr, int n, int l)
+{
+	int i, j;
+	uint32_t tmp;
+	uint32_t *ret_arr;
+
+	ret_arr = rte_zmalloc(NULL, l * sizeof(uint32_t), 0);
+	for (i = 0; i < n; i++) {
+		j = rte_rand() % n;
+		tmp = arr[j];
+		arr[j] = arr[i];
+		arr[i] = tmp;
+	}
+	for (i = 0; i < l; i++)
+		ret_arr[i] = arr[i % n];
+
+	return ret_arr;
+}
+
+static int
+kv_hash_perf_test(void)
+{
+	struct rte_kv_hash_params params = {
+		.name = "kv_hash_test",
+		.entries = ENTRIES * 2,
+		.socket_id = rte_socket_id(),
+		.type = RTE_KV_HASH_K32V64,
+	};
+	struct rte_kv_hash_table *handle = NULL;
+	uint32_t *keys;
+	uint32_t *lookup_keys;
+	uint64_t lookup_time = 0;
+	uint64_t begin;
+	uint64_t end;
+	unsigned int added = 0;
+	uint32_t key, hash_sig;
+	uint16_t val;
+	unsigned int i, j, k;
+	int found, ret = 0;
+	uint32_t hashes[64];
+	uint64_t vals[64];
+
+	handle = rte_kv_hash_create(&params);
+	if (handle == NULL) {
+		printf("Error creating table\n");
+		return -1;
+	}
+
+	keys = rte_zmalloc(NULL, ENTRIES * sizeof(*keys), 0);
+	if (keys == NULL) {
+		printf("fbk hash: memory allocation for key store failed\n");
+		return -1;
+	}
+
+	/* Generate random keys and values. */
+	for (i = 0; i < ENTRIES; i++) {
+		key = (uint32_t)rte_rand();
+		val = rte_rand();
+		hash_sig = rte_hash_crc_4byte(key, CRC_INIT_VAL);
+
+		if (rte_kv_hash_add(handle, &key, hash_sig, &val,
+				&found) == 0) {
+			keys[added] = key;
+			added++;
+		}
+	}
+
+	lookup_keys = shuf_arr(keys, added, TEST_SIZE);
+
+	lookup_time = 0;
+	for (i = 0; i < TEST_ITERATIONS; i++) {
+
+		begin = rte_rdtsc();
+		/* Do lookups */
+
+		for (j = 0; j < TEST_SIZE; j += 64) {
+			for (k = 0; k < 64; k++) {
+				hashes[k] =
+					rte_hash_crc_4byte(lookup_keys[j + k],
+						CRC_INIT_VAL);
+			}
+
+			ret += rte_kv_hash_bulk_lookup(handle,
+				&lookup_keys[j], hashes, vals, 64);
+		}
+
+		end = rte_rdtsc();
+		lookup_time += (double)(end - begin);
+	}
+
+	printf("\n\n *** KV Hash function performance test results ***\n");
+	if (ret != 0)
+		printf("Number of ticks per bulk lookup = %g\n",
+			(double)lookup_time /
+			((double)TEST_ITERATIONS * (double)TEST_SIZE));
+
+	rte_free(keys);
+	rte_free(lookup_keys);
+	rte_kv_hash_free(handle);
+
+	return 0;
+}
+
 static int
 test_hash_perf(void)
 {
@@ -744,6 +852,9 @@ test_hash_perf(void)
 		return -1;
 
 	if (fbk_hash_perf_test() < 0)
+		return -1;
+
+	if (kv_hash_perf_test() < 0)
 		return -1;
 
 	return 0;
