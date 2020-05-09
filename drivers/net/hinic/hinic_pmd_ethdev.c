@@ -354,7 +354,7 @@ static int hinic_dev_configure(struct rte_eth_dev *dev)
 		return err;
 	}
 
-	/*clear fdir filter flag in function table*/
+	/* clear fdir filter flag in function table */
 	hinic_free_fdir_filter(nic_dev);
 
 	return HINIC_OK;
@@ -440,7 +440,7 @@ static int hinic_rx_queue_setup(struct rte_eth_dev *dev, uint16_t queue_idx,
 	}
 	nic_dev->rxqs[queue_idx] = rxq;
 
-	/* alloc rx sq hw wqepage*/
+	/* alloc rx sq hw wqepage */
 	rc = hinic_create_rq(hwdev, queue_idx, rq_depth, socket_id);
 	if (rc) {
 		PMD_DRV_LOG(ERR, "Create rxq[%d] failed, dev_name: %s, rq_depth: %d",
@@ -2070,7 +2070,7 @@ static int hinic_rss_indirtbl_update(struct rte_eth_dev *dev,
 			indirtbl[i] = reta_conf[idx].reta[shift];
 	}
 
-	for (i = 0 ; i < reta_size; i++) {
+	for (i = 0; i < reta_size; i++) {
 		if (indirtbl[i] >= nic_dev->num_rq) {
 			PMD_DRV_LOG(ERR, "Invalid reta entry, index: %d, num_rq: %d",
 				    i, nic_dev->num_rq);
@@ -2300,8 +2300,7 @@ static int hinic_dev_xstats_get_names(struct rte_eth_dev *dev,
 	for (i = 0; i < HINIC_VPORT_XSTATS_NUM; i++) {
 		snprintf(xstats_names[count].name,
 			 sizeof(xstats_names[count].name),
-			 "%s",
-			 hinic_vport_stats_strings[i].name);
+			 "%s", hinic_vport_stats_strings[i].name);
 		count++;
 	}
 
@@ -2312,13 +2311,13 @@ static int hinic_dev_xstats_get_names(struct rte_eth_dev *dev,
 	for (i = 0; i < HINIC_PHYPORT_XSTATS_NUM; i++) {
 		snprintf(xstats_names[count].name,
 			 sizeof(xstats_names[count].name),
-			 "%s",
-			 hinic_phyport_stats_strings[i].name);
+			 "%s", hinic_phyport_stats_strings[i].name);
 		count++;
 	}
 
 	return count;
 }
+
 /**
  *  DPDK callback to set mac address
  *

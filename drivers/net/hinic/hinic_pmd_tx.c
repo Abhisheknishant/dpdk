@@ -313,6 +313,8 @@ static inline struct rte_mbuf *hinic_copy_tx_mbuf(struct hinic_nic_dev *nic_dev,
 		mbuf = mbuf->next;
 	}
 
+	dst_mbuf->pkt_len = dst_mbuf->data_len;
+
 	return dst_mbuf;
 }
 
@@ -1217,7 +1219,8 @@ void hinic_free_all_tx_resources(struct rte_eth_dev *eth_dev)
 				HINIC_ETH_DEV_TO_PRIVATE_NIC_DEV(eth_dev);
 
 	for (q_id = 0; q_id < nic_dev->num_sq; q_id++) {
-		eth_dev->data->tx_queues[q_id] = NULL;
+		if (eth_dev->data->tx_queues != NULL)
+			eth_dev->data->tx_queues[q_id] = NULL;
 
 		if (nic_dev->txqs[q_id] == NULL)
 			continue;
