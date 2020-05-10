@@ -14,6 +14,7 @@ if is_windows
 		'eal_common_log.c',
 		'eal_common_options.c',
 		'eal_common_thread.c',
+		'eal_common_timer.c',
 		'rte_option.c',
 	)
 	subdir_done()
