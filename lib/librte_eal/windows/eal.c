@@ -90,6 +90,12 @@ eal_proc_type_detect(void)
 	return ptype;
 }
 
+enum rte_proc_type_t
+rte_eal_process_type(void)
+{
+	return rte_config.process_type;
+}
+
 /* display usage */
 static void
 eal_usage(const char *prgname)
