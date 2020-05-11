@@ -2294,5 +2294,84 @@ static const struct blockcipher_test_case aes_docsis_test_cases[] = {
 		.op_mask = BLOCKCIPHER_TEST_OP_DECRYPT,
 		.feature_mask = BLOCKCIPHER_TEST_FEATURE_OOP,
 	},
+	/* AES 256 */
+	{
+		.test_descr = "AES-256-DOCSIS-BPI Full Block Encryption",
+		.test_data = &aes_test_data_docsis_4,
+		.op_mask = BLOCKCIPHER_TEST_OP_ENCRYPT,
+		.pmd_mask = BLOCKCIPHER_TEST_TARGET_PMD_QAT
+	},
+	{
+		.test_descr = "AES-256-DOCSIS-BPI Runt Block Encryption",
+		.test_data = &aes_test_data_docsis_5,
+		.op_mask = BLOCKCIPHER_TEST_OP_ENCRYPT,
+		.pmd_mask = BLOCKCIPHER_TEST_TARGET_PMD_QAT
+	},
+	{
+		.test_descr = "AES-256-DOCSIS-BPI Uneven Encryption",
+		.test_data = &aes_test_data_docsis_6,
+		.op_mask = BLOCKCIPHER_TEST_OP_ENCRYPT,
+		.pmd_mask = BLOCKCIPHER_TEST_TARGET_PMD_QAT
+	},
+	{
+		.test_descr = "AES-256-DOCSIS-BPI Full Block Decryption",
+		.test_data = &aes_test_data_docsis_4,
+		.op_mask = BLOCKCIPHER_TEST_OP_DECRYPT,
+		.pmd_mask = BLOCKCIPHER_TEST_TARGET_PMD_QAT
+	},
+	{
+		.test_descr = "AES-256-DOCSIS-BPI Runt Block Decryption",
+		.test_data = &aes_test_data_docsis_5,
+		.op_mask = BLOCKCIPHER_TEST_OP_DECRYPT,
+		.pmd_mask = BLOCKCIPHER_TEST_TARGET_PMD_QAT
+	},
+	{
+		.test_descr = "AES-256-DOCSIS-BPI Uneven Decryption",
+		.test_data = &aes_test_data_docsis_6,
+		.op_mask = BLOCKCIPHER_TEST_OP_DECRYPT,
+		.pmd_mask = BLOCKCIPHER_TEST_TARGET_PMD_QAT
+	},
+	{
+		.test_descr = "AES-256-DOCSIS-BPI OOP Full Block Encryption",
+		.test_data = &aes_test_data_docsis_4,
+		.op_mask = BLOCKCIPHER_TEST_OP_ENCRYPT,
+		.feature_mask = BLOCKCIPHER_TEST_FEATURE_OOP,
+		.pmd_mask = BLOCKCIPHER_TEST_TARGET_PMD_QAT
+	},
+	{
+		.test_descr = "AES-256-DOCSIS-BPI OOP Runt Block Encryption",
+		.test_data = &aes_test_data_docsis_5,
+		.op_mask = BLOCKCIPHER_TEST_OP_ENCRYPT,
+		.feature_mask = BLOCKCIPHER_TEST_FEATURE_OOP,
+		.pmd_mask = BLOCKCIPHER_TEST_TARGET_PMD_QAT
+	},
+	{
+		.test_descr = "AES-256-DOCSIS-BPI OOP Uneven Block Encryption",
+		.test_data = &aes_test_data_docsis_6,
+		.op_mask = BLOCKCIPHER_TEST_OP_ENCRYPT,
+		.feature_mask = BLOCKCIPHER_TEST_FEATURE_OOP,
+		.pmd_mask = BLOCKCIPHER_TEST_TARGET_PMD_QAT
+	},
+	{
+		.test_descr = "AES-256-DOCSIS-BPI OOP Full Block Decryption",
+		.test_data = &aes_test_data_docsis_4,
+		.op_mask = BLOCKCIPHER_TEST_OP_DECRYPT,
+		.feature_mask = BLOCKCIPHER_TEST_FEATURE_OOP,
+		.pmd_mask = BLOCKCIPHER_TEST_TARGET_PMD_QAT
+	},
+	{
+		.test_descr = "AES-256-DOCSIS-BPI OOP Runt Block Decryption",
+		.test_data = &aes_test_data_docsis_5,
+		.op_mask = BLOCKCIPHER_TEST_OP_DECRYPT,
+		.feature_mask = BLOCKCIPHER_TEST_FEATURE_OOP,
+		.pmd_mask = BLOCKCIPHER_TEST_TARGET_PMD_QAT
+	},
+	{
+		.test_descr = "AES-256-DOCSIS-BPI OOP Uneven Block Decryption",
+		.test_data = &aes_test_data_docsis_6,
+		.op_mask = BLOCKCIPHER_TEST_OP_DECRYPT,
+		.feature_mask = BLOCKCIPHER_TEST_FEATURE_OOP,
+		.pmd_mask = BLOCKCIPHER_TEST_TARGET_PMD_QAT
+	},
 };
 #endif /* TEST_CRYPTODEV_AES_TEST_VECTORS_H_ */
