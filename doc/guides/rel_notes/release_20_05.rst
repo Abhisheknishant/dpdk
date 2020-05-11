@@ -190,6 +190,10 @@ New Features
   any checksum calculation was requested - in such case the code falls back to
   fixed compression as before.
 
+* **Updated the QAT PMD.**
+
+  * Added AES-256 DOCSIS algorithm support to QAT PMD.
+
 * **Updated the turbo_sw bbdev PMD.**
 
   Supported large size code blocks which does not fit in one mbuf segment.
