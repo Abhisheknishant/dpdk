@@ -3408,6 +3408,7 @@ get_eth_dcb_conf(portid_t pid, struct rte_eth_conf *eth_conf,
 	int32_t rc;
 	struct rte_eth_rss_conf rss_conf;
 
+	memset(&rss_conf, 0, sizeof(struct rte_eth_rss_conf));
 	/*
 	 * Builds up the correct configuration for dcb+vt based on the vlan tags array
 	 * given above, and the number of traffic classes available for use.
