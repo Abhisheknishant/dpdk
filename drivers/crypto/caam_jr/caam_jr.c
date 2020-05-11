@@ -2074,7 +2074,7 @@ static struct rte_security_ops caam_jr_security_ops = {
 static void
 close_job_ring(struct sec_job_ring_t *job_ring)
 {
-	if (job_ring->irq_fd) {
+	if (job_ring->irq_fd != -1) {
 		/* Producer index is frozen. If consumer index is not equal
 		 * with producer index, then we have descs to flush.
 		 */
@@ -2187,7 +2187,7 @@ caam_jr_dev_uninit(struct rte_cryptodev *dev)
  *
  */
 static void *
-init_job_ring(void *reg_base_addr, uint32_t irq_id)
+init_job_ring(void *reg_base_addr, int irq_id)
 {
 	struct sec_job_ring_t *job_ring = NULL;
 	int i, ret = 0;
@@ -2466,6 +2466,8 @@ RTE_PMD_REGISTER_CRYPTO_DRIVER(caam_jr_crypto_drv, cryptodev_caam_jr_drv.driver,
 
 RTE_INIT(caam_jr_init_log)
 {
+	sec_init();
+
 	caam_jr_logtype = rte_log_register("pmd.crypto.caam");
 	if (caam_jr_logtype >= 0)
 		rte_log_set_level(caam_jr_logtype, RTE_LOG_NOTICE);

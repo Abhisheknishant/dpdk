@@ -216,16 +216,17 @@ calc_chksum(void *buffer, int len)
 }
 struct uio_job_ring {
 	uint32_t jr_id;
-	uint32_t uio_fd;
+	int uio_fd;
 	void *register_base_addr;
 	int map_size;
 	int uio_minor_number;
 };
 
 int sec_cleanup(void);
+void sec_init(void);
 int sec_configure(void);
 struct uio_job_ring *config_job_ring(void);
-void free_job_ring(uint32_t uio_fd);
+void free_job_ring(int uio_fd);
 
 /* For Dma memory allocation of specified length and alignment */
 static inline void *
