@@ -34,6 +34,7 @@ struct mc_version {
 	uint32_t revision;
 };
 
+__rte_internal
 int mc_get_version(struct fsl_mc_io *mc_io,
 		   uint32_t cmd_flags,
 		   struct mc_version *mc_ver_info);
@@ -48,6 +49,7 @@ struct mc_soc_version {
 	uint32_t pvr;
 };
 
+__rte_internal
 int mc_get_soc_version(struct fsl_mc_io *mc_io,
 		       uint32_t cmd_flags,
 		       struct mc_soc_version *mc_platform_info);

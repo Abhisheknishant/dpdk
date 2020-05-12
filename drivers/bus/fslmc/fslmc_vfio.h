@@ -41,7 +41,11 @@ typedef struct fslmc_vfio_container {
 } fslmc_vfio_container;
 
 extern char *fslmc_container;
+
+__rte_internal
 int rte_dpaa2_intr_enable(struct rte_intr_handle *intr_handle, int index);
+
+__rte_internal
 int rte_dpaa2_intr_disable(struct rte_intr_handle *intr_handle, int index);
 
 int rte_dpaa2_vfio_setup_intr(struct rte_intr_handle *intr_handle,
