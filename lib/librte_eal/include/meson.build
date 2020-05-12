@@ -51,6 +51,7 @@ headers += files(
 # special case install the generic headers, since they go in a subdir
 generic_headers = files(
 	'generic/rte_atomic.h',
+	'generic/rte_atomic_c11.h',
 	'generic/rte_byteorder.h',
 	'generic/rte_cpuflags.h',
 	'generic/rte_cycles.h',
