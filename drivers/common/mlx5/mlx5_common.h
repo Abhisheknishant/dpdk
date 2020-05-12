@@ -210,4 +210,6 @@ enum mlx5_class mlx5_class_get(struct rte_devargs *devargs);
 void mlx5_translate_port_name(const char *port_name_in,
 			      struct mlx5_switch_info *port_info_out);
 
+extern uint8_t haswell_broadwell_cpu;
+
 #endif /* RTE_PMD_MLX5_COMMON_H_ */
