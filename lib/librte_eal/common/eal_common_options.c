@@ -115,8 +115,10 @@ struct shared_driver {
 static struct shared_driver_list solib_list =
 TAILQ_HEAD_INITIALIZER(solib_list);
 
+#ifndef RTE_EXEC_ENV_WINDOWS
 /* Default path of external loadable drivers */
 static const char *default_solib_dir = RTE_EAL_PMD_PATH;
+#endif
 
 /*
  * Stringified version of solib path used by dpdk-pmdinfo.py
@@ -329,6 +331,7 @@ eal_plugin_add(const char *path)
 	return 0;
 }
 
+#ifndef RTE_EXEC_ENV_WINDOWS
 static int
 eal_plugindir_init(const char *path)
 {
@@ -362,6 +365,7 @@ eal_plugindir_init(const char *path)
 	/* XXX this ignores failures from readdir() itself */
 	return (dent == NULL) ? 0 : -1;
 }
+#endif
 
 int
 eal_plugins_init(void)
@@ -394,8 +398,8 @@ eal_plugins_init(void)
 		}
 
 	}
-	return 0;
 #endif
+	return 0;
 }
 
 /*
