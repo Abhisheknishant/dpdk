@@ -4184,6 +4184,10 @@ rte_eth_dev_rx_intr_ctl_q_get_fd(uint16_t port_id, uint16_t queue_id)
 	return fd;
 }
 
+#define ETH_DMA_MZONE_NAME(_name, _port_id, _queue_id, _ring_name) \
+	snprintf(_name, sizeof(_name), "eth_p%d_q%d_%s", \
+			_port_id, _queue_id, _ring_name)
+
 const struct rte_memzone *
 rte_eth_dma_zone_reserve(const struct rte_eth_dev *dev, const char *ring_name,
 			 uint16_t queue_id, size_t size, unsigned align,
@@ -4193,8 +4197,7 @@ rte_eth_dma_zone_reserve(const struct rte_eth_dev *dev, const char *ring_name,
 	const struct rte_memzone *mz;
 	int rc;
 
-	rc = snprintf(z_name, sizeof(z_name), "eth_p%d_q%d_%s",
-		      dev->data->port_id, queue_id, ring_name);
+	rc = ETH_DMA_MZONE_NAME(z_name, dev->data->port_id, queue_id, ring_name);
 	if (rc >= RTE_MEMZONE_NAMESIZE) {
 		RTE_ETHDEV_LOG(ERR, "ring name too long\n");
 		rte_errno = ENAMETOOLONG;
@@ -4207,6 +4210,27 @@ rte_eth_dma_zone_reserve(const struct rte_eth_dev *dev, const char *ring_name,
 
 	return rte_memzone_reserve_aligned(z_name, size, socket_id,
 			RTE_MEMZONE_IOVA_CONTIG, align);
+}
+
+int
+rte_eth_dma_zone_free(const struct rte_eth_dev *dev, const char *ring_name,
+		uint16_t queue_id)
+{
+	char z_name[RTE_MEMZONE_NAMESIZE];
+	const struct rte_memzone *mz;
+	int rc = 0;
+
+	rc = ETH_DMA_MZONE_NAME(z_name, dev->data->port_id, queue_id, ring_name);
+	if (rc >= RTE_MEMZONE_NAMESIZE) {
+		RTE_ETHDEV_LOG(ERR, "ring name too long\n");
+		return -ENAMETOOLONG;
+	}
+
+	mz = rte_memzone_lookup(z_name);
+	if (mz)
+		rc = rte_memzone_free(mz);
+
+	return rc;
 }
 
 int
