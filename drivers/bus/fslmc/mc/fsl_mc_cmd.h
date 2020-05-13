@@ -80,6 +80,7 @@ enum mc_cmd_status {
 
 #define MC_CMD_HDR_FLAGS_MASK	0xFF00FF00
 
+__rte_internal
 int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd);
 
 static inline uint64_t mc_encode_cmd_header(uint16_t cmd_id,

@@ -53,3 +53,5 @@
 	file_name_regexp = ^librte_common_dpaax\.
 [suppress_file]
 	file_name_regexp = ^librte_mempool_dpaa\.
+[suppress_file]
+	file_name_regexp = ^librte_bus_fslmc\.
