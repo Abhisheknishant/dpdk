@@ -96,6 +96,8 @@ rte_metrics_deinit(void)
 	stats = memzone->addr;
 	memset(stats, 0, sizeof(struct rte_metrics_data_s));
 
+	metrics_initialized = 0;
+
 	return rte_memzone_free(memzone);
 
 }
