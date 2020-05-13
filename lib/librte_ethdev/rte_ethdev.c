@@ -3549,6 +3549,8 @@ rte_eth_dev_rss_hash_conf_get(uint16_t port_id,
 {
 	struct rte_eth_dev *dev;
 
+	memset(rss_conf, 0, sizeof(*rss_conf));
+
 	RTE_ETH_VALID_PORTID_OR_ERR_RET(port_id, -ENODEV);
 	dev = &rte_eth_devices[port_id];
 	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->rss_hash_conf_get, -ENOTSUP);
