@@ -181,6 +181,25 @@ rte_eth_dma_zone_reserve(const struct rte_eth_dev *eth_dev, const char *name,
 			 unsigned align, int socket_id);
 
 /**
+ * @warning
+ * @b EXPERIMENTAL: this API may change without prior notice.
+ *
+ * Free previously allocated memzone for HW rings.
+ *
+ * @param eth_dev
+ *   The *eth_dev* pointer is the address of the *rte_eth_dev* structure
+ * @param name
+ *   The name of the memory zone
+ * @param queue_id
+ *   The index of the queue to add to name
+ * @return
+ *   Negative errno value on error, 0 on success.
+ */
+int __rte_experimental
+rte_eth_dma_zone_free(const struct rte_eth_dev *dev, const char *ring_name,
+		 uint16_t queue_id);
+
+/**
  * @internal
  * Atomically set the link status for the specific device.
  * It is for use by DPDK device driver use only.
