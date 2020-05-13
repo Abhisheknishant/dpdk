@@ -46,6 +46,9 @@
  */
 #define VERSION_SYMBOL(b, e, n) __asm__(".symver " RTE_STR(b) RTE_STR(e) ", " RTE_STR(b) "@DPDK_" RTE_STR(n))
 
+
+#define VERSION_SYMBOL_EXPERIMENTAL(b, e) __asm__(".symver " RTE_STR(b) RTE_STR(e) ", " RTE_STR(b) "@EXPERIMENTAL")
+
 /*
  * BIND_DEFAULT_SYMBOL
  * Creates a symbol version entry instructing the linker to bind references to
@@ -79,6 +82,7 @@
  * No symbol versioning in use
  */
 #define VERSION_SYMBOL(b, e, n)
+#define VERSION_SYMBOL_EXPERIMENTAL(b, e)
 #define __vsym
 #define BIND_DEFAULT_SYMBOL(b, e, n)
 #define MAP_STATIC_SYMBOL(f, p) f __attribute__((alias(RTE_STR(p))))

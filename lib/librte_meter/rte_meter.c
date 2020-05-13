@@ -9,6 +9,7 @@
 #include <rte_common.h>
 #include <rte_log.h>
 #include <rte_cycles.h>
+#include <rte_function_versioning.h>
 
 #include "rte_meter.h"
 
@@ -119,8 +120,8 @@ rte_meter_trtcm_config(struct rte_meter_trtcm *m,
 	return 0;
 }
 
-int
-rte_meter_trtcm_rfc4115_profile_config(
+static int
+rte_meter_trtcm_rfc4115_profile_config_(
 	struct rte_meter_trtcm_rfc4115_profile *p,
 	struct rte_meter_trtcm_rfc4115_params *params)
 {
@@ -145,7 +146,35 @@ rte_meter_trtcm_rfc4115_profile_config(
 }
 
 int
-rte_meter_trtcm_rfc4115_config(
+rte_meter_trtcm_rfc4115_profile_config_s(
+	struct rte_meter_trtcm_rfc4115_profile *p,
+	struct rte_meter_trtcm_rfc4115_params *params);
+int
+rte_meter_trtcm_rfc4115_profile_config_s(
+	struct rte_meter_trtcm_rfc4115_profile *p,
+	struct rte_meter_trtcm_rfc4115_params *params)
+{
+	return rte_meter_trtcm_rfc4115_profile_config_(p, params);
+}
+BIND_DEFAULT_SYMBOL(rte_meter_trtcm_rfc4115_profile_config, _s, 21);
+MAP_STATIC_SYMBOL(int rte_meter_trtcm_rfc4115_profile_config(struct rte_meter_trtcm_rfc4115_profile *p,
+		struct rte_meter_trtcm_rfc4115_params *params), rte_meter_trtcm_rfc4115_profile_config_s);
+
+int
+rte_meter_trtcm_rfc4115_profile_config_e(
+	struct rte_meter_trtcm_rfc4115_profile *p,
+	struct rte_meter_trtcm_rfc4115_params *params);
+int
+rte_meter_trtcm_rfc4115_profile_config_e(
+	struct rte_meter_trtcm_rfc4115_profile *p,
+	struct rte_meter_trtcm_rfc4115_params *params)
+{
+	return rte_meter_trtcm_rfc4115_profile_config_(p, params);
+}
+VERSION_SYMBOL_EXPERIMENTAL(rte_meter_trtcm_rfc4115_profile_config, _e);
+
+static int
+rte_meter_trtcm_rfc4115_config_(
 	struct rte_meter_trtcm_rfc4115 *m,
 	struct rte_meter_trtcm_rfc4115_profile *p)
 {
@@ -160,3 +189,27 @@ rte_meter_trtcm_rfc4115_config(
 
 	return 0;
 }
+
+int
+rte_meter_trtcm_rfc4115_config_s(struct rte_meter_trtcm_rfc4115 *m,
+	struct rte_meter_trtcm_rfc4115_profile *p);
+int
+rte_meter_trtcm_rfc4115_config_s(struct rte_meter_trtcm_rfc4115 *m,
+	struct rte_meter_trtcm_rfc4115_profile *p)
+{
+	return rte_meter_trtcm_rfc4115_config_(m, p);
+}
+BIND_DEFAULT_SYMBOL(rte_meter_trtcm_rfc4115_config, _s, 21);
+MAP_STATIC_SYMBOL(int rte_meter_trtcm_rfc4115_config(struct rte_meter_trtcm_rfc4115 *m,
+		 struct rte_meter_trtcm_rfc4115_profile *p), rte_meter_trtcm_rfc4115_config_s);
+
+int
+rte_meter_trtcm_rfc4115_config_e(struct rte_meter_trtcm_rfc4115 *m,
+	struct rte_meter_trtcm_rfc4115_profile *p);
+int
+rte_meter_trtcm_rfc4115_config_e(struct rte_meter_trtcm_rfc4115 *m,
+	struct rte_meter_trtcm_rfc4115_profile *p)
+{
+	return rte_meter_trtcm_rfc4115_config_(m, p);
+}
+VERSION_SYMBOL_EXPERIMENTAL(rte_meter_trtcm_rfc4115_config, _e);
