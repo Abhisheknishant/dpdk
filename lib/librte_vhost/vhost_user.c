@@ -2847,8 +2847,20 @@ skip_to_post_handle:
 	if (!vdpa_dev)
 		goto out;
 
-	if (!(dev->flags & VIRTIO_DEV_VDPA_CONFIGURED) &&
-			request == VHOST_USER_SET_VRING_CALL) {
+	if (!(dev->flags & VIRTIO_DEV_VDPA_CONFIGURED)) {
+		/*
+		 * Workaround when Virtio device status protocol
+		 * feature is not supported, wait for SET_VRING_CALL
+		 * request. This is not ideal as some frontends like
+		 * Virtio-user may not send this request, so vDPA device
+		 * may never be configured. Virtio device status support
+		 * on frontend side is strongly advised.
+		 */
+		if (!(dev->protocol_features &
+				(1ULL << VHOST_USER_PROTOCOL_F_STATUS)) &&
+				(request != VHOST_USER_SET_VRING_CALL))
+			goto out;
+
 		if (vdpa_dev->ops->dev_conf(dev->vid))
 			VHOST_LOG_CONFIG(ERR,
 					"Failed to configure vDPA device\n");
