@@ -938,6 +938,27 @@ ifcvf_dev_close(int vid)
 }
 
 static int
+ifcvf_set_vring_state(int vid, int vring, int state)
+{
+	int did;
+	struct internal_list *list;
+	struct ifcvf_internal *internal;
+
+	did = rte_vhost_get_vdpa_device_id(vid);
+	list = find_internal_resource_by_did(did);
+	if (list == NULL) {
+		DRV_LOG(ERR, "Invalid device id: %d", did);
+		return -1;
+	}
+
+	internal = list->internal;
+
+	ifcvf_queue_enable(&internal->hw, (uint16_t)vring, (uint16_t) state);
+
+	return 0;
+}
+
+static int
 ifcvf_set_features(int vid)
 {
 	uint64_t features = 0;
@@ -1086,7 +1107,7 @@ static struct rte_vdpa_dev_ops ifcvf_ops = {
 	.get_protocol_features = ifcvf_get_protocol_features,
 	.dev_conf = ifcvf_dev_config,
 	.dev_close = ifcvf_dev_close,
-	.set_vring_state = NULL,
+	.set_vring_state = ifcvf_set_vring_state,
 	.set_features = ifcvf_set_features,
 	.migration_done = NULL,
 	.get_vfio_group_fd = ifcvf_get_vfio_group_fd,
