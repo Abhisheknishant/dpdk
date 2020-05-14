@@ -1953,7 +1953,7 @@ eth_virtio_dev_init(struct rte_eth_dev *eth_dev)
 	rte_spinlock_init(&hw->state_lock);
 
 	/* reset device and negotiate default features */
-	ret = virtio_init_device(eth_dev, VIRTIO_PMD_DEFAULT_GUEST_FEATURES);
+	ret = virtio_init_device(eth_dev, VIRTIO_PMD_SUPPORTED_GUEST_FEATURES);
 	if (ret < 0)
 		goto err_virtio_init;
 
@@ -2214,7 +2214,7 @@ virtio_dev_configure(struct rte_eth_dev *dev)
 	int ret;
 
 	PMD_INIT_LOG(DEBUG, "configure");
-	req_features = VIRTIO_PMD_DEFAULT_GUEST_FEATURES;
+	req_features = VIRTIO_PMD_SUPPORTED_GUEST_FEATURES;
 
 	if (rxmode->mq_mode != ETH_MQ_RX_NONE) {
 		PMD_DRV_LOG(ERR,
