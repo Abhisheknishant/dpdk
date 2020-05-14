@@ -141,10 +141,16 @@ enum axgbe_sfp_speed {
 
 #define AXGBE_SFP_EXTD_CC			31
 
+#define AXGBE_SFP_EEPROM_PAGE_SIZE		256
+
 struct axgbe_sfp_eeprom {
 	u8 base[64];
 	u8 extd[32];
 	u8 vendor[32];
+};
+
+struct axgbe_sfp_eeprom_module {
+	u8 base[256];
 };
 
 #define AXGBE_BEL_FUSE_VENDOR	"BEL-FUSE"
@@ -734,12 +740,113 @@ put:
 	return ret;
 }
 
+int axgbe_get_module_info(struct rte_eth_dev *dev,
+				struct rte_eth_dev_module_info *modinfo)
+{
+	struct axgbe_port *pdata = dev->data->dev_private;
+	struct axgbe_sfp_eeprom sfp_eeprom;
+	uint8_t eeprom_addr;
+	int ret;
+
+	ret = axgbe_phy_get_comm_ownership(pdata);
+
+	if (ret)
+		return -EIO;
+
+	ret = axgbe_phy_sfp_get_mux(pdata);
+
+	if (ret) {
+		PMD_DRV_LOG(ERR, "I2C error setting SFP MUX\n");
+		return ret;
+	}
+
+	eeprom_addr = 0;
+	ret = axgbe_phy_i2c_read(pdata, AXGBE_SFP_SERIAL_ID_ADDRESS,
+			&eeprom_addr, sizeof(eeprom_addr),
+			 &sfp_eeprom, sizeof(sfp_eeprom));
+
+	if (ret) {
+		PMD_DRV_LOG(ERR, "I2C error reading SFP EEPROM\n");
+		goto put;
+	}
+
+	if (sfp_eeprom.extd[AXGBE_SFP_EXTD_SFF_8472] != 0xff) {
+		if (sfp_eeprom.extd[AXGBE_SFP_EXTD_SFF_8472] == 0) {
+			modinfo->type = RTE_ETH_MODULE_SFF_8079;
+			modinfo->eeprom_len = RTE_ETH_MODULE_SFF_8079_LEN;
+		} else {
+			modinfo->type = RTE_ETH_MODULE_SFF_8472;
+			modinfo->eeprom_len = RTE_ETH_MODULE_SFF_8472_LEN;
+		}
+	}
+
+
+put:
+	axgbe_phy_sfp_put_mux(pdata);
+	axgbe_phy_put_comm_ownership(pdata);
+	return 0;
+}
+
+int axgbe_get_module_eeprom(struct rte_eth_dev *dev,
+				struct rte_dev_eeprom_info *info)
+{
+	struct axgbe_port *pdata = dev->data->dev_private;
+	struct axgbe_sfp_eeprom_module sfp_eeprom;
+	uint8_t eeprom_addr;
+	uint8_t *data;
+	uint32_t i;
+	int ret;
+
+	ret = axgbe_phy_get_comm_ownership(pdata);
+
+	if (ret)
+		return -EIO;
+
+	if (!info || !info->length || !info->data)
+		return -EINVAL;
+
+	ret = axgbe_phy_sfp_get_mux(pdata);
+	if (ret) {
+		PMD_DRV_LOG(ERR, "I2C error setting SFP MUX\n");
+		return ret;
+	}
+
+	eeprom_addr = 0;
+	ret = axgbe_phy_i2c_read(pdata, AXGBE_SFP_SERIAL_ID_ADDRESS,
+			&eeprom_addr, sizeof(eeprom_addr),
+			&sfp_eeprom, sizeof(sfp_eeprom));
+	if (ret) {
+		PMD_DRV_LOG(ERR, "I2C error reading SFP EEPROM\n");
+		goto put;
+	}
+	data = info->data;
+
+	/* for AXGBE_SFP_SERIAL_ID_ADDRESS */
+	for (i = 0; i < AXGBE_SFP_EEPROM_PAGE_SIZE; i++)
+		data[i] = sfp_eeprom.base[i];
+
+	eeprom_addr = 0;
+	ret = axgbe_phy_i2c_read(pdata, AXGBE_SFP_DIAG_INFO_ADDRESS,
+			&eeprom_addr, sizeof(eeprom_addr),
+			&sfp_eeprom, sizeof(sfp_eeprom));
+
+	/* for AXGBE_SFP_DIAG_INFO_ADDRESS */
+	for (i = 0; i < info->length - AXGBE_SFP_EEPROM_PAGE_SIZE; i++)
+		data[i + AXGBE_SFP_EEPROM_PAGE_SIZE] = sfp_eeprom.base[i];
+
+put:
+	axgbe_phy_sfp_put_mux(pdata);
+	axgbe_phy_put_comm_ownership(pdata);
+	return 0;
+}
+
 static void axgbe_phy_sfp_signals(struct axgbe_port *pdata)
 {
 	struct axgbe_phy_data *phy_data = pdata->phy_data;
 	unsigned int gpio_input;
 	u8 gpio_reg, gpio_ports[2];
 	int ret;
+
 
 	/* Read the input port registers */
 	gpio_reg = 0;

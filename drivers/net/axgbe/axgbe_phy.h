@@ -188,5 +188,9 @@
 #define DUPLEX_FULL             0x01
 #define DUPLEX_UNKNOWN          0xff
 
+int axgbe_get_module_info(struct rte_eth_dev *dev,
+				struct rte_eth_dev_module_info *modinfo);
+int axgbe_get_module_eeprom(struct rte_eth_dev *dev,
+				  struct rte_dev_eeprom_info *info);
 #endif
 /* PHY */
