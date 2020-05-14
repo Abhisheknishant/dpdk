@@ -31,7 +31,9 @@
 			     (1ULL << VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD) | \
 			     (1ULL << VHOST_USER_PROTOCOL_F_HOST_NOTIFIER) | \
 			     (1ULL << VHOST_USER_PROTOCOL_F_LOG_SHMFD) | \
-			     (1ULL << VHOST_USER_PROTOCOL_F_MQ))
+			     (1ULL << VHOST_USER_PROTOCOL_F_MQ) | \
+			     (1ULL << VHOST_USER_PROTOCOL_F_STATUS))
+
 
 TAILQ_HEAD(mlx5_vdpa_privs, mlx5_vdpa_priv) priv_list =
 					      TAILQ_HEAD_INITIALIZER(priv_list);
