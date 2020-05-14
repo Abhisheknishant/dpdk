@@ -1093,7 +1093,8 @@ ifcvf_get_vdpa_features(int did, uint64_t *features)
 		 1ULL << VHOST_USER_PROTOCOL_F_SLAVE_REQ | \
 		 1ULL << VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD | \
 		 1ULL << VHOST_USER_PROTOCOL_F_HOST_NOTIFIER | \
-		 1ULL << VHOST_USER_PROTOCOL_F_LOG_SHMFD)
+		 1ULL << VHOST_USER_PROTOCOL_F_LOG_SHMFD | \
+		 1ULL << VHOST_USER_PROTOCOL_F_STATUS)
 static int
 ifcvf_get_protocol_features(int did __rte_unused, uint64_t *features)
 {
