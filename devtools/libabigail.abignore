@@ -59,3 +59,9 @@
 	file_name_regexp = ^librte_pmd_dpaa2_sec\.
 [suppress_file]
 	file_name_regexp = ^librte_pmd_dpaa_sec\.
+[suppress_file]
+	file_name_regexp = ^librte_mempool_dpaa\.
+[suppress_function]
+	name = rte_dpaa2_mbuf_alloc_bulk
+[suppress_function]
+	name = rte_dpaa2_bpid_info
