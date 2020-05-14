@@ -1,4 +1,4 @@
-DPDK_20.0 {
+INTERNAL {
 	global:
 
 	dpaax_iova_table_depopulate;
