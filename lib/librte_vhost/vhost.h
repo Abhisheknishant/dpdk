@@ -202,6 +202,14 @@ struct vhost_virtqueue {
 	TAILQ_HEAD(, vhost_iotlb_entry) iotlb_pending_list;
 } __rte_cache_aligned;
 
+/* Virtio device status as per Virtio specification */
+#define VIRTIO_DEVICE_STATUS_ACK		0x01
+#define VIRTIO_DEVICE_STATUS_DRIVER		0x02
+#define VIRTIO_DEVICE_STATUS_DRIVER_OK		0x04
+#define VIRTIO_DEVICE_STATUS_FEATURES_OK	0x08
+#define VIRTIO_DEVICE_STATUS_DEV_NEED_RESET	0x40
+#define VIRTIO_DEVICE_STATUS_FAILED		0x80
+
 /* Old kernels have no such macros defined */
 #ifndef VIRTIO_NET_F_GUEST_ANNOUNCE
  #define VIRTIO_NET_F_GUEST_ANNOUNCE 21
@@ -364,6 +372,7 @@ struct virtio_net {
 	uint64_t		log_addr;
 	struct rte_ether_addr	mac;
 	uint16_t		mtu;
+	uint8_t			status;
 
 	struct vhost_device_ops const *notify_ops;
 
