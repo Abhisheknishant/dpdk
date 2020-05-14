@@ -27,10 +27,19 @@ grep -q __AVX512F__ && echo 1)
 CC_AVX512DQ_SUPPORT=$(shell $(CC) -mavx512dq -dM -E - </dev/null 2>&1 | \
 grep -q __AVX512DQ__ && echo 1)
 
+CC_AVX512BW_SUPPORT=$(shell $(CC) -mavx512bw -dM -E - </dev/null 2>&1 | \
+grep -q __AVX512BW__ && echo 1)
+
 ifeq ($(CC_AVX512F_SUPPORT), 1)
 	ifeq ($(CC_AVX512DQ_SUPPORT), 1)
 		CFLAGS_dir24_8.o += -mavx512f
 		CFLAGS_dir24_8.o += -mavx512dq
 		CFLAGS_dir24_8.o += -DCC_AVX512_SUPPORT
+		ifeq ($(CC_AVX512BW_SUPPORT), 1)
+			CFLAGS_trie.o += -mavx512f
+			CFLAGS_trie.o += -mavx512dq
+			CFLAGS_trie.o += -mavx512bw
+			CFLAGS_trie.o += -DCC_AVX512_SUPPORT
+		endif
 	endif
 endif

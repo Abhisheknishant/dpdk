@@ -14,4 +14,7 @@ if dpdk_conf.has('RTE_ARCH_X86')
 	if cc.has_argument('-mavx512dq')
 		cflags += '-mavx512dq'
 	endif
+	if cc.has_argument('-mavx512bw')
+		cflags += '-mavx512bw'
+	endif
 endif

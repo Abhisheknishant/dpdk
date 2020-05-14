@@ -146,6 +146,51 @@ LOOKUP_FUNC(2b, uint16_t, 1)
 LOOKUP_FUNC(4b, uint32_t, 2)
 LOOKUP_FUNC(8b, uint64_t, 3)
 
+#ifdef CC_AVX512_SUPPORT
+
+#include "trie_avx512.h"
+
+static void
+rte_trie_vec_lookup_bulk_2b(void *p, uint8_t ips[][RTE_FIB6_IPV6_ADDR_SIZE],
+	uint64_t *next_hops, const unsigned int n)
+{
+	uint32_t i;
+	for (i = 0; i < (n / 16); i++) {
+		trie_vec_lookup_x16(p, (uint8_t (*)[16])&ips[i * 16][0],
+				next_hops + i * 16, sizeof(uint16_t));
+	}
+	rte_trie_lookup_bulk_2b(p, (uint8_t (*)[16])&ips[i * 16][0],
+			next_hops + i * 16, n - i * 16);
+}
+
+static void
+rte_trie_vec_lookup_bulk_4b(void *p, uint8_t ips[][RTE_FIB6_IPV6_ADDR_SIZE],
+	uint64_t *next_hops, const unsigned int n)
+{
+	uint32_t i;
+	for (i = 0; i < (n / 16); i++) {
+		trie_vec_lookup_x16(p, (uint8_t (*)[16])&ips[i * 16][0],
+				next_hops + i * 16, sizeof(uint32_t));
+	}
+	rte_trie_lookup_bulk_4b(p, (uint8_t (*)[16])&ips[i * 16][0],
+			next_hops + i * 16, n - i * 16);
+}
+
+static void
+rte_trie_vec_lookup_bulk_8b(void *p, uint8_t ips[][RTE_FIB6_IPV6_ADDR_SIZE],
+	uint64_t *next_hops, const unsigned int n)
+{
+	uint32_t i;
+	for (i = 0; i < (n / 8); i++) {
+		trie_vec_lookup_x8_8b(p, (uint8_t (*)[16])&ips[i * 8][0],
+				next_hops + i * 8);
+	}
+	rte_trie_lookup_bulk_8b(p, (uint8_t (*)[16])&ips[i * 8][0],
+			next_hops + i * 8, n - i * 8);
+}
+
+#endif /* CC_AVX512_SUPPORT */
+
 rte_fib6_lookup_fn_t
 trie_get_lookup_fn(void *p, enum rte_fib_trie_lookup_type type)
 {
@@ -169,6 +214,21 @@ trie_get_lookup_fn(void *p, enum rte_fib_trie_lookup_type type)
 		default:
 			return NULL;
 		}
+#ifdef CC_AVX512_SUPPORT
+	case RTE_FIB6_TRIE_VECTOR:
+		if (rte_cpu_get_flag_enabled(RTE_CPUFLAG_AVX512F) <= 0)
+			return NULL;
+		switch (nh_sz) {
+		case RTE_FIB6_TRIE_2B:
+			return rte_trie_vec_lookup_bulk_2b;
+		case RTE_FIB6_TRIE_4B:
+			return rte_trie_vec_lookup_bulk_4b;
+		case RTE_FIB6_TRIE_8B:
+			return rte_trie_vec_lookup_bulk_8b;
+		default:
+			return NULL;
+		}
+#endif /* CC_AVX512_SUPPORT */
 	default:
 		return NULL;
 	}
