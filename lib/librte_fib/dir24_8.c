@@ -245,6 +245,62 @@ dir24_8_lookup_bulk_uni(void *p, const uint32_t *ips,
 	}
 }
 
+#ifdef CC_AVX512_SUPPORT
+
+#include "dir24_8_avx512.h"
+
+static void
+rte_dir24_8_vec_lookup_bulk_1b(void *p, const uint32_t *ips,
+	uint64_t *next_hops, const unsigned int n)
+{
+	uint32_t i;
+	for (i = 0; i < (n / 16); i++)
+		dir24_8_vec_lookup_x16(p, ips + i * 16, next_hops + i * 16,
+			sizeof(uint8_t));
+
+	dir24_8_lookup_bulk_1b(p, ips + i * 16, next_hops + i * 16,
+		n - i * 16);
+}
+
+static void
+rte_dir24_8_vec_lookup_bulk_2b(void *p, const uint32_t *ips,
+	uint64_t *next_hops, const unsigned int n)
+{
+	uint32_t i;
+	for (i = 0; i < (n / 16); i++)
+		dir24_8_vec_lookup_x16(p, ips + i * 16, next_hops + i * 16,
+			sizeof(uint16_t));
+
+	dir24_8_lookup_bulk_2b(p, ips + i * 16, next_hops + i * 16,
+		n - i * 16);
+}
+
+static void
+rte_dir24_8_vec_lookup_bulk_4b(void *p, const uint32_t *ips,
+	uint64_t *next_hops, const unsigned int n)
+{
+	uint32_t i;
+	for (i = 0; i < (n / 16); i++)
+		dir24_8_vec_lookup_x16(p, ips + i * 16, next_hops + i * 16,
+			sizeof(uint32_t));
+
+	dir24_8_lookup_bulk_4b(p, ips + i * 16, next_hops + i * 16,
+		n - i * 16);
+}
+
+static void
+rte_dir24_8_vec_lookup_bulk_8b(void *p, const uint32_t *ips,
+	uint64_t *next_hops, const unsigned int n)
+{
+	uint32_t i;
+	for (i = 0; i < (n / 8); i++)
+		dir24_8_vec_lookup_x8_8b(p, ips + i * 8, next_hops + i * 8);
+
+	dir24_8_lookup_bulk_8b(p, ips + i * 8, next_hops + i * 8, n - i * 8);
+}
+
+#endif /* CC_AVX512_SUPPORT */
+
 rte_fib_lookup_fn_t
 dir24_8_get_lookup_fn(void *p, enum rte_fib_dir24_8_lookup_type type)
 {
@@ -285,6 +341,24 @@ dir24_8_get_lookup_fn(void *p, enum rte_fib_dir24_8_lookup_type type)
 		}
 	case RTE_FIB_DIR24_8_SCALAR_UNI:
 		return dir24_8_lookup_bulk_uni;
+#ifdef CC_AVX512_SUPPORT
+	case RTE_FIB_DIR24_8_VECTOR:
+		if (rte_cpu_get_flag_enabled(RTE_CPUFLAG_AVX512F) <= 0)
+			return NULL;
+
+		switch (nh_sz) {
+		case RTE_FIB_DIR24_8_1B:
+			return rte_dir24_8_vec_lookup_bulk_1b;
+		case RTE_FIB_DIR24_8_2B:
+			return rte_dir24_8_vec_lookup_bulk_2b;
+		case RTE_FIB_DIR24_8_4B:
+			return rte_dir24_8_vec_lookup_bulk_4b;
+		case RTE_FIB_DIR24_8_8B:
+			return rte_dir24_8_vec_lookup_bulk_8b;
+		default:
+			return NULL;
+		}
+#endif
 	default:
 		return NULL;
 	}
