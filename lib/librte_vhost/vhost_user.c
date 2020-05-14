@@ -2809,9 +2809,11 @@ skip_to_post_handle:
 
 	if (!(dev->flags & VIRTIO_DEV_VDPA_CONFIGURED) &&
 			request == VHOST_USER_SET_VRING_CALL) {
-		vdpa_dev->ops->dev_conf(dev->vid);
-
-		dev->flags |= VIRTIO_DEV_VDPA_CONFIGURED;
+		if (vdpa_dev->ops->dev_conf(dev->vid))
+			VHOST_LOG_CONFIG(ERR,
+					"Failed to configure vDPA device\n");
+		else
+			dev->flags |= VIRTIO_DEV_VDPA_CONFIGURED;
 	}
 
 out:
