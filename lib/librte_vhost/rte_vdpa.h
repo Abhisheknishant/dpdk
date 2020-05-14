@@ -41,23 +41,25 @@ struct rte_vdpa_dev_addr {
  * vdpa device operations
  */
 struct rte_vdpa_dev_ops {
-	/** Get capabilities of this device */
+	/** Get capabilities of this device (Mandatory) */
 	int (*get_queue_num)(int did, uint32_t *queue_num);
 
-	/** Get supported features of this device */
+	/** Get supported features of this device (Mandatory) */
 	int (*get_features)(int did, uint64_t *features);
 
-	/** Get supported protocol features of this device */
+	/** Get supported protocol features of this device (Mandatory) */
 	int (*get_protocol_features)(int did, uint64_t *protocol_features);
 
-	/** Driver configure/close the device */
+	/** Driver configure the device (Mandatory) */
 	int (*dev_conf)(int vid);
+
+	/** Driver close the device (Mandatory) */
 	int (*dev_close)(int vid);
 
-	/** Enable/disable this vring */
+	/** Enable/disable this vring (Mandatory) */
 	int (*set_vring_state)(int vid, int vring, int state);
 
-	/** Set features when changed */
+	/** Set features when changed (Mandatory) */
 	int (*set_features)(int vid);
 
 	/** Destination operations when migration done */

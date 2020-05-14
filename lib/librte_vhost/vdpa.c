@@ -66,6 +66,16 @@ rte_vdpa_register_device(struct rte_vdpa_dev_addr *addr,
 	if (i == MAX_VHOST_DEVICE)
 		return -1;
 
+	/* Check mandatory ops are implemented */
+	if (!ops->get_queue_num || !ops->get_features ||
+			!ops->get_protocol_features || !ops->dev_conf ||
+			!ops->dev_close || !ops->set_vring_state ||
+			!ops->set_features) {
+		VHOST_LOG_CONFIG(ERR,
+				"Some mandatory vDPA ops aren't implemented\n");
+		return -1;
+	}
+
 	snprintf(device_name, sizeof(device_name), "vdpa-dev-%d", i);
 	dev = rte_zmalloc(device_name, sizeof(struct rte_vdpa_device),
 			RTE_CACHE_LINE_SIZE);

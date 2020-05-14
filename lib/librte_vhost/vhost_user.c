@@ -386,7 +386,7 @@ vhost_user_set_features(struct virtio_net **pdev, struct VhostUserMsg *msg,
 
 	did = dev->vdpa_dev_id;
 	vdpa_dev = rte_vdpa_get_device(did);
-	if (vdpa_dev && vdpa_dev->ops->set_features)
+	if (vdpa_dev)
 		vdpa_dev->ops->set_features(dev->vid);
 
 	return RTE_VHOST_MSG_RESULT_OK;
@@ -1972,7 +1972,7 @@ vhost_user_set_vring_enable(struct virtio_net **pdev,
 
 	did = dev->vdpa_dev_id;
 	vdpa_dev = rte_vdpa_get_device(did);
-	if (vdpa_dev && vdpa_dev->ops->set_vring_state)
+	if (vdpa_dev)
 		vdpa_dev->ops->set_vring_state(dev->vid, index, enable);
 
 	if (dev->notify_ops->vring_state_changed)
@@ -2809,8 +2809,7 @@ skip_to_post_handle:
 
 	if (!(dev->flags & VIRTIO_DEV_VDPA_CONFIGURED) &&
 			request == VHOST_USER_SET_VRING_CALL) {
-		if (vdpa_dev->ops->dev_conf)
-			vdpa_dev->ops->dev_conf(dev->vid);
+		vdpa_dev->ops->dev_conf(dev->vid);
 
 		dev->flags |= VIRTIO_DEV_VDPA_CONFIGURED;
 	}
