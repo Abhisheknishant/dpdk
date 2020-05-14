@@ -107,7 +107,8 @@ init_dataplane(struct rte_fib *fib, __rte_unused int socket_id,
 		fib->dp = dir24_8_create(dp_name, socket_id, conf);
 		if (fib->dp == NULL)
 			return -rte_errno;
-		fib->lookup = dir24_8_get_lookup_fn(conf);
+		fib->lookup = dir24_8_get_lookup_fn(fib->dp,
+			RTE_FIB_DIR24_8_SCALAR_MACRO);
 		fib->modify = dir24_8_modify;
 		return 0;
 	default:
@@ -316,4 +317,21 @@ struct rte_rib *
 rte_fib_get_rib(struct rte_fib *fib)
 {
 	return (fib == NULL) ? NULL : fib->rib;
+}
+
+int
+rte_fib_set_lookup_fn(struct rte_fib *fib, int type)
+{
+	rte_fib_lookup_fn_t fn;
+
+	switch (fib->type) {
+	case RTE_FIB_DIR24_8:
+		fn = dir24_8_get_lookup_fn(fib->dp, type);
+		if (fn == NULL)
+			return -EINVAL;
+		fib->lookup = fn;
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
