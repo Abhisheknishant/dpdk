@@ -807,10 +807,7 @@ rte_vfio_setup_device(const char *sysfs_base, const char *dev_addr,
 			 * after registering callback, to prevent races
 			 */
 			rte_mcfg_mem_read_lock();
-			if (vfio_cfg == default_vfio_cfg)
-				ret = t->dma_map_func(vfio_container_fd);
-			else
-				ret = 0;
+			ret = t->dma_map_func(vfio_container_fd);
 			if (ret) {
 				RTE_LOG(ERR, EAL,
 					"  %s DMA remapping failed, error %i (%s)\n",
