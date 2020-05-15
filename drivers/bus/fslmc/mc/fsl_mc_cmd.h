@@ -7,6 +7,7 @@
 #ifndef __FSL_MC_CMD_H
 #define __FSL_MC_CMD_H
 
+#include <rte_compat.h>
 #include <rte_byteorder.h>
 #include <stdint.h>
 
@@ -80,6 +81,7 @@ enum mc_cmd_status {
 
 #define MC_CMD_HDR_FLAGS_MASK	0xFF00FF00
 
+__rte_internal
 int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd);
 
 static inline uint64_t mc_encode_cmd_header(uint16_t cmd_id,
