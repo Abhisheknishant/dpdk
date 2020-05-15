@@ -12,6 +12,7 @@
 #include <rte_graph.h>
 #include <rte_graph_worker.h>
 #include <rte_mbuf.h>
+#include <rte_random.h>
 
 #include "test.h"
 
@@ -145,7 +146,7 @@ uint16_t
 test_node_worker_source(struct rte_graph *graph, struct rte_node *node,
 			void **objs, uint16_t nb_objs)
 {
-	uint32_t obj_node0 = rand() % 100, obj_node1;
+	uint32_t obj_node0 = rte_rand() % 100, obj_node1;
 	test_main_t *tm = &test_main;
 	struct rte_mbuf *data;
 	void **next_stream;
@@ -193,7 +194,7 @@ test_node0_worker(struct rte_graph *graph, struct rte_node *node, void **objs,
 	test_main_t *tm = &test_main;
 
 	if (*(uint32_t *)node->ctx == test_node0.id) {
-		uint32_t obj_node0 = rand() % 100, obj_node1;
+		uint32_t obj_node0 = rte_rand() % 100, obj_node1;
 		struct rte_mbuf *data;
 		uint8_t second_pass = 0;
 		uint32_t count = 0;
@@ -496,6 +497,7 @@ test_lookup_functions(void)
 			printf("Test number of edges for node = %s failed Expected = %d, got %d\n",
 			       tm->test_node[i].node.name,
 			       tm->test_node[i].node.nb_edges, count);
+			free(next_edges);
 			return -1;
 		}
 
@@ -505,6 +507,7 @@ test_lookup_functions(void)
 				printf("Edge name miss match, expected = %s got = %s\n",
 				       tm->test_node[i].node.next_nodes[j],
 				       next_edges[j]);
+				free(next_edges);
 				return -1;
 			}
 		}
