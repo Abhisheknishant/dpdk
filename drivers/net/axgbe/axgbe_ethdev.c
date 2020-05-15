@@ -214,6 +214,8 @@ static const struct eth_dev_ops axgbe_eth_dev_ops = {
 	.dev_supported_ptypes_get     = axgbe_dev_supported_ptypes_get,
 	.rx_descriptor_status         = axgbe_dev_rx_descriptor_status,
 	.tx_descriptor_status         = axgbe_dev_tx_descriptor_status,
+	.get_module_info              = axgbe_get_module_info,
+	.get_module_eeprom            = axgbe_get_module_eeprom,
 };
 
 static int axgbe_phy_reset(struct axgbe_port *pdata)
