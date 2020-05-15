@@ -1433,7 +1433,8 @@ mlx5_dev_close(struct rte_eth_dev *dev)
 
 	DRV_LOG(DEBUG, "port %u closing device \"%s\"",
 		dev->data->port_id,
-		((priv->sh->ctx != NULL) ? priv->sh->ctx->device->name : ""));
+		((priv->sh && priv->sh->ctx) ?
+		priv->sh->ctx->device->name : ""));
 	/* In case mlx5_dev_stop() has not been called. */
 	mlx5_dev_interrupt_handler_uninstall(dev);
 	mlx5_dev_interrupt_handler_devx_uninstall(dev);
