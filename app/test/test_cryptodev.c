@@ -8801,6 +8801,10 @@ test_stats(void)
 	if (gbl_action_type == RTE_SECURITY_ACTION_TYPE_CPU_CRYPTO)
 		return -ENOTSUP;
 
+	dev = &rte_cryptodevs[ts_params->valid_devs[0]];
+	if (dev->dev_ops->stats_get == 0)
+		return -ENOTSUP;
+
 	/* Verify the capabilities */
 	struct rte_cryptodev_sym_capability_idx cap_idx;
 	cap_idx.type = RTE_CRYPTO_SYM_XFORM_AUTH;
@@ -8820,7 +8824,6 @@ test_stats(void)
 		"rte_cryptodev_stats_get invalid dev failed");
 	TEST_ASSERT((rte_cryptodev_stats_get(ts_params->valid_devs[0], 0) != 0),
 		"rte_cryptodev_stats_get invalid Param failed");
-	dev = &rte_cryptodevs[ts_params->valid_devs[0]];
 	temp_pfn = dev->dev_ops->stats_get;
 	dev->dev_ops->stats_get = (cryptodev_stats_get_t)0;
 	TEST_ASSERT((rte_cryptodev_stats_get(ts_params->valid_devs[0], &stats)
