@@ -11,6 +11,7 @@
 #include <rte_cycles.h>
 
 #include "rte_meter.h"
+#include "rte_meter_compat.h"
 
 #ifndef RTE_METER_TB_PERIOD_MIN
 #define RTE_METER_TB_PERIOD_MIN      100
@@ -120,7 +121,7 @@ rte_meter_trtcm_config(struct rte_meter_trtcm *m,
 }
 
 int
-rte_meter_trtcm_rfc4115_profile_config(
+rte_meter_trtcm_rfc4115_profile_config_(
 	struct rte_meter_trtcm_rfc4115_profile *p,
 	struct rte_meter_trtcm_rfc4115_params *params)
 {
@@ -145,7 +146,7 @@ rte_meter_trtcm_rfc4115_profile_config(
 }
 
 int
-rte_meter_trtcm_rfc4115_config(
+rte_meter_trtcm_rfc4115_config_(
 	struct rte_meter_trtcm_rfc4115 *m,
 	struct rte_meter_trtcm_rfc4115_profile *p)
 {

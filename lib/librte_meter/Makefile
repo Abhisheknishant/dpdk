@@ -19,7 +19,7 @@ EXPORT_MAP := rte_meter_version.map
 #
 # all source are stored in SRCS-y
 #
-SRCS-$(CONFIG_RTE_LIBRTE_METER) := rte_meter.c
+SRCS-$(CONFIG_RTE_LIBRTE_METER) := rte_meter.c rte_meter_compat.c
 
 # install includes
 SYMLINK-$(CONFIG_RTE_LIBRTE_METER)-include := rte_meter.h
