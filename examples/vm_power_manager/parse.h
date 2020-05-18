@@ -12,6 +12,9 @@ extern "C" {
 int
 parse_set(const char *, uint16_t [], unsigned int);
 
+int
+parse_branch_ratio(const char *, float *);
+
 #ifdef __cplusplus
 }
 #endif
