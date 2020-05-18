@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <dlfcn.h>
+#include <semaphore.h>
 
 /* we won't link against libbsd, so just always use DPDKs-specific strlcpy */
 #undef RTE_USE_LIBBSD
@@ -23,6 +24,7 @@
 #define MAX_CMD_LEN 56
 #define MAX_HELP_LEN 64
 #define MAX_OUTPUT_LEN (1024 * 16)
+#define MAX_CONNECTIONS 10
 
 static void *
 client_handler(void *socket);
@@ -37,6 +39,7 @@ struct socket {
 	int sock;
 	char path[sizeof(((struct sockaddr_un *)0)->sun_path)];
 	handler fn;
+	sem_t *limit;
 };
 static struct socket v2_socket; /* socket for v2 telemetry */
 static struct socket v1_socket; /* socket for v1 telemetry */
@@ -46,6 +49,7 @@ static struct cmd_callback callbacks[TELEMETRY_MAX_CALLBACKS];
 static int num_callbacks; /* How many commands are registered */
 /* Used when accessing or modifying list of command callbacks */
 static rte_spinlock_t callback_sl = RTE_SPINLOCK_INITIALIZER;
+static sem_t v2_limit;
 
 int
 rte_telemetry_register_cmd(const char *cmd, telemetry_cb fn, const char *help)
@@ -263,6 +267,7 @@ client_handler(void *sock_id)
 		bytes = read(s, buffer, sizeof(buffer) - 1);
 	}
 	close(s);
+	sem_post(&v2_limit);
 	return NULL;
 }
 
@@ -272,6 +277,8 @@ socket_listener(void *socket)
 	while (1) {
 		pthread_t th;
 		struct socket *s = (struct socket *)socket;
+		if (s->limit != NULL)
+			sem_wait(s->limit);
 		int s_accepted = accept(s->sock, NULL, NULL);
 		if (s_accepted < 0) {
 			snprintf(telemetry_log_error,
@@ -372,6 +379,9 @@ telemetry_v2_init(const char *runtime_dir)
 {
 	pthread_t t_new;
 
+	RTE_BUILD_BUG_ON(_SC_SEM_VALUE_MAX < MAX_CONNECTIONS);
+	(void)sem_init(&v2_limit, 0, MAX_CONNECTIONS);
+	v2_socket.limit = &v2_limit;
 	rte_telemetry_register_cmd("/", list_commands,
 			"Returns list of available commands, Takes no parameters");
 	rte_telemetry_register_cmd("/info", json_info,
