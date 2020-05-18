@@ -4936,6 +4936,7 @@ i40e_res_pool_free(struct i40e_res_pool_info *pool,
 	struct pool_entry *entry, *next, *prev, *valid_entry = NULL;
 	uint32_t pool_offset;
 	int insert;
+	uint16_t len;
 
 	if (pool == NULL) {
 		PMD_DRV_LOG(ERR, "Invalid parameter");
@@ -4973,6 +4974,7 @@ i40e_res_pool_free(struct i40e_res_pool_info *pool,
 	}
 
 	insert = 0;
+	len = valid_entry->len;
 	/* Try to merge with next one*/
 	if (next != NULL) {
 		/* Merge with next one */
@@ -4993,8 +4995,10 @@ i40e_res_pool_free(struct i40e_res_pool_info *pool,
 			if (insert == 1) {
 				LIST_REMOVE(valid_entry, next);
 				rte_free(valid_entry);
+				valid_entry = NULL;
 			} else {
 				rte_free(valid_entry);
+				valid_entry = NULL;
 				insert = 1;
 			}
 		}
@@ -5010,8 +5014,8 @@ i40e_res_pool_free(struct i40e_res_pool_info *pool,
 			LIST_INSERT_HEAD(&pool->free_list, valid_entry, next);
 	}
 
-	pool->num_free += valid_entry->len;
-	pool->num_alloc -= valid_entry->len;
+	pool->num_free += len;
+	pool->num_alloc -= len;
 
 	return 0;
 }
