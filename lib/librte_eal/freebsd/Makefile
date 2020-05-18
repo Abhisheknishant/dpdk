@@ -8,6 +8,7 @@ LIB = librte_eal.a
 ARCH_DIR ?= $(RTE_ARCH)
 VPATH += $(RTE_SDK)/lib/librte_eal/$(ARCH_DIR)
 VPATH += $(RTE_SDK)/lib/librte_eal/common
+VPATH += $(RTE_SDK)/lib/librte_eal/unix
 
 CFLAGS += -I$(SRCDIR)/include
 CFLAGS += -I$(RTE_SDK)/lib/librte_eal/common
@@ -73,6 +74,9 @@ SRCS-$(CONFIG_RTE_EXEC_ENV_FREEBSD) += rte_keepalive.c
 SRCS-$(CONFIG_RTE_EXEC_ENV_FREEBSD) += rte_service.c
 SRCS-$(CONFIG_RTE_EXEC_ENV_FREEBSD) += rte_random.c
 SRCS-$(CONFIG_RTE_EXEC_ENV_FREEBSD) += rte_reciprocal.c
+
+# from unix dir
+SRCS-$(CONFIG_RTE_EXEC_ENV_FREEBSD) += eal_unix_timer.c
 
 # from arch dir
 SRCS-$(CONFIG_RTE_EXEC_ENV_FREEBSD) += rte_cpuflags.c
