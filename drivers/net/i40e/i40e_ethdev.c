@@ -4973,6 +4973,9 @@ i40e_res_pool_free(struct i40e_res_pool_info *pool,
 	}
 
 	insert = 0;
+	pool->num_free += valid_entry->len;
+	pool->num_alloc -= valid_entry->len;
+
 	/* Try to merge with next one*/
 	if (next != NULL) {
 		/* Merge with next one */
@@ -5009,9 +5012,6 @@ i40e_res_pool_free(struct i40e_res_pool_info *pool,
 		else /* It's empty list, insert to head */
 			LIST_INSERT_HEAD(&pool->free_list, valid_entry, next);
 	}
-
-	pool->num_free += valid_entry->len;
-	pool->num_alloc -= valid_entry->len;
 
 	return 0;
 }
