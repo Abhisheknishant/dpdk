@@ -157,6 +157,12 @@ eal_thread_create(pthread_t *thread)
 	return 0;
 }
 
+/* get current thread ID */
+int rte_sys_gettid(void)
+{
+	return (int)eal_thread_self();
+}
+
 int
 rte_thread_setname(__rte_unused pthread_t id, __rte_unused const char *name)
 {
