@@ -269,9 +269,9 @@ enum rte_crypto_auth_algorithm {
 	/**< HMAC using MD5 algorithm */
 
 	RTE_CRYPTO_AUTH_SHA1,
-	/**< 128 bit SHA algorithm. */
+	/**< 160 bit SHA algorithm. */
 	RTE_CRYPTO_AUTH_SHA1_HMAC,
-	/**< HMAC using 128 bit SHA algorithm. */
+	/**< HMAC using 160 bit SHA algorithm. */
 	RTE_CRYPTO_AUTH_SHA224,
 	/**< 224 bit SHA algorithm. */
 	RTE_CRYPTO_AUTH_SHA224_HMAC,
