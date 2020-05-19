@@ -99,6 +99,7 @@ static struct {
 	uint8_t		ent_sz;
 	uint8_t		rnd_lookup_ips_ratio;
 	uint8_t		print_fract;
+	uint8_t		lookup_fn;
 } config = {
 	.routes_file = NULL,
 	.lookup_ips_file = NULL,
@@ -110,7 +111,8 @@ static struct {
 	.tbl8 = DEFAULT_LPM_TBL8,
 	.ent_sz = 4,
 	.rnd_lookup_ips_ratio = 0,
-	.print_fract = 10
+	.print_fract = 10,
+	.lookup_fn = 0
 };
 
 struct rt_rule_4 {
@@ -636,7 +638,11 @@ print_usage(void)
 		"1/2/4/8 (default 4)>]\n"
 		"[-g <number of tbl8's for dir24_8 or trie FIBs>]\n"
 		"[-w <path to the file to dump routing table>]\n"
-		"[-u <path to the file to dump ip's for lookup>]\n",
+		"[-u <path to the file to dump ip's for lookup>]\n"
+		"[-v <type of loookup function:"
+		"\ts1, s2, s3 (3 types of scalar), v (vector) -"
+		" for DIR24_8 based FIB\n"
+		"\ts, v - for TRIE based ipv6 FIB>]\n",
 		config.prgname);
 }
 
@@ -679,7 +685,7 @@ parse_opts(int argc, char **argv)
 	int opt;
 	char *endptr;
 
-	while ((opt = getopt(argc, argv, "f:t:n:d:l:r:c6ab:e:g:w:u:s")) !=
+	while ((opt = getopt(argc, argv, "f:t:n:d:l:r:c6ab:e:g:w:u:sv:")) !=
 			-1) {
 		switch (opt) {
 		case 'f':
@@ -767,6 +773,22 @@ parse_opts(int argc, char **argv)
 				rte_exit(-EINVAL, "Invalid option -g\n");
 			}
 			break;
+		case 'v':
+			if ((strcmp(optarg, "s1") == 0) ||
+					(strcmp(optarg, "s") == 0))
+				break;
+			else if (strcmp(optarg, "v") == 0) {
+				config.lookup_fn = 1;
+				break;
+			} else if (strcmp(optarg, "s2") == 0) {
+				config.lookup_fn = 2;
+				break;
+			} else if (strcmp(optarg, "s3") == 0) {
+				config.lookup_fn = 3;
+				break;
+			}
+			print_usage();
+			rte_exit(-EINVAL, "Invalid option -v %s\n", optarg);
 		default:
 			print_usage();
 			rte_exit(-EINVAL, "Invalid options\n");
@@ -842,6 +864,24 @@ run_v4(void)
 	if (fib == NULL) {
 		printf("Can not alloc FIB, err %d\n", rte_errno);
 		return -rte_errno;
+	}
+
+	if (config.lookup_fn != 0) {
+		if (config.lookup_fn == 1)
+			ret = rte_fib_set_lookup_fn(fib,
+				RTE_FIB_DIR24_8_VECTOR);
+		else if (config.lookup_fn == 2)
+			ret = rte_fib_set_lookup_fn(fib,
+				RTE_FIB_DIR24_8_SCALAR_INLINE);
+		else if (config.lookup_fn == 3)
+			ret = rte_fib_set_lookup_fn(fib,
+				RTE_FIB_DIR24_8_SCALAR_UNI);
+		else
+			ret = -EINVAL;
+		if (ret != 0) {
+			printf("Can not init lookup function\n");
+			return ret;
+		}
 	}
 
 	for (k = config.print_fract, i = 0; k > 0; k--) {
@@ -1021,6 +1061,18 @@ run_v6(void)
 	if (fib == NULL) {
 		printf("Can not alloc FIB, err %d\n", rte_errno);
 		return -rte_errno;
+	}
+
+	if (config.lookup_fn != 0) {
+		if (config.lookup_fn == 1)
+			ret = rte_fib6_set_lookup_fn(fib,
+				RTE_FIB6_TRIE_VECTOR);
+		else
+			ret = -EINVAL;
+		if (ret != 0) {
+			printf("Can not init lookup function\n");
+			return ret;
+		}
 	}
 
 	for (k = config.print_fract, i = 0; k > 0; k--) {
