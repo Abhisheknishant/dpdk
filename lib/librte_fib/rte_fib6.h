@@ -53,7 +53,8 @@ enum rte_fib_trie_nh_sz {
 };
 
 enum rte_fib_trie_lookup_type {
-	RTE_FIB6_TRIE_SCALAR
+	RTE_FIB6_TRIE_SCALAR,
+	RTE_FIB6_TRIE_VECTOR
 };
 
 /** FIB configuration structure */

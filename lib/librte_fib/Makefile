@@ -25,12 +25,22 @@ grep -q __AVX512F__ && echo 1)
 CC_AVX512DQ_SUPPORT=$(shell $(CC) -mavx512dq -dM -E - </dev/null 2>&1 | \
 grep -q __AVX512DQ__ && echo 1)
 
+CC_AVX512BW_SUPPORT=$(shell $(CC) -mavx512bw -dM -E - </dev/null 2>&1 | \
+grep -q __AVX512BW__ && echo 1)
+
 ifeq ($(CC_AVX512F_SUPPORT), 1)
 	ifeq ($(CC_AVX512DQ_SUPPORT), 1)
 		SRCS-$(CONFIG_RTE_LIBRTE_FIB) += dir24_8_avx512.c
 		CFLAGS_dir24_8_avx512.o += -mavx512f
 		CFLAGS_dir24_8_avx512.o += -mavx512dq
 		CFLAGS_dir24_8.o += -DCC_DIR24_8_AVX512_SUPPORT
+		ifeq ($(CC_AVX512BW_SUPPORT), 1)
+			SRCS-$(CONFIG_RTE_LIBRTE_FIB) += trie_avx512.c
+			CFLAGS_trie_avx512.o += -mavx512f
+			CFLAGS_trie_avx512.o += -mavx512dq
+			CFLAGS_trie_avx512.o += -mavx512bw
+			CFLAGS_trie.o += -DCC_TRIE_AVX512_SUPPORT
+		endif
 	endif
 endif
 include $(RTE_SDK)/mk/rte.lib.mk

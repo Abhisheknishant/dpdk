@@ -14,5 +14,14 @@ if dpdk_conf.has('RTE_ARCH_X86') and cc.has_argument('-mavx512f')
 			c_args: cflags + ['-mavx512f'] + ['-mavx512dq'])
 		objs += dir24_8_avx512_tmp.extract_objects('dir24_8_avx512.c')
 		cflags += '-DCC_DIR24_8_AVX512_SUPPORT'
+		if cc.has_argument('-mavx512bw')
+			trie_avx512_tmp = static_library('trie_avx512_tmp',
+				'trie_avx512.c',
+				dependencies: static_rte_eal,
+				c_args: cflags + ['-mavx512f'] + \
+					['-mavx512dq'] + ['-mavx512bw'])
+			objs += trie_avx512_tmp.extract_objects('trie_avx512.c')
+			cflags += '-DCC_TRIE_AVX512_SUPPORT'
+		endif
 	endif
 endif

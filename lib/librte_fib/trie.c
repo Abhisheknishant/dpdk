@@ -18,6 +18,12 @@
 #include <rte_fib6.h>
 #include "trie.h"
 
+#ifdef CC_TRIE_AVX512_SUPPORT
+
+#include "trie_avx512.h"
+
+#endif /* CC_TRIE_AVX512_SUPPORT */
+
 #define TRIE_NAMESIZE		64
 
 enum edge {
@@ -48,6 +54,21 @@ trie_get_lookup_fn(void *p, enum rte_fib_trie_lookup_type type)
 		default:
 			return NULL;
 		}
+#ifdef CC_TRIE_AVX512_SUPPORT
+	case RTE_FIB6_TRIE_VECTOR:
+		if (rte_cpu_get_flag_enabled(RTE_CPUFLAG_AVX512F) <= 0)
+			return NULL;
+		switch (nh_sz) {
+		case RTE_FIB6_TRIE_2B:
+			return rte_trie_vec_lookup_bulk_2b;
+		case RTE_FIB6_TRIE_4B:
+			return rte_trie_vec_lookup_bulk_4b;
+		case RTE_FIB6_TRIE_8B:
+			return rte_trie_vec_lookup_bulk_8b;
+		default:
+			return NULL;
+		}
+#endif
 	default:
 		return NULL;
 	}
