@@ -156,6 +156,13 @@ New Features
   * Added support for flow pattern with wildcard VLAN item (without VID value).
   * Updated support for matching on GTP header, added match on GTP flags.
 
+* **Updated Hisilicon hns3 driver.**
+
+  Updated Hisilicon hns3 driver with new features and improvements, including:
+
+  * Added support for TSO
+  * Added support for configuring promiscuous and allmulticast mode for VF
+
 * **Added Chacha20-Poly1305 algorithm to Cryptodev API.**
 
   Chacha20-Poly1305 AEAD algorithm can now be supported in Cryptodev.
