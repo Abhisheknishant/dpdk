@@ -54,7 +54,8 @@ enum rte_fib_dir24_8_nh_sz {
 enum rte_fib_dir24_8_lookup_type {
 	RTE_FIB_DIR24_8_SCALAR_MACRO,
 	RTE_FIB_DIR24_8_SCALAR_INLINE,
-	RTE_FIB_DIR24_8_SCALAR_UNI
+	RTE_FIB_DIR24_8_SCALAR_UNI,
+	RTE_FIB_DIR24_8_VECTOR
 };
 
 /** FIB configuration structure */

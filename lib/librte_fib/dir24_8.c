@@ -18,6 +18,12 @@
 #include <rte_fib.h>
 #include "dir24_8.h"
 
+#ifdef CC_DIR24_8_AVX512_SUPPORT
+
+#include "dir24_8_avx512.h"
+
+#endif /* CC_DIR24_8_AVX512_SUPPORT */
+
 #define DIR24_8_NAMESIZE	64
 
 #define ROUNDUP(x, y)	 RTE_ALIGN_CEIL(x, (1 << (32 - y)))
@@ -62,6 +68,24 @@ dir24_8_get_lookup_fn(void *p, enum rte_fib_dir24_8_lookup_type type)
 		}
 	case RTE_FIB_DIR24_8_SCALAR_UNI:
 		return dir24_8_lookup_bulk_uni;
+#ifdef CC_DIR24_8_AVX512_SUPPORT
+	case RTE_FIB_DIR24_8_VECTOR:
+		if (rte_cpu_get_flag_enabled(RTE_CPUFLAG_AVX512F) <= 0)
+			return NULL;
+
+		switch (nh_sz) {
+		case RTE_FIB_DIR24_8_1B:
+			return rte_dir24_8_vec_lookup_bulk_1b;
+		case RTE_FIB_DIR24_8_2B:
+			return rte_dir24_8_vec_lookup_bulk_2b;
+		case RTE_FIB_DIR24_8_4B:
+			return rte_dir24_8_vec_lookup_bulk_4b;
+		case RTE_FIB_DIR24_8_8B:
+			return rte_dir24_8_vec_lookup_bulk_8b;
+		default:
+			return NULL;
+		}
+#endif
 	default:
 		return NULL;
 	}
