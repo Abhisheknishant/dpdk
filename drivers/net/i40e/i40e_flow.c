@@ -3461,6 +3461,12 @@ i40e_flow_parse_fdir_filter(struct rte_eth_dev *dev,
 		}
 	}
 
+	/* If the flow list is empty, it is the first time to create
+	 * rule after flush fdir filter, so enable fdir.
+	 */
+	if (TAILQ_EMPTY(&pf->fdir.fdir_list))
+		i40e_fdir_rx_proc_enable(dev, 1);
+
 	return 0;
 err:
 	i40e_fdir_teardown(pf);
@@ -5302,9 +5308,6 @@ i40e_flow_flush(struct rte_eth_dev *dev, struct rte_flow_error *error)
 		return -rte_errno;
 	}
 
-	/* Disable FDIR processing as all FDIR rules are now flushed */
-	i40e_fdir_rx_proc_enable(dev, 0);
-
 	return ret;
 }
 
@@ -5340,6 +5343,9 @@ i40e_flow_flush_fdir_filter(struct i40e_pf *pf)
 		for (pctype = I40E_FILTER_PCTYPE_NONF_IPV4_UDP;
 		     pctype <= I40E_FILTER_PCTYPE_L2_PAYLOAD; pctype++)
 			pf->fdir.inset_flag[pctype] = 0;
+
+		/* Disable FDIR processing as all FDIR rules are now flushed */
+		i40e_fdir_rx_proc_enable(dev, 0);
 	}
 
 	return ret;
