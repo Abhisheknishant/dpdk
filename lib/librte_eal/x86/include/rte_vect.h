@@ -90,6 +90,26 @@ __extension__ ({                 \
 })
 #endif /* (defined(__ICC) && __ICC < 1210) */
 
+#ifdef __AVX512F__
+
+typedef __m512i __x86_zmm_t;
+
+#define	ZMM_SIZE	(sizeof(__x86_zmm_t))
+#define	ZMM_MASK	(ZMM_SIZE - 1)
+
+typedef union __rte_x86_zmm  {
+	__x86_zmm_t	 z;
+	ymm_t    y[ZMM_SIZE / sizeof(ymm_t)];
+	xmm_t    x[ZMM_SIZE / sizeof(xmm_t)];
+	uint8_t  u8[ZMM_SIZE / sizeof(uint8_t)];
+	uint16_t u16[ZMM_SIZE / sizeof(uint16_t)];
+	uint32_t u32[ZMM_SIZE / sizeof(uint32_t)];
+	uint64_t u64[ZMM_SIZE / sizeof(uint64_t)];
+	double   pd[ZMM_SIZE / sizeof(double)];
+} __attribute__((__aligned__(ZMM_SIZE)))  __rte_x86_zmm_t;
+
+#endif /* __AVX512F__ */
+
 #ifdef __cplusplus
 }
 #endif
