@@ -1251,6 +1251,12 @@ flow_dv_convert_action_set_meta
 
 	if (reg < 0)
 		return reg;
+
+	if (reg == REG_NONE)
+		return rte_flow_error_set(error, ENOTSUP,
+					  RTE_FLOW_ERROR_TYPE_ITEM,
+					  NULL, "unavailable "
+					  "metadata register");
 	/*
 	 * In datapath code there is no endianness
 	 * coversions for perfromance reasons, all
