@@ -18,6 +18,7 @@ extern "C" {
 
 #include <windows.h>
 #include <rte_common.h>
+#include <rte_windows.h>
 
 #define PTHREAD_BARRIER_SERIAL_THREAD TRUE
 
@@ -50,7 +51,19 @@ typedef SYNCHRONIZATION_BARRIER pthread_barrier_t;
 static inline int
 eal_set_thread_affinity_mask(pthread_t threadid, unsigned long *cpuset)
 {
-	SetThreadAffinityMask((HANDLE) threadid, *cpuset);
+	HANDLE thread_handle = OpenThread(THREAD_ALL_ACCESS, FALSE, threadid);
+	if (thread_handle == NULL) {
+		RTE_LOG_WIN32_ERR("OpenThread()");
+		return -1;
+	}
+
+	DWORD ret = SetThreadAffinityMask(thread_handle, *cpuset);
+	if (ret == 0) {
+		RTE_LOG_WIN32_ERR("SetThreadAffinityMask()");
+		CloseHandle(thread_handle);
+		return -1;
+	}
+	CloseHandle(thread_handle);
 	return 0;
 }
 
@@ -60,12 +73,29 @@ eal_get_thread_affinity_mask(pthread_t threadid, unsigned long *cpuset)
 	/* Workaround for the lack of a GetThreadAffinityMask()
 	 *API in Windows
 	 */
-		/* obtain previous mask by setting dummy mask */
-	DWORD dwprevaffinitymask =
-		SetThreadAffinityMask((HANDLE) threadid, 0x1);
+	HANDLE thread_handle = OpenThread(THREAD_ALL_ACCESS, FALSE, threadid);
+	if (thread_handle == NULL) {
+		RTE_LOG_WIN32_ERR("OpenThread()");
+		return -1;
+	}
+
+	/* obtain previous mask by setting dummy mask */
+	DWORD dwprevaffinitymask = SetThreadAffinityMask(thread_handle, 0x1);
+	if (dwprevaffinitymask == 0) {
+		RTE_LOG_WIN32_ERR("SetThreadAffinityMask()");
+		CloseHandle(thread_handle);
+		return -1;
+	}
+
 	/* set it back! */
-	SetThreadAffinityMask((HANDLE) threadid, dwprevaffinitymask);
+	DWORD ret = SetThreadAffinityMask(thread_handle, dwprevaffinitymask);
+	if (ret == 0) {
+		RTE_LOG_WIN32_ERR("SetThreadAffinityMask()");
+		CloseHandle(thread_handle);
+		return -1;
+	}
 	*cpuset = dwprevaffinitymask;
+	CloseHandle(thread_handle);
 	return 0;
 }
 
