@@ -8,6 +8,13 @@
 
 /**
  * @file
+ *
+ * RTE FIB library.
+ *
+ * @warning
+ * @b EXPERIMENTAL:
+ * All functions in this file may change or disappear without prior notice.
+ *
  * FIB (Forwarding information base) implementation
  * for IPv4 Longest Prefix Match
  */

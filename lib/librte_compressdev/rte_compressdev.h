@@ -8,7 +8,11 @@
 /**
  * @file rte_compressdev.h
  *
- * RTE Compression Device APIs
+ * RTE Compression Device APIs.
+ *
+ * @warning
+ * @b EXPERIMENTAL:
+ * All functions in this file may change or disappear without prior notice.
  *
  * Defines comp device APIs for the provisioning of compression operations.
  */

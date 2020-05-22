@@ -8,9 +8,11 @@
 /**
  * @file
  *
- * RTE Flow Classify Library
+ * RTE Flow Classify Library.
  *
- * @b EXPERIMENTAL: this API may change without prior notice
+ * @warning
+ * @b EXPERIMENTAL:
+ * All functions in this file may change or disappear without prior notice.
  *
  * This library provides flow record information with some measured properties.
  *

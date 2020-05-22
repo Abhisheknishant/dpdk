@@ -7,9 +7,13 @@
 
 /**
  * @file rte_bpf.h
- * @b EXPERIMENTAL: this API may change without prior notice
  *
  * RTE BPF support.
+ *
+ * @warning
+ * @b EXPERIMENTAL:
+ * All functions in this file may change or disappear without prior notice.
+ *
  * librte_bpf provides a framework to load and execute eBPF bytecode
  * inside user-space dpdk based applications.
  * It supports basic set of features from eBPF spec
