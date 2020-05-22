@@ -18,6 +18,3 @@ else
 endif
 map_to_def_cmd = py3 + files('map_to_def.py')
 sphinx_wrapper = py3 + files('call-sphinx-build.py')
-
-# stable ABI always starts with "DPDK_"
-is_stable_cmd = [find_program('grep', 'findstr'), '^DPDK_']
