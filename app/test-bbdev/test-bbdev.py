@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-
+#!/usr/bin/env python3
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright(c) 2017 Intel Corporation
 
@@ -12,7 +11,7 @@ import shlex
 from threading import Timer
 
 def kill(process):
-    print "ERROR: Test app timed out"
+    print ("ERROR: Test app timed out")
     process.kill()
 
 if "RTE_SDK" in os.environ:
@@ -66,7 +65,7 @@ parser.add_argument("-i", "--init-device",
 args = parser.parse_args()
 
 if not os.path.exists(args.testapp_path):
-    print "No such file: " + args.testapp_path
+    print ("No such file: " + args.testapp_path)
     sys.exit(1)
 
 params = [args.testapp_path]
