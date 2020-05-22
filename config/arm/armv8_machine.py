@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright(c) 2017 Cavium, Inc
 
