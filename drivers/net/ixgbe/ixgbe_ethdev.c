@@ -2939,8 +2939,6 @@ ixgbe_dev_stop(struct rte_eth_dev *dev)
 
 	adapter->rss_reta_updated = 0;
 
-	adapter->mac_ctrl_frame_fwd = 0;
-
 	hw->adapter_stopped = true;
 }
 
@@ -4754,6 +4752,8 @@ ixgbe_flow_ctrl_get(struct rte_eth_dev *dev, struct rte_eth_fc_conf *fc_conf)
 	 * MFLCN register.
 	 */
 	mflcn_reg = IXGBE_READ_REG(hw, IXGBE_MFLCN);
+	fc_conf->mac_ctrl_frame_fwd = mflcn_reg;
+
 	if (mflcn_reg & (IXGBE_MFLCN_RPFCE | IXGBE_MFLCN_RFCE))
 		rx_pause = 1;
 	else
