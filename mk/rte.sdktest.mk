@@ -63,7 +63,7 @@ coverage:
 	@mkdir -p $(AUTOTEST_DIR) ; \
 	cd $(AUTOTEST_DIR) ; \
 	if [ -f $(RTE_OUTPUT)/app/test ]; then \
-		python $(RTE_SDK)/test/cmdline_test/cmdline_test.py \
+		python3 $(RTE_SDK)/test/cmdline_test/cmdline_test.py \
 			$(RTE_OUTPUT)/app/cmdline_test; \
 		ulimit -S -n 100 ; \
 		python $(RTE_SDK)/app/test/autotest.py \
