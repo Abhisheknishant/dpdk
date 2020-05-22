@@ -49,7 +49,7 @@ test test-fast test-perf test-drivers test-dump:
 	@mkdir -p $(AUTOTEST_DIR) ; \
 	cd $(AUTOTEST_DIR) ; \
 	if [ -f $(RTE_OUTPUT)/app/test ]; then \
-		python $(RTE_SDK)/app/test/autotest.py \
+		python3 $(RTE_SDK)/app/test/autotest.py \
 			$(RTE_OUTPUT)/app/test \
 			$(RTE_TARGET) \
 			$(BLACKLIST) $(WHITELIST); \
@@ -66,7 +66,7 @@ coverage:
 		python3 $(RTE_SDK)/test/cmdline_test/cmdline_test.py \
 			$(RTE_OUTPUT)/app/cmdline_test; \
 		ulimit -S -n 100 ; \
-		python $(RTE_SDK)/app/test/autotest.py \
+		python3 $(RTE_SDK)/app/test/autotest.py \
 			$(RTE_OUTPUT)/app/test \
 			$(RTE_TARGET) \
 			$(BLACKLIST) $(WHITELIST) ; \
