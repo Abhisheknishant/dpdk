@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright(c) 2019 Intel Corporation
 
@@ -9,7 +9,6 @@ ABI version is supplied via command-line parameter. This script is to be called
 from the devtools/update-abi.sh utility.
 """
 
-from __future__ import print_function
 import argparse
 import sys
 import re
