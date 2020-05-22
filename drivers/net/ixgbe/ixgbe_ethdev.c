@@ -8988,7 +8988,7 @@ ixgbe_dev_macsec_setting_reset(struct rte_eth_dev *dev)
 	macsec->replayprotect_en = 0;
 }
 
-void
+int
 ixgbe_dev_macsec_register_enable(struct rte_eth_dev *dev,
 				struct ixgbe_macsec_setting *macsec_setting)
 {
@@ -8996,6 +8996,9 @@ ixgbe_dev_macsec_register_enable(struct rte_eth_dev *dev,
 	uint32_t ctrl;
 	uint8_t en = macsec_setting->encrypt_en;
 	uint8_t rp = macsec_setting->replayprotect_en;
+
+	if (!is_ixgbe_supported(dev))
+		return -ENOTSUP;
 
 	/**
 	 * Workaround:
@@ -9057,13 +9060,18 @@ ixgbe_dev_macsec_register_enable(struct rte_eth_dev *dev,
 	 * just call the hand-written one directly for now.
 	 */
 	ixgbe_enable_sec_tx_path_generic(hw);
+
+	return 0;
 }
 
-void
+int
 ixgbe_dev_macsec_register_disable(struct rte_eth_dev *dev)
 {
 	struct ixgbe_hw *hw = IXGBE_DEV_PRIVATE_TO_HW(dev->data->dev_private);
 	uint32_t ctrl;
+
+	if (!is_ixgbe_supported(dev))
+		return -ENOTSUP;
 
 	/**
 	 * Workaround:
@@ -9106,6 +9114,8 @@ ixgbe_dev_macsec_register_disable(struct rte_eth_dev *dev)
 	 * just call the hand-written one directly for now.
 	 */
 	ixgbe_enable_sec_tx_path_generic(hw);
+
+	return 0;
 }
 
 RTE_PMD_REGISTER_PCI(net_ixgbe, rte_ixgbe_pmd);

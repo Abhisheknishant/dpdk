@@ -755,10 +755,10 @@ int ixgbe_action_rss_same(const struct rte_flow_action_rss *comp,
 int ixgbe_config_rss_filter(struct rte_eth_dev *dev,
 		struct ixgbe_rte_flow_rss_conf *conf, bool add);
 
-void ixgbe_dev_macsec_register_enable(struct rte_eth_dev *dev,
+int ixgbe_dev_macsec_register_enable(struct rte_eth_dev *dev,
 		struct ixgbe_macsec_setting *macsec_setting);
 
-void ixgbe_dev_macsec_register_disable(struct rte_eth_dev *dev);
+int ixgbe_dev_macsec_register_disable(struct rte_eth_dev *dev);
 
 void ixgbe_dev_macsec_setting_save(struct rte_eth_dev *dev,
 		struct ixgbe_macsec_setting *macsec_setting);

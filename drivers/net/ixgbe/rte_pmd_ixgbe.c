@@ -517,6 +517,7 @@ rte_pmd_ixgbe_macsec_enable(uint16_t port, uint8_t en, uint8_t rp)
 {
 	struct rte_eth_dev *dev;
 	struct ixgbe_macsec_setting macsec_setting;
+	int ret = 0;
 
 	RTE_ETH_VALID_PORTID_OR_ERR_RET(port, -ENODEV);
 
@@ -528,15 +529,16 @@ rte_pmd_ixgbe_macsec_enable(uint16_t port, uint8_t en, uint8_t rp)
 
 	ixgbe_dev_macsec_setting_save(dev, &macsec_setting);
 
-	ixgbe_dev_macsec_register_enable(dev, &macsec_setting);
+	ret = ixgbe_dev_macsec_register_enable(dev, &macsec_setting);
 
-	return 0;
+	return ret;
 }
 
 int
 rte_pmd_ixgbe_macsec_disable(uint16_t port)
 {
 	struct rte_eth_dev *dev;
+	int ret = 0;
 
 	RTE_ETH_VALID_PORTID_OR_ERR_RET(port, -ENODEV);
 
@@ -544,9 +546,9 @@ rte_pmd_ixgbe_macsec_disable(uint16_t port)
 
 	ixgbe_dev_macsec_setting_reset(dev);
 
-	ixgbe_dev_macsec_register_disable(dev);
+	ret = ixgbe_dev_macsec_register_disable(dev);
 
-	return 0;
+	return ret;
 }
 
 int
