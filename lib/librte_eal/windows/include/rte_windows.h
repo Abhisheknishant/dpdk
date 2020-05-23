@@ -29,6 +29,7 @@
 #define INITGUID
 #endif
 #include <initguid.h>
+#include <rte_log.h>
 
 /**
  * Log GetLastError() with context, usually a Win32 API function and arguments.
