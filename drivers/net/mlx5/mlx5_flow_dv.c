@@ -1251,6 +1251,7 @@ flow_dv_convert_action_set_meta
 
 	if (reg < 0)
 		return reg;
+	MLX5_ASSERT(reg != REG_NONE);
 	/*
 	 * In datapath code there is no endianness
 	 * coversions for perfromance reasons, all
@@ -1449,7 +1450,6 @@ flow_dv_validate_item_meta(struct rte_eth_dev *dev __rte_unused,
 			   struct rte_flow_error *error)
 {
 	struct mlx5_priv *priv = dev->data->dev_private;
-	struct mlx5_dev_config *config = &priv->config;
 	const struct rte_flow_item_meta *spec = item->spec;
 	const struct rte_flow_item_meta *mask = item->mask;
 	struct rte_flow_item_meta nic_mask = {
@@ -1463,23 +1463,25 @@ flow_dv_validate_item_meta(struct rte_eth_dev *dev __rte_unused,
 					  RTE_FLOW_ERROR_TYPE_ITEM_SPEC,
 					  item->spec,
 					  "data cannot be empty");
-	if (config->dv_xmeta_en != MLX5_XMETA_MODE_LEGACY) {
-		if (!mlx5_flow_ext_mreg_supported(dev))
-			return rte_flow_error_set(error, ENOTSUP,
+	if (!mlx5_flow_ext_mreg_supported(dev))
+		return rte_flow_error_set(error, ENOTSUP,
 					  RTE_FLOW_ERROR_TYPE_ITEM, item,
 					  "extended metadata register"
 					  " isn't supported");
-		reg = flow_dv_get_metadata_reg(dev, attr, error);
-		if (reg < 0)
-			return reg;
-		if (reg == REG_B)
-			return rte_flow_error_set(error, ENOTSUP,
+	reg = flow_dv_get_metadata_reg(dev, attr, error);
+	if (reg < 0)
+		return reg;
+	if (reg == REG_NONE)
+		return rte_flow_error_set(error, ENOTSUP,
+					  RTE_FLOW_ERROR_TYPE_ITEM, item,
+					  "unavailable metadata register");
+	if (reg == REG_B)
+		return rte_flow_error_set(error, ENOTSUP,
 					  RTE_FLOW_ERROR_TYPE_ITEM, item,
 					  "match on reg_b "
 					  "isn't supported");
-		if (reg != REG_A)
-			nic_mask.data = priv->sh->dv_meta_mask;
-	}
+	if (reg != REG_A)
+		nic_mask.data = priv->sh->dv_meta_mask;
 	if (!mask)
 		mask = &rte_flow_item_meta_mask;
 	if (!mask->data)
@@ -2244,6 +2246,11 @@ flow_dv_validate_action_set_meta(struct rte_eth_dev *dev,
 	reg = flow_dv_get_metadata_reg(dev, attr, error);
 	if (reg < 0)
 		return reg;
+	if (reg == REG_NONE)
+		return rte_flow_error_set(error, ENOTSUP,
+					  RTE_FLOW_ERROR_TYPE_ACTION,
+					  action, "unavailable "
+					  "metadata register");
 	if (reg != REG_A && reg != REG_B) {
 		struct mlx5_priv *priv = dev->data->dev_private;
 
