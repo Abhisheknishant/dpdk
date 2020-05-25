@@ -132,3 +132,11 @@ Deprecation Notices
   Python 2 support will be completely removed in 20.11.
   In 20.08, explicit deprecation warnings will be displayed when running
   scripts with Python 2.
+
+* virtio: The legacy virtio feature is not architecture agnostics.
+  It relies on x86 IO port scheme support for its working.
+  The legacy virtio is only the consumer of RTE_KDRV_NONE in DPDK PCI subsystem.
+  Legacy virtio removal will also optimize DPDK PCI enumeration management as
+  it does not need to probe RTE_KDRV_NONE based devices anymore.
+  Legacy virtio feature removal is planned in the v20.11 release.
+  More details at http://patches.dpdk.org/patch/69351/
