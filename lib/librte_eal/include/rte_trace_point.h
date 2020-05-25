@@ -395,6 +395,7 @@ do { \
 #define rte_trace_point_emit_i8(in) __rte_trace_point_emit(in, int8_t)
 #define rte_trace_point_emit_int(in) __rte_trace_point_emit(in, int32_t)
 #define rte_trace_point_emit_long(in) __rte_trace_point_emit(in, long)
+#define rte_trace_point_emit_size_t(in) __rte_trace_point_emit(in, size_t)
 #define rte_trace_point_emit_float(in) __rte_trace_point_emit(in, float)
 #define rte_trace_point_emit_double(in) __rte_trace_point_emit(in, double)
 #define rte_trace_point_emit_ptr(in) __rte_trace_point_emit(in, uintptr_t)
