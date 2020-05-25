@@ -36,6 +36,15 @@ extern "C" {
 
 #define strncasecmp(s1, s2, count)        _strnicmp(s1, s2, count)
 
+/* MinGW-w64 7.0.0 defines _open() and open() as inlines, 6.0.0 doesn't.
+ * Other pairs of functions are only defined, not declared.
+ */
+#if !defined RTE_TOOLCHAIN_GCC || defined NO_OLDNAMES
+#define open _open
+#endif
+#define close _close
+#define unlink _unlink
+
 /* cpu_set macros implementation */
 #define RTE_CPU_AND(dst, src1, src2) CPU_AND(dst, src1, src2)
 #define RTE_CPU_OR(dst, src1, src2) CPU_OR(dst, src1, src2)
