@@ -386,4 +386,10 @@ EXPERIMENTAL {
 	rte_trace_point_lookup;
 	rte_trace_regexp;
 	rte_trace_save;
+
+	# added in 20.08
+	rte_get_page_size;
+	rte_mem_lock;
+	rte_mem_map;
+	rte_mem_unmap;
 };
