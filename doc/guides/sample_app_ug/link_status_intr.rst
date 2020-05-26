@@ -157,6 +157,7 @@ An example callback function that has been written as indicated below.
     lsi_event_callback(uint16_t port_id, enum rte_eth_event_type type, void *param)
     {
         struct rte_eth_link link;
+        struct rte_eth_link_text link_text;
         int ret;
 
         RTE_SET_USED(param);
@@ -170,8 +171,9 @@ An example callback function that has been written as indicated below.
             printf("Failed to get port %d link status: %s\n\n",
                    port_id, rte_strerror(-ret));
         } else if (link.link_status) {
-            printf("Port %d Link Up - speed %u Mbps - %s\n\n", port_id, (unsigned)link.link_speed,
-                  (link.link_duplex == ETH_LINK_FULL_DUPLEX) ? ("full-duplex") : ("half-duplex"));
+            rte_eth_link_prepare_text(&link), ETH_SPEED_UNIT_MBPS, &link_text);
+            printf("Port %d Link Up - speed %s Mbps - %s\n\n", port_id, link_text.link_speed,
+                  link_text.link_duplex);
         } else
             printf("Port %d Link Down\n\n", port_id);
     }
