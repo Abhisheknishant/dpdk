@@ -265,6 +265,10 @@ F: lib/librte_eal/include/rte_random.h
 F: lib/librte_eal/common/rte_random.c
 F: app/test/test_rand_perf.c
 
+C11 Code Maintainer
+M: Honnappa Nagarahalli <honnappa.nagarahalli@arm.com>
+M: David Christensen <drc@linux.vnet.ibm.com>
+
 ARM v7
 M: Jan Viktorin <viktorin@rehivetech.com>
 M: Ruifeng Wang <ruifeng.wang@arm.com>
