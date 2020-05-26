@@ -69,6 +69,38 @@ check_forbidden_additions() { # <patch>
 		-f $(dirname $(readlink -f $0))/check-forbidden-tokens.awk \
 		"$1" || res=1
 
+	# refrain from new additions of 16/32/64 bits rte_atomic_xxx()
+	# multiple folders and expressions are separated by spaces
+	awk -v FOLDERS="lib/librte_distributor lib/librte_hash lib/librte_kni
+			lib/librte_lpm lib/librte_rcu lib/librte_ring
+			lib/librte_stack lib/librte_vhost drivers/event/octeontx
+			drivers/event/octeontx2 drivers/event/opdl
+			drivers/net/bnx2x drivers/net/hinic drivers/net/hns3
+			drivers/net/memif drivers/net/thunderx
+			drivers/net/virtio examples/l2fwd-event" \
+		-v EXPRESSIONS="rte_atomic[0-9][0-9]_.*\\\(" \
+		-v RET_ON_FAIL=1 \
+		-v MESSAGE='Use of rte_atomicNN_xxx APIs not allowed, use __atomic_xxx APIs' \
+		-f $(dirname $(readlink -f $0))/check-forbidden-tokens.awk \
+		"$1" || res=1
+
+	# refrain from using compiler __sync built-ins
+	awk -v FOLDERS="lib drivers app examples" \
+		-v EXPRESSIONS="__sync_.*\\\(" \
+		-v RET_ON_FAIL=1 \
+		-v MESSAGE='Use of __sync_xxx built-ins not allowed, use __atomic_xxx APIs' \
+		-f $(dirname $(readlink -f $0))/check-forbidden-tokens.awk \
+		"$1" || res=1
+
+	# refrain from using compiler __atomic_thread_fence(__ATOMIC_SEQ_CST)
+	# It should be avoided on x86 for SMP case.
+	awk -v FOLDERS="lib drivers app examples" \
+		-v EXPRESSIONS="__atomic_thread_fence\\\(__ATOMIC_SEQ_CST" \
+		-v RET_ON_FAIL=1 \
+		-v MESSAGE='Use of __atomic_thread_fence with SEQ_CST ordering is not allowed, use rte_atomic_thread_fence' \
+		-f $(dirname $(readlink -f $0))/check-forbidden-tokens.awk \
+		"$1" || res=1
+
 	# svg figures must be included with wildcard extension
 	# because of png conversion for pdf docs
 	awk -v FOLDERS='doc' \
