@@ -316,6 +316,19 @@ struct rte_eth_link {
 	uint16_t link_status  : 1;  /**< ETH_LINK_[DOWN/UP] */
 } __rte_aligned(8);      /**< aligned for atomic64 read/write */
 
+/**
+ * Link speed units
+ */
+#define ETH_SPEED_UNIT_GBPS 0
+#define ETH_SPEED_UNIT_MBPS 1
+
+
+struct rte_eth_link_text {
+	char link_speed[14];  /** link speed */
+	char link_duplex[12];  /** full-duplex or half-duplex */
+	char link_autoneg[8];  /** autoneg or fixed */
+	char link_status[5];  /** down or up */
+};
 /* Utility constants */
 #define ETH_LINK_HALF_DUPLEX 0 /**< Half-duplex connection (see link_duplex). */
 #define ETH_LINK_FULL_DUPLEX 1 /**< Full-duplex connection (see link_duplex). */
@@ -2295,6 +2308,24 @@ int rte_eth_link_get(uint16_t port_id, struct rte_eth_link *link);
  */
 int rte_eth_link_get_nowait(uint16_t port_id, struct rte_eth_link *link);
 
+/**
+ * Format link status to textual representation. speed_unit is used to convert
+ * link_speed to specified unit. Also this function threats a special
+ * ETH_SPEED_NUM_UNKNOWN value of link_speed and return 'UNKNOWN' speed
+ * in this case.
+ *
+ * @param link
+ *   Link status provided by rte_eth_link_get function
+ * @param speed_unit
+ *   Target units for the speed. Following values are available:
+ *    - ETH_SPEED_UNIT_GBPS
+ *    - ETH_SPEED_UNIT_MBPS
+ * @param link_text
+ *   A pointer to an *rte_eth_link_text* structure to be filled with
+ *   textual representation of device status
+ */
+void rte_eth_link_prepare_text(struct rte_eth_link *link, uint32_t speed_unit,
+				struct rte_eth_link_text *link_text);
 /**
  * Retrieve the general I/O statistics of an Ethernet device.
  *

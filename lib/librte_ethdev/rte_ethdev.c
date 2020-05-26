@@ -2385,6 +2385,45 @@ rte_eth_link_get_nowait(uint16_t port_id, struct rte_eth_link *eth_link)
 	return 0;
 }
 
+void
+rte_eth_link_prepare_text(struct rte_eth_link *eth_link, uint32_t speed_unit,
+			  struct rte_eth_link_text *link_text)
+{
+	uint32_t link_speed = 0;
+	/* prepare link speed */
+	if (eth_link->link_speed == ETH_SPEED_NUM_UNKNOWN)
+		memcpy(link_text->link_speed, "unknown", sizeof("unknown"));
+	else {
+		if (speed_unit == ETH_SPEED_UNIT_GBPS)
+			link_speed = eth_link->link_speed / 1000;
+		else
+			link_speed = eth_link->link_speed;
+		snprintf(link_text->link_speed, sizeof(link_text->link_speed),
+			 "%u", link_speed);
+	}
+	/* prepare link duplex */
+	if (eth_link->link_duplex == ETH_LINK_FULL_DUPLEX)
+		memcpy(link_text->link_duplex, "full-duplex",
+			sizeof("full-duplex"));
+	else
+		memcpy(link_text->link_duplex, "half-duplex",
+			sizeof("half-duplex"));
+	/* prepare autoneg */
+	if (eth_link->link_autoneg == ETH_LINK_AUTONEG)
+		memcpy(link_text->link_autoneg, "autoneg",
+			sizeof("autoneg"));
+	else
+		memcpy(link_text->link_autoneg, "fixed",
+			sizeof("fixed"));
+	/* prepare status */
+	if (eth_link->link_status == ETH_LINK_DOWN)
+		memcpy(link_text->link_status, "down",
+			sizeof("down"));
+	else
+		memcpy(link_text->link_status, "up",
+			sizeof("up"));
+}
+
 int
 rte_eth_stats_get(uint16_t port_id, struct rte_eth_stats *stats)
 {
