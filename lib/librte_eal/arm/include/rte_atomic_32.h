@@ -37,6 +37,12 @@ extern "C" {
 
 #define rte_cio_rmb() rte_rmb()
 
+static __rte_always_inline void
+rte_atomic_thread_fence(int mo)
+{
+	__atomic_thread_fence(mo);
+}
+
 #ifdef __cplusplus
 }
 #endif

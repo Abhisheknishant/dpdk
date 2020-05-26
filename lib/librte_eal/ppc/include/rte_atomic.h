@@ -40,6 +40,12 @@ extern "C" {
 
 #define rte_cio_rmb() rte_rmb()
 
+static __rte_always_inline void
+rte_atomic_thread_fence(int mo)
+{
+	__atomic_thread_fence(mo);
+}
+
 /*------------------------- 16 bit atomic operations -------------------------*/
 /* To be compatible with Power7, use GCC built-in functions for 16 bit
  * operations */
