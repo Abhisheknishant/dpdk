@@ -160,6 +160,7 @@ app_ports_check_link(void)
 
 	for (i = 0; i < app.n_ports; i++) {
 		struct rte_eth_link link;
+		struct rte_eth_link_text link_text;
 		uint16_t port;
 		int ret;
 
@@ -173,12 +174,12 @@ app_ports_check_link(void)
 			all_ports_up = 0;
 			continue;
 		}
-
-		RTE_LOG(INFO, USER1, "Port %u (%u Gbps) %s\n",
+		rte_eth_link_prepare_text(&link,
+			ETH_SPEED_UNIT_GBPS, &link_text);
+		RTE_LOG(INFO, USER1, "Port %u (%s Gbps) %s\n",
 			port,
-			link.link_speed / 1000,
-			link.link_status ? "UP" : "DOWN");
-
+			link_text.link_speed,
+			link_text.link_status);
 		if (link.link_status == ETH_LINK_DOWN)
 			all_ports_up = 0;
 	}

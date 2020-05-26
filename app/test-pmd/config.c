@@ -552,6 +552,7 @@ port_infos_display(portid_t port_id)
 	struct rte_port *port;
 	struct rte_ether_addr mac_addr;
 	struct rte_eth_link link;
+	struct rte_eth_link_text link_text;
 	struct rte_eth_dev_info dev_info;
 	int vlan_offload;
 	struct rte_mempool * mp;
@@ -600,10 +601,10 @@ port_infos_display(portid_t port_id)
 	} else
 		printf("\nmemory allocation on the socket: %u",port->socket_id);
 
-	printf("\nLink status: %s\n", (link.link_status) ? ("up") : ("down"));
-	printf("Link speed: %u Mbps\n", (unsigned) link.link_speed);
-	printf("Link duplex: %s\n", (link.link_duplex == ETH_LINK_FULL_DUPLEX) ?
-	       ("full-duplex") : ("half-duplex"));
+	rte_eth_link_prepare_text(&link, ETH_SPEED_UNIT_MBPS, &link_text);
+	printf("\nLink status: %s\n", link_text.link_status);
+	printf("Link speed: %s Mbps\n", link_text.link_speed);
+	printf("Link duplex: %s\n", link_text.link_duplex);
 
 	if (!rte_eth_dev_get_mtu(port_id, &mtu))
 		printf("MTU: %u\n", mtu);
@@ -724,6 +725,7 @@ port_summary_display(portid_t port_id)
 {
 	struct rte_ether_addr mac_addr;
 	struct rte_eth_link link;
+	struct rte_eth_link_text link_text;
 	struct rte_eth_dev_info dev_info;
 	char name[RTE_ETH_NAME_MAX_LEN];
 	int ret;
@@ -746,12 +748,14 @@ port_summary_display(portid_t port_id)
 	if (ret != 0)
 		return;
 
-	printf("%-4d %02X:%02X:%02X:%02X:%02X:%02X %-12s %-14s %-8s %uMbps\n",
+	rte_eth_link_prepare_text(&link, ETH_SPEED_UNIT_GBPS,
+					&link_text);
+	printf("%-4d %02X:%02X:%02X:%02X:%02X:%02X %-12s %-14s %-8s %sMbps\n",
 		port_id, mac_addr.addr_bytes[0], mac_addr.addr_bytes[1],
 		mac_addr.addr_bytes[2], mac_addr.addr_bytes[3],
 		mac_addr.addr_bytes[4], mac_addr.addr_bytes[5], name,
-		dev_info.driver_name, (link.link_status) ? ("up") : ("down"),
-		(unsigned int) link.link_speed);
+		dev_info.driver_name, link_text.link_status,
+		link_text.link_speed);
 }
 
 void
@@ -3897,7 +3901,7 @@ set_queue_rate_limit(portid_t port_id, uint16_t queue_idx, uint16_t rate)
 	ret = eth_link_get_nowait_print_err(port_id, &link);
 	if (ret < 0)
 		return 1;
-	if (rate > link.link_speed) {
+	if (link.link_speed != UINT32_MAX && rate > link.link_speed) {
 		printf("Invalid rate value:%u bigger than link speed: %u\n",
 			rate, link.link_speed);
 		return 1;
