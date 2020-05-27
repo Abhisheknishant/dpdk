@@ -140,7 +140,11 @@ __rte_raw_cksum(const void *buf, size_t len, uint32_t sum)
 
 	/* if length is in odd bytes */
 	if (len == 1)
+#if (RTE_BYTE_ORDER == RTE_BIG_ENDIAN)
+		sum += *((const uint8_t *)u16_buf) << 8;
+#else
 		sum += *((const uint8_t *)u16_buf);
+#endif
 
 	return sum;
 }
