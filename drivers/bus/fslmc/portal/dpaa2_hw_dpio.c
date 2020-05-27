@@ -264,6 +264,16 @@ dpaa2_configure_stashing(struct dpaa2_dpio_dev *dpio_dev)
 	return 0;
 }
 
+static void dpaa2_put_qbman_swp(struct dpaa2_dpio_dev *dpio_dev)
+{
+	if (dpio_dev) {
+#ifdef RTE_LIBRTE_PMD_DPAA2_EVENTDEV
+		dpaa2_dpio_intr_deinit(dpio_dev);
+#endif
+		rte_atomic16_clear(&dpio_dev->ref_count);
+	}
+}
+
 static struct dpaa2_dpio_dev *dpaa2_get_qbman_swp(void)
 {
 	struct dpaa2_dpio_dev *dpio_dev = NULL;
@@ -274,8 +284,10 @@ static struct dpaa2_dpio_dev *dpaa2_get_qbman_swp(void)
 		if (dpio_dev && rte_atomic16_test_and_set(&dpio_dev->ref_count))
 			break;
 	}
-	if (!dpio_dev)
+	if (!dpio_dev) {
+		DPAA2_BUS_ERR("No software portal resource left");
 		return NULL;
+	}
 
 	DPAA2_BUS_DEBUG("New Portal %p (%d) affined thread - %lu",
 			dpio_dev, dpio_dev->index, syscall(SYS_gettid));
@@ -283,6 +295,7 @@ static struct dpaa2_dpio_dev *dpaa2_get_qbman_swp(void)
 	ret = dpaa2_configure_stashing(dpio_dev);
 	if (ret) {
 		DPAA2_BUS_ERR("dpaa2_configure_stashing failed");
+		rte_atomic16_clear(&dpio_dev->ref_count);
 		return NULL;
 	}
 
@@ -296,15 +309,6 @@ static struct dpaa2_dpio_dev *dpaa2_get_qbman_swp(void)
 	return dpio_dev;
 }
 
-static void dpaa2_put_qbman_swp(struct dpaa2_dpio_dev *dpio_dev)
-{
-#ifdef RTE_LIBRTE_PMD_DPAA2_EVENTDEV
-	dpaa2_dpio_intr_deinit(dpio_dev);
-#endif
-	if (dpio_dev)
-		rte_atomic16_clear(&dpio_dev->ref_count);
-}
-
 int
 dpaa2_affine_qbman_swp(void)
 {
@@ -315,7 +319,7 @@ dpaa2_affine_qbman_swp(void)
 	if (!RTE_PER_LCORE(_dpaa2_io).dpio_dev) {
 		dpio_dev = dpaa2_get_qbman_swp();
 		if (!dpio_dev) {
-			DPAA2_BUS_ERR("No software portal resource left");
+			DPAA2_BUS_ERR("Error in software portal allocation");
 			return -1;
 		}
 		RTE_PER_LCORE(_dpaa2_io).dpio_dev = dpio_dev;
@@ -337,7 +341,7 @@ dpaa2_affine_qbman_ethrx_swp(void)
 	if (!RTE_PER_LCORE(_dpaa2_io).ethrx_dpio_dev) {
 		dpio_dev = dpaa2_get_qbman_swp();
 		if (!dpio_dev) {
-			DPAA2_BUS_ERR("No software portal resource left");
+			DPAA2_BUS_ERR("Error in software portal allocation");
 			return -1;
 		}
 		RTE_PER_LCORE(_dpaa2_io).ethrx_dpio_dev = dpio_dev;
