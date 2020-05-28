@@ -242,9 +242,6 @@ vmbus_scan_one(const char *name)
 		return -1;
 
 	dev->device.bus = &rte_vmbus_bus.bus;
-	dev->device.name = strdup(name);
-	if (!dev->device.name)
-		goto error;
 
 	/* sysfs base directory
 	 *   /sys/bus/vmbus/devices/7a08391f-f5a0-4ac0-9802-d13fd964f8df
@@ -296,6 +293,7 @@ vmbus_scan_one(const char *name)
 	}
 
 	dev->device.devargs = vmbus_devargs_lookup(dev);
+	dev->device.name = dev->device.devargs->name;
 
 	/* device is valid, add in list (sorted) */
 	VMBUS_LOG(DEBUG, "Adding vmbus device %s", name);
