@@ -278,6 +278,14 @@ vhost_user_sock(struct virtio_user_dev *dev,
 		need_reply = 1;
 		break;
 
+	case VHOST_USER_SET_STATUS:
+		if (!(dev->protocol_features &
+				(1ULL << VHOST_USER_PROTOCOL_F_STATUS)))
+			return 0;
+
+		if (has_reply_ack)
+			msg.flags |= VHOST_USER_NEED_REPLY_MASK;
+		/* Fallthrough */
 	case VHOST_USER_SET_FEATURES:
 	case VHOST_USER_SET_PROTOCOL_FEATURES:
 	case VHOST_USER_SET_LOG_BASE:

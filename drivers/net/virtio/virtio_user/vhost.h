@@ -57,6 +57,10 @@ struct vhost_vring_addr {
 #define VHOST_USER_PROTOCOL_F_REPLY_ACK 3
 #endif
 
+#ifndef VHOST_USER_PROTOCOL_F_STATUS
+#define VHOST_USER_PROTOCOL_F_STATUS 15
+#endif
+
 enum vhost_user_request {
 	VHOST_USER_NONE = 0,
 	VHOST_USER_GET_FEATURES = 1,
@@ -77,6 +81,7 @@ enum vhost_user_request {
 	VHOST_USER_SET_PROTOCOL_FEATURES = 16,
 	VHOST_USER_GET_QUEUE_NUM = 17,
 	VHOST_USER_SET_VRING_ENABLE = 18,
+	VHOST_USER_SET_STATUS = 36,
 	VHOST_USER_MAX
 };
 
