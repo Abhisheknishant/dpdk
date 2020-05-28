@@ -208,6 +208,10 @@ warning_flags = [
 	'-Wno-packed-not-aligned',
 	'-Wno-missing-field-initializers'
 ]
+# add -Werror to treat warnings as errors on Windows
+if is_windows
+	warning_flags += '-Werror'
+endif
 if cc.get_id() == 'gcc' and cc.version().version_compare('>=10.0')
 # FIXME: Bugzilla 396
 	warning_flags += '-Wno-zero-length-bounds'
