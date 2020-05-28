@@ -101,6 +101,9 @@ ABI Changes
    Also, make sure to start the actual text at the margin.
    =========================================================
 
+* stack: the experimental tag has been dropped from the stack library, and its
+  interfaces are considered stable as of DPDK 20.11.
+
 * No ABI change that would break compatibility with 19.11.
 
 
