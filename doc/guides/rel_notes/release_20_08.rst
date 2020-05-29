@@ -56,6 +56,11 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+* **Added the support for vfio-pci new VF token interface.**
+
+  Since Linux version 5.7, vfio-pci supports a shared VF token (UUID) to represent
+  the trust between SR-IOV PF and the created VFs. Update the method to gain access
+  to the PF and VFs devices by appending the VF token parameter.
 
 Removed Items
 -------------
