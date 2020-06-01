@@ -565,6 +565,95 @@ int axgbe_dev_tx_queue_setup(struct rte_eth_dev *dev, uint16_t queue_idx,
 	return 0;
 }
 
+int axgbe_dev_tx_queue_start(struct rte_eth_dev *eth_dev,
+		uint16_t queue_idx)
+{
+	struct axgbe_port *pdata =
+		(struct axgbe_port *)eth_dev->data->dev_private;
+	int ret = 0;
+
+	PMD_INIT_FUNC_TRACE();
+
+	AXGMAC_MTL_IOWRITE_BITS(pdata, queue_idx,
+			MTL_Q_TQOMR, TXQEN, MTL_Q_ENABLED);
+	eth_dev->data->tx_queue_state[queue_idx] = RTE_ETH_QUEUE_STATE_STARTED;
+
+	return ret;
+}
+
+int axgbe_dev_tx_queue_stop(struct rte_eth_dev *eth_dev,
+		uint16_t queue_idx)
+{
+	int ret = 0;
+	struct axgbe_port *pdata =
+		(struct axgbe_port *)eth_dev->data->dev_private;
+
+	PMD_INIT_FUNC_TRACE();
+
+	AXGMAC_MTL_IOWRITE_BITS(pdata, queue_idx, MTL_Q_TQOMR, TXQEN, 0);
+	eth_dev->data->tx_queue_state[queue_idx] = RTE_ETH_QUEUE_STATE_STOPPED;
+
+	return ret;
+}
+
+int axgbe_dev_rx_queue_start(struct rte_eth_dev *eth_dev,
+		uint16_t queue_idx)
+{
+	struct axgbe_port *pdata =
+		(struct axgbe_port *)eth_dev->data->dev_private;
+	unsigned int reg_val = 0;
+	int ret = 0;
+
+	PMD_INIT_FUNC_TRACE();
+
+	reg_val |= (0x02 << (queue_idx << 1));
+	AXGMAC_IOWRITE(pdata, MAC_RQC0R, reg_val);
+	eth_dev->data->rx_queue_state[queue_idx] = RTE_ETH_QUEUE_STATE_STARTED;
+
+	return ret;
+}
+
+int axgbe_dev_rx_queue_stop(struct rte_eth_dev *eth_dev,
+		uint16_t queue_idx)
+{
+	int ret = 0;
+	struct axgbe_port *pdata =
+		(struct axgbe_port *)eth_dev->data->dev_private;
+	struct axgbe_rx_queue *rxq;
+
+	PMD_INIT_FUNC_TRACE();
+
+	AXGMAC_IOWRITE(pdata, MAC_RQC0R, 0);
+	rxq = eth_dev->data->rx_queues[queue_idx];
+
+	/* Disable Rx DMA channel */
+	AXGMAC_DMA_IOWRITE_BITS(rxq, DMA_CH_RCR, SR, 0);
+	eth_dev->data->rx_queue_state[queue_idx] = RTE_ETH_QUEUE_STATE_STOPPED;
+
+	return ret;
+}
+
+int axgbe_dev_fw_version_get(struct rte_eth_dev *eth_dev,
+		char *fw_version, size_t fw_size)
+{
+	struct axgbe_port *pdata;
+	struct axgbe_hw_features *hw_feat;
+	char fw_ver[32];
+
+	pdata = (struct axgbe_port *)eth_dev->data->dev_private;
+	hw_feat = &pdata->hw_feat;
+
+	if (fw_version == NULL || fw_size <= 0)
+		return -EINVAL;
+
+	snprintf(fw_version, sizeof(fw_ver), "%d.%d.%d",
+			AXGMAC_GET_BITS(hw_feat->version, MAC_VR, USERVER),
+			AXGMAC_GET_BITS(hw_feat->version, MAC_VR, DEVID),
+			AXGMAC_GET_BITS(hw_feat->version, MAC_VR, SNPSVER));
+
+	return 0;
+}
+
 static void axgbe_txq_prepare_tx_stop(struct axgbe_port *pdata,
 				      unsigned int queue)
 {

@@ -214,6 +214,11 @@ static const struct eth_dev_ops axgbe_eth_dev_ops = {
 	.dev_supported_ptypes_get     = axgbe_dev_supported_ptypes_get,
 	.rx_descriptor_status         = axgbe_dev_rx_descriptor_status,
 	.tx_descriptor_status         = axgbe_dev_tx_descriptor_status,
+	.rx_queue_start       = axgbe_dev_rx_queue_start,
+	.rx_queue_stop        = axgbe_dev_rx_queue_stop,
+	.tx_queue_start       = axgbe_dev_tx_queue_start,
+	.tx_queue_stop        = axgbe_dev_tx_queue_stop,
+	.fw_version_get       = axgbe_dev_fw_version_get,
 };
 
 static int axgbe_phy_reset(struct axgbe_port *pdata)
@@ -1006,6 +1011,8 @@ axgbe_dev_info_get(struct rte_eth_dev *dev, struct rte_eth_dev_info *dev_info)
 		DEV_TX_OFFLOAD_IPV4_CKSUM  |
 		DEV_TX_OFFLOAD_UDP_CKSUM   |
 		DEV_TX_OFFLOAD_TCP_CKSUM;
+	dev_info->dev_capa = RTE_ETH_DEV_CAPA_RUNTIME_RX_QUEUE_SETUP |
+			RTE_ETH_DEV_CAPA_RUNTIME_TX_QUEUE_SETUP;
 
 	if (pdata->hw_feat.rss) {
 		dev_info->flow_type_rss_offloads = AXGBE_RSS_OFFLOAD;

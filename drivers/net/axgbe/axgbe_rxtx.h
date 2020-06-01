@@ -161,6 +161,10 @@ void axgbe_dev_enable_tx(struct rte_eth_dev *dev);
 void axgbe_dev_disable_tx(struct rte_eth_dev *dev);
 int axgbe_dev_tx_queue_start(struct rte_eth_dev *dev, uint16_t tx_queue_id);
 int axgbe_dev_tx_queue_stop(struct rte_eth_dev *dev, uint16_t tx_queue_id);
+int axgbe_dev_rx_queue_start(struct rte_eth_dev *eth_dev, uint16_t queue_idx);
+int axgbe_dev_rx_queue_stop(struct rte_eth_dev *eth_dev, uint16_t queue_idx);
+int axgbe_dev_fw_version_get(struct rte_eth_dev *eth_dev,
+		char *fw_version, size_t fw_size);
 
 uint16_t axgbe_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
 			 uint16_t nb_pkts);
