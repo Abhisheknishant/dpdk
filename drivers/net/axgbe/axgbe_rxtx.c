@@ -275,6 +275,9 @@ axgbe_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
 		/* Get the RSS hash */
 		if (AXGMAC_GET_BITS_LE(desc->write.desc3, RX_NORMAL_DESC3, RSV))
 			mbuf->hash.rss = rte_le_to_cpu_32(desc->write.desc1);
+		/* Indicate if a Context Descriptor is next */
+		if (AXGMAC_GET_BITS_LE(desc->write.desc3, RX_NORMAL_DESC3, CDA))
+			mbuf->ol_flags |= PKT_RX_IEEE1588_PTP;
 		pkt_len = AXGMAC_GET_BITS_LE(desc->write.desc3, RX_NORMAL_DESC3,
 					     PL) - rxq->crc_len;
 		/* Mbuf populate */
@@ -487,6 +490,7 @@ int axgbe_dev_tx_queue_setup(struct rte_eth_dev *dev, uint16_t queue_idx,
 	struct axgbe_tx_queue *txq;
 	unsigned int tsize;
 	const struct rte_memzone *tz;
+	struct rte_eth_dev_data *dev_data;
 
 	tx_desc = nb_desc;
 	pdata = dev->data->dev_private;
@@ -507,6 +511,7 @@ int axgbe_dev_tx_queue_setup(struct rte_eth_dev *dev, uint16_t queue_idx,
 		return -ENOMEM;
 	txq->pdata = pdata;
 
+	dev_data = pdata->eth_dev->data;
 	txq->nb_desc = tx_desc;
 	txq->free_thresh = tx_conf->tx_free_thresh ?
 		tx_conf->tx_free_thresh : AXGBE_TX_FREE_THRESH;
@@ -518,7 +523,7 @@ int axgbe_dev_tx_queue_setup(struct rte_eth_dev *dev, uint16_t queue_idx,
 	if (txq->nb_desc % txq->free_thresh != 0)
 		txq->vector_disable = 1;
 
-	if (tx_conf->offloads != 0)
+	if ((tx_conf->offloads != 0) || dev_data->dev_conf.txmode.offloads)
 		txq->vector_disable = 1;
 
 	/* Allocate TX ring hardware descriptors */
@@ -722,6 +727,10 @@ static int axgbe_xmit_hw(struct axgbe_tx_queue *txq,
 	/* Total msg length to transmit */
 	AXGMAC_SET_BITS_LE(desc->desc3, TX_NORMAL_DESC3, FL,
 			   mbuf->pkt_len);
+	/* Timestamp enablement check */
+	if (mbuf->ol_flags & PKT_TX_IEEE1588_TMST)
+		AXGMAC_SET_BITS_LE(desc->desc2, TX_NORMAL_DESC2, TTSE, 1);
+	rte_wmb();
 	/* Mark it as First and Last Descriptor */
 	AXGMAC_SET_BITS_LE(desc->desc3, TX_NORMAL_DESC3, FD, 1);
 	AXGMAC_SET_BITS_LE(desc->desc3, TX_NORMAL_DESC3, LD, 1);

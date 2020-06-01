@@ -8,6 +8,7 @@
 #include "axgbe_common.h"
 #include "axgbe_phy.h"
 #include "axgbe_regs.h"
+#include "rte_time.h"
 
 static int eth_axgbe_dev_init(struct rte_eth_dev *eth_dev);
 static int eth_axgbe_dev_uninit(struct rte_eth_dev *eth_dev);
@@ -73,6 +74,24 @@ static void axgbe_rxq_info_get(struct rte_eth_dev *dev, uint16_t queue_id,
 static void axgbe_txq_info_get(struct rte_eth_dev *dev, uint16_t queue_id,
 	struct rte_eth_txq_info *qinfo);
 const uint32_t *axgbe_dev_supported_ptypes_get(struct rte_eth_dev *dev);
+
+static int axgbe_timesync_enable(struct rte_eth_dev *dev);
+static int axgbe_timesync_disable(struct rte_eth_dev *dev);
+static int
+axgbe_timesync_read_rx_timestamp(struct rte_eth_dev *dev,
+		struct timespec *timestamp, uint32_t flags);
+static int
+axgbe_timesync_read_tx_timestamp(struct rte_eth_dev *dev,
+		struct timespec *timestamp);
+static int axgbe_timesync_adjust_time(struct rte_eth_dev *dev, int64_t delta);
+static int axgbe_timesync_read_time(struct rte_eth_dev *dev,
+		struct timespec *timestamp);
+static int axgbe_timesync_write_time(struct rte_eth_dev *dev,
+		const struct timespec *timestamp);
+static void axgbe_set_tstamp_time(struct axgbe_port *pdata, unsigned int sec,
+		unsigned int nsec);
+static void axgbe_update_tstamp_addend(struct axgbe_port *pdata,
+		unsigned int addend);
 
 struct axgbe_xstats {
 	char name[RTE_ETH_XSTATS_NAME_SIZE];
@@ -214,6 +233,14 @@ static const struct eth_dev_ops axgbe_eth_dev_ops = {
 	.dev_supported_ptypes_get     = axgbe_dev_supported_ptypes_get,
 	.rx_descriptor_status         = axgbe_dev_rx_descriptor_status,
 	.tx_descriptor_status         = axgbe_dev_tx_descriptor_status,
+	.timesync_enable              = axgbe_timesync_enable,
+	.timesync_disable             = axgbe_timesync_disable,
+	.timesync_read_rx_timestamp   = axgbe_timesync_read_rx_timestamp,
+	.timesync_read_tx_timestamp   = axgbe_timesync_read_tx_timestamp,
+	.timesync_adjust_time         = axgbe_timesync_adjust_time,
+	.timesync_read_time           = axgbe_timesync_read_time,
+	.timesync_write_time          = axgbe_timesync_write_time,
+
 };
 
 static int axgbe_phy_reset(struct axgbe_port *pdata)
@@ -1000,12 +1027,16 @@ axgbe_dev_info_get(struct rte_eth_dev *dev, struct rte_eth_dev_info *dev_info)
 		DEV_RX_OFFLOAD_TCP_CKSUM  |
 		DEV_RX_OFFLOAD_JUMBO_FRAME	|
 		DEV_RX_OFFLOAD_SCATTER	  |
+		PKT_RX_IEEE1588_PTP |
 		DEV_RX_OFFLOAD_KEEP_CRC;
 
 	dev_info->tx_offload_capa =
 		DEV_TX_OFFLOAD_IPV4_CKSUM  |
 		DEV_TX_OFFLOAD_UDP_CKSUM   |
-		DEV_TX_OFFLOAD_TCP_CKSUM;
+		DEV_TX_OFFLOAD_TCP_CKSUM   |
+		PKT_TX_IEEE1588_TMST |
+		DEV_TX_OFFLOAD_MULTI_SEGS;
+
 
 	if (pdata->hw_feat.rss) {
 		dev_info->flow_type_rss_offloads = AXGBE_RSS_OFFLOAD;
@@ -1253,6 +1284,300 @@ axgbe_dev_supported_ptypes_get(struct rte_eth_dev *dev)
 	if (dev->rx_pkt_burst == axgbe_recv_pkts)
 		return ptypes;
 	return NULL;
+}
+
+static void axgbe_update_tstamp_time(struct axgbe_port *pdata,
+		unsigned int sec, unsigned int nsec, int addsub)
+{
+	unsigned int count = 100;
+	uint32_t sub_val = 0;
+	uint32_t sub_val_sec = 0xFFFFFFFF;
+	uint32_t sub_val_nsec = 0x3B9ACA00;
+
+	if (addsub) {
+		if (sec)
+			sub_val = sub_val_sec - (sec - 1);
+		else
+			sub_val = sec;
+
+		AXGMAC_IOWRITE(pdata, MAC_STSUR, sub_val);
+		sub_val = sub_val_nsec - nsec;
+		AXGMAC_IOWRITE(pdata, MAC_STNUR, sub_val);
+		AXGMAC_IOWRITE_BITS(pdata, MAC_STNUR, ADDSUB, 1);
+	} else {
+		AXGMAC_IOWRITE(pdata, MAC_STSUR, sec);
+		AXGMAC_IOWRITE_BITS(pdata, MAC_STNUR, ADDSUB, 0);
+		AXGMAC_IOWRITE(pdata, MAC_STNUR, nsec);
+	}
+	AXGMAC_IOWRITE_BITS(pdata, MAC_TSCR, TSUPDT, 1);
+	/* Wait for time update to complete */
+	while (--count && AXGMAC_IOREAD_BITS(pdata, MAC_TSCR, TSUPDT))
+		rte_delay_ms(1);
+}
+
+static inline uint64_t
+div_u64_rem(uint64_t dividend, uint32_t divisor, uint32_t *remainder)
+{
+	*remainder = dividend % divisor;
+	return dividend / divisor;
+}
+
+static inline uint64_t div_u64(uint64_t dividend, uint32_t divisor)
+{
+	uint32_t remainder;
+	return div_u64_rem(dividend, divisor, &remainder);
+}
+
+static int axgbe_adjfreq(struct axgbe_port *pdata, int64_t delta)
+{
+	uint64_t adjust;
+	uint32_t addend, diff;
+	unsigned int neg_adjust = 0;
+
+	if (delta < 0) {
+		neg_adjust = 1;
+		delta = -delta;
+	}
+	adjust = (uint64_t)pdata->tstamp_addend;
+	adjust *= delta;
+	diff = (uint32_t)div_u64(adjust, 1000000000UL);
+	addend = (neg_adjust) ? pdata->tstamp_addend - diff :
+				pdata->tstamp_addend + diff;
+	pdata->tstamp_addend = addend;
+	axgbe_update_tstamp_addend(pdata, addend);
+	return 0;
+}
+
+static int axgbe_timesync_adjust_time(struct rte_eth_dev *dev, int64_t delta)
+{
+	struct axgbe_port *pdata = dev->data->dev_private;
+	struct timespec timestamp_delta;
+
+	axgbe_adjfreq(pdata, delta);
+	pdata->systime_tc.nsec += delta;
+
+	if (delta < 0) {
+		delta = -delta;
+		timestamp_delta = rte_ns_to_timespec(delta);
+		axgbe_update_tstamp_time(pdata, timestamp_delta.tv_sec,
+				timestamp_delta.tv_nsec, 1);
+	} else {
+		timestamp_delta = rte_ns_to_timespec(delta);
+		axgbe_update_tstamp_time(pdata, timestamp_delta.tv_sec,
+				timestamp_delta.tv_nsec, 0);
+	}
+	return 0;
+}
+
+static int axgbe_timesync_read_time(struct rte_eth_dev *dev,
+		struct timespec *timestamp)
+{
+	uint64_t nsec;
+	struct axgbe_port *pdata = dev->data->dev_private;
+
+	nsec = AXGMAC_IOREAD(pdata, MAC_STSR);
+	nsec *= NSEC_PER_SEC;
+	nsec += AXGMAC_IOREAD(pdata, MAC_STNR);
+	*timestamp = rte_ns_to_timespec(nsec);
+	return 0;
+}
+static int axgbe_timesync_write_time(struct rte_eth_dev *dev,
+				    const struct timespec *timestamp)
+{
+	unsigned int count = 100;
+	struct axgbe_port *pdata = dev->data->dev_private;
+
+	AXGMAC_IOWRITE(pdata, MAC_STSUR, timestamp->tv_sec);
+	AXGMAC_IOWRITE(pdata, MAC_STNUR, timestamp->tv_nsec);
+	AXGMAC_IOWRITE_BITS(pdata, MAC_TSCR, TSUPDT, 1);
+	/* Wait for time update to complete */
+	while (--count && AXGMAC_IOREAD_BITS(pdata, MAC_TSCR, TSUPDT))
+		rte_delay_ms(1);
+	if (!count)
+		PMD_DRV_LOG(ERR, "Timed out update timestamp\n");
+	return 0;
+}
+
+static void axgbe_update_tstamp_addend(struct axgbe_port *pdata,
+		uint32_t addend)
+{
+	unsigned int count = 100;
+
+	AXGMAC_IOWRITE(pdata, MAC_TSAR, addend);
+	AXGMAC_IOWRITE_BITS(pdata, MAC_TSCR, TSADDREG, 1);
+
+	/* Wait for addend update to complete */
+	while (--count && AXGMAC_IOREAD_BITS(pdata, MAC_TSCR, TSADDREG))
+		rte_delay_ms(1);
+	if (!count)
+		PMD_DRV_LOG(ERR, "Timed out updating timestamp addend register\n");
+}
+
+static void axgbe_set_tstamp_time(struct axgbe_port *pdata, unsigned int sec,
+		unsigned int nsec)
+{
+	unsigned int count = 100;
+
+	/*System Time Sec Update*/
+	AXGMAC_IOWRITE(pdata, MAC_STSUR, sec);
+	/*System Time nanoSec Update*/
+	AXGMAC_IOWRITE(pdata, MAC_STNUR, nsec);
+	/*Initialize Timestamp*/
+	AXGMAC_IOWRITE_BITS(pdata, MAC_TSCR, TSINIT, 1);
+
+	/* Wait for time update to complete */
+	while (--count && AXGMAC_IOREAD_BITS(pdata, MAC_TSCR, TSINIT))
+		rte_delay_ms(1);
+	if (!count)
+		PMD_DRV_LOG(ERR, "Timed out initializing timestamp\n");
+}
+
+static int
+axgbe_timesync_enable(struct rte_eth_dev *dev)
+{
+	struct axgbe_port *pdata = dev->data->dev_private;
+	unsigned int mac_tscr = 0;
+	uint64_t dividend;
+	struct timespec timestamp;
+	uint64_t nsec;
+
+	/* Set one nano-second accuracy */
+	AXGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSCTRLSSR, 1);
+
+	/* Set fine timestamp update */
+	AXGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSCFUPDT, 1);
+
+	/* Overwrite earlier timestamps */
+	AXGMAC_SET_BITS(mac_tscr, MAC_TSCR, TXTSSTSM, 1);
+
+	AXGMAC_IOWRITE(pdata, MAC_TSCR, mac_tscr);
+
+	/* Enabling processing of ptp over eth pkt */
+	AXGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSIPENA, 1);
+	AXGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSVER2ENA, 1);
+	/* Enable timestamp for all pkts*/
+	AXGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSENALL, 1);
+
+	/* enabling timestamp */
+	AXGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSENA, 1);
+	AXGMAC_IOWRITE(pdata, MAC_TSCR, mac_tscr);
+
+	/* Exit if timestamping is not enabled */
+	if (!AXGMAC_GET_BITS(mac_tscr, MAC_TSCR, TSENA)) {
+		PMD_DRV_LOG(ERR, "Exiting as timestamp is not enabled\n");
+		return 0;
+	}
+
+	/* Sub-second Increment Value*/
+	AXGMAC_IOWRITE_BITS(pdata, MAC_SSIR, SSINC, AXGBE_TSTAMP_SSINC);
+	/* Sub-nanosecond Increment Value */
+	AXGMAC_IOWRITE_BITS(pdata, MAC_SSIR, SNSINC, AXGBE_TSTAMP_SNSINC);
+
+	pdata->ptpclk_rate = AXGBE_V2_PTP_CLOCK_FREQ;
+	dividend = 50000000;
+	dividend <<= 32;
+	pdata->tstamp_addend = div_u64(dividend, pdata->ptpclk_rate);
+
+	axgbe_update_tstamp_addend(pdata, pdata->tstamp_addend);
+	axgbe_set_tstamp_time(pdata, 0, 0);
+
+	/* Initialize the timecounter */
+	memset(&pdata->systime_tc, 0, sizeof(struct rte_timecounter));
+
+	pdata->systime_tc.cc_mask = AXGBE_CYCLECOUNTER_MASK;
+	pdata->systime_tc.cc_shift = 0;
+	pdata->systime_tc.nsec_mask = 0;
+
+	PMD_DRV_LOG(DEBUG, "Intializing system time counter with realtime\n");
+
+	/* Updating the counter once with clock real time */
+	clock_gettime(CLOCK_REALTIME, &timestamp);
+	nsec = rte_timespec_to_ns(&timestamp);
+	nsec = rte_timecounter_update(&pdata->systime_tc, nsec);
+	axgbe_set_tstamp_time(pdata, timestamp.tv_sec, timestamp.tv_nsec);
+	return 0;
+}
+
+static int
+axgbe_timesync_disable(struct rte_eth_dev *dev)
+{
+	struct axgbe_port *pdata = dev->data->dev_private;
+	unsigned int mac_tscr = 0;
+
+	/*disable timestamp for all pkts*/
+	AXGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSENALL, 0);
+	/*disable the addened register*/
+	AXGMAC_IOWRITE_BITS(pdata, MAC_TSCR, TSADDREG, 0);
+	/* disable timestamp update */
+	AXGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSCFUPDT, 0);
+	/*disable time stamp*/
+	AXGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSENA, 0);
+	return 0;
+}
+
+static int
+axgbe_timesync_read_rx_timestamp(struct rte_eth_dev *dev,
+				struct timespec *timestamp, uint32_t flags)
+{
+	uint64_t nsec = 0;
+	volatile union axgbe_rx_desc *desc;
+	uint16_t idx, pmt;
+	struct axgbe_rx_queue *rxq = *dev->data->rx_queues;
+
+	idx = AXGBE_GET_DESC_IDX(rxq, rxq->cur);
+	desc = &rxq->desc[idx];
+
+	while (AXGMAC_GET_BITS_LE(desc->write.desc3, RX_NORMAL_DESC3, OWN))
+		rte_delay_ms(1);
+	if (AXGMAC_GET_BITS_LE(desc->write.desc3, RX_NORMAL_DESC3, CTXT)) {
+		if (AXGMAC_GET_BITS_LE(desc->write.desc3, RX_CONTEXT_DESC3, TSA)
+				&& !AXGMAC_GET_BITS_LE(desc->write.desc3,
+					RX_CONTEXT_DESC3, TSD)) {
+			pmt = AXGMAC_GET_BITS_LE(desc->write.desc3,
+					RX_CONTEXT_DESC3, PMT);
+			nsec = rte_le_to_cpu_32(desc->write.desc1);
+			nsec *= NSEC_PER_SEC;
+			nsec += rte_le_to_cpu_32(desc->write.desc0);
+			if (nsec != 0xffffffffffffffffULL) {
+				if (pmt == 0x01)
+					*timestamp = rte_ns_to_timespec(nsec);
+				PMD_DRV_LOG(DEBUG, "flags = 0x%x nsec = %ld\n",
+						flags, nsec);
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int
+axgbe_timesync_read_tx_timestamp(struct rte_eth_dev *dev,
+				struct timespec *timestamp)
+{
+	uint64_t nsec;
+	struct axgbe_port *pdata = dev->data->dev_private;
+	unsigned int tx_snr, tx_ssr;
+
+	rte_delay_us(5);
+	if (pdata->vdata->tx_tstamp_workaround) {
+		tx_snr = AXGMAC_IOREAD(pdata, MAC_TXSNR);
+		tx_ssr = AXGMAC_IOREAD(pdata, MAC_TXSSR);
+
+	} else {
+		tx_ssr = AXGMAC_IOREAD(pdata, MAC_TXSSR);
+		tx_snr = AXGMAC_IOREAD(pdata, MAC_TXSNR);
+	}
+	if (AXGMAC_GET_BITS(tx_snr, MAC_TXSNR, TXTSSTSMIS)) {
+		PMD_DRV_LOG(DEBUG, "Waiting for TXTSSTSMIS\n");
+		return 0;
+	}
+	nsec = tx_ssr;
+	nsec *= NSEC_PER_SEC;
+	nsec += tx_snr;
+	PMD_DRV_LOG(DEBUG, "nsec = %ld tx_ssr = %d tx_snr = %d\n",
+			nsec, tx_ssr, tx_snr);
+	*timestamp = rte_ns_to_timespec(nsec);
+	return 0;
 }
 
 static void axgbe_get_all_hw_features(struct axgbe_port *pdata)
