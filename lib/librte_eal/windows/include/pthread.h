@@ -6,6 +6,7 @@
 #define _PTHREAD_H_
 
 #include <stdint.h>
+#include <sched.h>
 
 /**
  * This file is required to support the common code in eal_common_proc.c,
@@ -16,8 +17,8 @@
 extern "C" {
 #endif
 
-#include <windows.h>
 #include <rte_common.h>
+#include <rte_windows.h>
 
 #define PTHREAD_BARRIER_SERIAL_THREAD TRUE
 
@@ -41,31 +42,68 @@ typedef SYNCHRONIZATION_BARRIER pthread_barrier_t;
 #define pthread_self() \
 	((pthread_t)GetCurrentThreadId())
 #define pthread_setaffinity_np(thread, size, cpuset) \
-	eal_set_thread_affinity_mask(thread, (unsigned long *) cpuset)
+	eal_set_thread_affinity_mask(thread, cpuset)
 #define pthread_getaffinity_np(thread, size, cpuset) \
-	eal_get_thread_affinity_mask(thread, (unsigned long *) cpuset)
+	eal_get_thread_affinity_mask(thread, cpuset)
 #define pthread_create(threadid, threadattr, threadfunc, args) \
 	eal_create_thread(threadid, threadfunc, args)
 
 static inline int
-eal_set_thread_affinity_mask(pthread_t threadid, unsigned long *cpuset)
+eal_set_thread_affinity_mask(pthread_t threadid, rte_cpuset_t *cpuset)
 {
-	SetThreadAffinityMask((HANDLE) threadid, *cpuset);
+	DWORD_PTR ret;
+	HANDLE thread_handle;
+
+	thread_handle = OpenThread(THREAD_ALL_ACCESS, FALSE, threadid);
+	if (thread_handle == NULL) {
+		RTE_LOG_WIN32_ERR("OpenThread()");
+		return -1;
+	}
+
+	ret = SetThreadAffinityMask(thread_handle, *cpuset->_bits);
+	if (ret == 0) {
+		RTE_LOG_WIN32_ERR("SetThreadAffinityMask()");
+		CloseHandle(thread_handle);
+		return -1;
+	}
+	CloseHandle(thread_handle);
 	return 0;
 }
 
 static inline int
-eal_get_thread_affinity_mask(pthread_t threadid, unsigned long *cpuset)
+eal_get_thread_affinity_mask(pthread_t threadid, rte_cpuset_t *cpuset)
 {
 	/* Workaround for the lack of a GetThreadAffinityMask()
 	 *API in Windows
 	 */
-		/* obtain previous mask by setting dummy mask */
-	DWORD dwprevaffinitymask =
-		SetThreadAffinityMask((HANDLE) threadid, 0x1);
+	DWORD_PTR dwprevaffinitymask;
+	HANDLE thread_handle;
+	DWORD_PTR ret;
+
+	thread_handle = OpenThread(THREAD_ALL_ACCESS, FALSE, threadid);
+	if (thread_handle == NULL) {
+		RTE_LOG_WIN32_ERR("OpenThread()");
+		return -1;
+	}
+
+	/* obtain previous mask by setting dummy mask */
+	dwprevaffinitymask = SetThreadAffinityMask(thread_handle, 0x1);
+	if (dwprevaffinitymask == 0) {
+		RTE_LOG_WIN32_ERR("SetThreadAffinityMask()");
+		CloseHandle(thread_handle);
+		return -1;
+	}
+
 	/* set it back! */
-	SetThreadAffinityMask((HANDLE) threadid, dwprevaffinitymask);
-	*cpuset = dwprevaffinitymask;
+	ret = SetThreadAffinityMask(thread_handle, dwprevaffinitymask);
+	if (ret == 0) {
+		RTE_LOG_WIN32_ERR("SetThreadAffinityMask()");
+		CloseHandle(thread_handle);
+		return -1;
+	}
+	memset(cpuset, 0, sizeof(rte_cpuset_t));
+	*cpuset->_bits = dwprevaffinitymask;
+	CloseHandle(thread_handle);
 	return 0;
 }
 
