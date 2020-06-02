@@ -320,14 +320,18 @@ set_non_numa_pages()
 	echo "  enter '64' to reserve 64 * 2MB pages"
 	echo -n "Number of pages: "
 	read Pages
+	numeric="^[[:digit:]]+$"
+	PG_PATH="/sys/kernel/mm/hugepages/hugepages-${HUGEPGSZ}"
+       if [[ $Pages =~ $numeric ]]; then
+		echo "echo $Pages > $PG_PATH/nr_hugepages" > .echo_tmp
+		echo "Reserving hugepages"
+		sudo sh .echo_tmp
+		rm -f .echo_tmp
+		create_mnt_huge
+	else
+		echo "Please enter a numeric value"
+	fi
 
-	echo "echo $Pages > /sys/kernel/mm/hugepages/hugepages-${HUGEPGSZ}/nr_hugepages" > .echo_tmp
-
-	echo "Reserving hugepages"
-	sudo sh .echo_tmp
-	rm -f .echo_tmp
-
-	create_mnt_huge
 }
 
 #
@@ -343,10 +347,16 @@ set_numa_pages()
 	echo "  enter '64' to reserve 64 * 2MB pages on each node"
 
 	echo > .echo_tmp
+	numeric="^[[:digit:]]+$"
 	for d in /sys/devices/system/node/node? ; do
 		node=$(basename $d)
 		echo -n "Number of pages for $node: "
 		read Pages
+		while [[ ! "$Pages" =~ $numeric ]]; do
+			echo "Please enter a numeric value"
+			echo -n "Number of pages for $node: "
+			read Pages
+		done
 		echo "echo $Pages > $d/hugepages/hugepages-${HUGEPGSZ}/nr_hugepages" >> .echo_tmp
 	done
 	echo "Reserving hugepages"
@@ -592,10 +602,15 @@ while [ "$QUIT" == "0" ]; do
 	echo "[$OPTION_NUM] Exit Script"
 	OPTIONS[$OPTION_NUM]="quit"
 	echo ""
-	echo -n "Option: "
-	read our_entry
-	echo ""
-	${OPTIONS[our_entry]} ${our_entry}
+	read -p "Option: " our_entry
+       [ $? -eq 0 ] || exit 0
+
+ 	numeric="^[[:digit:]]+$"
+       if [[ "$our_entry" =~ $numeric ]]; then
+     	        ${OPTIONS[our_entry]} ${our_entry}
+       else
+     	        echo "Please enter a numeric value"
+       fi
 
 	if [ "$QUIT" == "0" ] ; then
 		echo
