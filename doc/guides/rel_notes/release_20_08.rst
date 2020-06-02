@@ -62,6 +62,14 @@ New Features
      names and to reset them by a vDPA device.
 
 
+   * **Updated Mellanox mlx5 vDPA driver.**
+
+     Updated Mellanox mlx5 vDPA driver with new features, including:
+
+     * Added support for virtio queue statistics.
+
+
+
 Removed Items
 -------------
 
