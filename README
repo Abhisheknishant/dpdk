@@ -9,3 +9,6 @@ API documentation, and sample application information.
 
 For questions and usage discussions, subscribe to: users@dpdk.org
 Report bugs and issues to the development mailing list: dev@dpdk.org
+
+This is a test patch to test patchwork auto delegation feature using
+git send email.
