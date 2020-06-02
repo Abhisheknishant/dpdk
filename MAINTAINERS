@@ -323,6 +323,9 @@ FreeBSD UIO
 M: Bruce Richardson <bruce.richardson@intel.com>
 F: kernel/freebsd/nic_uio/
 
+Unix shared files
+F: lib/librte_eal/unix/
+
 Windows support
 M: Harini Ramakrishnan <harini.ramakrishnan@microsoft.com>
 M: Omar Cardona <ocardona@microsoft.com>
