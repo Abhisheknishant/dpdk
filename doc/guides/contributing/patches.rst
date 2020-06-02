@@ -429,22 +429,28 @@ Once the environment variable is set, the script can be run as follows::
 
 The script usage is::
 
-   checkpatches.sh [-h] [-q] [-v] [patch1 [patch2] ...]]"
+   checkpatches.sh [-h] [-q] [-v] [-nX|-r range|patch1 [patch2] ...]"
 
 Where:
 
 * ``-h``: help, usage.
 * ``-q``: quiet. Don't output anything for files without issues.
 * ``-v``: verbose.
+* ``-nX``: the number of commits to check.
+* ``-r range``: the range to check, range must be a ``git log`` option.
 * ``patchX``: path to one or more patches.
 
 Then the git logs should be checked using the ``check-git-log.sh`` script.
 
 The script usage is::
 
-   check-git-log.sh [range]
+   check-git-log.sh [-h] [-nX|-r range]
 
-Where the range is a ``git log`` option.
+Where:
+
+* ``-h``: help, usage.
+* ``-nX``: the number of commits to check.
+* ``-r range``: the range to check, range must be a ``git log`` option.
 
 
 .. _contrib_check_compilation:
