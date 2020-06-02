@@ -56,6 +56,11 @@ New Features
      Also, make sure to start the actual text at the margin.
      =========================================================
 
+   * **Added vDPA device APIs to query virtio queue statistics.**
+
+     A new 3 APIs has been added to query virtio queue statistics, to get their
+     names and to reset them by a vDPA device.
+
 
 Removed Items
 -------------
