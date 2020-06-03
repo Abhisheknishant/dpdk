@@ -15,7 +15,7 @@
  *
  */
 
-#include <rte_ethdev.h>
+#include "rte_ethdev.h"
 
 #ifdef __cplusplus
 extern "C" {
